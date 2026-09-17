@@ -45,7 +45,7 @@ function DeepDiveModelHint({ provider, model }) {
             style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-tertiary)', cursor: 'default' }}
         >
             <LuLightbulb size={11} style={{ color: 'var(--warning, #e0a030)' }} />
-            <span>modelo pequeño para Deep Dive</span>
+            <span>small model for Deep Dive</span>
             <LuX size={10} style={{ cursor: 'pointer', opacity: 0.6 }} onClick={(e) => { e.stopPropagation(); setDismissed(true); }} />
         </span>
     );
@@ -759,15 +759,15 @@ const AiDivingPanel = ({
                         <div className="ai-ask-user-banner ai-continue-banner">
                             <p className="ai-ask-user-question">
                                 {pendingContinue.resumed
-                                    ? 'Este análisis quedó pausado sin terminar.'
-                                    : 'El análisis necesita más iteraciones para completarse.'}
-                                {pendingContinue.pendingSteps > 0 && ` Quedan ${pendingContinue.pendingSteps} paso(s) pendientes.`}
+                                    ? 'This analysis was left paused, unfinished.'
+                                    : 'The analysis needs more iterations to finish.'}
+                                {pendingContinue.pendingSteps > 0 && ` ${pendingContinue.pendingSteps} step(s) still pending.`}
                             </p>
 
                             {showContinueInput && (
                                 <textarea
                                     className="ai-continue-instr"
-                                    placeholder="Instrucciones para continuar (opcional): p.ej. «solo termina s6, ignora el resto»"
+                                    placeholder="Instructions to continue (optional): e.g. 'just finish s6, skip the rest'"
                                     value={continueInstr}
                                     onChange={e => setContinueInstr(e.target.value)}
                                     rows={2}
@@ -795,17 +795,17 @@ const AiDivingPanel = ({
                                     <button
                                         className="ai-ask-user-option ai-continue-btn--ghost"
                                         onClick={() => setShowContinueInput(true)}
-                                        title="Dirigir cómo continúa el análisis"
+                                        title="Steer how the analysis continues"
                                     >
-                                        Con instrucciones…
+                                        With instructions…
                                     </button>
                                 )}
                                 <button
                                     className="ai-ask-user-option ai-continue-btn--ghost"
                                     onClick={() => { handleFinalizeNow(); setContinueInstr(''); setShowContinueInput(false); }}
-                                    title="Sintetiza lo que ya tiene, sin correr más pasos"
+                                    title="Synthesise what it already has, with no further steps"
                                 >
-                                    Finalizar con lo que hay
+                                    Finish with what there is
                                 </button>
                                 <button
                                     className="ai-ask-user-option ai-continue-btn--cancel"

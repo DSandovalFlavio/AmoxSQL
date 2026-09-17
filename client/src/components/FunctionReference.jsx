@@ -237,14 +237,14 @@ export default function FunctionReference() {
             .map(([n]) => n);
 
         return [
-            { id: 'usadas', label: 'Las que más usas', icon: LuTrendingUp,
+            { id: 'usadas', label: 'The ones you use most', icon: LuTrendingUp,
               hint: 'Contadas en tu historial de queries de este proyecto.',
               items: tomar(masUsadas) },
-            { id: 'recientes', label: 'Últimas que usaste', icon: LuClock,
-              hint: 'Por orden de la última vez que aparecieron en una query.',
+            { id: 'recientes', label: 'Most recently used', icon: LuClock,
+              hint: 'In order of the last time they showed up in a query.',
               items: tomar(usage.recent) },
             { id: 'empezar', label: 'Para empezar', icon: LuStar,
-              hint: 'El arranque típico de un análisis, útil desde el primer día.',
+              hint: 'The typical start of an analysis, useful from day one.',
               items: tomar(STARTERS) },
             { id: 'descubrir', label: 'Para descubrir', icon: LuCompass,
               hint: 'Rotan cada semana, y se saltan las que ya usas.',
@@ -260,7 +260,7 @@ export default function FunctionReference() {
         if (q.trim()) return null;
         const mapa = new Map();
         for (const fn of filtered) {
-            const clave = groupBy === 'stage' ? stageFor(fn) : (fn.category || 'Sin categoría');
+            const clave = groupBy === 'stage' ? stageFor(fn) : (fn.category || 'Uncategorised');
             if (!mapa.has(clave)) mapa.set(clave, []);
             mapa.get(clave).push(fn);
         }
@@ -330,14 +330,14 @@ export default function FunctionReference() {
                     {/* Dos ejes distintos: la ETAPA dice cuando la usas, el
                         DOMINIO de que trata. Para "algo de fechas" sigue
                         ganando el dominio, asi que se conservan los dos. */}
-                    <select className="fnref-cat" value={groupBy} onChange={e => setGroupBy(e.target.value)} title="Cómo agrupar el catálogo">
+                    <select className="fnref-cat" value={groupBy} onChange={e => setGroupBy(e.target.value)} title="How to group the catalogue">
                         <option value="stage">Por etapa</option>
                         <option value="category">Por dominio</option>
                     </select>
                     <button
                         className={`fnref-typesbtn${showTypes ? ' fnref-typesbtn--on' : ''}`}
                         onClick={() => setShowTypes(v => !v)}
-                        title="Qué significa cada tipo"
+                        title="What each type means"
                     >
                         <LuInfo size={13} />
                     </button>

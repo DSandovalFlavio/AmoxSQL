@@ -19,16 +19,16 @@ const RECOMMENDED_MODELS = [
     { id: 'qwen3.5:2b', label: 'Qwen 3.5 (2B)', size: '~1.5GB', desc: 'Ultra ligero con contexto de 32K.', tier: 'low' },
     
     // ── Balanced ──
-    { id: 'gemma4:e4b', label: 'Gemma 4 E4B', size: '~2.8GB', desc: 'Balance perfecto: tool calling + audio + vision.', tier: 'medium', isNew: true },
-    { id: 'qwen3.5:4b', label: 'Qwen 3.5 (4B)', size: '~2.5GB', desc: 'Líder en tool calling para su tamaño.', tier: 'medium' },
+    { id: 'gemma4:e4b', label: 'Gemma 4 E4B', size: '~2.8GB', desc: 'A perfect balance: tool calling + audio + vision.', tier: 'medium', isNew: true },
+    { id: 'qwen3.5:4b', label: 'Qwen 3.5 (4B)', size: '~2.5GB', desc: 'The leader in tool calling for its size.', tier: 'medium' },
     
     // ── Powerful ──
-    { id: 'gemma4:26b', label: 'Gemma 4 26B', size: '~16GB', desc: 'MoE: Solo 4B activo pero potencia de 26B.', tier: 'high', isNew: true },
-    { id: 'qwen3.5:9b', label: 'Qwen 3.5 (9B)', size: '~5.5GB', desc: 'Excelente para análisis complejos.', tier: 'medium' },
+    { id: 'gemma4:26b', label: 'Gemma 4 26B', size: '~16GB', desc: 'MoE: only 4B active but the power of 26B.', tier: 'high', isNew: true },
+    { id: 'qwen3.5:9b', label: 'Qwen 3.5 (9B)', size: '~5.5GB', desc: 'Excellent for complex analysis.', tier: 'medium' },
     
     // ── Maximum ──
-    { id: 'gemma4:31b', label: 'Gemma 4 31B', size: '~20GB', desc: 'Calidad máxima local. #3 en Arena.', tier: 'high', isNew: true },
-    { id: 'qwen3.5:27b', label: 'Qwen 3.5 (27B)', size: '~16GB', desc: 'Contexto de 256K. Potencia bruta.', tier: 'high' }
+    { id: 'gemma4:31b', label: 'Gemma 4 31B', size: '~20GB', desc: 'Top local quality. #3 on Arena.', tier: 'high', isNew: true },
+    { id: 'qwen3.5:27b', label: 'Qwen 3.5 (27B)', size: '~16GB', desc: '256K context. Raw power.', tier: 'high' }
 ];
 
 const THEMES = [
@@ -799,13 +799,13 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
             const data = await res.json();
             if (res.ok) {
                 setDocsStatus(prev => ({ ...prev, ...data }));
-                setSaveMessage({ type: 'success', text: 'Documentación de DuckDB actualizada' });
+                setSaveMessage({ type: 'success', text: 'DuckDB documentation updated' });
             } else {
-                setSaveMessage({ type: 'error', text: data.error || 'No se pudo actualizar' });
+                setSaveMessage({ type: 'error', text: data.error || 'Could not update' });
             }
             setTimeout(() => setSaveMessage(null), 3000);
         } catch {
-            setSaveMessage({ type: 'error', text: 'No se pudo actualizar (¿sin conexión?)' });
+            setSaveMessage({ type: 'error', text: 'Could not update (are you offline?)' });
             setTimeout(() => setSaveMessage(null), 3000);
         } finally {
             setDocsRefreshing(false);
@@ -1429,7 +1429,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         <div className="stg-row">
                                             <div>
                                                 <span className="stg-row-label">Show Row Numbers</span>
-                                                <p className="stg-row-desc">Añade una columna con el número de fila a la izquierda de la tabla</p>
+                                                <p className="stg-row-desc">Adds a row-number column on the left of the table</p>
                                             </div>
                                             <Toggle
                                                 on={editorSettings.showRowNumbers !== false}
@@ -1439,8 +1439,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         {editorSettings.showRowNumbers !== false && (
                                             <div className="stg-row">
                                                 <div>
-                                                    <span className="stg-row-label">Fijar Número de Fila</span>
-                                                    <p className="stg-row-desc">Mantiene la columna de número visible al desplazarte horizontalmente</p>
+                                                    <span className="stg-row-label">Pin Row Numbers</span>
+                                                    <p className="stg-row-desc">Keeps the number column visible as you scroll sideways</p>
                                                 </div>
                                                 <Toggle
                                                     on={editorSettings.stickyRowNumbers !== false}
@@ -1476,12 +1476,12 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <option value={5000}>5,000 rows</option>
                                                 <option value={10000}>10,000 rows</option>
                                                 <option value={50000}>50,000 rows</option>
-                                                <option value={0}>Sin límite</option>
+                                                <option value={0}>No limit</option>
                                             </select>
                                         </div>
                                         {editorSettings.queryResultLimit === 0 && (
                                             <div className="stg-alert stg-alert--warning stg-mt8">
-                                                <strong>Advertencia:</strong> Quitar el límite de resultados puede causar un consumo excesivo de memoria o congelar la interfaz si la tabla tiene demasiados registros. Recomendamos usar SQL Notebooks con consultas agregadas para explorar datos masivos.
+                                                <strong>Warning:</strong> removing the result limit can eat a lot of memory or freeze the interface if the table has too many records. We recommend using SQL notebooks with aggregate queries to explore very large data.
                                             </div>
                                         )}
                                     </div>
@@ -1908,7 +1908,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         </p>
                                     </div>
                                     <div className="stg-ai-actions">
-                                        <button onClick={handleSaveConfig} disabled={isSaving} className="stg-btn stg-btn--primary" title="Guarda toda la configuración (AI, cloud, editor, etc.)">
+                                        <button onClick={handleSaveConfig} disabled={isSaving} className="stg-btn stg-btn--primary" title="Saves the whole configuration (AI, cloud, editor, etc.)">
                                             {isSaving ? 'Saving...' : 'Save Settings'}
                                         </button>
                                         {saveMessage && (
@@ -2238,8 +2238,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             {/* Runtime: keep_alive + num_ctx */}
                                             <div className="stg-row stg-row--separator">
                                                 <div className="stg-flex-1">
-                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Modelo en memoria (keep-alive)</h4>
-                                                    <p className="stg-row-desc">Cuánto se queda el modelo cargado tras usarlo. Más largo = sin esperas de recarga al volver. Ej: <code>4h</code>, <code>30m</code>, <code>-1</code> (siempre).</p>
+                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Model in memory (keep-alive)</h4>
+                                                    <p className="stg-row-desc">How long the model stays loaded after you use it. Longer = no reload wait when you come back. E.g. <code>4h</code>, <code>30m</code>, <code>-1</code> (always).</p>
                                                 </div>
                                                 <input
                                                     type="text"
@@ -2253,8 +2253,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                                             <div className="stg-row stg-row--separator">
                                                 <div className="stg-flex-1">
-                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Ventana de contexto (num_ctx)</h4>
-                                                    <p className="stg-row-desc">Tokens de contexto por modelo. <code>0</code> = automático (8k modelos pequeños, 16k el resto). Debe caber en VRAM para no derramar a CPU.</p>
+                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Context window (num_ctx)</h4>
+                                                    <p className="stg-row-desc">Context tokens per model. <code>0</code> = automatic (8k for small models, 16k for the rest). It has to fit in VRAM so it does not spill to CPU.</p>
                                                 </div>
                                                 <input
                                                     type="number"
@@ -2269,8 +2269,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             {/* Memory extraction policy */}
                                             <div className="stg-row stg-row--separator">
                                                 <div className="stg-flex-1">
-                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Extracción de memorias</h4>
-                                                    <p className="stg-row-desc">Analizar cada conversación para recordar preferencias. En local usa una llamada extra al modelo que compite por el slot — por eso el default lo evita en Ollama.</p>
+                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Memory extraction</h4>
+                                                    <p className="stg-row-desc">Analyses every conversation to remember preferences. Locally it costs an extra model call that competes for the slot — which is why the default avoids it on Ollama.</p>
                                                 </div>
                                                 <select
                                                     className="stg-select"
@@ -2304,7 +2304,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                                     {m.name}
                                                                 </div>
                                                                 {fixed ? (
-                                                                    <span className="stg-row-desc" style={{ opacity: 0.7 }} title="Este modelo razona siempre por diseño">Siempre activo</span>
+                                                                    <span className="stg-row-desc" style={{ opacity: 0.7 }} title="This model always reasons, by design">Always on</span>
                                                                 ) : (
                                                                     <select
                                                                         className="stg-select"
@@ -2341,30 +2341,30 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                                             <div className="stg-row stg-row--separator">
                                                 <div className="stg-flex-1">
-                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Estado</h4>
+                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Status</h4>
                                                     <p className="stg-row-desc">
                                                         {docsStatus?.available
-                                                            ? <>Última actualización: <strong>{docsStatus.extractedAt ? new Date(docsStatus.extractedAt).toLocaleDateString() : '—'}</strong> · {docsStatus.count} temas · {docsStatus.source === 'user' ? 'actualizada' : 'copia base'}</>
-                                                            : 'Cargando…'}
+                                                            ? <>Last update: <strong>{docsStatus.extractedAt ? new Date(docsStatus.extractedAt).toLocaleDateString() : '—'}</strong> · {docsStatus.count} topics · {docsStatus.source === 'user' ? 'updated' : 'bundled copy'}</>
+                                                            : 'Loading…'}
                                                     </p>
                                                 </div>
                                                 <button
                                                     className="stg-btn stg-btn--secondary"
                                                     onClick={handleRefreshDuckdbDocs}
                                                     disabled={docsRefreshing || duckdbDocsUpdate === 'off'}
-                                                    title={duckdbDocsUpdate === 'off' ? 'Actívala en modo Manual o Automática para actualizar' : 'Descargar la última documentación'}
+                                                    title={duckdbDocsUpdate === 'off' ? 'Switch it to Manual or Automatic to update' : 'Download the latest documentation'}
                                                 >
                                                     {docsRefreshing
-                                                        ? <><LuLoader size={13} style={{ animation: 'spin 1s linear infinite', marginRight: 5, verticalAlign: '-2px' }} />Actualizando…</>
-                                                        : <><LuDownload size={13} style={{ marginRight: 5, verticalAlign: '-2px' }} />Actualizar ahora</>}
+                                                        ? <><LuLoader size={13} style={{ animation: 'spin 1s linear infinite', marginRight: 5, verticalAlign: '-2px' }} />Updating…</>
+                                                        : <><LuDownload size={13} style={{ marginRight: 5, verticalAlign: '-2px' }} />Update now</>}
                                                 </button>
                                             </div>
 
                                             <div className="stg-row stg-row--separator">
                                                 <div className="stg-flex-1">
-                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Actualización</h4>
+                                                    <h4 className="stg-section-heading stg-section-heading--mb4">Updates</h4>
                                                     <p className="stg-row-desc">
-                                                        <strong>Solo base</strong>: nunca descarga, 100% offline. <strong>Manual</strong>: tú decides con el botón. <strong>Automática</strong>: AmoxSQL la refresca cada cierto tiempo.
+                                                        <strong>Bundled only</strong>: never downloads, fully offline. <strong>Manual</strong>: you decide, with the button. <strong>Automatic</strong>: AmoxSQL refreshes it every so often.
                                                     </p>
                                                 </div>
                                                 <select
@@ -2373,17 +2373,17 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     value={duckdbDocsUpdate}
                                                     onChange={(e) => setDuckdbDocsUpdate(e.target.value)}
                                                 >
-                                                    <option value="off">Solo base (offline)</option>
+                                                    <option value="off">Bundled only (offline)</option>
                                                     <option value="manual">Manual</option>
-                                                    <option value="auto">Automática</option>
+                                                    <option value="auto">Automatic</option>
                                                 </select>
                                             </div>
 
                                             {duckdbDocsUpdate === 'auto' && (
                                                 <div className="stg-row">
                                                     <div className="stg-flex-1">
-                                                        <h4 className="stg-section-heading stg-section-heading--mb4">Frecuencia (días)</h4>
-                                                        <p className="stg-row-desc">Cada cuántos días AmoxSQL busca una versión más reciente al iniciar.</p>
+                                                        <h4 className="stg-section-heading stg-section-heading--mb4">How often (days)</h4>
+                                                        <p className="stg-row-desc">How many days between AmoxSQL checking for a newer version at startup.</p>
                                                     </div>
                                                     <input
                                                         type="number"
@@ -2504,7 +2504,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                             Connect your cloud storage buckets to export query results directly to S3 or Google Cloud Storage using DuckDB's native httpfs extension.
                                         </p>
                                     </div>
-                                    <button onClick={handleSaveConfig} disabled={isSaving} className="stg-btn stg-btn--primary" title="Guarda toda la configuración (AI, cloud, editor, etc.)">
+                                    <button onClick={handleSaveConfig} disabled={isSaving} className="stg-btn stg-btn--primary" title="Saves the whole configuration (AI, cloud, editor, etc.)">
                                         {isSaving ? 'Saving...' : 'Save Settings'}
                                     </button>
                                 </div>

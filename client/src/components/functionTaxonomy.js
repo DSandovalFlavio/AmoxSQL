@@ -41,50 +41,50 @@
 
 export const TYPES = {
     scalar: {
-        label: 'Escalar',
-        short: 'Una fila entra, un valor sale.',
-        long: 'Se calcula fila por fila. UPPER(nombre) devuelve un nombre por cada fila que ya tenías.',
+        label: 'Scalar',
+        short: 'One row in, one value out.',
+        long: 'Computed row by row. UPPER(name) gives you one name for every row you already had.',
     },
     aggregate: {
-        label: 'Agregación',
-        short: 'Muchas filas entran, un valor sale.',
-        long: 'Colapsa un grupo entero en un número. Con GROUP BY da un valor por grupo; sin él, uno para toda la tabla.',
+        label: 'Aggregate',
+        short: 'Many rows in, one value out.',
+        long: 'Collapses a whole group into one number. With GROUP BY you get a value per group; without it, one for the whole table.',
     },
     table: {
-        label: 'Tabla',
-        short: 'Devuelve una tabla entera.',
-        long: 'Va en el FROM, no en el SELECT. read_csv(\'ventas.csv\') no devuelve un valor: devuelve filas y columnas.',
+        label: 'Table',
+        short: 'Returns a whole table.',
+        long: 'It goes in the FROM, not the SELECT. read_csv(\'sales.csv\') does not return a value: it returns rows and columns.',
     },
     table_macro: {
-        label: 'Macro de tabla',
-        short: 'Un atajo que devuelve una tabla.',
-        long: 'Como una función de tabla, pero escrita en SQL sobre otras que ya existen.',
+        label: 'Table macro',
+        short: 'A shortcut that returns a table.',
+        long: 'Like a table function, but written in SQL on top of others that already exist.',
     },
     macro: {
         label: 'Macro',
-        short: 'Un atajo escrito en SQL.',
-        long: 'No está implementada dentro del motor sino definida en SQL: al usarla se expande a la expresión que representa.',
+        short: 'A shortcut written in SQL.',
+        long: 'Not implemented inside the engine but defined in SQL: using it expands to the expression it stands for.',
     },
     pragma: {
         label: 'Pragma',
-        short: 'Consulta o ajusta el motor.',
-        long: 'No trabaja con tus datos sino con DuckDB: versión, ajustes, extensiones cargadas.',
+        short: 'Queries or tunes the engine.',
+        long: 'It does not work on your data but on DuckDB: version, settings, loaded extensions.',
     },
 };
 
 export const STAGES = [
-    { id: 'cargar', label: 'Cargar datos', desc: 'Traer archivos y fuentes externas a la sesión. Casi siempre el primer paso.' },
-    { id: 'limpiar', label: 'Limpiar y convertir', desc: 'Tapar huecos, cuadrar tipos y quitar lo que sobra, antes de analizar nada.' },
-    { id: 'texto', label: 'Texto', desc: 'Buscar, partir, componer y medir parecido entre cadenas.' },
-    { id: 'idiomas', label: 'Idiomas y ordenación', desc: 'Colaciones: cómo ordenar y comparar texto según cada idioma. Se usan con COLLATE, rara vez se llaman.' },
-    { id: 'fechas', label: 'Fechas y tiempo', desc: 'Extraer partes, truncar a un periodo y calcular distancias entre momentos.' },
-    { id: 'numeros', label: 'Números', desc: 'Redondeo, potencias, trigonometría y bits.' },
-    { id: 'estructuras', label: 'Listas y estructuras', desc: 'Listas, mapas, structs y JSON: los datos que no caben en una celda plana.' },
-    { id: 'agregar', label: 'Agregar y analizar', desc: 'Resumir muchas filas en pocas, o calcular sobre una ventana de filas vecinas.' },
-    { id: 'escribir', label: 'Escribir', desc: 'Son pocas a propósito: en DuckDB se escribe con sentencias (COPY, EXPORT), no con funciones.' },
-    { id: 'explorar', label: 'Catálogo y metadatos', desc: 'Qué hay dentro: tablas, columnas, tipos, extensiones, y los metadatos de un archivo antes de leerlo.' },
-    { id: 'motor', label: 'Motor y ajustes', desc: 'Mandar sobre DuckDB: activar el registro, forzar un checkpoint, ajustar el optimizador. No tocan tus datos.' },
-    { id: 'otras', label: 'Otras', desc: 'Lo que no encaja limpiamente en ninguna de las anteriores.' },
+    { id: 'cargar', label: 'Load data', desc: 'Bringing files and outside sources into the session. Almost always the first step.' },
+    { id: 'limpiar', label: 'Clean and convert', desc: 'Filling gaps, squaring types and dropping what is in the way, before analysing anything.' },
+    { id: 'texto', label: 'Text', desc: 'Searching, splitting, composing and measuring how alike two strings are.' },
+    { id: 'idiomas', label: 'Languages and sorting', desc: 'Collations: how to sort and compare text per language. Used with COLLATE, rarely called.' },
+    { id: 'fechas', label: 'Dates and time', desc: 'Pulling out parts, truncating to a period and measuring distances between moments.' },
+    { id: 'numeros', label: 'Numbers', desc: 'Rounding, powers, trigonometry and bits.' },
+    { id: 'estructuras', label: 'Lists and structures', desc: 'Lists, maps, structs and JSON: the data that does not fit in a flat cell.' },
+    { id: 'agregar', label: 'Aggregate and analyse', desc: 'Summarising many rows into few, or computing over a window of neighbouring rows.' },
+    { id: 'escribir', label: 'Write', desc: 'There are few on purpose: in DuckDB you write with statements (COPY, EXPORT), not with functions.' },
+    { id: 'explorar', label: 'Catalogue and metadata', desc: 'What is inside: tables, columns, types, extensions, and a file\'s metadata before reading it.' },
+    { id: 'motor', label: 'Engine and settings', desc: 'Commanding DuckDB: turning on logging, forcing a checkpoint, tuning the optimiser. They do not touch your data.' },
+    { id: 'otras', label: 'Other', desc: 'What does not fit cleanly into any of the above.' },
 ];
 
 /**

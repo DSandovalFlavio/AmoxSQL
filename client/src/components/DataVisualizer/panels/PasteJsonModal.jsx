@@ -26,11 +26,11 @@ const PasteJsonModal = ({ isOpen, onClose, onApply, columns = [] }) => {
         try {
             parsed = JSON.parse(text);
         } catch (e) {
-            setError(`JSON inválido: ${e.message}`);
+            setError(`Invalid JSON: ${e.message}`);
             return null;
         }
         if (typeof parsed !== 'object' || Array.isArray(parsed) || parsed === null) {
-            setError('El JSON debe ser un objeto de configuración, no un array ni un valor primitivo.');
+            setError('The JSON has to be a configuration object, not an array and not a primitive value.');
             return null;
         }
 
@@ -90,7 +90,7 @@ const PasteJsonModal = ({ isOpen, onClose, onApply, columns = [] }) => {
             >
                 {/* Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text-active)' }}>Pegar configuración JSON</h3>
+                    <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: 'var(--text-active)' }}>Paste JSON configuration</h3>
                     <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                         <LuX size={18} />
                     </button>

@@ -668,7 +668,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                     onClick={() => {
                                         const other = onGetOtherPaneResults ? onGetOtherPaneResults() : null;
                                         if (!other) {
-                                            toast.info('El otro panel no tiene resultados para comparar todavía.');
+                                            toast.info('The other pane has no results to compare against yet.');
                                             return;
                                         }
                                         setStoredForCompare(other);
