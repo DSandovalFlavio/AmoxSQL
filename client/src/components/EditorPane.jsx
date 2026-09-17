@@ -379,8 +379,8 @@ const EditorPane = ({
                             en la que buscar el «+». */}
                         <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('amoxdiagram')}>
                             <LuShare2 size={24} />
-                            <span className="ep-empty-card-title">Diagrama</span>
-                            <span className="ep-empty-card-desc">Arquitecturas y procesos</span>
+                            <span className="ep-empty-card-title">Diagram</span>
+                            <span className="ep-empty-card-desc">Architectures and processes</span>
                         </button>
                     </div>
                 </div>
