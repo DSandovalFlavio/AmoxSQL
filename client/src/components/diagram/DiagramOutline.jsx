@@ -45,7 +45,7 @@ const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAn
 
     return (
         <div className="dgm-izq">
-            <div className="dgm-col-cab">Formas</div>
+            <div className="dgm-col-cab">Shapes</div>
             <div className="dgm-paleta">
                 {Object.entries(FORMAS).map(([id, { nombre, que }]) => (
                     <button
@@ -66,7 +66,7 @@ const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAn
                         key={f.nombre}
                         type="button"
                         className="dgm-forma dgm-forma--aprendida"
-                        title={`${f.nombre} — aprendida de un diagrama. Pulsa con Mayús para quitarla de la paleta.`}
+                        title={`${f.nombre} — learned from a diagram. Shift-click to take it out of the palette.`}
                         onClick={(e) => (e.shiftKey ? onOlvidarForma(f.nombre) : onAnadirForma(PREFIJO_NOMBRADA + f.nombre))}
                     >
                         <i className="dgm-silueta dgm-silueta--libre" style={mascaraDeSilueta(f.silueta) || undefined} />
@@ -109,13 +109,13 @@ const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAn
                 })}
                 {sueltos.some((n) => visibles.has(n.id)) && (
                     <>
-                        {grafo.subgrafos.length > 0 && <div className="dgm-grupo-rot">Sin grupo</div>}
+                        {grafo.subgrafos.length > 0 && <div className="dgm-grupo-rot">No group</div>}
                         {sueltos.filter((n) => visibles.has(n.id)).map(fila)}
                     </>
                 )}
                 {encontrados.length === 0 && (
                     <p className="dgm-lista-vacia">
-                        {grafo.nodos.length ? 'Ninguna caja con ese texto.' : 'El diagrama está vacío.'}
+                        {grafo.nodos.length ? 'Ninguna caja con ese texto.' : 'The diagram is empty.'}
                     </p>
                 )}
             </div>

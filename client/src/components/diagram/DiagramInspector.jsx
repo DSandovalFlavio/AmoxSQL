@@ -51,18 +51,18 @@ const DiagramInspector = ({
                 <div className="dgm-insp-cab">
                     <LuBoxes size={13} strokeWidth={2.3} />
                     <div>
-                        <div className="dgm-insp-tipo">Selección</div>
-                        <div className="dgm-insp-que">{seleccion.ids.length} cajas</div>
+                        <div className="dgm-insp-tipo">Selection</div>
+                        <div className="dgm-insp-que">{seleccion.ids.length} boxes</div>
                     </div>
                 </div>
                 <div className="dgm-campo">
-                    <span className="dgm-campo-lab">Cuáles</span>
+                    <span className="dgm-campo-lab">Which ones</span>
                     <div className="dgm-dato">
                         {seleccion.ids.map((id) => grafo.nodos.find((n) => n.id === id)?.texto).filter(Boolean).join(' · ')}
                     </div>
                 </div>
                 <div className="dgm-campo">
-                    <span className="dgm-campo-lab">Capa</span>
+                    <span className="dgm-campo-lab">Layer</span>
                     <div className="dgm-capas">
                         {capas.map((c) => (
                             <button key={c.nombre} type="button" className="dgm-capa"
@@ -75,7 +75,7 @@ const DiagramInspector = ({
                 </div>
                 <div className="dgm-campo dgm-campo--acciones">
                     <button type="button" className="dgm-btn dgm-btn--primary" onClick={() => onAgrupar(seleccion.ids)}>
-                        <LuLayers size={12} strokeWidth={2.3} /> Agrupar
+                        <LuLayers size={12} strokeWidth={2.3} /> Group
                     </button>
                     <button type="button" className="dgm-btn" onClick={() => onBorrar()}>
                         <LuTrash2 size={12} strokeWidth={2.3} /> Borrar
@@ -92,12 +92,12 @@ const DiagramInspector = ({
                 <div className="dgm-insp-cab">
                     <LuLayers size={13} strokeWidth={2.3} />
                     <div>
-                        <div className="dgm-insp-tipo">Grupo</div>
+                        <div className="dgm-insp-tipo">Group</div>
                         <div className="dgm-insp-que" title={grupoSel.titulo}>{grupoSel.titulo}</div>
                     </div>
                 </div>
                 <div className="dgm-campo">
-                    <label className="dgm-campo-lab" htmlFor="dgm-grupo-tit">Título</label>
+                    <label className="dgm-campo-lab" htmlFor="dgm-grupo-tit">Title</label>
                     <input
                         id="dgm-grupo-tit"
                         className="dgm-inp"
@@ -106,7 +106,7 @@ const DiagramInspector = ({
                     />
                 </div>
                 <div className="dgm-campo">
-                    <span className="dgm-campo-lab">Contiene</span>
+                    <span className="dgm-campo-lab">Contains</span>
                     <div className="dgm-dato">
                         {grupoSel.nodos.map((id) => grafo.nodos.find((n) => n.id === id)?.texto).filter(Boolean).join(' · ')}
                     </div>
@@ -115,10 +115,10 @@ const DiagramInspector = ({
                     {/* Deshacer el grupo NO borra sus cajas, y el botón lo dice:
                         «Borrar» aquí sería ambiguo de la peor manera. */}
                     <button type="button" className="dgm-btn" onClick={() => onDesagrupar(grupoSel.id)}>
-                        <LuTrash2 size={12} strokeWidth={2.3} /> Deshacer el grupo
+                        <LuTrash2 size={12} strokeWidth={2.3} /> Ungroup
                     </button>
                 </div>
-                <p className="dgm-nota">Las cajas se quedan; lo que desaparece es el recuadro.</p>
+                <p className="dgm-nota">The boxes stay; what goes is the frame around them.</p>
             </div>
         );
     }
@@ -132,22 +132,22 @@ const DiagramInspector = ({
                 <div className="dgm-insp-cab">
                     <LuMoveRight size={13} strokeWidth={2.3} />
                     <div>
-                        <div className="dgm-insp-tipo">Flecha</div>
+                        <div className="dgm-insp-tipo">Arrow</div>
                         <div className="dgm-insp-que" title={`${de} → ${a}`}>{de} → {a}</div>
                     </div>
                 </div>
                 <div className="dgm-campo">
-                    <label className="dgm-campo-lab" htmlFor="dgm-etiq">Etiqueta</label>
+                    <label className="dgm-campo-lab" htmlFor="dgm-etiq">Label</label>
                     <input
                         id="dgm-etiq"
                         className="dgm-inp"
                         value={arista.etiqueta}
-                        placeholder="sin etiqueta"
+                        placeholder="no label"
                         onChange={(e) => onEtiqueta(seleccion.indice, e.target.value)}
                     />
                 </div>
                 <div className="dgm-campo">
-                    <span className="dgm-campo-lab">Cómo corre</span>
+                    <span className="dgm-campo-lab">How it runs</span>
                     {/* Nombradas por lo que significan, no por su sintaxis: quien
                         dibuja una arquitectura no piensa «línea punteada», piensa
                         «esto va evento a evento». */}
@@ -167,7 +167,7 @@ const DiagramInspector = ({
                 </div>
                 <div className="dgm-campo dgm-campo--acciones">
                     <button type="button" className="dgm-btn" onClick={() => onBorrar()}>
-                        <LuTrash2 size={12} strokeWidth={2.3} /> Quitar la flecha
+                        <LuTrash2 size={12} strokeWidth={2.3} /> Remove the arrow
                     </button>
                 </div>
             </div>
@@ -184,12 +184,12 @@ const DiagramInspector = ({
                 <div className="dgm-insp-cab">
                     <LuBox size={13} strokeWidth={2.3} />
                     <div>
-                        <div className="dgm-insp-tipo">Caja</div>
+                        <div className="dgm-insp-tipo">Box</div>
                         <div className="dgm-insp-que" title={nodo.texto}>{nodo.texto}</div>
                     </div>
                 </div>
                 <div className="dgm-campo">
-                    <label className="dgm-campo-lab" htmlFor="dgm-texto">Texto</label>
+                    <label className="dgm-campo-lab" htmlFor="dgm-texto">Text</label>
                     <input
                         id="dgm-texto"
                         className="dgm-inp"
@@ -198,7 +198,7 @@ const DiagramInspector = ({
                     />
                 </div>
                 <div className="dgm-campo">
-                    <span className="dgm-campo-lab">Forma</span>
+                    <span className="dgm-campo-lab">Shape</span>
                     <div className="dgm-formas">
                         {Object.entries(FORMAS).map(([id, { nombre, que }]) => (
                             <BotonForma
@@ -212,7 +212,7 @@ const DiagramInspector = ({
                     </div>
                 </div>
                 <div className="dgm-campo">
-                    <span className="dgm-campo-lab">Capa</span>
+                    <span className="dgm-campo-lab">Layer</span>
                     {/* Las capas son las del diagrama, con el color que el autor
                         les dio en su `classDef`. No hay una paleta nuestra: la
                         caja se ve aquí como se verá en el documento. */}
@@ -234,7 +234,7 @@ const DiagramInspector = ({
                     </div>
                 </div>
                 <div className="dgm-campo">
-                    <label className="dgm-campo-lab" htmlFor="dgm-grupo">Grupo</label>
+                    <label className="dgm-campo-lab" htmlFor="dgm-grupo">Group</label>
                     {/* «Grupo nuevo…» estaba y no estaba: el desplegable sólo
                         listaba los grupos EXISTENTES, así que en un diagrama sin
                         ninguno no ofrecía nada y tampoco enseñaba el camino.
@@ -249,18 +249,18 @@ const DiagramInspector = ({
                             else onMoverAGrupo(nodo.id, e.target.value || null);
                         }}
                     >
-                        <option value="">sin grupo</option>
+                        <option value="">no group</option>
                         {grafo.subgrafos.map((sg) => (
                             <option key={sg.id} value={sg.id}>{sg.titulo}</option>
                         ))}
-                        <option value="@nuevo">Grupo nuevo…</option>
+                        <option value="@nuevo">New group…</option>
                     </select>
                     <p className="dgm-pista">
-                        <kbd>Ctrl</kbd> + clic en otra caja para agrupar varias de una vez.
+                        <kbd>Ctrl</kbd> + click another box to group several at once.
                     </p>
                 </div>
                 <div className="dgm-campo">
-                    <span className="dgm-campo-lab">Conexiones</span>
+                    <span className="dgm-campo-lab">Connections</span>
                     <div className="dgm-dato">{entran} entran · {salen} salen</div>
                 </div>
                 <div className="dgm-campo dgm-campo--acciones">
@@ -281,12 +281,12 @@ const DiagramInspector = ({
             <div className="dgm-insp-cab">
                 <LuShare2 size={13} strokeWidth={2.3} />
                 <div>
-                    <div className="dgm-insp-tipo">Diagrama</div>
-                    <div className="dgm-insp-que">nada seleccionado</div>
+                    <div className="dgm-insp-tipo">Diagram</div>
+                    <div className="dgm-insp-que">nothing selected</div>
                 </div>
             </div>
             <div className="dgm-campo">
-                <span className="dgm-campo-lab">Dirección</span>
+                <span className="dgm-campo-lab">Direction</span>
                 <div className="dgm-dirs">
                     {VISIBLES.map((d) => (
                         <button
@@ -302,18 +302,18 @@ const DiagramInspector = ({
                 </div>
             </div>
             <div className="dgm-campo">
-                <span className="dgm-campo-lab">Cuenta</span>
+                <span className="dgm-campo-lab">Count</span>
                 <div className="dgm-dato">
-                    {grafo.nodos.length} cajas · {grafo.aristas.length} flechas
-                    {grafo.subgrafos.length > 0 && ` · ${grafo.subgrafos.length} grupos`}
+                    {grafo.nodos.length} boxes · {grafo.aristas.length} arrows
+                    {grafo.subgrafos.length > 0 && ` · ${grafo.subgrafos.length} groups`}
                 </div>
             </div>
             {grafo.conservado.length > 0 && (
                 <div className="dgm-campo">
-                    <span className="dgm-campo-lab">Se conserva sin tocar</span>
+                    <span className="dgm-campo-lab">Kept untouched</span>
                     {/* No es una advertencia: es una promesa. Dice «esto no lo toco». */}
                     <div className="dgm-dato dgm-dato--warn">
-                        {grafo.conservado.length} {grafo.conservado.length === 1 ? 'línea' : 'líneas'} de estilo o enlace
+                        {grafo.conservado.length} {grafo.conservado.length === 1 ? 'line' : 'lines'} of styling or linking
                     </div>
                 </div>
             )}

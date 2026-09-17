@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>El cuaderno como documento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  /* ═══════════════════════════════════════════════════════════════
+     Los tokens son LITERALMENTE los de client/src/index.css (tema
+     obsidian). Copiados, no aproximados: un contrato visual que
+     inventa su paleta no es un contrato.
+     ═══════════════════════════════════════════════════════════════ */
+  --surface-base:    oklch(0.145 0.012 270);
+  --surface-raised:  oklch(0.175 0.014 270);
+  --surface-overlay: oklch(0.195 0.014 270);
+  --surface-inset:   oklch(0.160 0.013 270);
+
+  --border-subtle:  rgba(255,255,255,0.085);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong:  rgba(255,255,255,0.16);
+
+  --text-primary:   rgba(255,255,255,0.92);
+  --text-secondary: rgba(255,255,255,0.56);
+  --text-tertiary:  rgba(255,255,255,0.36);
+  --text-disabled:  rgba(255,255,255,0.20);
+
+  --acc-l: 0.730; --acc-c: 0.155; --acc-h: 195;
+  --accent-primary: oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+  --accent-muted:  color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle: color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --accent-ink: oklch(0.145 0.012 270);
+
+  --hover-bg:  rgba(255,255,255,0.06);
+  --active-bg: rgba(255,255,255,0.10);
+
+  --ok:   oklch(0.78 0.17 155);
+  --warn: oklch(0.80 0.14 70);
+  --err:  oklch(0.72 0.18 25);
+
+  --syntax-keyword:  oklch(0.72 0.12 280);
+  --syntax-string:   oklch(0.76 0.10 70);
+  --syntax-function: oklch(0.80 0.09 200);
+  --syntax-comment:  oklch(0.46 0.01 270);
+  --syntax-type:     oklch(0.79 0.12 235);
+
+  --sans: 'Manrope','Inter',system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono: 'JetBrains Mono','Consolas','Courier New',monospace;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px;
+
+  /* ── lo nuevo de esta propuesta ── */
+  --canalon: 34px;          /* el canalon izquierdo de cada celda */
+  --medida: 70ch;           /* la medida de lectura de la prosa */
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--surface-base); color:var(--text-primary);
+  font-family:var(--sans); font-size:14px; line-height:1.6;
+}
+
+/* ═══ la pagina del documento que explica la propuesta ═══ */
+.papel{max-width:1180px;margin:0 auto;padding:56px 32px 120px}
+.papel h1{font-size:34px;font-weight:800;letter-spacing:-0.02em;margin:0 0 6px}
+.papel .bajada{color:var(--text-secondary);font-size:16px;max-width:66ch;margin:0 0 8px}
+.papel h2{font-size:20px;font-weight:700;letter-spacing:-0.01em;margin:64px 0 6px;padding-top:26px;border-top:1px solid var(--border-subtle)}
+.papel h3{font-size:14px;font-weight:700;margin:28px 0 6px;color:var(--text-primary)}
+.papel p{color:var(--text-secondary);max-width:74ch;margin:0 0 12px}
+.papel p strong{color:var(--text-primary);font-weight:600}
+.papel code{font-family:var(--mono);font-size:.88em;background:var(--surface-inset);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:1px 5px}
+.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-tertiary);font-weight:700;margin:0 0 10px}
+.marco{border:1px solid var(--border-subtle);border-radius:var(--radius-xl);overflow:hidden;background:var(--surface-base);margin:20px 0 6px}
+.pie{font-size:12px;color:var(--text-tertiary);margin:0 0 4px;max-width:74ch}
+
+/* ═══════════════════════════════════════════════════════════════
+   EL CUADERNO
+   ═══════════════════════════════════════════════════════════════ */
+.cdn{display:grid;grid-template-columns:minmax(0,1fr) 260px;background:var(--surface-base)}
+.cdn-lista{min-width:0;padding:0 0 28px}
+
+/* ── la cabecera del documento ──────────────────────────────────
+   Nueva. Un cuaderno abierto debe parecer un documento antes que una
+   herramienta: primero como se llama y de que va, y despues las
+   celdas. Hoy lo primero que se ve es una barra de botones. */
+.doc-cab{padding:34px 0 22px;margin:0 var(--space, 28px);border-bottom:1px solid var(--border-subtle)}
+.doc-titulo{font-size:30px;font-weight:800;letter-spacing:-0.02em;line-height:1.2;margin:0 0 4px;
+  padding-left:calc(var(--canalon) + 10px)}
+.doc-desc{color:var(--text-disabled);font-size:14px;font-style:italic;padding-left:calc(var(--canalon) + 10px)}
+
+/* ── la celda ───────────────────────────────────────────────────
+   Deja de ser una CAJA con cabecera de botones y pasa a ser una
+   FILA del documento: canalon a la izquierda, contenido a la
+   derecha. El canalon siempre esta; lo que cambia es lo que lleva. */
+.fila{display:grid;grid-template-columns:var(--canalon) minmax(0,1fr);gap:10px;
+  padding:10px 28px;position:relative}
+
+/* La seleccion es una BARRA a la izquierda, no un borde alrededor.
+   Un borde que cambia de color compite con el borde de la celda de
+   al lado; una barra dice «esta» sin dibujar nada nuevo. */
+.fila::before{content:'';position:absolute;left:14px;top:12px;bottom:12px;width:2px;
+  border-radius:2px;background:transparent}
+.fila--sel::before{background:var(--accent-primary)}
+
+.canalon{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:9px}
+.punto{width:7px;height:7px;border-radius:50%;flex:none;margin-bottom:3px}
+.punto--dia{background:var(--ok)}
+.punto--vieja{background:var(--warn)}
+.punto--nunca{background:transparent;border:1.5px solid var(--text-disabled)}
+
+/* Los mandos del canalon: invisibles en reposo, visibles al pasar o
+   al seleccionar. Es lo que hace que un cuaderno de ocho celdas no
+   parezca una cabina de avion. */
+.mandos{display:flex;flex-direction:column;gap:2px;opacity:0;transition:opacity .12s}
+.fila:hover .mandos,.fila--sel .mandos{opacity:1}
+.mando{width:26px;height:26px;display:grid;place-items:center;border:none;background:transparent;
+  color:var(--text-tertiary);border-radius:var(--radius-sm);cursor:pointer;font-size:12px}
+.mando:hover{background:var(--hover-bg);color:var(--text-primary)}
+.mando--corre{background:var(--accent-primary);color:var(--accent-ink)}
+.mando--on{background:var(--active-bg);color:var(--text-primary)}
+
+/* ── la celda de SQL ────────────────────────────────────────────
+   Mantiene lo que ya decidimos: alto fijo, editor y resultado lado a
+   lado. Lo que pierde es la barra de diez botones de arriba. */
+.celda{border:1px solid var(--border-subtle);border-radius:var(--radius-lg);
+  background:var(--surface-raised);overflow:hidden;display:flex;flex-direction:column}
+.celda--sql{height:300px}   /* 500 en la aplicacion; aqui reducido para que quepan tres */
+
+/* La cabecera ya solo IDENTIFICA: quien es la celda y que deja. */
+.cab{display:flex;align-items:center;gap:9px;height:32px;padding:0 12px;
+  border-bottom:1px solid var(--border-subtle);background:var(--surface-inset)}
+.nombre{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--text-primary)}
+.nombre--vacio{color:var(--text-disabled);font-style:italic;font-weight:400}
+.desc{font-size:11.5px;color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp{flex:1}
+.deja{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 7px;border-radius:var(--radius-sm);
+  font-size:11px;border:1px solid var(--border-subtle);color:var(--text-disabled)}
+.deja--viva{color:var(--accent-primary);border-color:var(--accent-muted);background:var(--accent-subtle)}
+.deja--vieja{color:var(--warn);border-color:color-mix(in oklch,var(--warn) 40%,transparent);
+  background:color-mix(in oklch,var(--warn) 10%,transparent)}
+
+.cuerpo{display:grid;grid-template-columns:minmax(0,1fr) 7px minmax(0,1fr);flex:1;min-height:0}
+.editor{background:var(--surface-base);padding:10px 0;overflow:hidden}
+.tirador{border-left:1px solid var(--border-subtle);border-right:1px solid var(--border-subtle)}
+.res{background:var(--surface-base);min-width:0;display:flex;flex-direction:column}
+
+.cod{font-family:var(--mono);font-size:12px;line-height:1.65;margin:0;white-space:pre}
+.cod .ln{display:inline-block;width:30px;text-align:right;margin-right:12px;color:var(--text-disabled);user-select:none}
+.k{color:var(--syntax-keyword)} .s{color:var(--syntax-string)} .f{color:var(--syntax-function)}
+.c{color:var(--syntax-comment);font-style:italic} .t{color:var(--syntax-type)}
+
+.res-barra{display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border-bottom:1px solid var(--border-subtle);
+  font-size:11.5px;color:var(--text-tertiary)}
+.res-tab{padding:2px 8px;border-radius:var(--radius-sm)}
+.res-tab--on{background:var(--active-bg);color:var(--text-primary)}
+table.datos{width:100%;border-collapse:collapse;font-size:11.5px}
+table.datos th{text-align:left;padding:6px 10px;color:var(--text-tertiary);font-weight:600;
+  border-bottom:1px solid var(--border-subtle);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase}
+table.datos td{padding:5px 10px;color:var(--text-secondary);border-bottom:1px solid rgba(255,255,255,0.04);
+  font-family:var(--mono);font-size:11.5px}
+table.datos td.num{text-align:right;font-variant-numeric:tabular-nums}
+
+/* ── la celda de texto: SIN CAJA ────────────────────────────────
+   Este es el cambio grande. Una celda de texto deja de ser un objeto
+   con borde y cabecera y pasa a ser, simplemente, el documento.
+   Es lo que hace que un cuaderno parezca un cuaderno.
+
+   La medida es de lectura (70ch) y va SANGRADA respecto al codigo:
+   ese desnivel es el ritmo que tienen marimo y los cuadernos que se
+   leen bien — el codigo ocupa el ancho, la prosa se recoge. */
+.prosa{max-width:var(--medida);padding:4px 0 6px}
+.prosa h2{font-size:22px;font-weight:700;letter-spacing:-0.015em;margin:14px 0 8px;color:var(--text-primary)}
+.prosa h3{font-size:16px;font-weight:700;margin:20px 0 6px;color:var(--text-primary)}
+.prosa p{margin:0 0 12px;color:var(--text-secondary);font-size:14.5px;line-height:1.72}
+.prosa strong{color:var(--text-primary);font-weight:600}
+.prosa code{font-family:var(--mono);font-size:.86em;background:var(--surface-inset);
+  border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:1px 5px}
+.prosa ul{margin:0 0 12px;padding-left:20px;color:var(--text-secondary)}
+.prosa li{margin:0 0 5px}
+
+/* ── el hueco entre celdas es el sitio donde se anade ───────────
+   En reposo es aire. Al pasar el raton aparece la linea con los dos
+   botones. Hoy hay una barra fija al final del cuaderno: obliga a
+   bajar hasta abajo para meter una celda en medio. */
+.hueco{height:16px;display:grid;place-items:center;position:relative;margin:0 28px}
+.hueco::before{content:'';position:absolute;left:0;right:0;height:1px;background:var(--border-subtle);opacity:0;transition:opacity .12s}
+.hueco:hover::before{opacity:1}
+.anadir{display:flex;gap:4px;opacity:0;transition:opacity .12s;position:relative;background:var(--surface-base);padding:0 8px}
+.hueco:hover .anadir{opacity:1}
+.anadir button{height:22px;padding:0 10px;border:1px solid var(--border-subtle);background:var(--surface-raised);
+  color:var(--text-secondary);border-radius:var(--radius-md);font-size:11.5px;font-family:var(--sans);cursor:pointer}
+.anadir button:hover{color:var(--text-primary);border-color:var(--border-strong)}
+
+/* ── la barra derecha ───────────────────────────────────────────
+   Casi igual. Lo que cambia: el elemento activo del indice lleva su
+   propia barra de acento, como en las referencias. */
+.lado{border-left:1px solid var(--border-subtle);background:var(--surface-raised);padding-bottom:20px}
+.seccion{display:flex;align-items:center;gap:6px;padding:14px 14px 6px;font-size:11px;font-weight:700;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--text-tertiary)}
+.seccion .n{color:var(--text-disabled);letter-spacing:0;text-transform:none;font-weight:600}
+.idx{display:block;width:100%;text-align:left;padding:5px 14px;border:none;background:transparent;
+  color:var(--text-secondary);font-size:12.5px;cursor:pointer;border-left:2px solid transparent}
+.idx:hover{background:var(--hover-bg)}
+.idx--on{border-left-color:var(--accent-primary);color:var(--text-primary);font-weight:600;background:var(--hover-bg)}
+.idx--2{padding-left:28px;font-size:12px;color:var(--text-tertiary)}
+.vista{display:flex;align-items:center;gap:7px;padding:4px 14px;font-size:12px;color:var(--text-secondary)}
+.vista .nm{font-family:var(--mono);font-size:11.5px}
+.vista--no{color:var(--text-disabled)}
+.vista--no .nm{text-decoration:line-through}
+.aviso{margin:4px 12px 8px;padding:7px 9px;border-radius:var(--radius-md);font-size:11.5px;line-height:1.45;
+  border:1px solid color-mix(in oklch,var(--warn) 35%,transparent);
+  background:color-mix(in oklch,var(--warn) 10%,transparent);color:var(--warn)}
+
+/* ═══ comparativa antes / despues ═══ */
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin:18px 0 6px}
+.dos > div{border:1px solid var(--border-subtle);border-radius:var(--radius-lg);overflow:hidden;background:var(--surface-base)}
+.dos .rot{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:8px 12px;
+  border-bottom:1px solid var(--border-subtle);color:var(--text-tertiary);background:var(--surface-inset)}
+.antes .rot{color:var(--err)} .despues .rot{color:var(--ok)}
+.btn-viejo{display:inline-flex;align-items:center;justify-content:center;height:22px;min-width:24px;padding:0 7px;
+  border:1px solid var(--border-subtle);border-radius:0;color:var(--text-secondary);font-size:11px;background:transparent}
+.grupo-viejo{display:flex}
+.grupo-viejo .btn-viejo:first-child{border-radius:var(--radius-md) 0 0 var(--radius-md)}
+.grupo-viejo .btn-viejo:last-child{border-radius:0 var(--radius-md) var(--radius-md) 0}
+.grupo-viejo .btn-viejo + .btn-viejo{border-left:none}
+
+.nota{border-left:2px solid var(--accent-primary);padding:2px 0 2px 14px;margin:14px 0 18px;max-width:74ch}
+.nota p{margin:0 0 6px}
+.nota p:last-child{margin:0}
+
+.duda{border-left:2px solid var(--warn);padding:2px 0 2px 14px;margin:14px 0 18px;max-width:74ch}
+.duda p{margin:0 0 6px} .duda p:last-child{margin:0}
+.duda .et{color:var(--warn);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="papel">
+
+<p class="eyebrow">Contrato visual · v2</p>
+<h1>El cuaderno como documento</h1>
+<p class="bajada">Lo que ya hay funciona y no se toca: alto fijo, editor y resultado lado a lado,
+vistas vivas en la barra, «Actualizar». Lo que cambia es <strong>cuánto cromo se ve cuando no
+estás usándolo</strong>, y si la prosa vive en una caja o es el documento.</p>
+
+<h2>Lo que hacen las referencias, y nosotros no</h2>
+
+<p>Mirando marimo, Hex y Deepnote juntos, tres cosas se repiten en todas y ninguna la tenemos:</p>
+
+<h3>1. El cromo aparece a demanda, y vive a la izquierda</h3>
+<p>En reposo no hay botones. Al pasar el ratón o seleccionar la celda, los mandos aparecen en un
+<strong>canalón a la izquierda</strong>. Nuestra cabecera lleva diez controles siempre visibles, y
+en un cuaderno de ocho celdas eso son ochenta botones en pantalla compitiendo con el análisis.</p>
+
+<h3>2. La prosa no vive en una caja</h3>
+<p>Una celda de texto <em>es</em> el documento: sin borde, sin cabecera, con medida de lectura.
+Es lo único que de verdad hace que algo parezca un cuaderno y no un panel de control.</p>
+
+<h3>3. El documento se presenta antes que las celdas</h3>
+<p>Título y descripción arriba, como una página. Hoy lo primero que ve alguien al abrir un
+cuaderno es una fila de botones.</p>
+
+<h2>La propuesta, a escala</h2>
+<p class="pie">Las celdas de SQL se han reducido a 300 px para que quepan tres; en la aplicación
+siguen midiendo 500. Pasa el ratón por una celda o por el hueco entre dos.</p>
+
+<div class="marco">
+<div class="cdn">
+  <div class="cdn-lista">
+
+    <!-- ── cabecera del documento ── -->
+    <div class="doc-cab">
+      <div class="doc-titulo">Caída de septiembre</div>
+      <div class="doc-desc">Añade una descripción…</div>
+    </div>
+
+    <!-- ── prosa: sin caja ── -->
+    <div class="fila">
+      <div class="canalon">
+        <div class="mandos">
+          <button class="mando" title="Ocupar la pestaña entera">⛶</button>
+          <button class="mando" title="Más">⋯</button>
+        </div>
+      </div>
+      <div class="prosa">
+        <h2>¿Por qué cayeron las ventas?</h2>
+        <p>Las ventas cayeron un <strong>18 %</strong> respecto a agosto. Hay que separar el efecto
+        de las devoluciones del efecto de la campaña, porque contarlas juntas fue lo que infló
+        el total del mes pasado.</p>
+        <h3>Lo que se descartó</h3>
+        <p>Normalizar por días hábiles: la diferencia era de medio punto y añadía una columna que
+        nadie iba a mirar.</p>
+      </div>
+    </div>
+
+    <div class="hueco"><div class="anadir"><button>+ SQL</button><button>+ Texto</button></div></div>
+
+    <!-- ── celda de SQL: en reposo ── -->
+    <div class="fila">
+      <div class="canalon">
+        <div class="punto punto--dia" title="Al día"></div>
+        <div class="mandos">
+          <button class="mando mando--corre" title="Ejecutar">▶</button>
+          <button class="mando mando--on" title="Código y resultado">◫</button>
+          <button class="mando" title="Sólo el código">‹›</button>
+          <button class="mando" title="Sólo el resultado">▤</button>
+          <button class="mando" title="Materializar">▣</button>
+          <button class="mando" title="Pantalla completa">⛶</button>
+          <button class="mando" title="Más">⋯</button>
+        </div>
+      </div>
+      <div class="celda celda--sql">
+        <div class="cab">
+          <span class="nombre">ventas_limpias</span>
+          <span class="desc">Quito devoluciones</span>
+          <span class="sp"></span>
+          <span class="deja deja--viva">vista</span>
+        </div>
+        <div class="cuerpo">
+          <div class="editor">
+<pre class="cod"><span class="ln">1</span><span class="c">-- Quito devoluciones</span>
+<span class="ln">2</span><span class="k">SELECT</span> <span class="t">Category</span>,
+<span class="ln">3</span>       <span class="f">count</span>(*) <span class="k">AS</span> transacciones,
+<span class="ln">4</span>       <span class="f">sum</span>(<span class="s">"Price Each"</span> * <span class="s">"Quantity Ordered"</span>) <span class="k">AS</span> ingreso
+<span class="ln">5</span><span class="k">FROM</span> <span class="s">'Data/export.parquet'</span>
+<span class="ln">6</span><span class="k">WHERE</span> <span class="k">NOT</span> devuelta
+<span class="ln">7</span><span class="k">GROUP BY</span> <span class="t">Category</span>
+<span class="ln">8</span><span class="k">ORDER BY</span> ingreso <span class="k">DESC</span>;</pre>
+          </div>
+          <div class="tirador"></div>
+          <div class="res">
+            <div class="res-barra">
+              <span class="res-tab res-tab--on">Tabla</span><span class="res-tab">Gráfico</span><span class="res-tab">Perfil</span>
+              <span class="sp"></span><span>8 filas · 16.7 ms</span>
+            </div>
+            <table class="datos">
+              <tr><th>category</th><th>transacciones</th><th>ingreso</th></tr>
+              <tr><td>Cargadores</td><td class="num">21 986</td><td class="num">263 832</td></tr>
+              <tr><td>Auriculares</td><td class="num">18 254</td><td class="num">247 104</td></tr>
+              <tr><td>Monitores</td><td class="num">4 129</td><td class="num">158 720</td></tr>
+              <tr><td>Portátiles</td><td class="num">1 004</td><td class="num">102 400</td></tr>
+              <tr><td>Televisores</td><td class="num">899</td><td class="num">54 300</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hueco"><div class="anadir"><button>+ SQL</button><button>+ Texto</button></div></div>
+
+    <!-- ── celda de SQL: seleccionada y desactualizada ── -->
+    <div class="fila fila--sel">
+      <div class="canalon">
+        <div class="punto punto--vieja" title="Se editó después de ejecutarla"></div>
+        <div class="mandos">
+          <button class="mando mando--corre" title="Ejecutar">▶</button>
+          <button class="mando mando--on" title="Código y resultado">◫</button>
+          <button class="mando" title="Sólo el código">‹›</button>
+          <button class="mando" title="Sólo el resultado">▤</button>
+          <button class="mando" title="Materializar">▣</button>
+          <button class="mando" title="Pantalla completa">⛶</button>
+          <button class="mando" title="Más">⋯</button>
+        </div>
+      </div>
+      <div class="celda celda--sql">
+        <div class="cab">
+          <span class="nombre">por_region</span>
+          <span class="desc">Gasto por región</span>
+          <span class="sp"></span>
+          <span class="deja deja--vieja">editada</span>
+          <span class="deja deja--viva">vista</span>
+        </div>
+        <div class="cuerpo">
+          <div class="editor">
+<pre class="cod"><span class="ln">1</span><span class="c">-- Gasto por region</span>
+<span class="ln">2</span><span class="k">SELECT</span> region,
+<span class="ln">3</span>       <span class="f">sum</span>(ingreso) <span class="k">AS</span> total
+<span class="ln">4</span><span class="k">FROM</span> ventas_limpias
+<span class="ln">5</span><span class="k">GROUP BY</span> region;</pre>
+          </div>
+          <div class="tirador"></div>
+          <div class="res">
+            <div class="res-barra">
+              <span class="res-tab">Tabla</span><span class="res-tab res-tab--on">Gráfico</span><span class="res-tab">Perfil</span>
+              <span class="sp"></span><span>3 filas · 2.1 ms</span>
+            </div>
+            <div style="flex:1;display:grid;place-items:center;color:var(--text-disabled);font-size:12px">
+              (aquí va la figura)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hueco"><div class="anadir"><button>+ SQL</button><button>+ Texto</button></div></div>
+
+    <!-- ── celda sin nombre, sin ejecutar ── -->
+    <div class="fila">
+      <div class="canalon">
+        <div class="punto punto--nunca" title="Sin ejecutar"></div>
+        <div class="mandos">
+          <button class="mando mando--corre" title="Ejecutar">▶</button>
+          <button class="mando mando--on" title="Código y resultado">◫</button>
+          <button class="mando" title="Sólo el código">‹›</button>
+          <button class="mando" title="Sólo el resultado">▤</button>
+          <button class="mando" title="Materializar">▣</button>
+          <button class="mando" title="Pantalla completa">⛶</button>
+          <button class="mando" title="Más">⋯</button>
+        </div>
+      </div>
+      <div class="celda celda--sql" style="height:150px">
+        <div class="cab">
+          <span class="nombre nombre--vacio">sin nombre</span>
+          <span class="sp"></span>
+        </div>
+        <div class="cuerpo">
+          <div class="editor"><pre class="cod"><span class="ln">1</span></pre></div>
+          <div class="tirador"></div>
+          <div class="res"><div style="flex:1;display:grid;place-items:center;color:var(--text-disabled);font-size:12px">Sin ejecutar</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── la barra derecha ── -->
+  <div class="lado">
+    <div class="seccion">Índice <span class="sp"></span><span class="n">3</span></div>
+    <button class="idx idx--on">¿Por qué cayeron las ventas?</button>
+    <button class="idx idx--2">Lo que se descartó</button>
+
+    <div class="seccion">Vistas <span class="sp"></span><span class="n">2/3</span></div>
+    <div class="aviso">Falta una: hasta que se ejecute, lo que la lea fallará.</div>
+    <div class="vista">◲ <span class="nm">ventas_limpias</span> <span style="color:var(--text-disabled);font-size:11px">Quito devoluciones</span></div>
+    <div class="vista">◲ <span class="nm">por_region</span> <span style="color:var(--text-disabled);font-size:11px">Gasto por región</span></div>
+    <div class="vista vista--no">◲ <span class="nm">paso_3</span></div>
+
+    <div class="seccion">Parámetros <span class="sp"></span><span class="n">1</span></div>
+    <div style="padding:0 14px">
+      <div style="font-family:var(--mono);font-size:11.5px;color:var(--text-secondary);margin-bottom:3px">desde</div>
+      <input value="2026-09-01" style="width:100%;height:24px;padding:0 7px;background:var(--surface-base);
+        border:1px solid var(--border-subtle);border-radius:var(--radius-sm);color:var(--text-primary);
+        font-family:var(--mono);font-size:11.5px">
+    </div>
+  </div>
+</div>
+</div>
+
+<h2>Los cuatro cambios, uno a uno</h2>
+
+<h3>1. La cabecera de la celda pierde nueve botones</h3>
+<div class="dos">
+  <div class="antes">
+    <div class="rot">Hoy — siempre visible</div>
+    <div style="padding:12px;display:flex;align-items:center;gap:8px;background:var(--surface-inset);flex-wrap:wrap">
+      <span class="punto punto--dia"></span>
+      <span class="nombre">ventas_limpias</span>
+      <span class="desc">Quito devoluciones</span>
+      <span class="deja deja--viva">vista</span>
+      <span class="sp"></span>
+      <span class="grupo-viejo"><span class="btn-viejo">◫</span><span class="btn-viejo">‹›</span><span class="btn-viejo">▤</span></span>
+      <span class="grupo-viejo"><span class="btn-viejo">▣</span></span>
+      <span class="grupo-viejo"><span class="btn-viejo">⛶</span></span>
+      <span class="grupo-viejo"><span class="btn-viejo">∧</span><span class="btn-viejo">∨</span><span class="btn-viejo">🗑</span></span>
+      <span class="btn-viejo" style="background:var(--accent-primary);color:var(--accent-ink);border-color:transparent;border-radius:var(--radius-md)">▶ Ejecutar</span>
+    </div>
+  </div>
+  <div class="despues">
+    <div class="rot">Propuesta — en reposo</div>
+    <div style="padding:12px;display:flex;align-items:center;gap:9px;background:var(--surface-inset)">
+      <span class="nombre">ventas_limpias</span>
+      <span class="desc">Quito devoluciones</span>
+      <span class="sp"></span>
+      <span class="deja deja--viva">vista</span>
+    </div>
+  </div>
+</div>
+<p class="pie">El punto de estado se va al canalón, donde ya está el resto. Lo que queda en la
+cabecera es sólo lo que <em>identifica</em>: cómo se llama la celda, de qué va y qué deja detrás.</p>
+
+<div class="nota">
+<p><strong>Por qué esto no es sólo estética.</strong> Diez botones por celda significa que, con ocho
+celdas, la pantalla tiene ochenta controles y ningún análisis. Y el que más importa —«Ejecutar»—
+está compitiendo con nueve vecinos en vez de ser el único que se ve.</p>
+</div>
+
+<h3>2. La prosa deja de vivir en una caja</h3>
+<p>Una celda de texto pierde el borde, la cabecera y el fondo: pasa a ser el documento. Toma
+<strong>medida de lectura</strong> (unos 70 caracteres) y se queda sangrada respecto al código, que
+sí ocupa el ancho. Ese desnivel es el ritmo que tienen los cuadernos que se leen bien.</p>
+
+<h3>3. El hueco entre celdas es donde se añade</h3>
+<p>Hoy hay una barra fija al final del cuaderno: para meter una celda entre la tercera y la cuarta
+hay que bajar hasta abajo y luego subirla a mano. En la propuesta, el aire entre dos celdas
+enseña <code>+ SQL</code> y <code>+ Texto</code> al pasar por encima, y la celda nace donde la quieres.</p>
+
+<h3>4. El cuaderno se presenta como un documento</h3>
+<p>Título grande y una descripción opcional, encima de todo. El título ya existe en la cabecera del
+archivo (<code>titulo:</code>); sólo que hoy no se ve en ningún sitio.</p>
+
+<h2>Lo que NO cambia, y por qué</h2>
+<ul style="color:var(--text-secondary);max-width:74ch;padding-left:20px">
+<li><strong>El alto fijo de 500 px</strong> y el editor junto al resultado. Es lo que permite recorrer
+un cuaderno de veinte celdas, y lo decidiste así a propósito.</li>
+<li><strong>La barra derecha</strong> con vistas vivas, índice y parámetros. Es lo que ninguna de las
+referencias tiene: ellas listan variables, nosotros listamos <em>lo que se puede consultar</em>.</li>
+<li><strong>El punto de cuatro estados</strong> y los distintivos de «editada» / «desfasada». Es nuestro
+diferencial y no se toca — sólo se mueve de sitio.</li>
+</ul>
+
+<h2>Tres decisiones que quiero que confirmes</h2>
+
+<div class="duda">
+<p class="et">Duda 1 · el mando de tres posiciones</p>
+<p>En el canalón son tres iconos en vertical, y en vertical un control de tres posiciones se lee
+peor que en horizontal. La alternativa es dejarlo en la cabecera, apareciendo al pasar el ratón.
+<strong>Lo he dibujado en el canalón</strong> para que todo lo operativo esté en un sitio, pero es
+discutible.</p>
+</div>
+
+<div class="duda">
+<p class="et">Duda 2 · la prosa sin caja</p>
+<p>Al quitar la caja, una celda de texto deja de parecer una celda. Eso es lo que la hace parecer un
+documento, pero también hace menos obvio que se puede seleccionar, mover o borrar — el canalón es
+la única pista, y sólo al pasar por encima.</p>
+</div>
+
+<div class="duda">
+<p class="et">Duda 3 · el tope de altura del texto</p>
+<p>Si la prosa es el documento, el tope de 500 px deja de tener sentido: un texto largo se cortaría
+con barra de desplazamiento en medio de una frase. Propongo <strong>quitarle el tope</strong> a las
+celdas de texto y dejar el alto fijo sólo para las de SQL. Rompe el «todas miden lo mismo», pero
+esa regla existía para poder recorrer los pasos, y un texto no es un paso.</p>
+</div>
+
+</div>
+</body>
+</html>

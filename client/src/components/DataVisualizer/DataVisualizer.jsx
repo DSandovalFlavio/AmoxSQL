@@ -1031,7 +1031,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
                             onChange={e => setZoom(Number(e.target.value) / 100)}
                             style={{ width: '120px', accentColor: 'var(--accent-primary)' }} />
                         <button onClick={() => setZoom(zoomEfectivo >= zoomQueCabe - 0.01 ? 1 : zoomQueCabe)}
-                            title={zoomEfectivo >= zoomQueCabe - 0.01 ? 'Volver al tamaño real (100 %)' : 'Ajustar al hueco'}
+                            title={zoomEfectivo >= zoomQueCabe - 0.01 ? 'Back to actual size (100 %)' : 'Ajustar al hueco'}
                             style={{
                                 background: 'transparent', border: '1px solid var(--border-color)',
                                 color: 'var(--text-muted)', borderRadius: '5px', padding: '3px 7px',
@@ -1061,7 +1061,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, query = '', sourcePat
             <PasteJsonModal
                 isOpen={isPasteJsonOpen}
                 onClose={() => setIsPasteJsonOpen(false)}
-                onApply={(cfg) => { loadConfig(cfg); setAlertData({ isOpen: true, title: 'Config aplicada', type: 'success', message: 'La configuración del gráfico se aplicó correctamente.' }); }}
+                onApply={(cfg) => { loadConfig(cfg); setAlertData({ isOpen: true, title: 'Config aplicada', type: 'success', message: 'The chart configuration was applied.' }); }}
                 columns={columns}
             />
 

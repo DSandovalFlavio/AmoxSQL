@@ -174,7 +174,7 @@ const conGrupo = parsearFlujo([
     '    erp[("Ventas ERP")]',
     '    web[("Eventos web")]',
     '  end',
-    '  erp --> land["Aterrizaje"]',
+    '  erp --> land["Landing"]',
     '  web -.-> land',
 ].join('\n'));
 eq('un subgrafo', conGrupo.subgrafos.length, 1);
@@ -201,7 +201,7 @@ const conEstilo = [
     'flowchart LR',
     '  %%{init: {"theme":"dark"}}%%',
     '  %% revisado con el equipo de plataforma',
-    '  erp[("Ventas ERP")] --> land["Aterrizaje"]',
+    '  erp[("Ventas ERP")] --> land["Landing"]',
     '  classDef origen fill:#1b3a52,stroke:#4a9fd8',
     '  class erp origen',
     '  style land fill:#222',
@@ -258,7 +258,7 @@ for (const p of PLANTILLAS_DIAGRAMA) {
 const capas = parsearFlujo(cuerpoDe(PLANTILLAS_DIAGRAMA.find(p => p.id === 'capas').texto));
 eq('la plantilla por capas trae tres capas', capas.conservado.filter(l => l.startsWith('classDef')).length, 3);
 eq('y las cajas asignadas', capas.nodos.filter(n => n.clases.length).length, 4);
-eq('con sus tres zonas', capas.subgrafos.map(s => s.titulo), ['Aterrizaje', 'Refinado', 'Consumo']);
+eq('con sus tres zonas', capas.subgrafos.map(s => s.titulo), ['Landing', 'Refined', 'Consumption']);
 
 // ── forma canónica ──────────────────────────────────────────────────────────
 eq('el nodo se declara donde aparece por primera vez',
@@ -415,7 +415,7 @@ ida('la arquitectura del mockup', [
     '    erp[("Ventas ERP")]',
     '    web[("Eventos web")]',
     '  end',
-    '  erp --> land["Aterrizaje"]',
+    '  erp --> land["Landing"]',
     '  web -.-> land',
     '  land --> qa{"¿Calidad?"}',
     '  qa -->|pasa| ref["Refinado"]',

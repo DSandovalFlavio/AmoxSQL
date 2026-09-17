@@ -13,7 +13,6 @@ import { idiomaDe } from '../utils/tiposDeArchivo';
 // Lazy pane types (G10): each of these pulls a heavy dependency tree
 // (Recharts, mermaid/katex/highlight via MarkdownPreview, @xyflow/react…).
 // SqlEditor + ResultsTable stay eager — they are the default editor path.
-const SqlNotebook = lazy(() => import('./SqlNotebook'));
 const ErDiagram = lazy(() => import('./ErDiagram'));
 const DbtLineageGraph = lazy(() => import('./DbtLineageGraph'));
 const AmoxvisPane = lazy(() => import('./AmoxvisPane'));
@@ -22,6 +21,7 @@ const DeckEditor = lazy(() => import('./deck/DeckEditor'));
 const DiagramEditor = lazy(() => import('./diagram/DiagramEditor'));
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 const TextEditor = lazy(() => import('./TextEditor'));
+const CuadernoEditor = lazy(() => import('./cuaderno/CuadernoEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
 
 // Discreet fallback while a lazy pane chunk loads (matches ChainEditor's style)
@@ -649,13 +649,18 @@ const EditorPane = ({
                 ) : isNotebook ? (
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
                         <Suspense fallback={<PaneLoading />}>
-                        <SqlNotebook
+                        <CuadernoEditor
                             key={activeTab.id}
                             content={activeTab.content}
-                            onChange={(val) => onContentChange(activeTab.id, val)}
-                            onRunQuery={(q) => onRunQuery(activeTab.id, q)}
+                            onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
+                            /* El cuaderno ejecuta por su cuenta —tiene que mandar la vista
+                               junto a la consulta—, asi que de aqui solo se lleva la marca
+                               de tiempo que alimenta el «Ran hace X» de la pestana. */
+                            onEjecutada={() => { lastRunTimeRef.current = new Date(); }}
                             onSave={() => onSave && onSave()}
                             filePath={activeTab.path || null}
+                            theme={theme}
+                            editorSettings={editorSettings}
                             onToggleAi={onToggleAi}
                             showAiSidebar={showAiSidebar}
                             onCreateNew={onCreateNew}

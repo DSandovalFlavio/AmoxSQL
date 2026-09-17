@@ -81,9 +81,9 @@ export function fusionar(markdown, procedencia, textoNuevo, { forzar = false } =
 
 /** Qué decirle al usuario, en su idioma y no en el del programa. */
 export const MOTIVOS = {
-    'sin-bloques': 'El documento ya no tiene ningún diagrama.',
-    ambiguo: 'Hay dos diagramas idénticos y no se sabe cuál abriste.',
-    cambiado: 'El diagrama de este documento no es el que abriste. Alguien —o tú, en otra pestaña— lo tocó desde entonces.',
+    'sin-bloques': 'The document no longer has a diagram.',
+    ambiguo: 'There are two identical diagrams and it is not clear which one you opened.',
+    cambiado: 'The diagram in this document is not the one you opened. Somebody — or you, in another tab — touched it since.',
 };
 
 /**

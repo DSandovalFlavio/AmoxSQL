@@ -54,21 +54,21 @@
  * una a una, cuando alguien las usa de verdad.
  */
 export const FORMAS = {
-    proceso: { cercos: ['[', ']'], nombre: 'Proceso', que: 'Un paso: una transformación, un trabajo' },
-    redondeado: { cercos: ['(', ')'], nombre: 'Paso suave', que: 'Un paso menor' },
-    almacen: { cercos: ['[(', ')]'], nombre: 'Almacén', que: 'Una base de datos, un archivo, un bucket' },
-    decision: { cercos: ['{', '}'], nombre: 'Decisión', que: 'Una bifurcación' },
-    entrada: { cercos: ['[/', '/]'], nombre: 'Entrada', que: 'Algo que llega de fuera' },
-    salida: { cercos: ['[\\', '\\]'], nombre: 'Salida', que: 'Algo que sale: un informe, un fichero' },
-    hito: { cercos: ['((', '))'], nombre: 'Hito', que: 'Un punto de referencia' },
+    proceso: { cercos: ['[', ']'], nombre: 'Process', que: 'A step: a transform, a job' },
+    redondeado: { cercos: ['(', ')'], nombre: 'Soft step', que: 'A minor step' },
+    almacen: { cercos: ['[(', ')]'], nombre: 'Store', que: 'A database, a file, a bucket' },
+    decision: { cercos: ['{', '}'], nombre: 'Decision', que: 'A fork in the road' },
+    entrada: { cercos: ['[/', '/]'], nombre: 'Input', que: 'Something arriving from outside' },
+    salida: { cercos: ['[\\', '\\]'], nombre: 'Output', que: 'Something leaving: a report, a file' },
+    hito: { cercos: ['((', '))'], nombre: 'Milestone', que: 'A point of reference' },
 
-    estadio: { cercos: ['([', '])'], nombre: 'Principio o final', que: 'Donde empieza o acaba el flujo' },
-    subproceso: { cercos: ['[[', ']]'], nombre: 'Subproceso', que: 'Un proceso documentado aparte' },
-    preparacion: { cercos: ['{{', '}}'], nombre: 'Preparación', que: 'Lo que hay que dejar listo antes' },
-    manual: { cercos: ['[/', '\\]'], nombre: 'Operación manual', que: 'Un paso que hace una persona' },
-    manualEntrada: { cercos: ['[\\', '/]'], nombre: 'Entrada manual', que: 'Un dato que alguien teclea' },
-    nota: { cercos: ['>', ']'], nombre: 'Nota', que: 'Una marca al margen del flujo' },
-    fin: { cercos: ['(((', ')))'], nombre: 'Fin definitivo', que: 'Aquí se acaba, sin vuelta' },
+    estadio: { cercos: ['([', '])'], nombre: 'Start or end', que: 'Where the flow begins or ends' },
+    subproceso: { cercos: ['[[', ']]'], nombre: 'Subprocess', que: 'A process documented elsewhere' },
+    preparacion: { cercos: ['{{', '}}'], nombre: 'Setup', que: 'What has to be ready first' },
+    manual: { cercos: ['[/', '\\]'], nombre: 'Manual step', que: 'A step a person does' },
+    manualEntrada: { cercos: ['[\\', '/]'], nombre: 'Manual input', que: 'Something somebody types in' },
+    nota: { cercos: ['>', ']'], nombre: 'Note', que: 'A mark alongside the flow' },
+    fin: { cercos: ['(((', ')))'], nombre: 'Final stop', que: 'It ends here, no way back' },
 };
 
 export const FORMA_POR_DEFECTO = 'proceso';
@@ -79,10 +79,10 @@ export const FORMA_POR_DEFECTO = 'proceso';
  * evento a evento».
  */
 export const ESTILOS_ARISTA = {
-    lotes: { flecha: '-->', nombre: 'Por lotes' },
-    continuo: { flecha: '-.->', nombre: 'Continuo' },
-    principal: { flecha: '==>', nombre: 'Camino principal' },
-    simple: { flecha: '---', nombre: 'Sin dirección' },
+    lotes: { flecha: '-->', nombre: 'Batch' },
+    continuo: { flecha: '-.->', nombre: 'Streaming' },
+    principal: { flecha: '==>', nombre: 'Main path' },
+    simple: { flecha: '---', nombre: 'No direction' },
 };
 
 export const ESTILO_POR_DEFECTO = 'lotes';
@@ -321,15 +321,15 @@ function leerSubgrafo(resto, cuantos) {
 
 /** Por qué no se pudo abrir, en el idioma del usuario y no en el del programa. */
 export const MOTIVOS_FLUJO = {
-    'otro-tipo': 'no es un diagrama de flujo',
-    vacio: 'no hay ningún diagrama',
-    direccion: 'esa dirección no existe: usa TB, BT, LR o RL',
-    anidado: 'los grupos dentro de grupos todavía no se saben dibujar',
-    direccion_grupo: 'cambiar la dirección dentro de un grupo todavía no se sabe dibujar',
-    ampersand: 'varias cajas en una línea con «&» todavía no se saben escribir de vuelta',
-    'grupo-sin-cerrar': 'falta el «end» de un grupo',
-    'end-de-mas': 'hay un «end» que no cierra ningún grupo',
-    linea: 'esta línea no se entiende',
+    'otro-tipo': 'this is not a flowchart',
+    vacio: 'there is no diagram here',
+    direccion: 'that direction does not exist: use TB, BT, LR or RL',
+    anidado: 'groups inside groups cannot be drawn yet',
+    direccion_grupo: 'changing direction inside a group cannot be drawn yet',
+    ampersand: 'several boxes on one line with "&" cannot be written back yet',
+    'grupo-sin-cerrar': 'a group is missing its "end"',
+    'end-de-mas': 'there is an "end" that closes no group',
+    linea: 'this line cannot be understood',
 };
 
 /**
@@ -690,12 +690,12 @@ export function cabosSueltos(grafo) {
 
     for (const n of grafo.nodos) {
         if (!salen.has(n.id) && !entran.has(n.id) && !grupoDe(grafo, n.id)) {
-            avisos.push({ tipo: 'suelto', id: n.id, texto: `«${n.texto}» no está conectada ni agrupada` });
+            avisos.push({ tipo: 'suelto', id: n.id, texto: `"${n.texto}" is not connected or grouped` });
         }
     }
     for (const sg of grafo.subgrafos) {
         if (!(sg.nodos || []).length) {
-            avisos.push({ tipo: 'grupo-vacio', id: sg.id, texto: `El grupo «${sg.titulo}» está vacío` });
+            avisos.push({ tipo: 'grupo-vacio', id: sg.id, texto: `The group "${sg.titulo}" is empty` });
         }
     }
     const vistos = new Map();
@@ -703,7 +703,7 @@ export function cabosSueltos(grafo) {
         const clave = textoSeguro(n.texto).toLowerCase();
         if (!clave) continue;
         if (vistos.has(clave)) {
-            avisos.push({ tipo: 'repetida', id: n.id, texto: `«${n.texto}» aparece en dos cajas` });
+            avisos.push({ tipo: 'repetida', id: n.id, texto: `"${n.texto}" appears in two boxes` });
         } else vistos.set(clave, n.id);
     }
     return avisos;

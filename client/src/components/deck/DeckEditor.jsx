@@ -130,7 +130,7 @@ const DeckEditor = ({
     const aspectDeclarado = deck.frontMatter?.aspect;
     useEffect(() => {
         if (aspectDeclarado && aspectDeclarado !== '16:9') {
-            console.warn(`Report Flow: "aspect: ${aspectDeclarado}" se ignora — las láminas son siempre 16:9.`);
+            console.warn(`Report Flow: "aspect: ${aspectDeclarado}" is ignored — slides are always 16:9.`);
         }
     }, [aspectDeclarado]);
 

@@ -40,7 +40,7 @@ import './TextEditor.css';
 
 /** Cómo se llama cada idioma cuando se lo enseñas a una persona. */
 const ROTULO = {
-    plaintext: 'Texto', json: 'JSON', yaml: 'YAML', ini: 'Configuración',
+    plaintext: 'Texto', json: 'JSON', yaml: 'YAML', ini: 'Settings',
     python: 'Python', r: 'R', javascript: 'JavaScript', typescript: 'TypeScript',
     shell: 'Shell', powershell: 'PowerShell', bat: 'Lote', xml: 'XML',
     html: 'HTML', css: 'CSS', markdown: 'Markdown', sql: 'SQL',

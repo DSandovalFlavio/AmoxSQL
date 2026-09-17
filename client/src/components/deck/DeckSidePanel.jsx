@@ -20,7 +20,7 @@ import ImagesPanel from './panels/ImagesPanel';
 const TABS = [
     { key: 'slides', icon: LuLayers, title: 'Esquema' },
     { key: 'charts', icon: LuChartBar, title: 'Figuras' },
-    { key: 'images', icon: LuImage, title: 'Imágenes' },
+    { key: 'images', icon: LuImage, title: 'Images' },
 ];
 
 const DeckSidePanel = ({

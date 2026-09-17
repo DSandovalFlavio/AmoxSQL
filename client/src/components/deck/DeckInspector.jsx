@@ -33,18 +33,18 @@ import { medirAcentos, PISO_CONTRASTE } from './deckColor';
 
 /** Cómo se llama cada campo del pie donde lo lee una persona. */
 const NOMBRE_CAMPO = {
-    source: 'Fuente',
-    query: 'Consulta',
-    rows: 'Filas devueltas',
-    vars: 'Variables activas',
-    refreshed: 'Refresco',
-    number: 'Número de lámina',
+    source: 'Source',
+    query: 'Query',
+    rows: 'Rows returned',
+    vars: 'Active variables',
+    refreshed: 'Refreshed',
+    number: 'Slide number',
 };
 
 const TONOS = [
-    { id: 'theme', label: 'del tema' },
-    { id: 'light', label: 'claro' },
-    { id: 'dark', label: 'oscuro' },
+    { id: 'theme', label: 'from the theme' },
+    { id: 'light', label: 'light' },
+    { id: 'dark', label: 'dark' },
 ];
 
 /**
@@ -187,32 +187,32 @@ function PanelDeck({ frontMatter, onSetFrontMatter }) {
 
     return (
         <>
-            <Grupo titulo="Identidad">
-                <CampoTexto etiqueta="Título" valor={fm.title} placeholder="El título del deck" onCommit={(v) => onSetFrontMatter({ title: v })} />
-                <CampoTexto etiqueta="Hilo de sección" valor={fm.section} placeholder="Sale como antetítulo" onCommit={(v) => onSetFrontMatter({ section: v })} />
+            <Grupo titulo="Identity">
+                <CampoTexto etiqueta="Title" valor={fm.title} placeholder="The deck title" onCommit={(v) => onSetFrontMatter({ title: v })} />
+                <CampoTexto etiqueta="Section thread" valor={fm.section} placeholder="Shows up as the eyebrow" onCommit={(v) => onSetFrontMatter({ section: v })} />
             </Grupo>
 
-            <Grupo titulo="Color">
-                <span className="dki-campo-etiqueta">Acento</span>
+            <Grupo titulo="Colour">
+                <span className="dki-campo-etiqueta">Accent</span>
                 <div className="dki-muestras">
                     {VIBRANT_ACCENTS.map(muestra)}
                     {SOBER_ACCENTS.map(muestra)}
                 </div>
                 {flojos > 0 && (
                     <p className="dki-nota dki-nota--aviso">
-                        <LuTriangleAlert size={10} /> {flojos} {flojos === 1 ? 'acento no llega' : 'acentos no llegan'} a
-                        {' '}{PISO_CONTRASTE}:1 sobre este lienzo. Proyectados en una sala se pierden.
+                        <LuTriangleAlert size={10} /> {flojos} {flojos === 1 ? 'accent does not reach' : 'accents do not reach'}
+                        {' '}{PISO_CONTRASTE}:1 on this canvas. Projected in a room they disappear.
                     </p>
                 )}
-                <p className="dki-nota dki-nota--tenue">Sin acento elegido, el deck sigue el de la aplicación.</p>
+                <p className="dki-nota dki-nota--tenue">With no accent chosen, the deck follows the app.</p>
 
-                <span className="dki-campo-etiqueta">Paleta de figuras</span>
+                <span className="dki-campo-etiqueta">Figure palette</span>
                 <select
                     className="dki-select"
                     value={paletaActual}
                     onChange={(e) => onSetFrontMatter({ palette: e.target.value || null })}
                 >
-                    <option value="">la de cada figura</option>
+                    <option value="">each figure keeps its own</option>
                     {paletas.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
                 {paletaActual && (
@@ -227,7 +227,7 @@ function PanelDeck({ frontMatter, onSetFrontMatter }) {
                     guardadas en sesiones distintas discrepan dentro de la misma lámina.
                 </p>
 
-                <span className="dki-campo-etiqueta">Tono</span>
+                <span className="dki-campo-etiqueta">Tone</span>
                 <div className="dki-seg">
                     {TONOS.map((t) => (
                         <button
@@ -242,14 +242,14 @@ function PanelDeck({ frontMatter, onSetFrontMatter }) {
                 </div>
             </Grupo>
 
-            <Grupo titulo="Procedencia">
-                <CampoTexto etiqueta="Autor" valor={fm.author} placeholder="Quién firma el análisis" onCommit={(v) => onSetFrontMatter({ author: v })} />
-                <CampoTexto etiqueta="Periodo" valor={fm.period} placeholder="feb–ago 2024" onCommit={(v) => onSetFrontMatter({ period: v })} />
-                <CampoTexto etiqueta="Corte de datos" valor={fm.date} placeholder="14 ago 2024" onCommit={(v) => onSetFrontMatter({ date: v })} />
-                <CampoTexto etiqueta="Fuente" valor={fm.source} placeholder="Data/dataset.csv" onCommit={(v) => onSetFrontMatter({ source: v })} />
+            <Grupo titulo="Provenance">
+                <CampoTexto etiqueta="Author" valor={fm.author} placeholder="Who signs the analysis" onCommit={(v) => onSetFrontMatter({ author: v })} />
+                <CampoTexto etiqueta="Period" valor={fm.period} placeholder="Feb–Aug 2024" onCommit={(v) => onSetFrontMatter({ period: v })} />
+                <CampoTexto etiqueta="Data cutoff" valor={fm.date} placeholder="14 Aug 2024" onCommit={(v) => onSetFrontMatter({ date: v })} />
+                <CampoTexto etiqueta="Source" valor={fm.source} placeholder="Data/dataset.csv" onCommit={(v) => onSetFrontMatter({ source: v })} />
                 <p className="dki-nota dki-nota--tenue">
-                    Los cuatro salen en grande en la portada. El pie de cada lámina deriva los suyos
-                    de la consulta que ejecutó, no de aquí.
+                    All four show large on the cover. Each slide's footer derives its own from the
+                    query it ran, not from here.
                 </p>
             </Grupo>
         </>
@@ -294,7 +294,7 @@ const DeckInspector = ({
     if (colapsado) {
         return (
             <div className="deck-inspector deck-inspector--colapsado">
-                <button type="button" className="deck-inspector-expandir" onClick={onAlternarColapso} title="Mostrar el inspector">
+                <button type="button" className="deck-inspector-expandir" onClick={onAlternarColapso} title="Show the inspector">
                     <LuPanelRightOpen size={16} />
                 </button>
             </div>
@@ -306,9 +306,9 @@ const DeckInspector = ({
             <div className="deck-inspector">
                 <div className="deck-inspector-cabecera">
                     <span>Inspector</span>
-                    <button type="button" onClick={onAlternarColapso} title="Ocultar el inspector"><LuPanelRightClose size={15} /></button>
+                    <button type="button" onClick={onAlternarColapso} title="Hide the inspector"><LuPanelRightClose size={15} /></button>
                 </div>
-                <div className="deck-inspector-vacio">Sin lámina activa.</div>
+                <div className="deck-inspector-vacio">No slide is active.</div>
             </div>
         );
     }
@@ -332,11 +332,11 @@ const DeckInspector = ({
             <div className="deck-inspector-cabecera">
                 {ambito === 'deck' ? <LuPalette size={13} /> : <Icono size={13} />}
                 <span>{ambito === 'deck' ? 'El deck' : titulo}</span>
-                <button type="button" onClick={onAlternarColapso} title="Ocultar el inspector"><LuPanelRightClose size={15} /></button>
+                <button type="button" onClick={onAlternarColapso} title="Hide the inspector"><LuPanelRightClose size={15} /></button>
             </div>
 
             <div className="deck-inspector-ambito">
-                <button type="button" className={ambito === 'lamina' ? 'dki-ambito--on' : ''} onClick={() => setAmbito('lamina')}>Lámina</button>
+                <button type="button" className={ambito === 'lamina' ? 'dki-ambito--on' : ''} onClick={() => setAmbito('lamina')}>Slide</button>
                 <button type="button" className={ambito === 'deck' ? 'dki-ambito--on' : ''} onClick={() => setAmbito('deck')}>Deck</button>
             </div>
 
@@ -348,7 +348,7 @@ const DeckInspector = ({
 
                 {/* ── La región seleccionada ── */}
                 {ambito === 'lamina' && region && !esFigura && (
-                    <Grupo titulo="La región">
+                    <Grupo titulo="The region">
                         <p className="dki-nota">{region.pista}</p>
                         <p className="dki-nota dki-nota--tenue">
                             Intro para editarla · Tab para pasar a la siguiente
@@ -390,32 +390,32 @@ const DeckInspector = ({
                 {/* ── La figura ── */}
                 {ambito === 'lamina' && esFigura && (
                     <>
-                        <Grupo titulo="Origen">
+                        <Grupo titulo="Origin">
                             {chartSrc ? (
                                 <>
                                     <div className="dki-valor dki-valor--mono">{chartSrc.split('/').pop()}</div>
                                     <div className="dki-botonera">
-                                        <button type="button" onClick={onRequestAddChart}>Sustituir</button>
-                                        <button type="button" onClick={() => onOpenFile?.(chartSrc)} title="Abrir el .amoxvis en Story Flow">
+                                        <button type="button" onClick={onRequestAddChart}>Replace</button>
+                                        <button type="button" onClick={() => onOpenFile?.(chartSrc)} title="Open the .amoxvis in Story Flow">
                                             <LuExternalLink size={12} /> Abrir
                                         </button>
                                     </div>
                                     <div className="dki-botonera">
-                                        <button type="button" className="dki-boton--quitar" onClick={onRemoveChart}>Quitar la figura</button>
+                                        <button type="button" className="dki-boton--quitar" onClick={onRemoveChart}>Remove the figure</button>
                                     </div>
                                 </>
                             ) : (
                                 <>
-                                    <p className="dki-nota">Este hueco está vacío.</p>
+                                    <p className="dki-nota">This slot is empty.</p>
                                     <div className="dki-botonera">
-                                        <button type="button" onClick={onRequestAddChart}>Elegir una figura</button>
+                                        <button type="button" onClick={onRequestAddChart}>Pick a figure</button>
                                     </div>
                                 </>
                             )}
                         </Grupo>
 
                         {chartSrc && (
-                            <Grupo titulo="Presentación">
+                            <Grupo titulo="Presentation">
                                 <p className="dki-nota dki-nota--tenue">
                                     La figura entra sin su tarjeta: la lámina ya es la tarjeta. Se recupera
                                     con <code>card: true</code> en el bloque, y el interruptor llega con los
@@ -425,19 +425,19 @@ const DeckInspector = ({
                         )}
 
                         {procedencia && (
-                            <Grupo titulo="Frescura">
-                                <Campo etiqueta="Filas">
+                            <Grupo titulo="Freshness">
+                                <Campo etiqueta="Rows">
                                     <span className="dki-valor">
-                                        {procedencia.rows ?? '—'}{procedencia.limited ? ' (recortadas)' : ''}
+                                        {procedencia.rows ?? '—'}{procedencia.limited ? ' (trimmed)' : ''}
                                     </span>
                                 </Campo>
-                                <Campo etiqueta="Ejecutada">
+                                <Campo etiqueta="Ran at">
                                     <span className="dki-valor">
                                         {procedencia.at ? new Date(procedencia.at).toLocaleString() : '—'}
                                     </span>
                                 </Campo>
                                 <p className="dki-nota dki-nota--tenue">
-                                    <LuRefreshCw size={10} /> «Refrescar» vuelve a ejecutar la consulta de todas las figuras.
+                                    <LuRefreshCw size={10} /> "Refresh" re-runs the query behind every figure.
                                 </p>
                             </Grupo>
                         )}
@@ -446,7 +446,7 @@ const DeckInspector = ({
 
                 {/* ── La lámina ── siempre, porque siempre hay una */}
                 {ambito === 'lamina' && (<>
-                <Grupo titulo="Disposición">
+                <Grupo titulo="Layout">
                     {DECK_LAYOUT_GALLERY_BY_FAMILY.map((familia) => (
                         <div key={familia.key} className="dki-familia">
                             <div className="dki-familia-label">{familia.label}</div>
@@ -454,8 +454,8 @@ const DeckInspector = ({
                                 {familia.items.map((item) => {
                                     const sueltas = item.id === layout ? 0 : figurasSinHueco(item.id, charts);
                                     const aviso = sueltas === 1
-                                        ? 'Una figura se quedaría sin hueco donde pintarse (no se borra del archivo).'
-                                        : `${sueltas} figuras se quedarían sin hueco donde pintarse (no se borran del archivo).`;
+                                        ? 'One figure would be left with no slot to draw in (it is not removed from the file).'
+                                        : `${sueltas} figures would be left with no slot to draw in (they are not removed from the file).`;
                                     return (
                                         <button
                                             key={item.id}
@@ -479,7 +479,7 @@ const DeckInspector = ({
                     ))}
                 </Grupo>
 
-                <Grupo titulo="Tono">
+                <Grupo titulo="Tone">
                     <div className="dki-seg">
                         {TONOS.map((t) => (
                             <button
@@ -493,14 +493,14 @@ const DeckInspector = ({
                         ))}
                     </div>
                     <p className="dki-nota dki-nota--tenue">
-                        «Del tema» sigue al claro u oscuro de la aplicación. Los otros dos mandan pase donde pase.
+                        "From the theme" follows the app's light or dark. The other two win wherever it plays.
                     </p>
                 </Grupo>
 
-                <Grupo titulo="Pie de procedencia">
+                <Grupo titulo="Provenance footer">
                     {sinPie ? (
                         <p className="dki-nota dki-nota--tenue">
-                            Ni la portada ni el cierre llevan pie: ya enseñan fuente y fecha en grande.
+                            Neither the cover nor the closing carries a footer: they already show source and date large.
                         </p>
                     ) : (
                         FOOTER_FIELDS.map((campo) => (

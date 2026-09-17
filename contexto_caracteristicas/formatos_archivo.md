@@ -1,158 +1,122 @@
 # AmoxSQL — Formatos de Archivo Propios
 
 > Referencia completa de todos los formatos de archivo que AmoxSQL lee, escribe o interpreta.  
-> Parser principal: `client/src/utils/notebookParser.js`
+> Lector y escritor del cuaderno: `client/src/utils/cuadernoFile.js`
 
 ---
 
-## 1. `.sqlnb` — SQL Notebook
+## 1. `.sqlnb` — El cuaderno
 
-### Formato Actual: v3.0 (JSON)
+### Markdown con cabecera
 
-Los notebooks son archivos JSON con extensión `.sqlnb`. El estado visual (resultados, charts) puede estar embebido en el JSON (v3.0) o en un sidecar separado.
+El cuaderno **no es JSON**. Es markdown con front-matter, y eso es deliberado: se lee tal
+cual en cualquier editor, y un diff de Git enseña el análisis en vez de llaves.
+
+```markdown
+---
+titulo: Caída de septiembre
+parametros:
+  desde: 2026-09-01
+  hasta: 2026-09-30
+---
+
+# ¿Por qué cayeron las ventas?
+
+Contexto del análisis.
+
+<!-- celda: ventas_limpias -->
+```sql
+-- Quito devoluciones
+SELECT * FROM ventas WHERE NOT devuelta AND f >= {{desde}};
+```
+
+<!-- celda: por_region materializada -->
+```sql
+-- Gasto por región
+SELECT region, sum(importe) AS total FROM ventas_limpias GROUP BY region;
+```
+```
+
+| Pieza | Qué es |
+|---|---|
+| Front-matter | `titulo` y `parametros` (pares `nombre: valor`, un solo nivel) |
+| `<!-- celda: nombre -->` | El nombre de la celda, que es **el de la vista temporal que deja puesta** |
+| ` materializada` | Detrás del nombre: la celda deja una tabla temporal en vez de una vista |
+| Bloque ` ```sql ` | Una celda de SQL |
+| Markdown suelto | Una celda de texto |
+
+**Lo que el archivo NO guarda:** resultados, configuración de gráficos ni modo de vista. Eso
+va en el archivo de estado, porque es de quien mira y no del análisis.
+
+### Parámetros
+
+`{{nombre}}`, la misma convención que los tableros `.amoxdeck`, con la misma función de
+sustitución (`injectEnvironmentVariables`). Un texto entra **entrecomillado** y un número tal
+cual, así que se escribe `f >= {{desde}}`.
+
+No confundir con `${...}`, que son las variables del editor de consultas y tienen su propio
+panel. Que el producto arrastre dos convenciones es un lío heredado; el cuaderno se queda con
+la suya porque cambiarla rompería en silencio los archivos guardados.
+
+### Formatos anteriores
+
+`leerCuaderno` reconoce y lee tres formatos viejos, y los **guarda ya en el nuevo**:
+
+| Formato | Cómo se reconoce | Qué pasa al abrirlo |
+|---|---|---|
+| JSON v3.0 | `{ version, cells[], environment }` | Las celdas `input` pasan a `parametros` de la cabecera |
+| JSON v2.0 | `type: "sql"` en vez de `"code"` | Igual |
+| Marcadores | `-- !CELL:CODE!` / `-- !CELL:MARKDOWN!` | Igual |
+
+Las celdas de código de esos formatos **no tenían nombre**, así que salen sin él y se
+bautizan (`paso_N`) la primera vez que se ejecutan.
+
+---
+
+## 2. `.sqlnb.state.json` — El estado visual
+
+Archivo hermano del `.sqlnb` que guarda **lo que es de quien mira, no del análisis**: el modo
+de cada celda, el reparto entre editor y resultado, y la configuración de su gráfico.
+
+**Nombre:** `{mismo-nombre}.sqlnb.state.json` — `analisis.sqlnb` → `analisis.sqlnb.state.json`
 
 ```json
 {
-  "version": "3.0",
-  "cells": [
-    {
-      "id": "cell_abc123",
-      "type": "code",
-      "content": "SELECT * FROM orders LIMIT 10",
-      "state": {
-        "result": {
-          "data": [{ "order_id": 1, "amount": 150.0, "status": "paid" }],
-          "columns": [
-            { "name": "order_id", "type": "BIGINT" },
-            { "name": "amount",   "type": "DOUBLE" },
-            { "name": "status",   "type": "VARCHAR" }
-          ],
-          "rowCount": 10,
-          "totalRows": 50000,
-          "truncated": true,
-          "executionTime": 234
-        },
-        "chartConfig": {
-          "chartType": "bar",
-          "xAxisKey": "status",
-          "yAxisKeys": ["amount"]
-        },
-        "viewMode": "chart",
-        "resultHeight": 350
-      }
+  "celdas": {
+    "n:ventas_limpias": {
+      "modo": "ambos",
+      "reparto": 0.5,
+      "vista": "chart",
+      "grafico": { "chartType": "bar", "xAxisKey": "region" }
     },
-    {
-      "id": "cell_def456",
-      "type": "markdown",
-      "content": "## Análisis de Ventas\n\nEl 60% de los pedidos están en estado `paid`."
-    },
-    {
-      "id": "cell_ghi789",
-      "type": "input",
-      "content": "",
-      "inputConfig": {
-        "label": "Fecha inicio",
-        "variable": "start_date",
-        "defaultValue": "2024-01-01",
-        "inputType": "date"
-      }
-    }
-  ],
-  "environment": {
-    "dbPath": "/path/to/data.duckdb",
-    "variables": {
-      "start_date": "2024-01-01"
-    }
+    "p:2": { "modo": "resultado" }
   }
 }
 ```
 
-### Campos de una Celda
+### La clave no es el identificador, y eso importa
 
-| Campo | Tipo | Requerido | Descripción |
-|-------|------|-----------|-------------|
-| `id` | string | ✅ | Identificador único (`cell_{random}`) |
-| `type` | `"code"` \| `"markdown"` \| `"input"` | ✅ | Tipo de celda |
-| `content` | string | ✅ | SQL, markdown, o vacío para inputs |
-| `state` | object | ❌ | Estado visual (solo celdas `code`) |
-| `state.result` | object | ❌ | Resultado de la última ejecución |
-| `state.chartConfig` | object | ❌ | Config del gráfico (ver formato `.amoxvis`) |
-| `state.viewMode` | `"table"` \| `"chart"` | ❌ | Vista activa al abrir |
-| `state.resultHeight` | number | ❌ | Altura del panel de resultados en px |
-| `inputConfig` | object | ❌ | Solo para celdas `input` |
+`n:nombre` cuando la celda tiene nombre; `p:posición` mientras no lo tenga.
 
-**Límite de serialización:** Los resultados se truncan a 500 filas al guardar en `.sqlnb`. Esto mantiene el archivo en un tamaño razonable. `state.result.truncated` indica si hay más filas disponibles.
+**No puede ser el `id` de la celda**, aunque sea lo natural: el identificador se genera al
+leer el archivo, así que cambia en cada apertura y el estado guardado quedaría huérfano —el
+gráfico configurado hoy aparecería mañana como una tabla, sin error y sin causa visible—.
 
-### Formato Legacy: v2.0 (JSON anterior)
+Como la posición se usa cuando no hay nombre, **añadir, borrar, mover y renombrar reescriben
+el mapa** (`reclavar` en `claves.js`). Sin eso, mover una celda una fila hacia arriba le daría
+el gráfico de su vecina, que es exactamente lo que hacía la notebook anterior.
 
-```json
-{
-  "version": "2.0",
-  "cells": [
-    { "id": "c1", "type": "sql", "content": "SELECT 1" }
-  ]
-}
-```
+### El endpoint reescribe el archivo entero
 
-Diferencias: `type: "sql"` en lugar de `"code"`, sin campo `state` embebido, sin `environment`.
-
-`notebookParser.js` detecta ambas versiones y migra automáticamente a v3.0 al parsear.
-
-### Formato Legacy: marker-based (pre-v2.0)
-
-El formato más antiguo usaba marcadores de texto plano:
-```
--- [CELL:sql]
-SELECT * FROM orders
--- [/CELL]
--- [CELL:markdown]
-## Title
--- [/CELL]
-```
-
-También soportado por el parser — migra a v3.0 automáticamente.
-
----
-
-## 2. `.sqlnb.state.json` — Sidecar State
-
-Archivo hermano del `.sqlnb` que persiste el estado visual sin modificar el notebook principal. Permite que el notebook sea "limpio" mientras el estado visual se guarda por separado.
-
-**Nombre:** `{mismo-nombre}.sqlnb.state.json`  
-**Ejemplo:** `analysis.sqlnb` → `analysis.sqlnb.state.json`
-
-```json
-{
-  "version": "1.0",
-  "cells": {
-    "cell_abc123": {
-      "result": {
-        "data": [...],
-        "columns": [...],
-        "rowCount": 10,
-        "executionTime": 234
-      },
-      "chartConfig": { "chartType": "line", "xAxisKey": "month" },
-      "viewMode": "chart",
-      "resultHeight": 400
-    },
-    "cell_def456": {
-      "viewMode": "table"
-    }
-  },
-  "lastModified": "2026-05-01T12:34:56.000Z"
-}
-```
-
-**Cuándo se crea:** Al ejecutar una celda en un notebook que ya está guardado en disco.
-
-**Prioridad:** Al abrir un notebook, si existe el sidecar, su estado tiene prioridad sobre el estado embebido en el `.sqlnb`. Esto permite editar el SQL del notebook sin perder los resultados del sidecar.
+`POST /api/notebook-state` **no fusiona**. El cuaderno guarda lo suyo bajo `celdas`, pero el
+mismo archivo puede llevar el `cells` de la notebook anterior: quien escriba tiene que
+conservar lo que no es suyo, o borrará del disco el trabajo de otro.
 
 ---
 
 ## 3. `.amoxvis` — Chart Configuration
 
-Archivo JSON que guarda la configuración completa de un gráfico. Se puede usar standalone (guardado desde ResultsTable "Save chart config") o embebido en `state.chartConfig` dentro de un `.sqlnb`.
+Archivo JSON que guarda la configuración completa de un gráfico. Se puede usar standalone (guardado desde ResultsTable "Save chart config") o referenciado desde el estado de una celda de cuaderno.
 
 ```json
 {

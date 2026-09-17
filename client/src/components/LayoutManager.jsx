@@ -433,9 +433,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const cerrando = tabs.find(t => t.id === tabId);
         if (cerrando?.procedencia && cerrando.dirty) {
             const ok = await stateRef.current.dialog.confirmAsync({
-                title: 'Cerrar sin guardar',
-                message: `El diagrama no ha vuelto a ${cerrando.procedencia.archivo.split(/[/\\]/).pop()}. Se perderán los cambios.`,
-                confirmLabel: 'Cerrar de todos modos',
+                title: 'Close without saving',
+                message: `The diagram has not gone back into ${cerrando.procedencia.archivo.split(/[/\\]/).pop()}. The changes will be lost.`,
+                confirmLabel: 'Close anyway',
                 destructive: true,
             });
             if (!ok) return;
@@ -480,9 +480,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         if (dirtyOnes.length > 0) {
             const { dialog } = stateRef.current;
             const ok = await dialog.confirmAsync({
-                title: dirtyOnes.length === 1 ? 'Cerrar sin guardar' : `Cerrar ${dirtyOnes.length} archivos sin guardar`,
-                message: `Se perderán los cambios de: ${dirtyOnes.map(t => t.name).join(', ')}`,
-                confirmLabel: 'Cerrar de todos modos',
+                title: dirtyOnes.length === 1 ? 'Close without saving' : `Close ${dirtyOnes.length} files without saving`,
+                message: `You will lose the changes in: ${dirtyOnes.map(t => t.name).join(', ')}`,
+                confirmLabel: 'Close anyway',
                 destructive: true,
             });
             if (!ok) return;
@@ -675,22 +675,22 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             let mode = getSqlFilePref(tab?.path); // 'script' | 'notebook' | null
             if (!mode) {
                 const choice = await dialog.chooseAsync({
-                    title: 'Se detectaron múltiples consultas',
-                    message: `Este archivo tiene ${statements.length} sentencias SQL. ¿Cómo quieres ejecutarlo?`,
+                    title: 'Several queries found',
+                    message: `This file has ${statements.length} SQL statements. How do you want to run it?`,
                     options: [
                         {
                             value: 'script',
-                            label: 'Ejecutar como script',
+                            label: 'Run as a script',
                             primary: true,
-                            description: 'Corre cada sentencia en orden y muestra un resumen (filas afectadas, tablas creadas). Si la última es un SELECT, muestra su tabla.',
+                            description: 'Runs each statement in order and shows a summary (rows affected, tables created). If the last one is a SELECT, it shows its table.',
                         },
                         {
                             value: 'notebook',
-                            label: 'Convertir a SQL Notebook',
-                            description: 'Separa cada sentencia en su propia celda para análisis iterativo.',
+                            label: 'Turn into a SQL notebook',
+                            description: 'Splits each statement into its own cell, for working through it step by step.',
                         },
                     ],
-                    checkboxLabel: tab?.path ? 'Recordar mi elección para este archivo' : null,
+                    checkboxLabel: tab?.path ? 'Remember my choice for this file' : null,
                     cancelLabel: 'Cancelar',
                 });
                 if (!choice || !choice.value) return { cancelled: true };
@@ -842,7 +842,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 dirty: false,
                 procedencia: { ...tab.procedencia, original: mermaid },
             });
-            if (!isSilent) toast.success(r.movido ? 'Guardado (el diagrama había cambiado de sitio)' : 'Guardado');
+            if (!isSilent) toast.success(r.movido ? 'Saved (the diagram had moved)' : 'Saved');
             return { ok: true };
         } catch (e) {
             if (!isSilent) toast.error(`Error al guardar: ${e.message}`);
@@ -879,14 +879,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const { toast, onRequestSaveAs } = stateRef.current;
         const nombre = tab.name || tab.path;
         const elegido = await dialog.chooseAsync({
-            title: 'Este archivo cambió fuera de la aplicación',
-            message: `${nombre} no es el que abriste: alguien lo ha cambiado desde entonces, y tú tienes cambios sin guardar. Las dos versiones son trabajo.`,
+            title: 'This file changed outside the app',
+            message: `${nombre} is not the one you opened: somebody has changed it since, and you have unsaved changes. Both versions are work.`,
             options: [
-                { value: 'aparte', label: 'Guardar aparte…', primary: true, description: 'Conserva las dos versiones' },
-                { value: 'sobrescribir', label: 'Sobrescribir', description: 'Se pierde lo que cambió fuera' },
-                { value: 'descartar', label: 'Descartar lo mío', description: 'Se pierde lo que escribiste aquí' },
+                { value: 'aparte', label: 'Save a copy…', primary: true, description: 'Keeps both versions' },
+                { value: 'sobrescribir', label: 'Overwrite', description: 'You lose what changed outside' },
+                { value: 'descartar', label: 'Discard mine', description: 'You lose what you wrote here' },
             ],
-            cancelLabel: 'Cancelar',
+            cancelLabel: 'Cancel',
         });
         const opcion = elegido?.value ?? elegido;
 
@@ -904,7 +904,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 if (datos.error) throw new Error(datos.error);
                 updateTab(pane, tab.id, { content: datos.content, dirty: false, firma: datos.firma || null });
                 if (tab.path) clearDraft(tab.path);
-                toast.info(`${nombre}: traída la versión del disco.`);
+                toast.info(`${nombre}: brought in the version from disk.`);
             } catch (e) {
                 toast.error(`No se pudo leer el archivo: ${e.message}`);
             }
@@ -944,7 +944,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                          * compare contra una versión que ya no existe.
                          */
                         updateTab(pane, tab.id, { firma: null, dirty: true });
-                        toast.info(`${tab.name} ya no está en el disco. Lo que ves sigue aquí; guárdalo si lo quieres.`);
+                        toast.info(`${tab.name} is no longer on disk. What you see is still here; save it if you want it.`);
                         continue;
                     }
 
@@ -966,7 +966,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         // usuario decide cuándo atenderlo, y el guardado no puede
                         // colarse mientras tanto porque la firma ya no cuadra y
                         // el servidor lo rechaza.
-                        toast.info(`${tab.name} cambió fuera de la aplicación y tienes cambios sin guardar. Al guardar se te preguntará.`);
+                        toast.info(`${tab.name} changed outside the app and you have unsaved changes. You will be asked when you save.`);
                     }
                 }
             }
@@ -1356,7 +1356,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         reabrirUltima: async () => {
             const { toast } = stateRef.current;
             const ultima = cerradasRef.current.shift();
-            if (!ultima) { toast.info('No hay ninguna pestaña cerrada que recuperar.'); return; }
+            if (!ultima) { toast.info('There is no closed tab to bring back.'); return; }
             try {
                 const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(ultima.path)}`);
                 const datos = await res.json();
@@ -1847,7 +1847,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             if (!cols || cols.length === 0) return 'Unable to read columns';
             const shown = cols.slice(0, MAX_COLS_IN_COMMENT).map(c => `${c.name} (${c.type})`).join(', ');
             const extra = cols.length - MAX_COLS_IN_COMMENT;
-            return extra > 0 ? `${shown}, … (+${extra} columnas más, no mostradas)` : shown;
+            return extra > 0 ? `${shown}, … (+${extra} more columns, not shown)` : shown;
         };
 
         if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')) {

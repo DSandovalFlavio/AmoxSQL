@@ -20,12 +20,12 @@ export const EXT_DIAGRAMA = '.amoxdiagram';
 /** Con qué empieza un diagrama nuevo. Tres cajas: un origen, un proceso, un destino. */
 export const DIAGRAMA_INICIAL = [
     '---',
-    'title: Diagrama sin título',
+    'title: Untitled diagram',
     '---',
     '',
     '```mermaid',
     'flowchart LR',
-    '  origen["Origen"] --> proceso["Transformación"]',
+    '  origen["Source"] --> proceso["Transform"]',
     '  proceso --> destino["Destino"]',
     '```',
     '',
@@ -92,7 +92,7 @@ export function escribirDiagrama(contenido, grafo) {
 }
 
 /** Un archivo nuevo a partir de un grafo — para «Guardar como» desde un markdown. */
-export function archivoDesdeGrafo(grafo, titulo = 'Diagrama sin título') {
+export function archivoDesdeGrafo(grafo, titulo = 'Untitled diagram') {
     const cabecera = `---\ntitle: ${titulo}\n---\n\n`;
     return `${cabecera}\`\`\`mermaid\n${flujoAMermaid(grafo || flujoVacio())}\n\`\`\`\n`;
 }

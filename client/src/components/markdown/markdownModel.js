@@ -66,11 +66,11 @@ const PRIORITY = ['code', 'table', 'heading', 'thematicBreak', 'listItem', 'bloc
 const ALERT_RE = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/i;
 
 const ALERT_LABELS = {
-    note: 'Nota',
-    tip: 'Consejo',
-    important: 'Importante',
-    warning: 'Aviso',
-    caution: 'Atención',
+    note: 'Note',
+    tip: 'Tip',
+    important: 'Important',
+    warning: 'Warning',
+    caution: 'Caution',
 };
 
 /** Nodos que contienen la línea dada, de fuera hacia dentro. */
@@ -95,7 +95,7 @@ function chainAt(tree, line) {
 export function blockAt(tree, line) {
     const fm = tree?.data?.frontmatter;
     if (fm && line >= fm.startLine && line <= fm.endLine) {
-        return { type: 'frontmatter', label: 'Cabecera', startLine: fm.startLine, endLine: fm.endLine, node: null };
+        return { type: 'frontmatter', label: 'Front matter', startLine: fm.startLine, endLine: fm.endLine, node: null };
     }
 
     const chain = chainAt(tree, line);
@@ -107,7 +107,7 @@ export function blockAt(tree, line) {
     }
 
     if (!picked) {
-        return { type: 'paragraph', label: 'Párrafo', startLine: line, endLine: line, node: null };
+        return { type: 'paragraph', label: 'Paragraph', startLine: line, endLine: line, node: null };
     }
 
     const startLine = picked.position.start.line;
@@ -116,20 +116,20 @@ export function blockAt(tree, line) {
 
     switch (picked.type) {
         case 'heading':
-            return { ...base, type: 'heading', level: picked.depth, label: `Título ${picked.depth}` };
+            return { ...base, type: 'heading', level: picked.depth, label: `Heading ${picked.depth}` };
 
         case 'code':
-            return { ...base, type: 'code', lang: picked.lang || '', label: picked.lang ? `Código · ${picked.lang}` : 'Bloque de código' };
+            return { ...base, type: 'code', lang: picked.lang || '', label: picked.lang ? `Code · ${picked.lang}` : 'Code block' };
 
         case 'table':
-            return { ...base, type: 'table', label: 'Tabla' };
+            return { ...base, type: 'table', label: 'Table' };
 
         case 'thematicBreak':
-            return { ...base, type: 'thematicBreak', label: 'Separador' };
+            return { ...base, type: 'thematicBreak', label: 'Divider' };
 
         case 'listItem': {
             if (picked.checked === true || picked.checked === false) {
-                return { ...base, type: 'task', checked: picked.checked === true, label: 'Tarea' };
+                return { ...base, type: 'task', checked: picked.checked === true, label: 'Task' };
             }
             const list = [...chain].reverse().find((n) => n.type === 'list');
             const ordered = !!list?.ordered;
@@ -142,11 +142,11 @@ export function blockAt(tree, line) {
                 const kind = marker[1].toLowerCase();
                 return { ...base, type: 'callout', kind, label: `Callout · ${ALERT_LABELS[kind]}` };
             }
-            return { ...base, type: 'blockquote', label: 'Cita' };
+            return { ...base, type: 'blockquote', label: 'Quote' };
         }
 
         default:
-            return { ...base, type: 'paragraph', label: 'Párrafo' };
+            return { ...base, type: 'paragraph', label: 'Paragraph' };
     }
 }
 

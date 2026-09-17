@@ -94,7 +94,7 @@ function BloqueKpis({ raw }) {
     const { datos, error } = parseYaml(raw);
     if (error) return <ErrorDeBloque lang="kpis" mensaje={error} />;
     const items = Array.isArray(datos) ? datos : (datos?.items || []);
-    if (!items.length) return <ErrorDeBloque lang="kpis" mensaje="sin métricas — escribe una lista" />;
+    if (!items.length) return <ErrorDeBloque lang="kpis" mensaje="no metrics — write a list" />;
 
     return (
         <>
@@ -183,7 +183,7 @@ function BloqueActions({ raw }) {
                         </div>
                         {quien
                             ? <span className="deck-accion-quien">{quien}</span>
-                            : <AvisoDeDiseno>sin responsable</AvisoDeDiseno>}
+                            : <AvisoDeDiseno>no owner</AvisoDeDiseno>}
                     </div>
                 );
             })}

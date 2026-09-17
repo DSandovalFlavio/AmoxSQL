@@ -17,9 +17,9 @@ const FormatPanel = memo(({ state, setField, finalSeriesKeys }) => {
 
     return (
         <>
-            <Section title="Composición">
+            <Section title="Composition">
                 <SelectField
-                    label="Cómo se reparte la tarjeta"
+                    label="How the card is divided up"
                     value={layout || 'auto'}
                     onChange={v => setField('layout', v)}
                     options={LAYOUT_MODES}

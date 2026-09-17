@@ -24,7 +24,7 @@ const ROWNUM_WIDTH = 54;
 // match the `columnWidths[col] || 150` default used when resizing.
 const DEFAULT_COL_WIDTH = 150;
 
-const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null, onCreateNew = null }) => {
+const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null, onCreateNew = null, lazyPanels = false, lectura = false }) => {
     const toast = useToast();
     // currentEditorQuery may be a string (notebook cells) or a getter function
     // (EditorPane passes a stable getter so typing doesn't break this memo).
@@ -39,12 +39,44 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
     const [vaultSaving, setVaultSaving] = useState(false);
     const [exportingAction, setExportingAction] = useState(null);
 
+    /**
+     * Leer no es lo mismo que empotrar.
+     *
+     * `isReportMode` existia para meter una tabla dentro de una lamina, y por eso
+     * ademas de quitar los mandos pagina de 200 en 200 y suelta la numeracion
+     * fija. Para el modo lectura del cuaderno eso seria un mal negocio: sirve
+     * dieciseis tablas a la vez, y cuadruplicar las filas de cada una deshace
+     * justo lo que se acaba de arreglar. Asi que `lectura` quita los mandos y el
+     * panel de edicion del grafico, y no toca nada mas: se sigue paginando de
+     * cincuenta en cincuenta y el pie de paginas se queda, porque pasar paginas
+     * es leer.
+     */
+    const sinMandos = isReportMode || lectura;
+
     // View State
-    const [viewMode, setViewMode] = useState(initialViewMode || (initialChartConfig ? 'chart' : (editorSettings.defaultViewMode || 'table')));
+    const vistaDeSalida = initialViewMode || (initialChartConfig ? 'chart' : (editorSettings.defaultViewMode || 'table'));
+    const [viewMode, setViewMode] = useState(vistaDeSalida);
 
     const handleViewModeChange = (mode) => {
         setViewMode(mode);
     };
+
+    // Which of the three panels have ever been asked for.
+    //
+    // All three are always in the DOM and only one is visible, which is fine for
+    // ONE results table and expensive when there are sixteen — a notebook mounts
+    // the chart builder and the profiler for every cell, including the fifteen
+    // nobody is looking at. Measured on sixteen cells: the editors cost nothing
+    // and the result panels blocked the main thread for 3.4 s of a single scroll.
+    //
+    // With `lazyPanels` a panel is built the first time it is selected, and then
+    // it stays: switching back and forth must not rebuild a chart. The default is
+    // off, so a single results table behaves exactly as before.
+    const [panelesVistos, setPanelesVistos] = useState(() => new Set([vistaDeSalida]));
+    useEffect(() => {
+        setPanelesVistos((prev) => (prev.has(viewMode) ? prev : new Set(prev).add(viewMode)));
+    }, [viewMode]);
+    const montarPanel = (cual) => !lazyPanels || panelesVistos.has(cual);
 
     // Report the active view UP (mount + every change) so the tab — and through
     // it the AI assistant — knows whether the user is on Table/Chart/Profile.
@@ -526,7 +558,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
     return (
         <div className="rt-container amox-fade-in">
             {/* Toolbar */}
-            {!isReportMode && (
+            {!sinMandos && (
                 <div className="rt-toolbar">
                     {/* Top Row: Controls & Stats */}
                     <div className="rt-toolbar-row">
@@ -856,7 +888,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                     );
                                 })}
                             </tr>
-                            {showFilters && !isReportMode && (
+                            {showFilters && !sinMandos && (
                                 <tr>
                                     {showRowNumbers && (
                                         <td
@@ -949,12 +981,12 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
 
                 {/* Chart */}
                 <div className={`rt-panel chart${viewMode === 'chart' ? ' visible' : ' hidden'}`}>
-                    <DataVisualizer data={data} isReportMode={isReportMode} query={query} sourcePath={sourcePath} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} isActive={viewMode === 'chart'} onCreateNew={onCreateNew} />
+                    {montarPanel('chart') && <DataVisualizer data={data} isReportMode={sinMandos} query={query} sourcePath={sourcePath} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} isActive={viewMode === 'chart'} onCreateNew={onCreateNew} />}
                 </div>
 
                 {/* Profile */}
                 <div className={`rt-panel profile${viewMode === 'profile' ? ' visible' : ' hidden'}`}>
-                    <DataProfiler data={data} isActive={viewMode === 'profile'} query={query} />
+                    {montarPanel('profile') && <DataProfiler data={data} isActive={viewMode === 'profile'} query={query} />}
                 </div>
             </div>
 

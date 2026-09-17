@@ -19,6 +19,14 @@ import { useState, useRef, useEffect } from 'react';
 import { LuClock, LuCheck, LuPlus, LuX, LuChevronDown } from 'react-icons/lu';
 
 const ESTADOS = ['borrador', 'vigente', 'obsoleto'];
+/**
+ * Los valores de `estado` son FORMATO, no interfaz.
+ *
+ * Se escriben tal cual en la cabecera del `.md` y hay documentos guardados con
+ * ellos, asi que traducirlos seria cambiarle el archivo a alguien por debajo.
+ * Lo que se traduce es lo que se ENSENA.
+ */
+const ETIQUETA_ESTADO = { borrador: 'draft', vigente: 'current', obsoleto: 'outdated' };
 
 /** Meses transcurridos, para decidir si la revisión ha caducado. */
 function mesesDesde(iso) {
@@ -35,11 +43,11 @@ function hoyIso() {
 function antiguedad(iso) {
     const m = mesesDesde(iso);
     if (m === null) return iso;
-    if (m < 1) return 'este mes';
-    if (m < 2) return 'hace un mes';
-    if (m < 12) return `hace ${Math.round(m)} meses`;
+    if (m < 1) return 'this month';
+    if (m < 2) return 'a month ago';
+    if (m < 12) return `${Math.round(m)} months ago`;
     const a = Math.round(m / 12);
-    return a === 1 ? 'hace un año' : `hace ${a} años`;
+    return a === 1 ? 'a year ago' : `${a} years ago`;
 }
 
 export default function DocHeader({ meta, umbralMeses = 6, onCambiar }) {
@@ -71,27 +79,27 @@ export default function DocHeader({ meta, umbralMeses = 6, onCambiar }) {
     return (
         <div className="mde-doc-header">
             <div className="mde-dh-row">
-                <span className="mde-dh-k">Dueño</span>
+                <span className="mde-dh-k">Owner</span>
                 <input
                     className="mde-dh-owner"
                     value={meta.owner || ''}
-                    placeholder="sin asignar"
+                    placeholder="unassigned"
                     onChange={(e) => onCambiar?.({ owner: e.target.value })}
                     spellCheck={false}
                 />
             </div>
 
             <div className="mde-dh-row">
-                <span className="mde-dh-k">Estado</span>
+                <span className="mde-dh-k">Status</span>
                 <div className="mde-dh-anchor" ref={menuRef}>
                     <button className={`mde-dh-estado ${meta.estado || 'borrador'}`} onClick={() => setMenuEstado(v => !v)}>
-                        {meta.estado || 'borrador'} <LuChevronDown size={9} />
+                        {ETIQUETA_ESTADO[meta.estado] || ETIQUETA_ESTADO.borrador} <LuChevronDown size={9} />
                     </button>
                     {menuEstado && (
                         <div className="mde-dh-menu">
                             {ESTADOS.map(e => (
                                 <div key={e} className="mde-dh-menu-item" onClick={() => { onCambiar?.({ estado: e }); setMenuEstado(false); }}>
-                                    {e}
+                                    {ETIQUETA_ESTADO[e]}
                                 </div>
                             ))}
                         </div>
@@ -100,25 +108,25 @@ export default function DocHeader({ meta, umbralMeses = 6, onCambiar }) {
             </div>
 
             <div className="mde-dh-row">
-                <span className="mde-dh-k">Revisado</span>
+                <span className="mde-dh-k">Reviewed</span>
                 {meta.revisado ? (
                     <span className={`mde-dh-fecha${caducado ? ' caducado' : ''}`} title={meta.revisado}>
                         <LuClock size={10} /> {antiguedad(meta.revisado)}
                     </span>
                 ) : (
-                    <span className="mde-dh-fecha caducado"><LuClock size={10} /> nunca</span>
+                    <span className="mde-dh-fecha caducado"><LuClock size={10} /> never</span>
                 )}
             </div>
 
             <div className="mde-dh-row mde-dh-row--top">
-                <span className="mde-dh-k">Etiquetas</span>
+                <span className="mde-dh-k">Tags</span>
                 <span className="mde-dh-etiquetas">
                     {etiquetas.map(t => (
                         <span key={t} className="mde-dh-tag">
                             {t}
                             <button
                                 className="mde-dh-tag-x"
-                                title={`Quitar «${t}»`}
+                                title={`Remove "${t}"`}
                                 onClick={() => onCambiar?.({ tags: etiquetas.filter(x => x !== t) })}
                             >
                                 <LuX size={8} />
@@ -126,7 +134,7 @@ export default function DocHeader({ meta, umbralMeses = 6, onCambiar }) {
                         </span>
                     ))}
                     {nuevaEtiqueta === null ? (
-                        <button className="mde-dh-tag-add" title="Añadir etiqueta" onClick={() => setNuevaEtiqueta('')}>
+                        <button className="mde-dh-tag-add" title="Add a tag" onClick={() => setNuevaEtiqueta('')}>
                             <LuPlus size={9} />
                         </button>
                     ) : (
@@ -140,7 +148,7 @@ export default function DocHeader({ meta, umbralMeses = 6, onCambiar }) {
                                 if (e.key === 'Enter') anadirEtiqueta();
                                 if (e.key === 'Escape') setNuevaEtiqueta(null);
                             }}
-                            placeholder="etiqueta"
+                            placeholder="tag"
                             spellCheck={false}
                         />
                     )}
@@ -151,7 +159,7 @@ export default function DocHeader({ meta, umbralMeses = 6, onCambiar }) {
                 nadie mira; este aparece justo el día que el documento caduca. */}
             {(caducado || !meta.revisado) && (
                 <button className="mde-dh-revisar" onClick={() => onCambiar?.({ revisado: hoyIso() })}>
-                    <LuCheck size={11} /> Marcar revisado hoy
+                    <LuCheck size={11} /> Mark reviewed today
                 </button>
             )}
         </div>

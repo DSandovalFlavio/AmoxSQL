@@ -54,14 +54,14 @@ const SlidesPanel = ({ slides, activeSlideIndex, onNavigate, onMove, onDelete, o
                                 <button
                                     type="button"
                                     onClick={() => onDuplicate?.(index)}
-                                    title="Duplicar la lámina (Ctrl+D)"
+                                    title="Duplicate the slide (Ctrl+D)"
                                 >
                                     <LuCopy size={14} strokeWidth={2.2} />
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => onDelete(index)}
-                                    title="Borrar la lámina"
+                                    title="Delete the slide"
                                     className="deck-outline-item-delete"
                                 >
                                     <LuTrash2 size={15} strokeWidth={2.4} />

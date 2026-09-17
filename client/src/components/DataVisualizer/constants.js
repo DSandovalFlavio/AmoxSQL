@@ -209,9 +209,9 @@ export const CHART_CATEGORIES = [
    permite que algo pensado para un panel vertical funcione en una diapositiva
    apaisada sin que el lienzo se quede sin alto. */
 export const LAYOUT_MODES = [
-    { value: 'stacked', label: 'Apilado', desc: 'Todo en columna. Es el modo normal.' },
-    { value: 'side',    label: 'Lateral', desc: 'Texto a un lado y gráfico al otro. Para huecos muy anchos.' },
-    { value: 'auto',    label: 'Automático', desc: 'Cambia según la forma del hueco. Se reorganiza solo al redimensionar.' },
+    { value: 'stacked', label: 'Stacked', desc: 'Everything in one column. The normal mode.' },
+    { value: 'side',    label: 'Side by side', desc: 'Text on one side and chart on the other. For very wide slots.' },
+    { value: 'auto',    label: 'Automatic', desc: 'Changes with the shape of the slot. It rearranges itself on resize.' },
 ];
 /* 'split-header' ya no está en la lista: era "el KPI a la derecha del título", y
    eso ahora es una opción del propio KPI (headline.position). El valor se sigue

@@ -1,0 +1,804 @@
+/**
+ * El cuaderno. Contrato visual en `docs/dev/mockup_cuaderno_2.html`.
+ *
+ * ## La idea de la que cuelga todo lo demás
+ *
+ * Un cuaderno abierto tiene que parecer **un documento**, no un panel de
+ * control. De ahí salen las tres reglas de esta hoja:
+ *
+ * 1. **El cromo aparece a demanda y vive en el canalón izquierdo.** En reposo,
+ *    una celda enseña quién es y qué deja detrás; nada más. Diez botones por
+ *    celda son ochenta en un cuaderno de ocho, todos compitiendo con el
+ *    análisis, y el que importa —Ejecutar— compitiendo con nueve vecinos.
+ * 2. **La prosa no vive en una caja.** Una celda de texto no tiene borde ni
+ *    cabecera ni tope de altura: es el documento, con medida de lectura y
+ *    sangrada respecto al código, que sí ocupa el ancho. Ese desnivel es el
+ *    ritmo que tienen los cuadernos que se leen bien.
+ * 3. **La selección es una barra a la izquierda**, no un borde alrededor. Un
+ *    borde que cambia de color compite con el de la celda de al lado.
+ *
+ * ## El alto de la celda de SQL
+ *
+ * **520 px**: 484 de cuerpo, o sea unas veinticuatro líneas de SQL y diecinueve
+ * filas de resultado. El contrato lo derivaba en 280 —36 de cabecera + 34 de la
+ * barra del resultado + 27 de la cabecera de la tabla + ocho filas de 22— y la
+ * aritmética era correcta: ése es el mínimo con el que se RECONOCE un paso al
+ * pasar. Lo que el papel no sabe es que en una pantalla de verdad sobra alto.
+ * Daba el mínimo, no el cómodo.
+ *
+ * La regla no cambia: **alto fijo, el mismo para todas las de SQL**. Con celdas
+ * que crecen, un cuaderno de veinte deja de poder recorrerse.
+ */
+
+:root {
+    /* El canalón: siempre presente, aunque en reposo sólo lleve el punto. */
+    --cdn-canalon: 34px;
+    /* La medida de lectura. Ya sólo la usa la descripción del documento, que es
+       un subtítulo de una línea y con 1.400 px de ancho quedaría ridícula. La
+       prosa de las celdas NO la usa: ver `.cdn-celda--texto`. */
+    --cdn-medida: 70ch;
+    /* El margen lateral de cada fila. Sale a variable porque de él cuelgan tres
+       cosas que tienen que moverse juntas: la fila, la cabecera del documento y
+       la barra de selección. Con 20 px la celda parecía encajada a la fuerza
+       contra el borde; un documento necesita margen, no encaje. */
+    --cdn-margen: 80px;
+    /* El hueco de «añadir»: el alto del botón (22) más doce de aire por lado. */
+    --cdn-hueco: 46px;
+}
+
+.cdn {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    height: 100%;
+    min-height: 0;
+    background: var(--surface-base);
+}
+
+/* La barra va a la DERECHA: el cuaderno se lee de izquierda a derecha, y lo que
+   se consulta de reojo tiene que ir al margen que no interrumpe esa lectura. */
+.cdn-lista {
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 0 var(--space-8);
+}
+
+/* ── la cabecera del documento ──────────────────────────────────────────── */
+/* Un cuaderno abierto debe decir primero cómo se llama y de qué va. Antes lo
+   primero que se veía era una fila de botones, y las acciones del documento
+   —guardar, actualizar, exportar— vivían al final de la lista, flotando a media
+   página debajo de la última celda. */
+.cdn-doc {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    padding: var(--space-6) var(--cdn-margen) var(--space-4);
+    padding-left: calc(var(--cdn-margen) + var(--cdn-canalon) + 10px);
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: var(--space-2);
+}
+.cdn-doc-txt { min-width: 0; flex: 1; }
+.cdn-doc-titulo,
+.cdn-doc-desc {
+    display: block;
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 1px 0;
+    font-family: var(--font-sans);
+    color: var(--text-primary);
+}
+.cdn-doc-titulo {
+    font-size: 26px;
+    font-weight: var(--weight-bold, 700);
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+}
+.cdn-doc-desc {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    resize: none;
+    overflow: hidden;
+    max-width: var(--cdn-medida);
+}
+.cdn-doc-titulo::placeholder { color: var(--text-disabled); }
+.cdn-doc-desc::placeholder { color: var(--text-disabled); font-style: italic; }
+.cdn-doc-acciones { display: flex; align-items: center; gap: 7px; flex: none; padding-top: 4px; }
+
+/* ── una fila del documento: canalón + contenido ────────────────────────── */
+.cdn-fila {
+    display: grid;
+    grid-template-columns: var(--cdn-canalon) minmax(0, 1fr);
+    gap: 10px;
+    padding: 0 var(--cdn-margen);
+    position: relative;
+}
+
+/* La selección es una BARRA, no un borde. */
+.cdn-fila::before {
+    content: '';
+    position: absolute;
+    /* Pegada al canalón, no al borde de la ventana: con el margen a 60 px una
+       barra en el borde ya no señalaría nada. */
+    left: calc(var(--cdn-margen) - 14px);
+    top: 2px;
+    bottom: 2px;
+    width: 2px;
+    border-radius: 2px;
+    background: transparent;
+    transition: background-color var(--transition-fast);
+}
+.cdn-fila--sel::before { background: var(--accent-primary); }
+
+/* ── el canalón ─────────────────────────────────────────────────────────── */
+/* 5 px de margen y ranuras de 26: la primera queda centrada a 18, que es
+   exactamente el centro de la cabecera de 36 de la celda. Antes el punto de
+   estado iba encima del botón y lo empujaba 16 px hacia abajo, así que «Ejecutar»
+   no alineaba con nada. */
+.cdn-canalon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    padding-top: 5px;
+}
+
+/* La primera ranura la comparten el punto de estado y «Ejecutar»: en reposo se
+   ve el punto, al acercarse se ve el botón. Ocupan el mismo sitio a propósito —
+   así el sitio donde miras para saber cómo está la celda es el mismo al que vas
+   a pulsar para arreglarlo. */
+.cdn-ranura {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    flex: none;
+}
+.cdn-ranura .cdn-est {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    transition: opacity var(--transition-fast);
+}
+.cdn-ranura .cdn-mando { position: absolute; inset: 0; }
+.cdn-fila:hover .cdn-ranura .cdn-est,
+.cdn-fila--sel .cdn-ranura .cdn-est { opacity: 0; }
+/* Los mandos: invisibles en reposo. Es lo que hace que un cuaderno de ocho
+   celdas no parezca una cabina de avión. `visibility` además de `opacity` para
+   que en reposo no se puedan pulsar sin verlos. */
+.cdn-mandos {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-fast);
+}
+.cdn-fila:hover .cdn-mandos,
+.cdn-fila--sel .cdn-mandos,
+.cdn-mandos:focus-within { opacity: 1; visibility: visible; }
+
+.cdn-mando {
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    /* `padding: 0` NO sobra. La hoja del producto le da a todo `button` un
+       `padding: 5px 12px`, y con `border-box` eso deja 2 px de caja de contenido
+       dentro de los 26: el icono se desbordaba hacia la derecha y quedaba a 12 px
+       del borde izquierdo y a 1 del derecho. Se veía como si los botones
+       estuvieran torcidos, y lo que estaba torcido era el icono dentro. */
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    flex: none;
+    transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+.cdn-mando:hover { background: var(--hover-bg); color: var(--text-primary); }
+.cdn-mando--on { background: var(--active-bg); color: var(--text-primary); }
+.cdn-mando--corre { background: var(--accent-primary); color: var(--surface-base); }
+.cdn-mando--corre:hover { background: color-mix(in oklch, var(--accent-primary) 85%, black); color: var(--surface-base); }
+.cdn-mando:disabled { opacity: .4; cursor: default; }
+/* Un separador de un pixel entre grupos de mandos, en vez de un hueco mayor:
+   dentro de 34 px un hueco no se lee como separación, se lee como descuido. */
+.cdn-mando--sep { margin-top: 5px; position: relative; }
+.cdn-mando--sep::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: 5px;
+    right: 5px;
+    height: 1px;
+    background: var(--border-subtle);
+}
+
+/* ── modo lectura ───────────────────────────────────────────────────────── */
+/* El cuaderno sin lo que sirve para hacerlo: sin SQL, sin mandos y sin el panel
+   de edición del gráfico. Lo que se quita aquí es lo que NO se puede quitar
+   desde los componentes sin llenarlos de condiciones.
+
+   La cabecera de la celda se queda, pero pasa a ser un pie de figura: el nombre
+   del paso y su descripción. Las marcas de estado —viva, editada, escribe— son
+   del que edita, y se van desde `Celda.jsx`.
+
+   Lo que NO cambia: el canalón sigue ocupando su columna aunque esté vacío, y la
+   celda sigue midiendo lo mismo. Entrar en lectura no mueve el documento. */
+.cdn-lista--lectura .cdn-cab {
+    background: transparent;
+    border-bottom: none;
+    height: 30px;
+}
+.cdn-lista--lectura .cdn-nombre { cursor: default; }
+.cdn-lista--lectura .cdn-fila--sel::before { opacity: 0; }
+.cdn-lista--lectura .cdn-doc-titulo,
+.cdn-lista--lectura .cdn-doc-desc { cursor: default; }
+
+/* ── el hueco entre celdas es donde se añade ────────────────────────────── */
+/* Antes la barra de añadir estaba al final del cuaderno, así que meter una celda
+   entre la tercera y la cuarta obligaba a bajar hasta abajo y subirla a mano.
+
+   El alto lo manda el CONTENIDO del hueco, no al revés. Estaba en 16 px con unos
+   botones de 22: seis px más altos que el sitio donde viven, así que se metían
+   tres dentro de la celda de arriba y tres dentro de la de abajo y se veían
+   aplastados contra las dos. 46 = 22 del botón + 12 de aire a cada lado. */
+.cdn-hueco {
+    height: var(--cdn-hueco);
+    margin: 0 var(--cdn-margen);
+    display: grid;
+    place-items: center;
+    position: relative;
+}
+.cdn-hueco::before {
+    content: '';
+    position: absolute;
+    left: calc(var(--cdn-canalon) + 10px);
+    right: 0;
+    height: 1px;
+    background: var(--border-subtle);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+.cdn-hueco:hover::before { opacity: 1; }
+.cdn-hueco-btns {
+    display: flex;
+    gap: 4px;
+    position: relative;
+    background: var(--surface-base);
+    /* El relleno vertical no es adorno: este fondo es lo que corta la línea que
+       cruza el hueco, y sin él la corta justo a ras del botón. */
+    padding: 6px 8px;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition-fast);
+}
+.cdn-hueco:hover .cdn-hueco-btns,
+.cdn-hueco-btns:focus-within { opacity: 1; visibility: visible; }
+.cdn-hueco-btns .cdn-btn { height: 22px; padding: 0 10px; font-size: 11.5px; }
+/* El último hueco se queda siempre visible: es el «añadir al final», y sin él un
+   cuaderno vacío no tendría por dónde empezar. */
+.cdn-hueco--fin { height: calc(var(--cdn-hueco) + var(--space-2)); }
+.cdn-hueco--fin .cdn-hueco-btns { opacity: 1; visibility: visible; }
+
+.cdn-lado {
+    border-left: 1px solid var(--border-subtle);
+    background: var(--surface-raised);
+    overflow-y: auto;
+    min-width: 0;
+}
+
+/* ── la celda de SQL ────────────────────────────────────────────────────── */
+.cdn-celda {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--surface-raised);
+    overflow: hidden;
+    height: 520px;
+    display: flex;
+    flex-direction: column;
+    flex: none;
+}
+
+/* ── la celda de texto: SIN CAJA ────────────────────────────────────────── */
+/* Ni borde, ni fondo, ni cabecera, ni tope de altura. Es el documento.
+   El tope existía para que un texto largo no empujara el cuaderno fuera de la
+   pantalla, y esa regla se cae con la caja: cortar la prosa con una
+   barra de desplazamiento en mitad de una frase es peor que dejarla correr.
+   Recorrer los PASOS sigue funcionando, porque los pasos son las celdas de SQL
+   y ésas siguen midiendo todas lo mismo. */
+.cdn-celda--texto {
+    height: auto;
+    max-height: none;
+    border: none;
+    background: transparent;
+    overflow: visible;
+    padding: var(--space-1) 0 var(--space-2);
+}
+
+/* SIN medida de lectura, y es un cambio de opinión.
+   La llevaba —70ch, unos 490 px— porque es la medida en la que se lee cómodo, y
+   porque en marimo la prosa va más estrecha que el código. Pero allí el código
+   también está dentro de una columna de documento; aquí la celda de SQL ocupa
+   todo el ancho, así que 490 contra 1.400 no se lee como ritmo: se lee como una
+   celda partida por la mitad.
+   Entre respetar la medida tipográfica y que el cuaderno no parezca roto, gana
+   lo segundo. Si una línea de 1.400 px acaba costando de leer, el arreglo es
+   poner aquí `max-width: var(--cdn-medida)` otra vez. */
+
+.cdn-cab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--surface-inset);
+    flex: none;
+}
+
+.cdn-est {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: none;
+    background: var(--text-disabled);
+}
+.cdn-est--dia { background: var(--color-success, var(--feedback-success-text)); }
+.cdn-est--falla { background: var(--color-error, var(--feedback-error-text)); }
+.cdn-est--nunca { background: transparent; border: 1.5px solid var(--text-disabled); }
+.cdn-est--vieja { background: var(--color-warning, var(--feedback-warning-text)); }
+
+.cdn-nombre {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: var(--text-primary);
+    font-weight: var(--weight-semibold, 600);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 1px 4px;
+    min-width: 40px;
+    max-width: 220px;
+}
+.cdn-nombre:hover { border-color: var(--border-subtle); }
+.cdn-nombre:focus { border-color: var(--accent-primary); outline: none; background: var(--surface-base); }
+.cdn-nombre::placeholder { color: var(--text-disabled); font-style: italic; }
+
+.cdn-desc {
+    font-size: 11.5px;
+    color: var(--text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.cdn-sp { flex: 1; }
+
+/* Lo que la celda deja detrás. Apagado mientras no exista de verdad en la
+   sesión: pintarlo igual prometería algo que la celda de abajo no podría leer. */
+.cdn-deja {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+    height: 18px;
+    padding: 0 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs, 11px);
+    color: var(--text-disabled);
+    white-space: nowrap;
+}
+.cdn-deja--viva {
+    color: var(--accent-primary);
+    border-color: color-mix(in oklch, var(--accent-primary) 40%, transparent);
+    background: color-mix(in oklch, var(--accent-primary) 10%, transparent);
+}
+.cdn-deja--nada { border-style: dashed; }
+/* Vieja: existe, pero lo que enseña es de antes de la ultima edicion. Es el
+   estado que mas enganya, porque sin marcarlo se ve igual que uno al dia. */
+.cdn-deja--vieja {
+    color: var(--color-warning, var(--feedback-warning-text));
+    border-color: color-mix(in oklch, var(--color-warning, #d08700) 40%, transparent);
+    background: color-mix(in oklch, var(--color-warning, #d08700) 10%, transparent);
+}
+.cdn-deja--escribe {
+    color: var(--color-warning, var(--feedback-warning-text));
+    border-color: color-mix(in oklch, var(--color-warning, #d08700) 40%, transparent);
+}
+
+/* Los botones van PEGADOS compartiendo borde, como en el editor de .sql. */
+.cdn-grupo { display: flex; align-items: center; flex: none; }
+.cdn-grupo .cdn-btn { border-radius: 0; border-left: none; }
+.cdn-grupo .cdn-btn:first-child { border-left: 1px solid var(--border-subtle); border-radius: var(--radius-md) 0 0 var(--radius-md); }
+.cdn-grupo .cdn-btn:last-child { border-radius: 0 var(--radius-md) var(--radius-md) 0; }
+.cdn-grupo .cdn-btn:only-child { border-radius: var(--radius-md); }
+
+.cdn-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 9px;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: var(--text-sm, 12px);
+    white-space: nowrap;
+    flex: none;
+    cursor: pointer;
+    transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+.cdn-btn:hover { background: var(--hover-bg); color: var(--text-primary); }
+.cdn-btn--on { background: var(--active-bg); color: var(--text-primary); }
+.cdn-btn--icono { width: 26px; padding: 0; }
+.cdn-btn--corre { background: var(--accent-primary); color: var(--surface-base); border-color: transparent; }
+.cdn-btn--corre:hover { background: color-mix(in oklch, var(--accent-primary) 85%, black); color: var(--surface-base); }
+.cdn-btn:disabled { opacity: .45; cursor: default; }
+
+/* ── el cuerpo: editor | resultado ──────────────────────────────────────── */
+/* DOS variables y no una. Con `var(--reparto) 7px minmax(0,1fr)`, un reparto de
+   0.5 daba `0.5fr` contra `1fr`, o sea un tercio y dos tercios: la mitad y la
+   mitad exigen que las dos fracciones se escriban. */
+.cdn-cuerpo {
+    display: grid;
+    grid-template-columns: minmax(0, var(--cdn-izq, 1fr)) 7px minmax(0, var(--cdn-der, 1fr));
+    flex: 1;
+    min-height: 0;
+}
+.cdn-cuerpo--solo { grid-template-columns: minmax(0, 1fr); }
+
+.cdn-editor { min-width: 0; overflow: hidden; background: var(--surface-base); }
+.cdn-res { min-width: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--surface-base); }
+
+.cdn-tirador {
+    border-left: 1px solid var(--border-subtle);
+    border-right: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: col-resize;
+    background: transparent;
+}
+.cdn-tirador::after {
+    content: '';
+    width: 2px;
+    height: 22px;
+    border-radius: 2px;
+    background: var(--border-strong);
+}
+.cdn-tirador:hover::after { background: var(--accent-primary); }
+
+.cdn-vacio {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-disabled);
+    font-size: var(--text-sm, 12px);
+    padding: 0 14px;
+    text-align: center;
+}
+
+.cdn-error {
+    padding: 10px 12px;
+    color: var(--color-error, var(--feedback-error-text));
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.5;
+    overflow: auto;
+}
+
+/* ── la prosa ───────────────────────────────────────────────────────────── */
+/* La fuente, cuando se está escribiendo. Se pinta con la MISMA tipografía y el
+   mismo tamaño que el texto compuesto, no en monoespaciada: escribir y leer
+   tienen que ser el mismo sitio, no dos modos entre los que se salta. Crece con
+   el contenido (el alto lo pone el componente al teclear). */
+.cdn-texto-fuente {
+    display: block;
+    width: 100%;
+    resize: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 14.5px;
+    line-height: 1.72;
+    padding: 0;
+    overflow: hidden;
+    min-height: 1.72em;
+}
+
+/* El texto compuesto. Hereda la hoja del editor de documentos —para que el
+   markdown se vea igual en todo el producto— y le quita el relleno de página,
+   porque aquí el margen lo pone la fila. */
+.cdn-md { cursor: text; }
+.cdn-md .mde-preview-body { padding: 0; }
+.cdn-md h1 { font-size: 25px; margin: 8px 0 8px; letter-spacing: -0.02em; }
+.cdn-md h2 { font-size: 20px; margin: 22px 0 8px; letter-spacing: -0.015em; }
+.cdn-md h3 { font-size: 16px; margin: 20px 0 6px; }
+.cdn-md h1:first-child, .cdn-md h2:first-child, .cdn-md h3:first-child { margin-top: 0; }
+.cdn-md p { font-size: 14.5px; line-height: 1.72; margin: 0 0 12px; }
+.cdn-md ul, .cdn-md ol { font-size: 14.5px; line-height: 1.72; margin: 0 0 12px; }
+.cdn-md > :last-child { margin-bottom: 0; }
+/* Sin la almohadilla de los encabezados.
+   El visor de markdown la saca al pasar el ratón para enlazar a una sección, y
+   eso tiene sentido en un documento con dirección propia. En una celda no hay
+   adónde enlazar, y además va en `left: -1.1em`, o sea que sale del texto y cae
+   justo encima de los mandos del canalón. A un encabezado se salta por el índice
+   de la derecha, que es el que los recoge. */
+.cdn-md .mde-anchor { display: none; }
+/* Una celda de texto vacía no es un error ni un hueco: es un párrafo por
+   escribir, y se dice con la misma voz que el resto. */
+.cdn-md-vacio {
+    color: var(--text-disabled);
+    font-size: 14.5px;
+    line-height: 1.72;
+    font-style: italic;
+}
+
+/* ── pantalla completa ──────────────────────────────────────────────────── */
+/* La celda sola, ocupando la pestaña. Sin desplazamiento vertical: lo que se
+   desplaza es el editor por dentro, como en la lista, pero con 700 px en vez de
+   244. La lista es para reconocer; esto es para trabajar. */
+.cdn-pc {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--surface-base);
+}
+
+.cdn-pc-nombre {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: var(--weight-semibold, 600);
+    color: var(--text-primary);
+    flex: none;
+}
+
+.cdn-pc-cuerpo {
+    display: grid;
+    grid-template-columns: minmax(0, var(--cdn-izq, 1fr)) 7px minmax(0, var(--cdn-der, 1fr));
+    flex: 1;
+    min-height: 0;
+}
+/* Con las dos clases, no sólo con `--solo`: esta regla va DESPUÉS de
+   `.cdn-cuerpo--solo` en el archivo, así que con igual especificidad ganaba la
+   de tres columnas y «sólo el código» dejaba media pantalla en blanco. */
+.cdn-pc-cuerpo.cdn-cuerpo--solo { grid-template-columns: minmax(0, 1fr); }
+
+/* El texto compuesto a pantalla completa se lee como un documento: una columna
+   con medida, no una línea de borde a borde. */
+.cdn-pc-md { overflow: auto; height: 100%; }
+
+@media (max-width: 1080px) {
+    .cdn-pc-cuerpo {
+        grid-template-columns: none;
+        grid-template-rows: minmax(0, 1fr) 7px minmax(0, 1fr);
+    }
+}
+
+/* ── la barra derecha ───────────────────────────────────────────────────── */
+.cdn-seccion {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 12px 5px;
+    font-size: var(--text-xs, 11px);
+    color: var(--text-tertiary);
+    font-weight: var(--weight-semibold, 600);
+}
+.cdn-seccion .cdn-n { color: var(--text-disabled); }
+
+.cdn-indice { padding: 0 6px 8px; }
+.cdn-idx {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm, 12px);
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.cdn-idx:hover { background: var(--hover-bg); color: var(--text-primary); }
+.cdn-idx--1 { font-weight: var(--weight-semibold, 600); color: var(--text-primary); }
+.cdn-idx--2 { padding-left: 20px; font-size: 11.5px; }
+.cdn-idx--3 { padding-left: 32px; font-size: 11.5px; }
+
+/* Un botoncito al final de una cabecera de sección. */
+.cdn-mini {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex: none;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-disabled);
+    cursor: pointer;
+}
+.cdn-mini:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.cdn-seccion--sub {
+    padding-top: 4px;
+    font-weight: var(--weight-regular, 400);
+    color: var(--text-disabled);
+}
+
+/* El aviso de lo que falta. Va arriba de la lista y no dentro de cada fila:
+   se trata de enterarse de un vistazo, antes de que una celda falle. */
+.cdn-falta-aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    margin: 0 10px 6px;
+    padding: 7px 9px;
+    border: 1px solid color-mix(in oklch, var(--color-warning, #d08700) 35%, transparent);
+    border-radius: var(--radius-md);
+    background: color-mix(in oklch, var(--color-warning, #d08700) 10%, transparent);
+    color: var(--color-warning-text, var(--feedback-warning-text));
+    font-size: 11.5px;
+    line-height: 1.45;
+}
+
+/* Una vista de la lista. Apagada mientras no exista: el documento la declara,
+   pero sólo el motor puede decir que se puede consultar. */
+.cdn-vista {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    text-align: left;
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm, 12px);
+    color: var(--text-disabled);
+    cursor: pointer;
+    min-width: 0;
+}
+button.cdn-vista:hover { background: var(--hover-bg); }
+.cdn-vista--viva { color: var(--text-secondary); }
+.cdn-vista--viva svg { color: var(--accent-primary); }
+.cdn-vista--ajena { cursor: default; }
+.cdn-vista-n {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: none;
+    max-width: 130px;
+}
+.cdn-vista-d {
+    font-size: 11px;
+    color: var(--text-disabled);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+}
+.cdn-vista:not(.cdn-vista--viva) .cdn-vista-n { text-decoration: line-through; }
+.cdn-vista-vieja { color: var(--color-warning, var(--feedback-warning-text)); flex: none; }
+
+.cdn-falta-aviso--vieja {
+    border-color: color-mix(in oklch, var(--color-warning, #d08700) 30%, transparent);
+}
+
+/* El boton Actualizar cuando hay algo que actualizar. */
+.cdn-btn--pend { border-color: var(--accent-primary); color: var(--text-primary); }
+/* «Lectura» encendido no es un botón pulsado, es DÓNDE ESTÁS. Por eso se queda
+   relleno mientras dure y no sólo mientras se pasa el ratón: si el cuaderno se
+   ve sin SQL, tiene que verse por qué. */
+.cdn-btn--modo {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary);
+    color: var(--surface-base);
+}
+.cdn-btn--modo:hover { background: var(--accent-primary); color: var(--surface-base); }
+.cdn-btn--pend .cdn-n {
+    flex: none;
+    min-width: 15px;
+    padding: 0 4px;
+    border-radius: 7px;
+    background: var(--accent-primary);
+    color: var(--surface-base);
+    font-size: 10.5px;
+    font-weight: var(--weight-semibold, 600);
+}
+
+/* ── parámetros ─────────────────────────────────────────────────────────── */
+.cdn-params { padding: 0 10px 8px; display: flex; flex-direction: column; gap: 8px; }
+.cdn-param-n {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    margin-bottom: 3px;
+}
+.cdn-param-huerfano {
+    font-family: var(--font-sans, inherit);
+    font-size: 10px;
+    color: var(--text-disabled);
+    border: 1px dashed var(--border-subtle);
+    border-radius: var(--radius-sm);
+    padding: 0 4px;
+}
+.cdn-param-fila { display: flex; align-items: center; gap: 4px; }
+.cdn-param-v {
+    flex: 1;
+    min-width: 0;
+    height: 24px;
+    padding: 0 7px;
+    background: var(--surface-base);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+}
+.cdn-param-v:focus { border-color: var(--accent-primary); outline: none; }
+
+.cdn-declarar {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+    padding: 4px 7px;
+    border: 1px dashed var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 11.5px;
+    cursor: pointer;
+}
+.cdn-declarar:hover { border-style: solid; color: var(--text-primary); background: var(--hover-bg); }
+.cdn-declarar code { font-size: 11px; color: var(--accent-primary); }
+
+.cdn-lista-vacia {
+    padding: 4px 12px 10px;
+    font-size: 11.5px;
+    color: var(--text-disabled);
+    line-height: 1.5;
+}
+
+
+/* Por debajo de este ancho el resultado va debajo del editor y la barra se
+   pliega: el mismo umbral que usa el editor de .sql. */
+@media (max-width: 1080px) {
+    .cdn { grid-template-columns: minmax(0, 1fr); }
+    .cdn-lado { display: none; }
+    .cdn-celda { height: 780px; }
+    /* Sin sitio para el canalón: los mandos se quedan, pero estrechos. */
+    /* Sin sitio para el margen grande: en estrecho el aire estorba más de lo
+       que ayuda, así que vuelve a lo justo. */
+    .cdn { --cdn-margen: var(--space-4); --cdn-canalon: 28px; }
+    .cdn-fila { gap: 6px; }
+    .cdn-mando { width: 24px; height: 24px; }
+    .cdn-cuerpo { grid-template-columns: none; grid-template-rows: minmax(0, 1fr) 7px minmax(0, 1fr); }
+    .cdn-cuerpo--solo { grid-template-rows: minmax(0, 1fr); }
+    .cdn-tirador { cursor: row-resize; border: none; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
+    .cdn-tirador::after { width: 22px; height: 2px; }
+}

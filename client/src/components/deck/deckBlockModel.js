@@ -25,49 +25,49 @@ import { bloquesCercados, cercadoEnCursor, reemplazarCercado } from '../markdown
 /** Los campos de cada bloque, en el orden en que se piden. */
 export const BLOQUES = {
     kpis: {
-        label: 'Tira de métricas',
+        label: 'Metric strip',
         lista: true,
         tope: 5,
         campos: [
-            { id: 'label', label: 'Etiqueta', ejemplo: 'Coste' },
-            { id: 'value', label: 'Valor', ejemplo: '$521,982' },
-            { id: 'delta', label: 'Variación', ejemplo: '-3.3%' },
-            { id: 'trend', label: 'Lectura', opciones: ['', 'good', 'flat', 'bad'] },
-            { id: 'base', label: 'Base de comparación', ejemplo: 'vs. semestre anterior' },
-            { id: 'highlight', label: 'Destacar', booleano: true },
+            { id: 'label', label: 'Label', ejemplo: 'Cost' },
+            { id: 'value', label: 'Value', ejemplo: '$521,982' },
+            { id: 'delta', label: 'Change', ejemplo: '-3.3%' },
+            { id: 'trend', label: 'Reading', opciones: ['', 'good', 'flat', 'bad'] },
+            { id: 'base', label: 'Compared with', ejemplo: 'vs. previous half' },
+            { id: 'highlight', label: 'Highlight', booleano: true },
         ],
     },
     metric: {
-        label: 'Cifra ancla',
+        label: 'Anchor figure',
         lista: false,
         campos: [
-            { id: 'value', label: 'Cifra', ejemplo: '90' },
-            { id: 'unit', label: 'Unidad', ejemplo: '%' },
-            { id: 'label', label: 'Qué significa', ejemplo: 'De todo lo que sube' },
+            { id: 'value', label: 'Figure', ejemplo: '90' },
+            { id: 'unit', label: 'Unit', ejemplo: '%' },
+            { id: 'label', label: 'What it means', ejemplo: 'Of everything that is rising' },
         ],
     },
     steps: {
-        label: 'Pasos',
+        label: 'Steps',
         lista: true,
         campos: [
-            { id: 'title', label: 'Paso', ejemplo: 'Congelar pujas' },
-            { id: 'when', label: 'Cuándo', ejemplo: 'SEMANA 1' },
-            { id: 'detail', label: 'Detalle', ejemplo: 'Sin tocar presupuesto' },
-            { id: 'state', label: 'En curso', valorFijo: 'active', booleano: true },
+            { id: 'title', label: 'Step', ejemplo: 'Freeze bids' },
+            { id: 'when', label: 'When', ejemplo: 'WEEK 1' },
+            { id: 'detail', label: 'Detail', ejemplo: 'Without touching the budget' },
+            { id: 'state', label: 'In progress', valorFijo: 'active', booleano: true },
         ],
     },
     actions: {
-        label: 'Acciones',
+        label: 'Actions',
         lista: true,
         campos: [
-            { id: 'action', label: 'Qué hacer', ejemplo: 'Poner tope de coste por clic' },
-            { id: 'why', label: 'Por qué', ejemplo: 'Concentran el 90 % del aumento' },
-            { id: 'owner', label: 'Responsable', ejemplo: 'Marketing' },
-            { id: 'due', label: 'Para cuándo', ejemplo: '21 ago' },
+            { id: 'action', label: 'What to do', ejemplo: 'Cap the cost per click' },
+            { id: 'why', label: 'Why', ejemplo: 'They hold 90 % of the increase' },
+            { id: 'owner', label: 'Owner', ejemplo: 'Marketing' },
+            { id: 'due', label: 'Due', ejemplo: 'Aug 21' },
         ],
     },
     rank: {
-        label: 'Tabla clasificada',
+        label: 'Ranked table',
         lista: false,
         tabla: true,
     },
@@ -183,33 +183,33 @@ export function avisosDe(lang, modelo) {
 
     if (lang === 'kpis') {
         const n = (modelo.items || []).length;
-        if (n > 5) avisos.push('Con más de cinco, cada métrica baja de 240 unidades de diseño y deja de leerse.');
-        if (n === 1) avisos.push('Una métrica sola es una cifra ancla: esa disposición la enseña mucho mejor.');
+        if (n > 5) avisos.push('Past five, each metric drops below 240 design units and stops being readable.');
+        if (n === 1) avisos.push('A single metric is an anchor figure: that layout shows it far better.');
         const destacadas = (modelo.items || []).filter((k) => k.highlight).length;
-        if (destacadas > 1) avisos.push('Destacar más de una es no destacar ninguna.');
+        if (destacadas > 1) avisos.push('Highlighting more than one is highlighting none.');
     }
 
     if (lang === 'actions') {
         const sinDueno = (modelo.items || []).filter((a) => !a.owner).length;
         if (sinDueno) {
-            avisos.push(`${sinDueno === 1 ? 'Una acción no tiene' : `${sinDueno} acciones no tienen`} responsable. Sin responsable no es una acción, es un deseo.`);
+            avisos.push(`${sinDueno === 1 ? 'One action has' : `${sinDueno} actions have`} no owner. With no owner it is not an action, it is a wish.`);
         }
     }
 
     if (lang === 'steps') {
         const activos = (modelo.items || []).filter((p) => p.state === 'active').length;
-        if (activos > 1) avisos.push('Hay más de un paso en curso. El proceso se lee peor si no se sabe dónde estamos.');
+        if (activos > 1) avisos.push('More than one step is in progress. The process reads worse when nobody can tell where we are.');
     }
 
     if (lang === 'rank') {
         if (modelo.bar && !(modelo.columns || []).includes(modelo.bar)) {
-            avisos.push(`La columna de la barra («${modelo.bar}») no está entre las columnas.`);
+            avisos.push(`The bar column ("${modelo.bar}") is not among the columns.`);
         }
         if (modelo.status && !(modelo.columns || []).includes(modelo.status)) {
-            avisos.push(`La columna del semáforo («${modelo.status}») no está entre las columnas.`);
+            avisos.push(`The status column ("${modelo.status}") is not among the columns.`);
         }
         const anchos = new Set((modelo.rows || []).map((f) => f.length));
-        if (anchos.size > 1) avisos.push('Hay filas con distinto número de celdas que las columnas.');
+        if (anchos.size > 1) avisos.push('Some rows have a different number of cells than there are columns.');
     }
 
     return avisos;

@@ -14,7 +14,7 @@
 |---|---|---|---|
 | **Fases de la app** (WELCOME → IDE) | `App.jsx`, `WelcomeScreen.jsx`, `WorkspaceWizard.jsx` | `/api/project/*` | — |
 | **Editor SQL** — Monaco + autocomplete DuckDB + CTE debug + variables `${VAR}` | `SqlEditor.jsx` (57KB), `EditorPane.jsx`, `VariablesBar.jsx` | `POST /api/query`, `/api/query/cancel/:id`, `/api/db/describe` | `.sql` |
-| **SQL Notebook** — celdas CODE/MARKDOWN/INPUT, ejecución individual o secuencial | `SqlNotebook.jsx`, `NotebookCell.jsx`, `MarkdownEditor.jsx` | `/api/file`, `/api/notebook-state`, `/api/query` | `.sqlnb` + sidecar `.sqlnb.state.json` |
+| **Cuaderno** — celdas de alto fijo (520 px) que dejan su vista temporal en la sesión; grafo de dependencias y «Actualizar» | `cuaderno/` (`CuadernoEditor`, `Celda`, `CeldaTexto`, `PantallaCompleta`, `Barra`, + `grafo.js`/`claves.js`/`vistasVivas.js`) | `/api/cuaderno/celda`, `/api/cuaderno/vistas`, `/api/notebook-state`, `/api/file` | `.sqlnb` (markdown + cabecera) + `.sqlnb.state.json` |
 | **ResultsTable** — resultados paginados (NO virtualizar — vetado), sort/filter, pop-out | `ResultsTable.jsx` (38KB), `PopoutResultsPage.jsx` | `/api/export-data`, `/api/profile` | — |
 | **Data Profiler** — perfilado estadístico (SUMMARIZE) | `DataProfiler.jsx` | `POST /api/profile` | — |
 | **Story Flow** — visualización narrativa en 6 etapas (Type→Data→Format→Style→Story→Export), 15+ tipos Recharts, anotaciones/takeaway/énfasis, tour | `DataVisualizer/` (~17 comps), `StoryFlowGuide.jsx`, `AmoxvisPane.jsx` | `/api/ai/chart-story`, `/api/files/write-binary` | `.amoxvis` |
@@ -43,7 +43,7 @@
 - `ToastProvider.jsx` / `dialogs/DialogProvider.jsx` — contexts de notificaciones y diálogos.
 - Paneles sidebar (keep-alive): `FileExplorer`, `DatabaseExplorer`, `ExtensionExplorer`, `DbtPanel`, `SnippetsPanel`, `QueryHistoryPanel`, `GitPanel`, `ai/ConversationList`, `ai/AnalysisVault`.
 - Modales (mayoría lazy): `SettingsModal`, `ImportModal`, `ImportExcelModal`, `ExportDataModal`, `ExportAiContextModal`, `DataQualityModal`, `QueryPlanModal`, `SchemaDiffModal`, `TableDetailsModal`, `TablePreviewModal`, `FilePreviewModal`, `SaveQueryModal`, `SaveToDbModal`, `QueryHistoryModal`, `OpenProjectModal`, `DeleteConfirmModal`, `ChartGalleryModal`, `ExecutionChainModal`.
-- Editores/vistas de contenido: `SqlEditor`, `SqlNotebook`+`NotebookCell`, `MarkdownEditor`, `ResultsTable`, `DataProfiler`, `ErDiagram`, `AmoxvisPane`, `CompareResults`, `QueryPlanViewer`.
+- Editores/vistas de contenido: `SqlEditor`, `cuaderno/CuadernoEditor`, `MarkdownEditor`, `ResultsTable`, `DataProfiler`, `ErDiagram`, `AmoxvisPane`, `CompareResults`, `QueryPlanViewer`.
 - `onboarding/` — `OnboardingHost`, `Tour`.
 
 ### `DataVisualizer/` (Story Flow)
@@ -65,7 +65,7 @@
 `MarkdownPreview.jsx` — renderer con soporte de bloques ` ```amoxchart ` (usado por notebook, deck y editor markdown).
 
 ### Utilidades clave (`client/src/utils/` y afines)
-`notebookParser.js` (parse/serialize `.sqlnb` v2/v3 + legacy) · `deckParser.js` (`.amoxdeck`) · `generateHtmlReport.js` / `generatePptxReport.js` / `generateWordReport.js` · `draftSaver.js` (drafts a localStorage) · `client/src/workers/sqlLanguageWorker.js` + `sqlWorkerBridge.js` (tree-sitter SQL en Web Worker) · `client/src/api.js` (`API_BASE` con puerto dinámico) · `client/src/state/sidebarCache.js`.
+`cuadernoFile.js` (lee/escribe `.sqlnb`; lee además JSON v2/v3 y marcadores) · `celdaSql.js` + `vistaDeCelda.js` (análisis de celda y vista implícita) · `deckParser.js` (`.amoxdeck`) · `generatePptxReport.js` / `generateWordReport.js` · `draftSaver.js` (drafts a localStorage) · `client/src/workers/sqlLanguageWorker.js` + `sqlWorkerBridge.js` (tree-sitter SQL en Web Worker) · `client/src/api.js` (`API_BASE` con puerto dinámico) · `client/src/state/sidebarCache.js`.
 
 ## 3. Mapa del server
 
@@ -132,14 +132,14 @@ ResultsTable "Visualize" → `DataVisualizer` (6 etapas) → guardar config JSON
 - **Schemas DuckDB internos** (ocultos del explorador por prefijo `amoxsql%`; intermedias de chains `__chain_*`):
   - `amoxsql_ai`: conversations, messages, query_results, chart_configs, memories, session_artifacts, analysis_vault, query_cache, plans, conversation_metrics, scratchpad; + historial de queries.
   - `amoxsql_chains`: execution_history, node_outputs.
-- **Sidecars**: `.sqlnb.state.json` (resultados/charts por celda).
+- **Al lado**: `.sqlnb.state.json` (modo, reparto y gráfico por celda, indexado por NOMBRE de celda).
 
 ## 6. Formatos de archivo propios
 
 | Formato | Estructura | Parser/Loader |
 |---|---|---|
-| `.sqlnb` | JSON v3.0: `{version, cells:[{id,type:code\|markdown\|input,content,...}], environment, metadata}` (v3 embebe resultados; legacy con marcadores `-- !CELL:*!` soportado) | `client/src/utils/notebookParser.js` |
-| `.sqlnb.state.json` | `{cellResults, cellCharts, cellErrors, lastSavedAt}` | endpoint `/api/notebook-state` |
+| `.sqlnb` | Markdown con front-matter (`titulo`, `parametros`); celdas de SQL en bloques ` ```sql ` precedidos de `<!-- celda: nombre -->`. Lee además JSON v2/v3 y marcadores `-- !CELL:*!`, y los guarda en el formato nuevo | `client/src/utils/cuadernoFile.js` |
+| `.sqlnb.state.json` | `{celdas: {"n:nombre"\|"p:pos": {modo, reparto, vista, grafico}}}` — el endpoint REESCRIBE el archivo entero, así que hay que conservar las claves ajenas | endpoint `/api/notebook-state` |
 | `.amoxvis` | JSON: `{version, type, data{source,columns}, format{scales,domains,formats}, style{palette,legend,...}, story{title,annotations,takeaway,emphasis}, metadata}` | carga directa JSON → DataVisualizer |
 | `.amoxdeck` | Markdown: front-matter YAML (`title, theme, aspect, variables`) + slides separadas por `---` + `<!-- layout: title\|content\|content-chart\|chart-full\|two-col -->` + bloques ` ```amoxchart ` (`src:` a un `.amoxvis`, `overrides:`) | `client/src/utils/deckParser.js` |
 | `.sqlchain` | JSON: `{version, id, name, nodes:[{id,type,config}], edges:[{from,to}], variables, config{checkpoints,...}}` | `chains/chainNodeTypes.js` + `server/ChainExecutor.js` |

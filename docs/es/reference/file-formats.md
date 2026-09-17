@@ -6,7 +6,7 @@
 
 ## Qué es
 
-AmoxSQL trabaja siempre sobre archivos reales en tu proyecto — nada queda encerrado en una base de datos opaca. Cada feature del IDE tiene un formato de archivo detrás: el editor edita `.sql`, los notebooks son `.sqlnb`, los gráficos se guardan como `.amoxvis`, los reportes como `.amoxdeck`, y las pipelines visuales como `.sqlchain`. Todos son texto (SQL, JSON, Markdown o YAML), así que puedes versionarlos con Git, editarlos a mano y compartirlos.
+AmoxSQL trabaja siempre sobre archivos reales en tu proyecto — nada queda encerrado en una base de datos opaca. Cada feature del IDE tiene un formato de archivo detrás: el editor edita `.sql`, los cuadernos son `.sqlnb`, los gráficos se guardan como `.amoxvis`, los reportes como `.amoxdeck`, y las pipelines visuales como `.sqlchain`. Todos son texto (SQL, JSON, Markdown o YAML), así que puedes versionarlos con Git, editarlos a mano y compartirlos.
 
 Esta página es la referencia de todos ellos. Para el detalle técnico del parser de notebooks, ver `contexto_caracteristicas/formatos_archivo.md` en las docs de desarrollo.
 
@@ -15,8 +15,8 @@ Esta página es la referencia de todos ellos. Para el detalle técnico del parse
 | Formato | Contenido | Estructura | Se edita en |
 |---|---|---|---|
 | `.sql` | Consulta SQL plana | Texto SQL | [Editor SQL](../editor/sql-editor.md) |
-| `.sqlnb` | Notebook (celdas + entorno) | JSON v3.0 | [Notebooks](../notebooks/notebooks.md) |
-| `.sqlnb.state.json` | Estado visual del notebook | JSON | Generado (sidecar) |
+| `.sqlnb` | Cuaderno (celdas + parámetros) | Markdown con cabecera | [Cuadernos](../notebooks/notebooks.md) |
+| `.sqlnb.state.json` | Estado visual del cuaderno | JSON | Generado (al lado) |
 | `.amoxvis` | Configuración de un gráfico | JSON | [Story Flow](../visualization/story-flow.md) |
 | `.amoxdeck` | Deck de presentación | Markdown + front-matter | [Report Flow](../reports/report-flow.md) |
 | `.sqlchain` | Pipeline de transformación | JSON (DAG) | [Data Flow](../data-flow/data-flow.md) |
@@ -37,18 +37,33 @@ Un archivo de texto con SQL de DuckDB. Es el formato más simple y el que abres 
 
 ## `.sqlnb` — SQL Notebook
 
-Un notebook: una secuencia de celdas de SQL, Markdown e input, más el entorno (ruta de base de datos y variables). Es el formato de un análisis narrado paso a paso. Ver [Notebooks](../notebooks/notebooks.md).
+Un cuaderno: una secuencia de celdas de SQL y de texto, más los parámetros. Es **markdown con cabecera**, no JSON: se lee tal cual en cualquier editor y los cambios se revisan en un diff como cualquier otro texto. Ver [Cuadernos](../notebooks/notebooks.md).
 
 | Aspecto | Detalle |
 |---|---|
-| Formato actual | JSON v3.0 |
-| Estructura | `{ version, cells[], environment }` |
-| Tipos de celda | `code` (SQL), `markdown`, `input` (variable interactiva) |
-| Estado embebido | Cada celda `code` puede llevar `state` (resultado, `chartConfig`, `viewMode`, alto) |
-| Entorno | `environment.dbPath` y `environment.variables` |
-| Compatibilidad | Lee también v2.0 (`type: "sql"`) y el formato legacy con marcadores `-- [CELL:...]`; ambos migran a v3.0 al abrir |
-| Límite | Los resultados se truncan a 500 filas al guardar (`state.result.truncated` lo indica) |
-| Se edita en | Interfaz de notebook |
+| Formato actual | Markdown con front-matter |
+| Cabecera | `titulo` y `parametros` (pares `nombre: valor`) |
+| Celda de SQL | Un bloque cercado ` ```sql `, precedido de `<!-- celda: nombre -->` si tiene nombre |
+| Celda de texto | Markdown a secas, entre bloques |
+| El nombre de la celda | Es el de la vista temporal que deja puesta al ejecutarse |
+| Compatibilidad | Lee también JSON v3.0, v2.0 y el formato de marcadores `-- !CELL:CODE!`; los tres se guardan ya en el formato nuevo, y las celdas `input` pasan a ser parámetros de la cabecera |
+| Lo que NO guarda | Resultados ni configuración de gráficos: eso vive en el archivo de estado |
+| Se edita en | La interfaz del cuaderno |
+
+```markdown
+---
+parametros:
+  desde: 2026-09-01
+---
+
+# Caída de septiembre
+
+<!-- celda: ventas_limpias -->
+```sql
+-- Quito devoluciones
+SELECT * FROM ventas WHERE NOT devuelta AND f >= {{desde}};
+```
+```
 
 ## `.sqlnb.state.json` — Sidecar de estado del notebook
 
@@ -136,9 +151,9 @@ Se edita con cualquier editor de texto. Ver [Contexto como código](../ai/contex
 
 ## Tips y gemas
 
-- **Todo es texto y versionable:** `.sqlnb`, `.amoxvis`, `.amoxdeck` y `.sqlchain` son JSON/Markdown/YAML — ideales para Git y para revisar diffs.
+- **Todo es texto y versionable:** `.sqlnb`, `.amoxvis`, `.amoxdeck` y `.sqlchain` son Markdown/JSON/YAML — ideales para Git y para revisar diffs. El cuaderno además es markdown legible, así que un diff enseña el análisis y no una llave de JSON.
 - **El `.amoxvis` es portátil:** como lleva su propia `query`, puedes moverlo entre proyectos y sigue funcionando mientras exista la tabla que consulta.
-- **El sidecar te protege:** editar el SQL de un notebook no borra tus resultados porque viven en el `.sqlnb.state.json`.
+- **El estado va aparte:** el modo de cada celda y la configuración de sus gráficos viven en el `.sqlnb.state.json`, no en el documento. Son de quien mira, no del análisis.
 - **`RULES.md` vs `context/`:** el primero dice *cómo comportarse*; el segundo dice *qué significan las cosas*.
 
 ## Relacionado

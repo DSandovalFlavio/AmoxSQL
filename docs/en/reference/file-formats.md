@@ -15,8 +15,8 @@ This page is the reference for all of them. For the technical detail of the note
 | Format | Contents | Structure | Edited in |
 |---|---|---|---|
 | `.sql` | Plain SQL query | SQL text | [SQL editor](../editor/sql-editor.md) |
-| `.sqlnb` | Notebook (cells + environment) | JSON v3.0 | [Notebooks](../notebooks/notebooks.md) |
-| `.sqlnb.state.json` | Notebook visual state | JSON | Generated (sidecar) |
+| `.sqlnb` | Notebook (cells + parameters) | Markdown with front matter | [Notebooks](../notebooks/notebooks.md) |
+| `.sqlnb.state.json` | Notebook visual state | JSON | Generated (alongside) |
 | `.amoxvis` | A chart's configuration | JSON | [Story Flow](../visualization/story-flow.md) |
 | `.amoxdeck` | Presentation deck | Markdown + front-matter | [Report Flow](../reports/report-flow.md) |
 | `.sqlchain` | Transformation pipeline | JSON (DAG) | [Data Flow](../data-flow/data-flow.md) |
@@ -37,18 +37,33 @@ A text file containing DuckDB SQL. It's the simplest format and the one you open
 
 ## `.sqlnb` — SQL Notebook
 
-A notebook: a sequence of SQL, Markdown, and input cells, plus the environment (database path and variables). It's the format for a step-by-step narrated analysis. See [Notebooks](../notebooks/notebooks.md).
+A notebook: a sequence of SQL and text cells, plus parameters. It is **markdown with front matter**, not JSON: it reads as-is in any editor, and changes show up in a diff like any other text. See [Notebooks](../notebooks/notebooks.md).
 
 | Aspect | Detail |
 |---|---|
-| Current format | JSON v3.0 |
-| Structure | `{ version, cells[], environment }` |
-| Cell types | `code` (SQL), `markdown`, `input` (interactive variable) |
-| Embedded state | Each `code` cell can carry `state` (result, `chartConfig`, `viewMode`, height) |
-| Environment | `environment.dbPath` and `environment.variables` |
-| Compatibility | Also reads v2.0 (`type: "sql"`) and the legacy marker format `-- [CELL:...]`; both migrate to v3.0 on open |
-| Limit | Results are truncated to 500 rows on save (`state.result.truncated` flags it) |
-| Edited in | Notebook interface |
+| Current format | Markdown with front matter |
+| Front matter | `titulo` and `parametros` (`name: value` pairs) |
+| SQL cell | A fenced ` ```sql ` block, preceded by `<!-- celda: name -->` when it has a name |
+| Text cell | Plain markdown, between blocks |
+| The cell's name | Is the name of the temp view it leaves in the session when it runs |
+| Compatibility | Also reads JSON v3.0, v2.0 and the marker format `-- !CELL:CODE!`; all three are saved in the new format, and `input` cells become front-matter parameters |
+| What it does NOT store | Results or chart configuration — those live in the state file |
+| Edited in | The notebook interface |
+
+```markdown
+---
+parametros:
+  desde: 2026-09-01
+---
+
+# September drop
+
+<!-- celda: ventas_limpias -->
+```sql
+-- Drop returns
+SELECT * FROM ventas WHERE NOT devuelta AND f >= {{desde}};
+```
+```
 
 ## `.sqlnb.state.json` — Notebook state sidecar
 

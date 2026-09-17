@@ -21,9 +21,9 @@ import { bloquesDe, leerBloque, BLOQUES } from './deckBlockModel';
 
 /** Qué significa cada directiva, dicho donde aparece. */
 const DIRECTIVAS = {
-    layout: 'la disposición de la lámina — la escribe el inspector',
-    eyebrow: 'el antetítulo, que por defecto hereda el del deck',
-    footer: 'qué campos lleva el pie',
+    layout: "the slide's layout — the inspector writes it",
+    eyebrow: "the eyebrow, which by default inherits the deck's",
+    footer: 'which fields the footer carries',
     tone: 'claro u oscuro, por encima del tema',
     col: 'el corte entre las dos columnas',
 };
@@ -79,9 +79,9 @@ const DeckSlideRaw = ({ raw, numero, onEditar, onCerrar }) => {
         <div className="deck-crudo">
             <div className="deck-crudo-cab">
                 <LuCode size={13} />
-                <span>Lámina {numero} · crudo</span>
+                <span>Slide {numero} · raw</span>
                 <kbd>Ctrl</kbd><kbd>⇧</kbd><kbd>E</kbd>
-                <button type="button" onClick={onCerrar} title="Cerrar el crudo"><LuX size={14} /></button>
+                <button type="button" onClick={onCerrar} title="Close the raw view"><LuX size={14} /></button>
             </div>
 
             <textarea
@@ -115,13 +115,13 @@ const DeckSlideRaw = ({ raw, numero, onEditar, onCerrar }) => {
 
                 {bloques.filter((b) => !errores.some((e) => e.lang === b.lang)).map((b) => (
                     <p key={`b-${b.desde}`} className="deck-crudo-nota">
-                        bloque <code>{b.lang}</code> — {BLOQUES[b.lang]?.label}, editable con campos
-                        desde el inspector
+                        <code>{b.lang}</code> block — {BLOQUES[b.lang]?.label}, editable as fields
+                        from the inspector
                     </p>
                 ))}
 
                 {!directivas.length && !bloques.length && !errores.length && (
-                    <p className="deck-crudo-nota">Markdown a secas: sin directivas ni bloques de dato.</p>
+                    <p className="deck-crudo-nota">Plain markdown: no directives and no data blocks.</p>
                 )}
             </div>
         </div>

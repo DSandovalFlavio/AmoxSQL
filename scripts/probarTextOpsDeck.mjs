@@ -61,8 +61,8 @@ eq('acentos en la consulta', detectarDisparo('/métr', 5), { desde: 0, consulta:
 const todo = filtrarInsertables('');
 eq('sin consulta salen todos los grupos', todo.length >= 2, true);
 eq('los grupos traen items', todo.every(g => g.items.length > 0), true);
-const conTitulo = aplanar(filtrarInsertables('titulo'));
-eq('filtra por palabra clave', conTitulo.length > 0 && conTitulo.every(i => (i.label + i.keywords + i.id).toLowerCase().includes('titulo')), true);
+const conTitulo = aplanar(filtrarInsertables('heading'));
+eq('filtra por palabra clave', conTitulo.length > 0 && conTitulo.every(i => (i.label + i.keywords + i.id).toLowerCase().includes('heading')), true);
 eq('una consulta imposible no devuelve grupos vacíos', filtrarInsertables('zzzzz'), []);
 
 // ── paradas de tabulación ───────────────────────────────────────────────────
@@ -87,10 +87,10 @@ eq('y no se come lo que había detrás',
 // ── el catálogo de la lámina, que no es el del documento ────────────────────
 const enLamina = (q) => aplanar(filtrarParaLamina(q)).map(i => i.id);
 eq('«metr» encuentra la tira de métricas', enLamina('metr').includes('kpis'), true);
-eq('«cifra» encuentra la cifra ancla', enLamina('cifra').includes('metric'), true);
-eq('«grafico» encuentra la figura', enLamina('grafico').includes('figura'), true);
-eq('«tabla» encuentra la clasificada y la normal',
-    ['rank', 'tabla'].every(id => enLamina('tabla').includes(id)), true);
+eq('«anchor» encuentra la cifra ancla', enLamina('anchor').includes('metric'), true);
+eq('«chart» encuentra la figura', enLamina('chart').includes('figura'), true);
+eq('«table» encuentra la clasificada y la normal',
+    ['rank', 'tabla'].every(id => enLamina('table').includes(id)), true);
 eq('la cabecera del documento NO se ofrece en una lámina', enLamina('').includes('cabecera'), false);
 eq('el índice tampoco', enLamina('').includes('indice'), false);
 eq('las casillas de tarea tampoco', enLamina('').includes('tarea'), false);

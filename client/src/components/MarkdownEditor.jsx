@@ -262,9 +262,9 @@ const MarkdownEditor = ({
             // array de dependencias reventaria por zona muerta temporal.
             const editor = editorRef.current;
             if (editor) insertBlock(editor, mermaid);
-            toast.success('Diagrama generado — a partir de aquí es markdown editable');
+            toast.success('Diagram generated — from here on it is editable markdown');
         } catch (e) {
-            toast.error(`No se pudo leer la chain: ${e.message}`);
+            toast.error(`Could not read the chain: ${e.message}`);
         }
     }, [toast]);
 
@@ -489,7 +489,7 @@ const MarkdownEditor = ({
             return;
         }
         if (!window.electronAPI?.exportPdf) {
-            toast.error('La exportación a PDF solo está disponible en la aplicación de escritorio');
+            toast.error('Exporting to PDF is only available in the desktop app');
             return;
         }
 
@@ -673,8 +673,8 @@ const MarkdownEditor = ({
                         // Cada artefacto dice lo que es: la ficha resultante
                         // abre la pestaña que le corresponde al pulsarla.
                         const QUE_ES = {
-                            sql: 'Consulta', amoxvis: 'Gráfico', sqlchain: 'Data Flow',
-                            sqlnb: 'Notebook', amoxdeck: 'Report Flow', md: 'Documento',
+                            sql: 'Query', amoxvis: 'Chart', sqlchain: 'Data Flow',
+                            sqlnb: 'Notebook', amoxdeck: 'Report Flow', md: 'Document',
                         };
                         files.forEach(fullPath => {
                             const ext = fullPath.split('.').pop().toLowerCase();
@@ -835,11 +835,11 @@ const MarkdownEditor = ({
     // puesta. Si el archivo no existe se crea con un título.
     const handleQuickCapture = useCallback(async () => {
         const texto = await dialog.promptAsync({
-            title: 'Captura rápida',
-            message: `Se añade como tarea a ${NOTES_FILE}`,
-            placeholder: 'Revisar el particionado de eventos @flavio vence 2026-09-20',
-            confirmLabel: 'Añadir',
-            cancelLabel: 'Cancelar',
+            title: 'Quick capture',
+            message: `It is added as a task to ${NOTES_FILE}`,
+            placeholder: 'Review the event partitioning @flavio due 2026-09-20',
+            confirmLabel: 'Add',
+            cancelLabel: 'Cancel',
         });
         if (!texto?.trim()) return;
 
@@ -1295,9 +1295,9 @@ ${snippet}` : snippet);
 
                 {/* ── Barra de estado ── */}
                 <div className="mde-status">
-                    <span>{stats.palabras.toLocaleString('es')} palabras</span>
-                    <span>{stats.minutos} min de lectura</span>
-                    <span>{stats.secciones} {stats.secciones === 1 ? 'sección' : 'secciones'}</span>
+                    <span>{stats.palabras.toLocaleString('en')} words</span>
+                    <span>{stats.minutos} min read</span>
+                    <span>{stats.secciones} {stats.secciones === 1 ? 'section' : 'sections'}</span>
                     {stats.casillas.total > 0 && (
                         <span className={stats.casillas.done === stats.casillas.total ? 'mde-status-ok' : undefined}>
                             {stats.casillas.done} de {stats.casillas.total} casillas
