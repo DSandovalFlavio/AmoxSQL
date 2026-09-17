@@ -3846,8 +3846,50 @@ app.post('/api/query', async (req, res) => {
  * hasta que el aviso se acepta.
  */
 app.post('/api/cuaderno/celda', async (req, res) => {
-    const { preparacion, lector, vista, limit, queryId, aceptarTapado } = req.body;
+    const { preparacion, lector, vista, deja, limit, queryId, aceptarTapado } = req.body;
     if (!lector) return res.status(400).json({ error: 'The reader query is missing' });
+
+    /**
+     * Cambiar de tipo: relevar lo temporal que estorbe, y SOLO si estorba.
+     *
+     * `CREATE OR REPLACE` sabe reemplazar una vista por otra vista, pero no una
+     * vista por una tabla: responde «Existing object x is of type View, trying
+     * to replace with type Table». Eso lo provoca el boton «Materializar», que
+     * existe justo para cambiar de tipo.
+     *
+     * Y NO vale mandar siempre un `DROP` del otro tipo desde el cliente: medido
+     * contra el motor, `DROP TABLE IF EXISTS` sobre una VISTA no es inofensivo,
+     * falla igual. El `IF EXISTS` perdona que no haya nada, no que haya otra
+     * cosa. Asi que hay que mirar QUE hay antes de tirar nada, y eso solo se
+     * sabe aqui: los objetos temporales son por conexion y el catalogo vive en
+     * el motor, no en el documento.
+     *
+     * Va calificado a `temp.main` a proposito: sin calificar, el DROP se
+     * llevaria por delante la vista PERMANENTE del mismo nombre, que es de
+     * quien abrio el proyecto y no vuelve al cerrar.
+     */
+    if (vista && (deja === 'vista' || deja === 'tabla')) {
+        try {
+            const nombre = String(vista).replace(/'/g, "''");
+            const hay = await dbManager.systemQuery(`
+                SELECT 'vista' AS tipo FROM duckdb_views()
+                 WHERE temporary AND NOT internal AND lower(view_name) = lower('${nombre}')
+                UNION ALL
+                SELECT 'tabla' FROM duckdb_tables()
+                 WHERE temporary AND lower(table_name) = lower('${nombre}')
+                LIMIT 1
+            `);
+            if (hay.length && hay[0].tipo !== deja) {
+                const id = `"${String(vista).replace(/"/g, '""')}"`;
+                const que = hay[0].tipo === 'tabla' ? 'TABLE' : 'VIEW';
+                await dbManager.systemQuery(`DROP ${que} IF EXISTS temp.main.${id}`);
+            }
+        } catch (err) {
+            // Si no se puede mirar el catalogo se sigue: el CREATE dira lo suyo
+            // con un error del motor, que es mejor que negarse a ejecutar.
+            console.warn('[cuaderno] no se pudo comprobar el tipo previo:', err.message);
+        }
+    }
 
     if (vista && !aceptarTapado) {
         try {

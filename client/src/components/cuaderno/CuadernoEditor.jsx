@@ -529,6 +529,9 @@ const CuadernoEditor = ({
                     preparacion,
                     lector,
                     vista,
+                    // Que va a dejar puesto: el servidor lo necesita para saber
+                    // si hay que relevar un objeto temporal del otro tipo.
+                    deja,
                     aceptarTapado,
                     limit: editorSettings?.queryResultLimit ?? 10000,
                 }),

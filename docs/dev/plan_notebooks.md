@@ -702,8 +702,12 @@ lo que más callado falla: que el `.docx` sale con su figura entera.
   ingeniero de datos pide de aquí que no cubre otra herramienta, y hoy no existe —lo que
   parecía una aserción resultó ser el campo del valor de un parámetro. Candidata clara para
   después.
-- **El explorador de esquema y las vistas del cuaderno.** Ahora hay objetos temporales con
-  descripción; mirar si el explorador debería enseñarlos aparte de las tablas reales.
+- **El explorador de esquema no puede enseñar las vistas del cuaderno.** Y no es que las
+  filtre: `/api/db/tables` consulta por la vía `meta`, y los objetos temporales son **por
+  conexión**. Desde `meta` no existen. Por eso la barra derecha del cuaderno las ve —pregunta
+  por `main`— y el panel de esquema no, y quien mira los dos a la vez concluye que su celda
+  no creó nada. Se arregla moviendo esa consulta a `main`, o dejando de usar objetos
+  temporales; lo segundo es la pregunta del esquema por cuaderno, aquí debajo.
 - **El producto arrastra dos convenciones de variable.** `{{nombre}}` en cuadernos y
   tableros, con entrecomillado automático; `${'{'}nombre}` en las variables del editor de
   consultas, en crudo. El cuaderno se queda con la suya —cambiarla rompería en silencio los
