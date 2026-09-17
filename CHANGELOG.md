@@ -5,6 +5,72 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.7.0] — 2026-09-16
+
+### El cuaderno, reconstruido alrededor de una idea que ya era verdad
+
+**La sesión es el dataframe.** Una vista temporal sobrevive de una consulta a la
+siguiente —eso ya pasaba— y la interfaz nunca lo contaba. Ahora sí: se escribe la
+consulta, la celda le pone nombre, y la de abajo escribe `FROM ese_nombre`.
+**Nadie escribe un `CREATE`.** El comentario de cabecera se convierte en la
+descripción de la vista y se guarda en el motor, no sólo en el documento.
+
+- **El cuaderno sabe qué celda lee a cuál**, esté donde esté en el documento: la
+  dependencia sale de los nombres, no del orden de la pantalla. «Actualizar»
+  ejecuta lo que no está al día en orden de dependencia, y dice cuántas y en qué
+  orden antes de empezar. Lo que escribe en disco se aparta y se dice: repetir un
+  `INSERT` duplica filas.
+- **La barra derecha no describe el documento, describe el motor.** El índice
+  sale de los encabezados; las vistas salen de preguntarle al motor qué existe de
+  verdad. Reabrir mañana deja el documento intacto y la sesión vacía, y eso antes
+  se descubría al fallar una celda de en medio.
+- **Modo lectura.** El cuaderno sin el SQL, sin mandos y sin el panel de
+  construcción de gráficos: queda el texto y la figura. No es exportar — se
+  deshace de un clic. Una figura toma el alto que pide su proporción y una tabla
+  el que piden sus filas.
+- **Visualmente**, celdas de alto fijo, los mandos en un canalón izquierdo que
+  aparece al acercarse, y la prosa sin caja.
+- **Formato**: `.sqlnb` pasa a ser markdown con front matter —legible y
+  diffeable— y sigue leyendo el JSON v3.0, el v2.0 y los marcadores antiguos.
+
+### Un archivo es un archivo
+
+- **Abrir lo que no es de nadie.** Un `.log`, un `.yml`, un `.txt` se abren como
+  texto en vez de rebotar, y el producto recuerda cómo quieres abrir cada tipo.
+- **El disco se vigila.** Si algo cambia fuera de AmoxSQL se avisa, y si hay
+  cambios sin guardar se pregunta antes de escribir, con tres salidas: guardar
+  aparte, sobrescribir o descartar.
+- **El editor de código viaja dentro** del instalable en vez de descargarse de
+  internet: arranca sin red y no depende de un CDN.
+
+### La interfaz, en un solo idioma
+
+**360 cadenas** pasan al inglés — el cuaderno, el editor de documentos, el Studio
+de Report Flow, AmoxDiagram, la lista de atajos, los diálogos y las dos Skills
+descargables. No se tocan las claves de formato de los archivos, que son de quien
+los escribió.
+
+### Rendimiento
+
+- **Recorrer un cuaderno de dieciséis celdas**: el bloqueo del hilo principal baja
+  de 2.073 ms a 206 ms, y deja de repetirse en cada pasada. Las celdas se montan
+  una vez y en huecos de inactividad, y los paneles que nadie mira ya no se
+  montan.
+- **Plegar la barra lateral** con un cuaderno abierto costaba 132 ms *cada vez*
+  —ocho fotogramas— porque un `memo` no podía cortar. Ahora, 0.
+
+### Arreglado
+
+- «Materializar» dejaba la celda rota hasta cerrar el proyecto, y `DROP … IF
+  EXISTS` resultó no perdonar el desajuste de tipo.
+- «Actualizar» se apagaba con el cuaderno entero sin ejecutar al reabrir el
+  archivo, y se paraba al primer fallo sin decir dónde.
+- Mover dos celdas les intercambiaba el gráfico: el estado visual se guarda por
+  nombre, no por posición.
+- El aviso de nombre tapado se repetía en cada pasada.
+
+---
+
 ## [5.6.0] — 2026-09-15
 
 ### AmoxDiagram — un editor visual de diagramas
