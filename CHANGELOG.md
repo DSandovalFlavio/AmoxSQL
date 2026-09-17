@@ -5,6 +5,45 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.8.0] — 2026-09-17
+
+### Los temas oscuros, reordenados
+
+Diez temas eran demasiados para el sitio que ocupaban: dos de ellos no hacían
+nada que otro no hiciera mejor. El mapa que se generó para decidirlo
+(`docs/dev/mapa_temas.html`, que se escribe leyendo el CSS) lo dejó ver de
+golpe, y con él se retiran dos, entran dos y el selector pasa a contar algo.
+
+- **Fuera Onyx.** Se llamaba «true black» y no lo era: 0,003 de croma y a 0,009
+  de Obsidian en claridad, o sea un gris a medio camino entre dos temas que ya
+  hacían mejor su trabajo. Quien lo tuviera puesto pasa a Deep Dark.
+- **Fuera Ayu Dark.** Caía a 0,014 de Amox Dark y 0,044 de Obsidian —los tres en
+  el mismo azul tinta—. Quien lo tuviera puesto pasa a Amox Dark, que es el azul
+  vecino por superficie, que es lo que se ve.
+- **Entra Deep Dark**, que sí es negro: croma 0,000 y un recorrido de claridad de
+  0,075, el más apretado de la casa detrás de Obsidian. A esa profundidad el
+  relleno ya casi no separa, así que la estructura la llevan los filetes y el
+  borde sutil está calibrado aparte.
+- **Entra Ember**, el primero donde el calor vive en la **sintaxis** y no en el
+  fondo. Los otros ocho oscuros pintan el código en azules, violetas y verdes;
+  aquí el esqueleto del SQL es coral sobre un gris frío inclinado a 285°.
+- **El selector pasa a columnas.** Las tres primeras son parejas —la misma
+  paleta en oscuro arriba y en claro abajo—, que es como se elige de verdad:
+  nadie compara Amox Light contra Nord, compara Amox contra Sterling. Las dos
+  últimas son los temas con carácter propio, de más oscuro a más claro.
+
+Las migraciones se aplican **al leer**, así que también arreglan un perfil
+copiado de otra máquina o de una versión anterior.
+
+### Interno
+
+- `scripts/genMapaDeTemas.cjs` genera `docs/dev/mapa_temas.html` leyendo el CSS:
+  dos reglas —claridad y croma— con las familias agrupadas por croma y luego por
+  tono. Es lo que permitió medir que dos temas sobraban y que un tercer candidato
+  chocaba con Nord antes de escribir una sola línea.
+
+---
+
 ## [5.7.0] — 2026-09-16
 
 ### El cuaderno, reconstruido alrededor de una idea que ya era verdad
