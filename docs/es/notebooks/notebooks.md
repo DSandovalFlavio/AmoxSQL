@@ -62,10 +62,13 @@ Con el botón **Lectura** de la cabecera del documento:
   tabla; la que estaba en gráfico, como gráfico —y **sólo el gráfico**, sin el
   panel de construcción de Story Flow.
 - Los mandos del canalón y las barras de la tabla desaparecen.
-- **La celda pierde la caja**: ni borde, ni fondo, ni cabecera. Era una caja
-  dentro de otra —el marco de la celda y, dentro, la tarjeta de la figura con su
-  propio título—, y la de fuera repetía lo que la figura ya dice mejor. Es la
-  misma decisión que ya tenía la celda de texto.
+- **Una figura pierde la caja de la celda**: ni borde, ni fondo, ni cabecera. Era
+  una caja dentro de otra —el marco de la celda y, dentro, la tarjeta de la
+  figura con su propio título—, y la de fuera repetía lo que la figura ya dice
+  mejor. Y toma el alto que pide su proporción: 4:3 por omisión, y si la cambias
+  a 16:9 se respeta.
+- **Una tabla sí conserva la suya**, con su cabecera. No trae título propio, así
+  que sin el marco se quedaría flotando sin decir de qué paso viene.
 - El texto se lee; el doble clic para escribir no responde.
 - Se sigue pudiendo pasar páginas en una tabla y desplazarse por el cuaderno.
 

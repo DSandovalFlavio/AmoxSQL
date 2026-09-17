@@ -246,14 +246,21 @@
    celda de texto, aplicada donde faltaba.
    La cabecera se va con ella: lo que identificaba el paso mientras se trabaja
    no es lo que titula una figura cuando se lee. */
-.cdn-lista--lectura .cdn-celda {
+.cdn-lista--lectura .cdn-celda--figura {
     border: none;
     background: transparent;
     border-radius: 0;
 }
-.cdn-lista--lectura .cdn-cab { display: none; }
-.cdn-lista--lectura .cdn-editor,
-.cdn-lista--lectura .cdn-res { background: transparent; }
+.cdn-lista--lectura .cdn-celda--figura .cdn-cab { display: none; }
+.cdn-lista--lectura .cdn-celda--figura .cdn-res { background: transparent; }
+
+/* La TABLA se queda con su caja, y no es una excepción caprichosa: una figura
+   trae su propia tarjeta y su propio título, y una tabla no trae ninguna de las
+   dos. Quitarle el marco la deja flotando sin decir de qué paso viene. */
+.cdn-lista--lectura .cdn-celda:not(.cdn-celda--figura) .cdn-cab {
+    background: transparent;
+    border-bottom: 1px solid var(--border-subtle);
+}
 .cdn-lista--lectura .cdn-fila--sel::before { opacity: 0; }
 .cdn-lista--lectura .cdn-doc-titulo,
 .cdn-lista--lectura .cdn-doc-desc { cursor: default; }
