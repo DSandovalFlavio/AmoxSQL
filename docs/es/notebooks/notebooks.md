@@ -62,9 +62,10 @@ Con el botón **Lectura** de la cabecera del documento:
   tabla; la que estaba en gráfico, como gráfico —y **sólo el gráfico**, sin el
   panel de construcción de Story Flow.
 - Los mandos del canalón y las barras de la tabla desaparecen.
-- La cabecera de la celda se queda, pero como pie de figura: el nombre del paso y
-  su descripción. Las marcas de estado —viva, editada, escribe— son de quien
-  edita, y se van.
+- **La celda pierde la caja**: ni borde, ni fondo, ni cabecera. Era una caja
+  dentro de otra —el marco de la celda y, dentro, la tarjeta de la figura con su
+  propio título—, y la de fuera repetía lo que la figura ya dice mejor. Es la
+  misma decisión que ya tenía la celda de texto.
 - El texto se lee; el doble clic para escribir no responde.
 - Se sigue pudiendo pasar páginas en una tabla y desplazarse por el cuaderno.
 

@@ -238,12 +238,22 @@
    botón, así que aquí lo pone la fila. */
 .cdn-lista--lectura .cdn-fila + .cdn-fila { margin-top: var(--cdn-hueco); }
 
-.cdn-lista--lectura .cdn-cab {
+/* En lectura, la celda de SQL tampoco tiene caja.
+   Era una caja dentro de otra: el marco de la celda, y dentro la tarjeta de la
+   figura con su propio borde y su propio título. La de fuera no aportaba nada
+   —repetía el nombre del paso que la figura ya dice mejor— y hacía que un
+   documento pareciera un panel de control. Es la misma decisión que ya tenía la
+   celda de texto, aplicada donde faltaba.
+   La cabecera se va con ella: lo que identificaba el paso mientras se trabaja
+   no es lo que titula una figura cuando se lee. */
+.cdn-lista--lectura .cdn-celda {
+    border: none;
     background: transparent;
-    border-bottom: none;
-    height: 30px;
+    border-radius: 0;
 }
-.cdn-lista--lectura .cdn-nombre { cursor: default; }
+.cdn-lista--lectura .cdn-cab { display: none; }
+.cdn-lista--lectura .cdn-editor,
+.cdn-lista--lectura .cdn-res { background: transparent; }
 .cdn-lista--lectura .cdn-fila--sel::before { opacity: 0; }
 .cdn-lista--lectura .cdn-doc-titulo,
 .cdn-lista--lectura .cdn-doc-desc { cursor: default; }

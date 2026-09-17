@@ -33,7 +33,6 @@ import { useCerca } from './useCerca.js';
 
 // Medido contra la tabla de resultados de verdad, no estimado: la fila de
 // títulos lleva el tipo debajo, de ahí los 44.
-const ALTO_CAB = 30;            // la cabecera de la celda
 const ALTO_CABEZA_TABLA = 44;   // la fila de títulos de la tabla
 const ALTO_FILA = 28;
 const ALTO_PIE = 21;            // el pie de páginas, sólo con más de una
@@ -172,9 +171,10 @@ const Celda = ({
         const enPantalla = Math.min(filas, 50);          // lo que cabe en una página
         const pie = filas > 50 ? ALTO_PIE : 0;
         const cuerpo = ALTO_CABEZA_TABLA + enPantalla * ALTO_FILA + pie;
-        // El tope sigue siendo el de siempre, y se lee del CSS para que la
-        // pantalla estrecha —que lo sube a 780— siga mandando.
-        return `min(var(--cdn-alto), ${ALTO_CAB + cuerpo}px)`;
+        // Sin sumar la cabecera: en lectura no hay. El tope sigue siendo el de
+        // siempre y se lee del CSS, para que la pantalla estrecha —que lo sube a
+        // 780— siga mandando.
+        return `min(var(--cdn-alto), ${cuerpo}px)`;
     };
 
     const soloUno = modo !== MODOS.AMBOS;
