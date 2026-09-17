@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa de temas de AmoxSQL</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 28px 64px;
+    background: #0b0c0e; color: #e7e9ee;
+    font: 14px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -.02em; }
+  h2 { font-size: 17px; margin: 40px 0 6px; letter-spacing: -.01em; }
+  h3 { font-size: 14px; margin: 26px 0 4px; font-weight: 650; }
+  .sub { color: #8f94a3; margin: 0 0 24px; max-width: 78ch; }
+  .nota { color: #8f94a3; margin: 0 0 12px; font-size: 12.5px; max-width: 80ch; }
+  .cuantos {
+    font-size: 11px; color: #8f94a3; font-weight: 500;
+    border: 1px solid #23262e; border-radius: 999px; padding: 1px 7px; margin-left: 4px;
+  }
+  .cols { display: flex; gap: 10px; flex-wrap: wrap; }
+  .col { width: 168px; border: 1px solid #23262e; border-radius: 10px; overflow: hidden; background: #101216; }
+  .col-cab { padding: 9px 10px 8px; border-bottom: 1px solid #23262e; }
+  .col-nom { font-weight: 650; font-size: 13px; }
+  .col-num { font-size: 10.5px; color: #8f94a3; font-family: ui-monospace, monospace; margin-top: 2px; }
+  .rampa { display: flex; flex-direction: column; }
+  .capa {
+    height: 44px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 9px; font-family: ui-monospace, monospace; font-size: 10px;
+  }
+  .capa-n { color: rgba(255,255,255,.42); }
+  .capa-h { color: rgba(255,255,255,.34); }
+  .muestra { padding: 10px; font-size: 12px; line-height: 1.5; }
+  .col-pie {
+    padding: 7px 10px; border-top: 1px solid #23262e;
+    font-size: 10.5px; color: #8f94a3; font-family: ui-monospace, monospace;
+  }
+  .regla {
+    position: relative; height: 92px; margin: 18px 0 8px;
+    border-top: 1px solid #23262e;
+  }
+  .marca { position: absolute; top: 0; transform: translateX(-50%); text-align: center; width: 92px; }
+  .punto {
+    width: 24px; height: 24px; border-radius: 50%; margin: 10px auto 5px;
+    border: 1px solid rgba(255,255,255,.22);
+  }
+  .marca-n { font-size: 10.5px; line-height: 1.25; }
+  .marca-l { font-size: 10px; color: #8f94a3; font-family: ui-monospace, monospace; }
+  .banda { margin-bottom: 12px; }
+  footer { margin-top: 48px; color: #6a6f7d; font-size: 12px; border-top: 1px solid #23262e; padding-top: 14px; }
+  code { font-family: ui-monospace, monospace; background: #171a20; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>Mapa de temas</h1>
+<p class="sub">
+  Dónde cae cada tema en el espacio de color, para poder ver qué zonas están
+  cubiertas dos veces y cuáles no lo está ninguna. <b>L</b> es la claridad en
+  OKLCH —el mismo espacio en el que este proyecto declara los acentos—, <b>C</b>
+  el croma (0 = gris perfecto) y <b>H</b> el tono. Generado desde
+  <code>client/src/index.css</code>; si cambia un token, cambia esto.
+</p>
+
+<h2>El eje de intensidad — los oscuros</h2>
+<p class="nota">De más oscuro a menos. Los huecos entre puntos son huecos de verdad: zonas donde no hay ningún tema. Los ocho caben en <b>0,12 de claridad</b>.</p>
+
+    <div class="regla">
+      
+        <div class="marca" style="left:0.0%">
+          <div class="punto" style="background:#050505"></div>
+          <div class="marca-n">Deep Dark</div>
+          <div class="marca-l">0.115</div>
+        </div>
+        <div class="marca" style="left:25.3%">
+          <div class="punto" style="background:#080a0f"></div>
+          <div class="marca-n">Obsidian</div>
+          <div class="marca-l">0.145</div>
+        </div>
+        <div class="marca" style="left:62.1%">
+          <div class="punto" style="background:#0f141a"></div>
+          <div class="marca-n">Amox Dark</div>
+          <div class="marca-l">0.189</div>
+        </div>
+        <div class="marca" style="left:65.5%">
+          <div class="punto" style="background:#13131f"></div>
+          <div class="marca-n">Sterling Deep</div>
+          <div class="marca-l">0.193</div>
+        </div>
+        <div class="marca" style="left:73.9%">
+          <div class="punto" style="background:#16161c"></div>
+          <div class="marca-n">Ember</div>
+          <div class="marca-l">0.203</div>
+        </div>
+        <div class="marca" style="left:85.6%">
+          <div class="punto" style="background:#181a1d"></div>
+          <div class="marca-n">Dark Islands</div>
+          <div class="marca-l">0.217</div>
+        </div>
+        <div class="marca" style="left:100.0%">
+          <div class="punto" style="background:#1a1e25"></div>
+          <div class="marca-n">Nord Dark</div>
+          <div class="marca-l">0.234</div>
+        </div>
+    </div>
+
+<h2>El eje de tinte — cuánto color tiene el fondo</h2>
+<p class="nota">
+  Croma 0 es gris perfecto. Aquí los temas no se reparten liso: <b>se agrupan solos</b>,
+  con dos saltos claros. Por eso los cortes de familia van en esos dos vacíos y no
+  en un número redondo.
+</p>
+
+    <div class="regla">
+      
+        <div class="marca" style="left:0.0%">
+          <div class="punto" style="background:#050505"></div>
+          <div class="marca-n">Deep Dark</div>
+          <div class="marca-l">0.0000</div>
+        </div>
+        <div class="marca" style="left:27.5%">
+          <div class="punto" style="background:#181a1d"></div>
+          <div class="marca-n">Dark Islands</div>
+          <div class="marca-l">0.0066</div>
+        </div>
+        <div class="marca" style="left:49.3%">
+          <div class="punto" style="background:#16161c"></div>
+          <div class="marca-n">Ember</div>
+          <div class="marca-l">0.0119</div>
+        </div>
+        <div class="marca" style="left:49.8%">
+          <div class="punto" style="background:#080a0f"></div>
+          <div class="marca-n">Obsidian</div>
+          <div class="marca-l">0.0120</div>
+        </div>
+        <div class="marca" style="left:60.3%">
+          <div class="punto" style="background:#0f141a"></div>
+          <div class="marca-n">Amox Dark</div>
+          <div class="marca-l">0.0145</div>
+        </div>
+        <div class="marca" style="left:61.4%">
+          <div class="punto" style="background:#1a1e25"></div>
+          <div class="marca-n">Nord Dark</div>
+          <div class="marca-l">0.0148</div>
+        </div>
+        <div class="marca" style="left:100.0%">
+          <div class="punto" style="background:#13131f"></div>
+          <div class="marca-n">Sterling Deep</div>
+          <div class="marca-l">0.0241</div>
+        </div>
+    </div>
+
+<h2>Por familia de tinte, y dentro de cada una por intensidad</h2>
+
+    <section class="banda">
+      <h3>Sin tinte <span class="cuantos">2</span></h3>
+      <p class="nota">Los tres canales casi iguales. Es la familia donde lo único con color en pantalla son los datos.</p>
+      <div class="cols">
+      <div class="col">
+        <div class="col-cab">
+          <div class="col-nom">Deep Dark</div>
+          <div class="col-num"><b>L 0.115</b> · C 0.000 · H 90°</div>
+        </div>
+        <div class="rampa">
+          
+            <div class="capa" style="background:#1a1a1a">
+              <span class="capa-n">overlay</span>
+              <span class="capa-h">#1a1a1a</span>
+            </div>
+            <div class="capa" style="background:#0f0f0f">
+              <span class="capa-n">raised</span>
+              <span class="capa-h">#0f0f0f</span>
+            </div>
+            <div class="capa" style="background:#050505">
+              <span class="capa-n">base</span>
+              <span class="capa-h">#050505</span>
+            </div>
+            <div class="capa" style="background:#000000">
+              <span class="capa-n">inset</span>
+              <span class="capa-h">#000000</span>
+            </div>
+        </div>
+        <div class="muestra" style="background:#050505">
+          <div style="color:#ffffff">Texto principal</div>
+          <div style="color:#ffffff">y el secundario</div>
+        </div>
+        <div class="col-pie">
+          contraste 17.10 · panel +0.33
+        </div>
+      </div>
+      <div class="col">
+        <div class="col-cab">
+          <div class="col-nom">Dark Islands</div>
+          <div class="col-num"><b>L 0.217</b> · C 0.007 · H 258°</div>
+        </div>
+        <div class="rampa">
+          
+            <div class="capa" style="background:#252729">
+              <span class="capa-n">overlay</span>
+              <span class="capa-h">#252729</span>
+            </div>
+            <div class="capa" style="background:#1e2024">
+              <span class="capa-n">raised</span>
+              <span class="capa-h">#1e2024</span>
+            </div>
+            <div class="capa" style="background:#181a1d">
+              <span class="capa-n">base</span>
+              <span class="capa-h">#181a1d</span>
+            </div>
+            <div class="capa" style="background:#131517">
+              <span class="capa-n">inset</span>
+              <span class="capa-h">#131517</span>
+            </div>
+        </div>
+        <div class="muestra" style="background:#181a1d">
+          <div style="color:#cdced4">Texto principal</div>
+          <div style="color:#9a9ea6">y el secundario</div>
+        </div>
+        <div class="col-pie">
+          contraste 11.11 · panel +0.41
+        </div>
+      </div></div>
+    </section>
+    <section class="banda">
+      <h3>Azules <span class="cuantos">3</span></h3>
+      
+      <div class="cols">
+      <div class="col">
+        <div class="col-cab">
+          <div class="col-nom">Obsidian</div>
+          <div class="col-num"><b>L 0.145</b> · C 0.012 · H 270°</div>
+        </div>
+        <div class="rampa">
+          
+            <div class="capa" style="background:#12151b">
+              <span class="capa-n">overlay</span>
+              <span class="capa-h">#12151b</span>
+            </div>
+            <div class="capa" style="background:#0e1017">
+              <span class="capa-n">raised</span>
+              <span class="capa-h">#0e1017</span>
+            </div>
+            <div class="capa" style="background:#080a0f">
+              <span class="capa-n">base</span>
+              <span class="capa-h">#080a0f</span>
+            </div>
+            <div class="capa" style="background:#0b0d13">
+              <span class="capa-n">inset</span>
+              <span class="capa-h">#0b0d13</span>
+            </div>
+        </div>
+        <div class="muestra" style="background:#080a0f">
+          <div style="color:#ffffff">Texto principal</div>
+          <div style="color:#ffffff">y el secundario</div>
+        </div>
+        <div class="col-pie">
+          contraste 16.67 · panel +0.23
+        </div>
+      </div>
+      <div class="col">
+        <div class="col-cab">
+          <div class="col-nom">Amox Dark</div>
+          <div class="col-num"><b>L 0.189</b> · C 0.015 · H 253°</div>
+        </div>
+        <div class="rampa">
+          
+            <div class="capa" style="background:#1c242d">
+              <span class="capa-n">overlay</span>
+              <span class="capa-h">#1c242d</span>
+            </div>
+            <div class="capa" style="background:#151b22">
+              <span class="capa-n">raised</span>
+              <span class="capa-h">#151b22</span>
+            </div>
+            <div class="capa" style="background:#0f141a">
+              <span class="capa-n">base</span>
+              <span class="capa-h">#0f141a</span>
+            </div>
+            <div class="capa" style="background:#0c1014">
+              <span class="capa-n">inset</span>
+              <span class="capa-h">#0c1014</span>
+            </div>
+        </div>
+        <div class="muestra" style="background:#0f141a">
+          <div style="color:#e6edf3">Texto principal</div>
+          <div style="color:#9ba9b8">y el secundario</div>
+        </div>
+        <div class="col-pie">
+          contraste 15.65 · panel +0.38
+        </div>
+      </div>
+      <div class="col">
+        <div class="col-cab">
+          <div class="col-nom">Nord Dark</div>
+          <div class="col-num"><b>L 0.234</b> · C 0.015 · H 262°</div>
+        </div>
+        <div class="rampa">
+          
+            <div class="capa" style="background:#2e3440">
+              <span class="capa-n">overlay</span>
+              <span class="capa-h">#2e3440</span>
+            </div>
+            <div class="capa" style="background:#222833">
+              <span class="capa-n">raised</span>
+              <span class="capa-h">#222833</span>
+            </div>
+            <div class="capa" style="background:#1a1e25">
+              <span class="capa-n">base</span>
+              <span class="capa-h">#1a1e25</span>
+            </div>
+            <div class="capa" style="background:#151920">
+              <span class="capa-n">inset</span>
+              <span class="capa-h">#151920</span>
+            </div>
+        </div>
+        <div class="muestra" style="background:#1a1e25">
+          <div style="color:#d8dee9">Texto principal</div>
+          <div style="color:#98a4b3">y el secundario</div>
+        </div>
+        <div class="col-pie">
+          contraste 12.37 · panel +0.81
+        </div>
+      </div></div>
+    </section>
+    <section class="banda">
+      <h3>Violetas <span class="cuantos">2</span></h3>
+      <p class="nota">Más croma que los azules y un tono que no comparte con nadie: no es «un azul más oscuro», es otro color.</p>
+      <div class="cols">
+      <div class="col">
+        <div class="col-cab">
+          <div class="col-nom">Sterling Deep</div>
+          <div class="col-num"><b>L 0.193</b> · C 0.024 · H 284°</div>
+        </div>
+        <div class="rampa">
+          
+            <div class="capa" style="background:#202030">
+              <span class="capa-n">overlay</span>
+              <span class="capa-h">#202030</span>
+            </div>
+            <div class="capa" style="background:#181824">
+              <span class="capa-n">raised</span>
+              <span class="capa-h">#181824</span>
+            </div>
+            <div class="capa" style="background:#13131f">
+              <span class="capa-n">base</span>
+              <span class="capa-h">#13131f</span>
+            </div>
+            <div class="capa" style="background:#0f0f1a">
+              <span class="capa-n">inset</span>
+              <span class="capa-h">#0f0f1a</span>
+            </div>
+        </div>
+        <div class="muestra" style="background:#13131f">
+          <div style="color:#ede9f5">Texto principal</div>
+          <div style="color:#a99fc4">y el secundario</div>
+        </div>
+        <div class="col-pie">
+          contraste 15.41 · panel +0.27
+        </div>
+      </div>
+      <div class="col">
+        <div class="col-cab">
+          <div class="col-nom">Ember</div>
+          <div class="col-num"><b>L 0.203</b> · C 0.012 · H 285°</div>
+        </div>
+        <div class="rampa">
+          
+            <div class="capa" style="background:#232530">
+              <span class="capa-n">overlay</span>
+              <span class="capa-h">#232530</span>
+            </div>
+            <div class="capa" style="background:#1a1a23">
+              <span class="capa-n">raised</span>
+              <span class="capa-h">#1a1a23</span>
+            </div>
+            <div class="capa" style="background:#16161c">
+              <span class="capa-n">base</span>
+              <span class="capa-h">#16161c</span>
+            </div>
+            <div class="capa" style="background:#0f0f15">
+              <span class="capa-n">inset</span>
+              <span class="capa-h">#0f0f15</span>
+            </div>
+        </div>
+        <div class="muestra" style="background:#16161c">
+          <div style="color:#e2e2eb">Texto principal</div>
+          <div style="color:#a7a8b7">y el secundario</div>
+        </div>
+        <div class="col-pie">
+          contraste 13.99 · panel +0.25
+        </div>
+      </div></div>
+    </section>
+
+<h2>Los claros</h2>
+<p class="nota">Van aparte porque la pregunta es otra: aquí no compiten por oscuridad, compiten por temperatura.</p>
+
+    <section class="banda">
+      <h3>Sin tinte <span class="cuantos">2</span></h3>
+      
+      <div class="cols">
+      <div class="col">
+        <div class="col-cab">
+          <div class="col-nom">Amox Light</div>
+          <div class="col-num"><b>L 0.966</b> · C 0.005 · H 248°</div>
+        </div>
+        <div class="rampa">
+          
+            <div class="capa" style="background:#ffffff">
+              <span class="capa-n">overlay</span>
+              <span class="capa-h">#ffffff</span>
+            </div>
+            <div class="capa" style="background:#f8fafb">
+              <span class="capa-n">raised</span>
+              <span class="capa-h">#f8fafb</span>
+            </div>
+            <div class="capa" style="background:#f1f4f7">
+              <span class="capa-n">base</span>
+              <span class="capa-h">#f1f4f7</span>
+            </div>
+            <div class="capa" style="background:#e7ebef">
+              <span class="capa-n">inset</span>
+              <span class="capa-h">#e7ebef</span>
+            </div>
+        </div>
+        <div class="muestra" style="background:#f1f4f7">
+          <div style="color:#1c2530">Texto principal</div>
+          <div style="color:#41505e">y el secundario</div>
+        </div>
+        <div class="col-pie">
+          contraste 14.02 · panel +5.18
+        </div>
+      </div>
+      <div class="col">
+        <div class="col-cab">
+          <div class="col-nom">Mist</div>
+          <div class="col-num"><b>L 0.967</b> · C 0.006 · H 265°</div>
+        </div>
+        <div class="rampa">
+          
+            <div class="capa" style="background:#ffffff">
+              <span class="capa-n">overlay</span>
+              <span class="capa-h">#ffffff</span>
+            </div>
+            <div class="capa" style="background:#e8ecf2">
+              <span class="capa-n">raised</span>
+              <span class="capa-h">#e8ecf2</span>
+            </div>
+            <div class="capa" style="background:#f2f4f8">
+              <span class="capa-n">base</span>
+              <span class="capa-h">#f2f4f8</span>
+            </div>
+            <div class="capa" style="background:#dce1e9">
+              <span class="capa-n">inset</span>
+              <span class="capa-h">#dce1e9</span>
+            </div>
+        </div>
+        <div class="muestra" style="background:#f2f4f8">
+          <div style="color:#262d3c">Texto principal</div>
+          <div style="color:#495366">y el secundario</div>
+        </div>
+        <div class="col-pie">
+          contraste 12.52 · panel -6.80
+        </div>
+      </div></div>
+    </section>
+    <section class="banda">
+      <h3>Violetas <span class="cuantos">1</span></h3>
+      
+      <div class="cols">
+      <div class="col">
+        <div class="col-cab">
+          <div class="col-nom">Sterling Light</div>
+          <div class="col-num"><b>L 0.969</b> · C 0.011 · H 303°</div>
+        </div>
+        <div class="rampa">
+          
+            <div class="capa" style="background:#ffffff">
+              <span class="capa-n">overlay</span>
+              <span class="capa-h">#ffffff</span>
+            </div>
+            <div class="capa" style="background:#fbf9fe">
+              <span class="capa-n">raised</span>
+              <span class="capa-h">#fbf9fe</span>
+            </div>
+            <div class="capa" style="background:#f6f3fb">
+              <span class="capa-n">base</span>
+              <span class="capa-h">#f6f3fb</span>
+            </div>
+            <div class="capa" style="background:#ede8f6">
+              <span class="capa-n">inset</span>
+              <span class="capa-h">#ede8f6</span>
+            </div>
+        </div>
+        <div class="muestra" style="background:#f6f3fb">
+          <div style="color:#241a3d">Texto principal</div>
+          <div style="color:#5c5178">y el secundario</div>
+        </div>
+        <div class="col-pie">
+          contraste 14.83 · panel +4.76
+        </div>
+      </div></div>
+    </section>
+
+<footer>
+  Generado por <code>scripts/genMapaDeTemas.cjs</code> · 2026-09-17
+</footer>
+
+</body>
+</html>

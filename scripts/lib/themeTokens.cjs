@@ -89,8 +89,9 @@ function splitTop(str) {
 // ── Bloques de index.css ────────────────────────────────────────────────────
 const THEME_SELECTORS = {
     obsidian: ':root',
-    onyx: '.theme-onyx', amoxdark: '.theme-amoxdark', ayu: '.theme-ayu',
+    amoxdark: '.theme-amoxdark',
     nord: '.theme-nord', islands: '.theme-islands', sterlingdeep: '.theme-sterlingdeep',
+    deepdark: '.theme-deepdark', ember: '.theme-ember',
     mist: '.theme-mist', amoxlight: '.theme-amoxlight', sterlinglight: '.theme-sterlinglight',
 };
 

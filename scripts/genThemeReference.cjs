@@ -21,11 +21,12 @@ const SALIDA = path.join(RAIZ, 'docs', 'dev', 'temas.html');
 // ── Datos ───────────────────────────────────────────────────────────────────
 
 const ETIQUETAS = {
-    amoxdark: 'Amox Dark', obsidian: 'Obsidian', onyx: 'Onyx', nord: 'Nord Dark',
-    islands: 'Dark Islands', ayu: 'Ayu Dark', sterlingdeep: 'Sterling Deep',
+    amoxdark: 'Amox Dark', obsidian: 'Obsidian', nord: 'Nord Dark',
+    islands: 'Dark Islands', sterlingdeep: 'Sterling Deep',
+    deepdark: 'Deep Dark', ember: 'Ember',
     amoxlight: 'Amox Light', sterlinglight: 'Sterling Light', mist: 'Mist',
 };
-const ORDEN = ['amoxdark', 'obsidian', 'onyx', 'nord', 'islands', 'ayu', 'sterlingdeep',
+const ORDEN = ['deepdark', 'amoxdark', 'obsidian', 'nord', 'islands', 'ember', 'sterlingdeep',
                'amoxlight', 'sterlinglight', 'mist'];
 
 const SUPERFICIES = ['base', 'raised', 'overlay', 'inset'];
