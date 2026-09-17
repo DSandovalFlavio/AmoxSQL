@@ -1199,31 +1199,31 @@ svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
    que el de Onyx.
    ═══════════════════════════════════════════════ */
 .theme-deepdark {
-  /* Recorrido 0,140, y la escalera entera baja un peldano.
-     La primera version iba de #000000 a #1a1a1a: 0,218 de claridad, el DOBLE
-     que el siguiente tema mas estirado (Nord, 0,112) y cuatro veces el de
-     Obsidian (0,050). Acababa en un gris mas claro que los paneles de Amox Dark,
-     y como el lienzo es negro puro, cada panel aparecia como un gris salido de
-     la nada en vez de como el mismo material un poco mas alto.
-     Bajar solo el techo no cabia: con el lienzo en #050505 y el techo en
-     #090909, sRGB deja dos grises por medio y el escalon lienzo->panel se queda
-     en 1,012, por debajo del minimo de 1,02 que pide checkThemeContrast. Asi que
-     baja la escalera entera: el que era el lienzo (#050505) pasa a ser el panel,
-     y el lienzo se va a #010101. Los dos escalones quedan en 1,024 exactos, que
-     es lo mas parejo que permite sRGB a esta profundidad.
-     Aun asi el relleno separa poco —1,024 contra el 1,04-1,07 del resto de
-     temas—, de modo que aqui la estructura la llevan los FILETES y no los
-     fondos. Por eso --border-subtle esta al 10 % y no al 8,5 % como en los
-     demas: es lo unico que dibuja los limites. */
-  --surface-base:    #010101;
-  --surface-raised:  #050505;
-  --surface-overlay: #090909;
-  /* Los huecos donde se escribe SI llegan al negro absoluto: es el unico sitio
-     donde hundirse por debajo del fondo todavia es posible. */
-  --surface-inset:   #000000;
+  /* La escalera, afinada a mano en el banco de grises y medida despues.
+     De donde viene: la primera version iba de #000000 a #1a1a1a, 0,218 de
+     claridad —el DOBLE que el siguiente tema mas estirado (Nord, 0,112) y cuatro
+     veces el de Obsidian (0,050)—. Acababa en un gris mas claro que los paneles
+     de Amox Dark, y sobre un lienzo negro puro cada panel aparecia como un gris
+     salido de la nada en vez de como el mismo material un poco mas alto.
+     Ahora el recorrido es 0,075, el segundo mas apretado de la casa detras de
+     Obsidian. Los tres peldanos visibles caben en 24 unidades hex.
+     El unico valor que NO sale tal cual del ajuste a mano es --surface-raised:
+     el elegido era #040405, que deja el escalon lienzo->panel en 1,012 y no pasa
+     el minimo de 1,02 de checkThemeContrast. #060607 son dos unidades mas y lo
+     sube a 1,024. Se movio el panel y no el lienzo a proposito: el lienzo es la
+     superficie mas grande de la pantalla, o sea la que de verdad se juzgo.
+     A esta profundidad el relleno casi no separa, asi que la estructura la
+     llevan los FILETES. Por eso el borde sutil se afino aparte, al 6 %: sobre un
+     lienzo casi negro eso da 1,099 de contraste, dentro del objetivo 1,08-1,30.
+     Mas alfa aqui no dibuja mejor, subraya. */
+  --surface-base:    #020202;
+  --surface-raised:  #060607;
+  --surface-overlay: #0d0d0f;
+  /* Los huecos donde se escribe quedan al ras del lienzo: a esta profundidad
+     hundirlos mas no se ve, y el filete ya los dibuja. */
+  --surface-inset:   #020202;
 
-  /* Un punto por encima de Onyx: sobre negro un filete al 8,5 % desaparece. */
-  --border-subtle:  rgba(255, 255, 255, 0.10);
+  --border-subtle:  rgba(255, 255, 255, 0.06);
   --border-default: rgba(255, 255, 255, 0.13);
   --border-strong:  rgba(255, 255, 255, 0.20);
 
