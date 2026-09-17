@@ -10,11 +10,11 @@ const TOOL_ICONS = {
 };
 
 const TOOL_LABELS = {
-    execute_sql: 'Ejecutando SQL',
-    list_tables: 'Listando tablas',
-    describe_table: 'Describiendo tabla',
-    display_chart: 'Generando gráfico',
-    suggest_followups: 'Sugiriendo preguntas',
+    execute_sql: 'Running SQL',
+    list_tables: 'Listing tables',
+    describe_table: 'Describing table',
+    display_chart: 'Building chart',
+    suggest_followups: 'Suggesting questions',
 };
 
 /**

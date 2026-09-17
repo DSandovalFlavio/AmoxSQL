@@ -606,16 +606,16 @@ const AiSidebar = ({ width, onClose, availableTables, onOpenSettings, onRunSql, 
                             borderRadius: 10, maxWidth: 320,
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, fontSize: 13, color: 'var(--text-active)', marginBottom: 6 }}>
-                                <LuSparkles size={14} /> Sin AI configurada
+                                <LuSparkles size={14} /> No AI configured
                             </div>
                             <p style={{ margin: '0 0 10px', fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-                                No tienes Ollama ni una API key, pero igual puedes usar AI con cualquier chat externo
-                                (el que uses en tu trabajo):
+                                You have neither Ollama nor an API key, but you can still use AI with any external
+                                chat (whichever one you use at work):
                             </p>
                             <ol style={{ margin: '0 0 12px', paddingLeft: 18, fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                                <li>Descarga una <strong>Skill</strong> y súbela a tu chat de AI.</li>
-                                <li>Usa <strong>Export for AI</strong> (en resultados o en el explorador de archivos) para copiar el contexto de tus datos.</li>
-                                <li>Pégalo en el chat y pide queries o gráficos.</li>
+                                <li>Download a <strong>Skill</strong> and upload it to your AI chat.</li>
+                                <li>Use <strong>Export for AI</strong> (in results or in the file explorer) to copy the context of your data.</li>
+                                <li>Paste it into the chat and ask for queries or charts.</li>
                             </ol>
                             <button
                                 onClick={() => { if (onOpenSettings) onOpenSettings('ai'); }}

@@ -706,7 +706,7 @@ function App() {
       title: 'Renombrar archivo',
       message: `Nuevo nombre para "${meta.name}"`,
       defaultValue: meta.name,
-      validate: (v) => (!v.trim() ? 'El nombre no puede estar vacío' : null),
+      validate: (v) => (!v.trim() ? 'The name cannot be empty' : null),
     });
     if (!newName || newName.trim() === meta.name) return;
     const result = await layoutRef.current?.renameTab(tabId, newName.trim());

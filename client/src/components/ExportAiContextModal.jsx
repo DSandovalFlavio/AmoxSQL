@@ -189,7 +189,7 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
                                 border: '1px solid var(--border-color)', borderRadius: 6, cursor: 'pointer',
                             }}
                         >
-                            {loadingSheets && <option>Cargando hojas…</option>}
+                            {loadingSheets && <option>Loading sheets…</option>}
                             {!loadingSheets && sheets.length === 0 && <option value="Sheet1">Sheet1</option>}
                             {sheets.map(s => <option key={s} value={s}>{s}</option>)}
                         </select>
@@ -201,7 +201,7 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
                     {/* Sample rows slider */}
                     <div>
                         <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <span>Filas de muestra</span>
+                            <span>Sample rows</span>
                             <span style={{ fontWeight: 600, color: 'var(--text-active)' }}>{sampleRows}</span>
                         </label>
                         <input
@@ -256,14 +256,14 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 16 }}>
                         {/* Metadata strip */}
                         <div style={{ display: 'flex', gap: 10, fontSize: 12, color: 'var(--text-muted)', alignItems: 'center', flexWrap: 'wrap' }}>
-                            <span>{result.columnCount} columnas</span>
+                            <span>{result.columnCount} columns</span>
                             <span>·</span>
-                            <span>{Number(result.rowCount).toLocaleString()} filas totales</span>
+                            <span>{Number(result.rowCount).toLocaleString()} rows in total</span>
                             <span>·</span>
                             <span style={{ color: sizeWarn ? 'var(--color-warning)' : 'inherit' }}>
                                 {sizeWarn && <LuTriangleAlert size={12} style={{ marginRight: 3, verticalAlign: 'middle' }} />}
                                 ≈ {sizeKb} KB
-                                {sizeWarn && ' — puede exceder el límite de algunos chats'}
+                                {sizeWarn && ' — may exceed the limit of some chats'}
                             </span>
                         </div>
 

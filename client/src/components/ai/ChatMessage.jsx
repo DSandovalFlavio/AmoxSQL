@@ -420,7 +420,7 @@ const ThinkingBlock = ({ content, isStreaming, durationMs }) => {
 
     const label = isStreaming
         ? 'Razonando…'
-        : (durationMs ? `Pensó durante ${(durationMs / 1000).toFixed(1)}s` : 'Razonamiento');
+        : (durationMs ? `Thought for ${(durationMs / 1000).toFixed(1)}s` : 'Razonamiento');
 
     return (
         <div className="ai-msg-thinking">
