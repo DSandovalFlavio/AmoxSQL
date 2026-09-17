@@ -31,17 +31,40 @@ const RECOMMENDED_MODELS = [
     { id: 'qwen3.5:27b', label: 'Qwen 3.5 (27B)', size: '~16GB', desc: '256K context. Raw power.', tier: 'high' }
 ];
 
-const THEMES = [
-    { id: 'amoxdark',  label: 'Amox Dark',    icon: <LuMoon size={14} />, sidebar: '#151b22', editor: '#0f141a', text: '#22d3ee', desc: 'Signature · cyan brand' },
-    { id: 'dark',      label: 'Obsidian',     icon: <LuMoon size={14} />, sidebar: '#0e1017', editor: '#080a0f', text: '#ccc',    desc: 'Deepest dark' },
-    { id: 'onyx',      label: 'Onyx',         icon: <LuMoon size={14} />, sidebar: '#131415', editor: '#0b0c0d', text: '#ccc',    desc: 'True black' },
-    { id: 'nord',      label: 'Nord Dark',    icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
-    { id: 'islands',   label: 'Dark Islands', icon: <LuMoon size={14} />, sidebar: '#1e2024', editor: '#181a1d', text: '#bcbec4', desc: 'Gris azulado sobrio' },
-    { id: 'ayu',       label: 'Ayu Dark',     icon: <LuMoon size={14} />, sidebar: '#141821', editor: '#0d1017', text: '#e6b450', desc: 'Ink blue · gold accent' },
-    { id: 'sterlingdeep',  label: 'Sterling Deep',  icon: <LuMoon size={14} />, sidebar: '#181824', editor: '#13131f', text: '#b6f09c', desc: 'Violeta hondo · acento lima' },
-    { id: 'amoxlight', label: 'Amox Light',   icon: <LuSun size={14} />,  sidebar: '#f8fafb', editor: '#f1f4f7', text: '#0a7d8c', desc: 'Signature · teal brand' },
-    { id: 'sterlinglight', label: 'Sterling Light', icon: <LuSun size={14} />,  sidebar: '#fbf9fe', editor: '#f6f3fb', text: '#7c5ce0', desc: 'Sterling · by La Matemaga' },
-    { id: 'mist',      label: 'Mist',         icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', desc: 'Cool fog' },
+/**
+ * Los temas, EN COLUMNAS, porque el orden dice algo.
+ *
+ * Las tres primeras son parejas: la misma paleta en oscuro arriba y en claro
+ * abajo. Leerlas en vertical es leer «este tema, en sus dos modos», que es como
+ * se elige de verdad — nadie compara Amox Light contra Nord, compara Amox
+ * contra Sterling.
+ *
+ * Las dos ultimas son los temas con caracter propio, que no tienen pareja
+ * clara. Van ordenados de mas oscuro arriba a mas claro abajo, columna a
+ * columna: Obsidian 0,145 · Ember 0,203 · Dark Islands 0,217 · Nord 0,234 (la
+ * claridad en OKLCH; ver `docs/dev/mapa_temas.html`, que se genera del CSS).
+ */
+const COLUMNAS_DE_TEMAS = [
+    [
+        { id: 'amoxdark',  label: 'Amox Dark',    icon: <LuMoon size={14} />, sidebar: '#151b22', editor: '#0f141a', text: '#22d3ee', desc: 'Signature · cyan brand' },
+        { id: 'amoxlight', label: 'Amox Light',   icon: <LuSun size={14} />,  sidebar: '#f8fafb', editor: '#f1f4f7', text: '#0a7d8c', desc: 'Signature · teal brand' },
+    ],
+    [
+        { id: 'sterlingdeep',  label: 'Sterling Deep',  icon: <LuMoon size={14} />, sidebar: '#181824', editor: '#13131f', text: '#b6f09c', desc: 'Deep violet · lime accent' },
+        { id: 'sterlinglight', label: 'Sterling Light', icon: <LuSun size={14} />,  sidebar: '#fbf9fe', editor: '#f6f3fb', text: '#7c5ce0', desc: 'Sterling · by La Matemaga' },
+    ],
+    [
+        { id: 'deepdark',  label: 'Deep Dark',    icon: <LuMoon size={14} />, sidebar: '#0f0f0f', editor: '#050505', text: '#ccc',    desc: 'True black · no tint at all' },
+        { id: 'mist',      label: 'Mist',         icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', desc: 'Cool fog' },
+    ],
+    [
+        { id: 'dark',      label: 'Obsidian',     icon: <LuMoon size={14} />, sidebar: '#0e1017', editor: '#080a0f', text: '#ccc',    desc: 'Deep ink blue' },
+        { id: 'ember',     label: 'Ember',        icon: <LuMoon size={14} />, sidebar: '#1a1a23', editor: '#16161c', text: '#e95678', desc: 'Cool floor · warm syntax' },
+    ],
+    [
+        { id: 'islands',   label: 'Dark Islands', icon: <LuMoon size={14} />, sidebar: '#1e2024', editor: '#181a1d', text: '#bcbec4', desc: 'Sober grey, no tint' },
+        { id: 'nord',      label: 'Nord Dark',    icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
+    ],
 ];
 
 // Esquinas del resplandor del fondo. Los ids coinciden con las clases body.glow-*
@@ -1044,7 +1067,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                 <div>
                                     <h3 className="stg-section-heading stg-section-heading--mb12">Color Theme</h3>
                                     <div className="stg-theme-grid">
-                                        {THEMES.map(t => (
+                                        {COLUMNAS_DE_TEMAS.map((columna, i) => (
+                                          <div className="stg-theme-col" key={i}>
+                                        {columna.map(t => (
                                             <div
                                                 key={t.id}
                                                 onClick={() => onThemeChange(t.id)}
@@ -1062,6 +1087,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 </div>
                                                 <div className="stg-theme-card-desc" style={{ color: t.text }}>{t.desc}</div>
                                             </div>
+                                        ))}
+                                          </div>
                                         ))}
                                     </div>
                                 </div>

@@ -113,7 +113,7 @@
 veinte acentos y veinticuatro paletas de gráficos.</p>
 
 <div class="meta">
-  Generado el 2026-09-08 desde <code>client/src/index.css</code> y
+  Generado el 2026-09-17 desde <code>client/src/index.css</code> y
   <code>client/src/components/DataVisualizer/constants.js</code>.<br>
   Para regenerar: <code>node scripts/genThemeReference.cjs</code> —
   no edites este HTML a mano, se sobrescribe.
@@ -150,10 +150,247 @@ y la del tema (<code>theme-mist</code>…; el oscuro por defecto no lleva ningun
 </div>
 
 <h2>Los diez temas</h2>
-<nav class="indice"><a href="#tema-amoxdark">Amox Dark</a><a href="#tema-obsidian">Obsidian</a><a href="#tema-onyx">Onyx</a><a href="#tema-nord">Nord Dark</a><a href="#tema-islands">Dark Islands</a><a href="#tema-ayu">Ayu Dark</a><a href="#tema-sterlingdeep">Sterling Deep</a><a href="#tema-amoxlight">Amox Light</a><a href="#tema-sterlinglight">Sterling Light</a><a href="#tema-mist">Mist</a></nav>
+<nav class="indice"><a href="#tema-deepdark">Deep Dark</a><a href="#tema-amoxdark">Amox Dark</a><a href="#tema-obsidian">Obsidian</a><a href="#tema-nord">Nord Dark</a><a href="#tema-islands">Dark Islands</a><a href="#tema-ember">Ember</a><a href="#tema-sterlingdeep">Sterling Deep</a><a href="#tema-amoxlight">Amox Light</a><a href="#tema-sterlinglight">Sterling Light</a><a href="#tema-mist">Mist</a></nav>
 <p>Cada bloque se pinta sobre el lienzo de su propio tema, porque un color solo se puede juzgar en su
 sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
 
+<section class="tema" id="tema-deepdark" style="--t-base:#020202;--t-raised:#060607;--t-ink:#ffffff;--t-ink2:#ffffff;--t-line:#020202">
+  <header class="tema-head">
+    <h3>Deep Dark</h3>
+    <span class="pill pill--oscuro">oscuro</span>
+    <code class="tema-id">.theme-deepdark</code>
+  </header>
+
+  <div class="grid">
+    <div class="grupo">
+      <h4>Superficies</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#020202"></div>
+      <div class="sw-meta"><b>base</b><code>#020202</code></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#060607"></div>
+      <div class="sw-meta"><b>raised</b><code>#060607</code><span class="ratio">×1.024</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#0d0d0f"></div>
+      <div class="sw-meta"><b>overlay</b><code>#0d0d0f</code><span class="ratio">×1.069</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#020202"></div>
+      <div class="sw-meta"><b>inset</b><code>#020202</code><span class="ratio">×1.000</span></div>
+    </div>
+        
+      </div>
+      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Texto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#ffffff</code>
+        <span class="ratio">20.25:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#ffffff</code>
+        <span class="ratio">20.25:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#ffffff</code>
+        <span class="ratio">20.25:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#ffffff">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#ffffff</code>
+        <span class="ratio">20.25:1</span></div>
+    </div>
+      </div>
+      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
+    </div>
+
+    <div class="grupo">
+      <h4>Bordes y estados</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#111111"></div>
+      <div class="sw-meta"><b>subtle</b><code>#111111</code><span class="ratio">1.10</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#232323"></div>
+      <div class="sw-meta"><b>default</b><code>#232323</code><span class="ratio">1.32</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#353535"></div>
+      <div class="sw-meta"><b>strong</b><code>#353535</code><span class="ratio">1.68</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip" style="background:#151516"></div>
+      <div class="sw-meta"><b>hover</b><code>#151516</code><span class="ratio">1.11</span></div>
+    </div><div class="sw">
+      <div class="sw-chip" style="background:#212122"></div>
+      <div class="sw-meta"><b>active</b><code>#212122</code><span class="ratio">1.26</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Acento por defecto</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip" style="background:#00c4c6"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#00c4c6</code></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#020202;color:#00c4c6">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#00c4c6</code>
+        <span class="ratio">9.59:1</span></div>
+    </div>
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#00c4c6;color:#020202">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#020202</code>
+        <span class="ratio">9.59:1</span></div>
+    </div>
+      </div>
+      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#020202;color:#969cee">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#969cee</code>
+        <span class="ratio">8.19:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#020202;color:#daa668">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#daa668</code>
+        <span class="ratio">9.52:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#020202;color:#eba66d">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#eba66d</code>
+        <span class="ratio">10.09:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#020202;color:#71d0d5">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#71d0d5</code>
+        <span class="ratio">11.55:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#020202;color:#64c7fc">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#64c7fc</code>
+        <span class="ratio">10.98:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#020202;color:#d5af91">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#d5af91</code>
+        <span class="ratio">10.25:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#020202;color:#c1cee9">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#c1cee9</code>
+        <span class="ratio">13.11:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#020202;color:#8ed09c">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#8ed09c</code>
+        <span class="ratio">11.51:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#020202;color:#56585e">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#56585e</code>
+        <span class="ratio">2.92:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Tipos de dato</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#9ddfff">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#9ddfff</code>
+        <span class="ratio">13.92:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#b3d1ad">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#b3d1ad</code>
+        <span class="ratio">12.19:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#d9906f">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#d9906f</code>
+        <span class="ratio">7.88:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#579adc">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#579adc</code>
+        <span class="ratio">6.81:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#ad7eb8">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#ad7eb8</code>
+        <span class="ratio">6.22:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#d0c498">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#d0c498</code>
+        <span class="ratio">11.60:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <h4>Feedback</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#41d686">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#41d686</code>
+        <span class="ratio">10.79:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#ff6f69">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#ff6f69</code>
+        <span class="ratio">7.45:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#f7ac4d">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#f7ac4d</code>
+        <span class="ratio">10.57:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#59aaf8">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#59aaf8</code>
+        <span class="ratio">8.23:1</span></div>
+    </div>
+      </div>
+    </div>
+
+    <div class="grupo grupo--ancho">
+      <h4>Iconos de archivo</h4>
+      <div class="sws">
+        <div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>folder</b><code>#d9a440</code>
+        <span class="ratio">9.00:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#70b3f7">Aa</div>
+      <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
+        <span class="ratio">9.14:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#3bb974">Aa</div>
+      <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
+        <span class="ratio">8.08:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#47b777">Aa</div>
+      <div class="sw-meta"><b>csv</b><code>#47b777</code>
+        <span class="ratio">8.01:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#d9a440">Aa</div>
+      <div class="sw-meta"><b>json</b><code>#d9a440</code>
+        <span class="ratio">9.00:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#5e93ca">Aa</div>
+      <div class="sw-meta"><b>md</b><code>#5e93ca</code>
+        <span class="ratio">6.27:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#d297cc">Aa</div>
+      <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
+        <span class="ratio">8.72:1</span></div>
+    </div><div class="sw">
+      <div class="sw-chip sw-chip--txt" style="background:#060607;color:#00884b">Aa</div>
+      <div class="sw-meta"><b>excel</b><code>#00884b</code>
+        <span class="ratio">4.46:1</span></div>
+    </div>
+      </div>
+    </div>
+  </div>
+</section>
 <section class="tema" id="tema-amoxdark" style="--t-base:#0f141a;--t-raised:#151b22;--t-ink:#e6edf3;--t-ink2:#9ba9b8;--t-line:#0c1014">
   <header class="tema-head">
     <h3>Amox Dark</h3>
@@ -623,243 +860,6 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <div class="sw-chip sw-chip--txt" style="background:#0e1017;color:#00884b">Aa</div>
       <div class="sw-meta"><b>excel</b><code>#00884b</code>
         <span class="ratio">4.18:1</span></div>
-    </div>
-      </div>
-    </div>
-  </div>
-</section>
-<section class="tema" id="tema-onyx" style="--t-base:#0b0c0d;--t-raised:#131415;--t-ink:#ffffff;--t-ink2:#ffffff;--t-line:#08090a">
-  <header class="tema-head">
-    <h3>Onyx</h3>
-    <span class="pill pill--oscuro">oscuro</span>
-    <code class="tema-id">.theme-onyx</code>
-  </header>
-
-  <div class="grid">
-    <div class="grupo">
-      <h4>Superficies</h4>
-      <div class="sws">
-        <div class="sw">
-      <div class="sw-chip" style="background:#0b0c0d"></div>
-      <div class="sw-meta"><b>base</b><code>#0b0c0d</code></div>
-    </div><div class="sw">
-      <div class="sw-chip" style="background:#131415"></div>
-      <div class="sw-meta"><b>raised</b><code>#131415</code><span class="ratio">×1.061</span></div>
-    </div><div class="sw">
-      <div class="sw-chip" style="background:#191a1c"></div>
-      <div class="sw-meta"><b>overlay</b><code>#191a1c</code><span class="ratio">×1.124</span></div>
-    </div><div class="sw">
-      <div class="sw-chip" style="background:#08090a"></div>
-      <div class="sw-meta"><b>inset</b><code>#08090a</code><span class="ratio">×1.018</span></div>
-    </div>
-        
-      </div>
-      <p class="nota">El escalón <code>base→raised</code> es lo que separa el panel del lienzo. Mínimo 1.02.</p>
-    </div>
-
-    <div class="grupo">
-      <h4>Texto</h4>
-      <div class="sws">
-        <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ffffff">Aa</div>
-      <div class="sw-meta"><b>primary</b><code>#ffffff</code>
-        <span class="ratio">18.44:1</span></div>
-    </div>
-        <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ffffff">Aa</div>
-      <div class="sw-meta"><b>secondary</b><code>#ffffff</code>
-        <span class="ratio">18.44:1</span></div>
-    </div>
-        <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ffffff">Aa</div>
-      <div class="sw-meta"><b>tertiary</b><code>#ffffff</code>
-        <span class="ratio">18.44:1</span></div>
-    </div>
-        <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ffffff">Aa</div>
-      <div class="sw-meta"><b>disabled</b><code>#ffffff</code>
-        <span class="ratio">18.44:1</span></div>
-    </div>
-      </div>
-      <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
-    </div>
-
-    <div class="grupo">
-      <h4>Bordes y estados</h4>
-      <div class="sws">
-        <div class="sw">
-      <div class="sw-chip" style="background:#202122"></div>
-      <div class="sw-meta"><b>subtle</b><code>#202122</code><span class="ratio">1.21</span></div>
-    </div><div class="sw">
-      <div class="sw-chip" style="background:#232425"></div>
-      <div class="sw-meta"><b>default</b><code>#232425</code><span class="ratio">1.26</span></div>
-    </div><div class="sw">
-      <div class="sw-chip" style="background:#323334"></div>
-      <div class="sw-meta"><b>strong</b><code>#323334</code><span class="ratio">1.54</span></div>
-    </div>
-        <div class="sw">
-      <div class="sw-chip" style="background:#1f2021"></div>
-      <div class="sw-meta"><b>hover</b><code>#1f2021</code><span class="ratio">1.13</span></div>
-    </div><div class="sw">
-      <div class="sw-chip" style="background:#28292a"></div>
-      <div class="sw-meta"><b>active</b><code>#28292a</code><span class="ratio">1.27</span></div>
-    </div>
-      </div>
-    </div>
-
-    <div class="grupo">
-      <h4>Acento por defecto</h4>
-      <div class="sws">
-        <div class="sw">
-      <div class="sw-chip" style="background:#00c4c6"></div>
-      <div class="sw-meta"><b>accent-primary</b><code>#00c4c6</code></div>
-    </div>
-        <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#00c4c6">Aa</div>
-      <div class="sw-meta"><b>como texto</b><code>#00c4c6</code>
-        <span class="ratio">9.05:1</span></div>
-    </div>
-        <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#00c4c6;color:#0b0c0d">Aa</div>
-      <div class="sw-meta"><b>texto en botón</b><code>#0b0c0d</code>
-        <span class="ratio">9.05:1</span></div>
-    </div>
-      </div>
-      <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
-    </div>
-
-    <div class="grupo grupo--ancho">
-      <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
-      <div class="sws">
-        <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#969cee">Aa</div>
-      <div class="sw-meta"><b>keyword</b><code>#969cee</code>
-        <span class="ratio">7.73:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#daa668">Aa</div>
-      <div class="sw-meta"><b>string</b><code>#daa668</code>
-        <span class="ratio">8.98:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#eba66d">Aa</div>
-      <div class="sw-meta"><b>number</b><code>#eba66d</code>
-        <span class="ratio">9.52:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#71d0d5">Aa</div>
-      <div class="sw-meta"><b>function</b><code>#71d0d5</code>
-        <span class="ratio">10.89:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#64c7fc">Aa</div>
-      <div class="sw-meta"><b>type</b><code>#64c7fc</code>
-        <span class="ratio">10.36:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#d5af91">Aa</div>
-      <div class="sw-meta"><b>operator</b><code>#d5af91</code>
-        <span class="ratio">9.67:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#c1cee9">Aa</div>
-      <div class="sw-meta"><b>variable</b><code>#c1cee9</code>
-        <span class="ratio">12.37:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#8ed09c">Aa</div>
-      <div class="sw-meta"><b>constant</b><code>#8ed09c</code>
-        <span class="ratio">10.86:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0b0c0d;color:#56585e">Aa</div>
-      <div class="sw-meta"><b>comment</b><code>#56585e</code>
-        <span class="ratio">2.75:1</span></div>
-    </div>
-      </div>
-    </div>
-
-    <div class="grupo">
-      <h4>Tipos de dato</h4>
-      <div class="sws">
-        <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#9ddfff">Aa</div>
-      <div class="sw-meta"><b>integer</b><code>#9ddfff</code>
-        <span class="ratio">12.68:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#b3d1ad">Aa</div>
-      <div class="sw-meta"><b>float</b><code>#b3d1ad</code>
-        <span class="ratio">11.10:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#d9906f">Aa</div>
-      <div class="sw-meta"><b>text</b><code>#d9906f</code>
-        <span class="ratio">7.17:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#579adc">Aa</div>
-      <div class="sw-meta"><b>datetime</b><code>#579adc</code>
-        <span class="ratio">6.20:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ad7eb8">Aa</div>
-      <div class="sw-meta"><b>boolean</b><code>#ad7eb8</code>
-        <span class="ratio">5.67:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#d0c498">Aa</div>
-      <div class="sw-meta"><b>default</b><code>#d0c498</code>
-        <span class="ratio">10.57:1</span></div>
-    </div>
-      </div>
-    </div>
-
-    <div class="grupo">
-      <h4>Feedback</h4>
-      <div class="sws">
-        <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#41d686">Aa</div>
-      <div class="sw-meta"><b>success</b><code>#41d686</code>
-        <span class="ratio">9.83:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#ff6f69">Aa</div>
-      <div class="sw-meta"><b>error</b><code>#ff6f69</code>
-        <span class="ratio">6.79:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#f7ac4d">Aa</div>
-      <div class="sw-meta"><b>warning</b><code>#f7ac4d</code>
-        <span class="ratio">9.63:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#59aaf8">Aa</div>
-      <div class="sw-meta"><b>info</b><code>#59aaf8</code>
-        <span class="ratio">7.49:1</span></div>
-    </div>
-      </div>
-    </div>
-
-    <div class="grupo grupo--ancho">
-      <h4>Iconos de archivo</h4>
-      <div class="sws">
-        <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#d9a440">Aa</div>
-      <div class="sw-meta"><b>folder</b><code>#d9a440</code>
-        <span class="ratio">8.20:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#70b3f7">Aa</div>
-      <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
-        <span class="ratio">8.33:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#3bb974">Aa</div>
-      <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
-        <span class="ratio">7.36:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#47b777">Aa</div>
-      <div class="sw-meta"><b>csv</b><code>#47b777</code>
-        <span class="ratio">7.30:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#d9a440">Aa</div>
-      <div class="sw-meta"><b>json</b><code>#d9a440</code>
-        <span class="ratio">8.20:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#5e93ca">Aa</div>
-      <div class="sw-meta"><b>md</b><code>#5e93ca</code>
-        <span class="ratio">5.71:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#d297cc">Aa</div>
-      <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
-        <span class="ratio">7.94:1</span></div>
-    </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#131415;color:#00884b">Aa</div>
-      <div class="sw-meta"><b>excel</b><code>#00884b</code>
-        <span class="ratio">4.06:1</span></div>
     </div>
       </div>
     </div>
@@ -1339,11 +1339,11 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
     </div>
   </div>
 </section>
-<section class="tema" id="tema-ayu" style="--t-base:#0d1017;--t-raised:#141821;--t-ink:#c5c3bc;--t-ink2:#8b93a1;--t-line:#080a0f">
+<section class="tema" id="tema-ember" style="--t-base:#16161c;--t-raised:#1a1a23;--t-ink:#e2e2eb;--t-ink2:#a7a8b7;--t-line:#0f0f15">
   <header class="tema-head">
-    <h3>Ayu Dark</h3>
+    <h3>Ember</h3>
     <span class="pill pill--oscuro">oscuro</span>
-    <code class="tema-id">.theme-ayu</code>
+    <code class="tema-id">.theme-ember</code>
   </header>
 
   <div class="grid">
@@ -1351,17 +1351,17 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Superficies</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip" style="background:#0d1017"></div>
-      <div class="sw-meta"><b>base</b><code>#0d1017</code></div>
+      <div class="sw-chip" style="background:#16161c"></div>
+      <div class="sw-meta"><b>base</b><code>#16161c</code></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#141821"></div>
-      <div class="sw-meta"><b>raised</b><code>#141821</code><span class="ratio">×1.071</span></div>
+      <div class="sw-chip" style="background:#1a1a23"></div>
+      <div class="sw-meta"><b>raised</b><code>#1a1a23</code><span class="ratio">×1.043</span></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#1b2029"></div>
-      <div class="sw-meta"><b>overlay</b><code>#1b2029</code><span class="ratio">×1.165</span></div>
+      <div class="sw-chip" style="background:#232530"></div>
+      <div class="sw-meta"><b>overlay</b><code>#232530</code><span class="ratio">×1.183</span></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#080a0f"></div>
-      <div class="sw-meta"><b>inset</b><code>#080a0f</code><span class="ratio">×1.041</span></div>
+      <div class="sw-chip" style="background:#0f0f15"></div>
+      <div class="sw-meta"><b>inset</b><code>#0f0f15</code><span class="ratio">×1.060</span></div>
     </div>
         
       </div>
@@ -1372,24 +1372,24 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Texto</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#c5c3bc">Aa</div>
-      <div class="sw-meta"><b>primary</b><code>#c5c3bc</code>
-        <span class="ratio">10.07:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#e2e2eb">Aa</div>
+      <div class="sw-meta"><b>primary</b><code>#e2e2eb</code>
+        <span class="ratio">13.41:1</span></div>
     </div>
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#8b93a1">Aa</div>
-      <div class="sw-meta"><b>secondary</b><code>#8b93a1</code>
-        <span class="ratio">5.74:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#a7a8b7">Aa</div>
+      <div class="sw-meta"><b>secondary</b><code>#a7a8b7</code>
+        <span class="ratio">7.34:1</span></div>
     </div>
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#63708a">Aa</div>
-      <div class="sw-meta"><b>tertiary</b><code>#63708a</code>
-        <span class="ratio">3.57:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#6c6f93">Aa</div>
+      <div class="sw-meta"><b>tertiary</b><code>#6c6f93</code>
+        <span class="ratio">3.56:1</span></div>
     </div>
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#3d4453">Aa</div>
-      <div class="sw-meta"><b>disabled</b><code>#3d4453</code>
-        <span class="ratio">1.82:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#4d4d63">Aa</div>
+      <div class="sw-meta"><b>disabled</b><code>#4d4d63</code>
+        <span class="ratio">2.10:1</span></div>
     </div>
       </div>
       <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
@@ -1399,21 +1399,21 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Bordes y estados</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip" style="background:#171b24"></div>
-      <div class="sw-meta"><b>subtle</b><code>#171b24</code><span class="ratio">1.11</span></div>
+      <div class="sw-chip" style="background:#24242a"></div>
+      <div class="sw-meta"><b>subtle</b><code>#24242a</code><span class="ratio">1.17</span></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#222731"></div>
-      <div class="sw-meta"><b>default</b><code>#222731</code><span class="ratio">1.26</span></div>
+      <div class="sw-chip" style="background:#2c2c33"></div>
+      <div class="sw-meta"><b>default</b><code>#2c2c33</code><span class="ratio">1.31</span></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#333a47"></div>
-      <div class="sw-meta"><b>strong</b><code>#333a47</code><span class="ratio">1.66</span></div>
+      <div class="sw-chip" style="background:#3b3b41"></div>
+      <div class="sw-meta"><b>strong</b><code>#3b3b41</code><span class="ratio">1.61</span></div>
     </div>
         <div class="sw">
-      <div class="sw-chip" style="background:#1d222c"></div>
-      <div class="sw-meta"><b>hover</b><code>#1d222c</code><span class="ratio">1.11</span></div>
+      <div class="sw-chip" style="background:#24242d"></div>
+      <div class="sw-meta"><b>hover</b><code>#24242d</code><span class="ratio">1.12</span></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#232935"></div>
-      <div class="sw-meta"><b>active</b><code>#232935</code><span class="ratio">1.22</span></div>
+      <div class="sw-chip" style="background:#2c2c35"></div>
+      <div class="sw-meta"><b>active</b><code>#2c2c35</code><span class="ratio">1.25</span></div>
     </div>
       </div>
     </div>
@@ -1422,18 +1422,18 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Acento por defecto</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip" style="background:#e6b450"></div>
-      <div class="sw-meta"><b>accent-primary</b><code>#e6b450</code></div>
+      <div class="sw-chip" style="background:#e95678"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#e95678</code></div>
     </div>
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#e6b450">Aa</div>
-      <div class="sw-meta"><b>como texto</b><code>#e6b450</code>
-        <span class="ratio">9.98:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#16161c;color:#e95678">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#e95678</code>
+        <span class="ratio">5.20:1</span></div>
     </div>
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#e6b450;color:#0d1017">Aa</div>
-      <div class="sw-meta"><b>texto en botón</b><code>#0d1017</code>
-        <span class="ratio">9.98:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#e95678;color:#16161c">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#16161c</code>
+        <span class="ratio">5.20:1</span></div>
     </div>
       </div>
       <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
@@ -1443,41 +1443,41 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#ff8f40">Aa</div>
-      <div class="sw-meta"><b>keyword</b><code>#ff8f40</code>
-        <span class="ratio">8.39:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#16161c;color:#e95678">Aa</div>
+      <div class="sw-meta"><b>keyword</b><code>#e95678</code>
+        <span class="ratio">5.20:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#aad94c">Aa</div>
-      <div class="sw-meta"><b>string</b><code>#aad94c</code>
-        <span class="ratio">11.54:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#16161c;color:#fab795">Aa</div>
+      <div class="sw-meta"><b>string</b><code>#fab795</code>
+        <span class="ratio">10.53:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#d2a6ff">Aa</div>
-      <div class="sw-meta"><b>number</b><code>#d2a6ff</code>
-        <span class="ratio">9.64:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#16161c;color:#b877db">Aa</div>
+      <div class="sw-meta"><b>number</b><code>#b877db</code>
+        <span class="ratio">5.75:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#ffb454">Aa</div>
-      <div class="sw-meta"><b>function</b><code>#ffb454</code>
-        <span class="ratio">10.79:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#16161c;color:#25b2bc">Aa</div>
+      <div class="sw-meta"><b>function</b><code>#25b2bc</code>
+        <span class="ratio">7.01:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#59c2ff">Aa</div>
-      <div class="sw-meta"><b>type</b><code>#59c2ff</code>
-        <span class="ratio">9.59:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#16161c;color:#fac29a">Aa</div>
+      <div class="sw-meta"><b>type</b><code>#fac29a</code>
+        <span class="ratio">11.37:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#f29668">Aa</div>
-      <div class="sw-meta"><b>operator</b><code>#f29668</code>
-        <span class="ratio">8.46:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#16161c;color:#f09383">Aa</div>
+      <div class="sw-meta"><b>operator</b><code>#f09383</code>
+        <span class="ratio">7.90:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#bfbdb6">Aa</div>
-      <div class="sw-meta"><b>variable</b><code>#bfbdb6</code>
-        <span class="ratio">10.12:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#16161c;color:#e2e2eb">Aa</div>
+      <div class="sw-meta"><b>variable</b><code>#e2e2eb</code>
+        <span class="ratio">13.99:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#d2a6ff">Aa</div>
-      <div class="sw-meta"><b>constant</b><code>#d2a6ff</code>
-        <span class="ratio">9.64:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#16161c;color:#27d796">Aa</div>
+      <div class="sw-meta"><b>constant</b><code>#27d796</code>
+        <span class="ratio">9.65:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0d1017;color:#646d7c">Aa</div>
-      <div class="sw-meta"><b>comment</b><code>#646d7c</code>
-        <span class="ratio">3.64:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#16161c;color:#6c6f93">Aa</div>
+      <div class="sw-meta"><b>comment</b><code>#6c6f93</code>
+        <span class="ratio">3.72:1</span></div>
     </div>
       </div>
     </div>
@@ -1486,29 +1486,29 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Tipos de dato</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#59c2ff">Aa</div>
-      <div class="sw-meta"><b>integer</b><code>#59c2ff</code>
-        <span class="ratio">8.95:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#b877db">Aa</div>
+      <div class="sw-meta"><b>integer</b><code>#b877db</code>
+        <span class="ratio">5.51:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#95e6cb">Aa</div>
-      <div class="sw-meta"><b>float</b><code>#95e6cb</code>
-        <span class="ratio">12.23:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#25b2bc">Aa</div>
+      <div class="sw-meta"><b>float</b><code>#25b2bc</code>
+        <span class="ratio">6.72:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#aad94c">Aa</div>
-      <div class="sw-meta"><b>text</b><code>#aad94c</code>
-        <span class="ratio">10.77:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#fab795">Aa</div>
+      <div class="sw-meta"><b>text</b><code>#fab795</code>
+        <span class="ratio">10.09:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#d2a6ff">Aa</div>
-      <div class="sw-meta"><b>datetime</b><code>#d2a6ff</code>
-        <span class="ratio">9.00:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#e95678">Aa</div>
+      <div class="sw-meta"><b>datetime</b><code>#e95678</code>
+        <span class="ratio">4.99:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#ff8f40">Aa</div>
-      <div class="sw-meta"><b>boolean</b><code>#ff8f40</code>
-        <span class="ratio">7.83:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#27d796">Aa</div>
+      <div class="sw-meta"><b>boolean</b><code>#27d796</code>
+        <span class="ratio">9.25:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#e6b450">Aa</div>
-      <div class="sw-meta"><b>default</b><code>#e6b450</code>
-        <span class="ratio">9.31:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#a7a8b7">Aa</div>
+      <div class="sw-meta"><b>default</b><code>#a7a8b7</code>
+        <span class="ratio">7.34:1</span></div>
     </div>
       </div>
     </div>
@@ -1517,21 +1517,21 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Feedback</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#a2e585">Aa</div>
-      <div class="sw-meta"><b>success</b><code>#a2e585</code>
-        <span class="ratio">11.91:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#27d796">Aa</div>
+      <div class="sw-meta"><b>success</b><code>#27d796</code>
+        <span class="ratio">9.25:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#f79aa0">Aa</div>
-      <div class="sw-meta"><b>error</b><code>#f79aa0</code>
-        <span class="ratio">8.53:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#fb6574">Aa</div>
+      <div class="sw-meta"><b>error</b><code>#fb6574</code>
+        <span class="ratio">5.93:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#ffcb87">Aa</div>
-      <div class="sw-meta"><b>warning</b><code>#ffcb87</code>
-        <span class="ratio">11.96:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#fac29a">Aa</div>
+      <div class="sw-meta"><b>warning</b><code>#fac29a</code>
+        <span class="ratio">10.90:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#8ad4ff">Aa</div>
-      <div class="sw-meta"><b>info</b><code>#8ad4ff</code>
-        <span class="ratio">10.95:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#21bfc2">Aa</div>
+      <div class="sw-meta"><b>info</b><code>#21bfc2</code>
+        <span class="ratio">7.65:1</span></div>
     </div>
       </div>
     </div>
@@ -1540,43 +1540,43 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Iconos de archivo</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#d9a440">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#d9a440">Aa</div>
       <div class="sw-meta"><b>folder</b><code>#d9a440</code>
-        <span class="ratio">7.89:1</span></div>
+        <span class="ratio">7.68:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#70b3f7">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#70b3f7">Aa</div>
       <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
-        <span class="ratio">8.02:1</span></div>
+        <span class="ratio">7.80:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#3bb974">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#3bb974">Aa</div>
       <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
-        <span class="ratio">7.09:1</span></div>
+        <span class="ratio">6.89:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#47b777">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#47b777">Aa</div>
       <div class="sw-meta"><b>csv</b><code>#47b777</code>
-        <span class="ratio">7.03:1</span></div>
+        <span class="ratio">6.83:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#d9a440">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#d9a440">Aa</div>
       <div class="sw-meta"><b>json</b><code>#d9a440</code>
-        <span class="ratio">7.89:1</span></div>
+        <span class="ratio">7.68:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#5e93ca">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#5e93ca">Aa</div>
       <div class="sw-meta"><b>md</b><code>#5e93ca</code>
-        <span class="ratio">5.50:1</span></div>
+        <span class="ratio">5.35:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#d297cc">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#d297cc">Aa</div>
       <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
-        <span class="ratio">7.64:1</span></div>
+        <span class="ratio">7.43:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#141821;color:#00884b">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#1a1a23;color:#00884b">Aa</div>
       <div class="sw-meta"><b>excel</b><code>#00884b</code>
-        <span class="ratio">3.91:1</span></div>
+        <span class="ratio">3.80:1</span></div>
     </div>
       </div>
     </div>
   </div>
 </section>
-<section class="tema" id="tema-sterlingdeep" style="--t-base:#08060f;--t-raised:#0c0a14;--t-ink:#ede9f5;--t-ink2:#a99fc4;--t-line:#05040b">
+<section class="tema" id="tema-sterlingdeep" style="--t-base:#13131f;--t-raised:#181824;--t-ink:#ede9f5;--t-ink2:#a99fc4;--t-line:#0f0f1a">
   <header class="tema-head">
     <h3>Sterling Deep</h3>
     <span class="pill pill--oscuro">oscuro</span>
@@ -1588,17 +1588,17 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Superficies</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip" style="background:#08060f"></div>
-      <div class="sw-meta"><b>base</b><code>#08060f</code></div>
+      <div class="sw-chip" style="background:#13131f"></div>
+      <div class="sw-meta"><b>base</b><code>#13131f</code></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#0c0a14"></div>
-      <div class="sw-meta"><b>raised</b><code>#0c0a14</code><span class="ratio">×1.025</span></div>
+      <div class="sw-chip" style="background:#181824"></div>
+      <div class="sw-meta"><b>raised</b><code>#181824</code><span class="ratio">×1.048</span></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#14111e"></div>
-      <div class="sw-meta"><b>overlay</b><code>#14111e</code><span class="ratio">×1.082</span></div>
+      <div class="sw-chip" style="background:#202030"></div>
+      <div class="sw-meta"><b>overlay</b><code>#202030</code><span class="ratio">×1.149</span></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#05040b"></div>
-      <div class="sw-meta"><b>inset</b><code>#05040b</code><span class="ratio">×1.014</span></div>
+      <div class="sw-chip" style="background:#0f0f1a"></div>
+      <div class="sw-meta"><b>inset</b><code>#0f0f1a</code><span class="ratio">×1.034</span></div>
     </div>
         
       </div>
@@ -1609,24 +1609,24 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Texto</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#ede9f5">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#ede9f5">Aa</div>
       <div class="sw-meta"><b>primary</b><code>#ede9f5</code>
-        <span class="ratio">16.44:1</span></div>
+        <span class="ratio">14.71:1</span></div>
     </div>
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#a99fc4">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#a99fc4">Aa</div>
       <div class="sw-meta"><b>secondary</b><code>#a99fc4</code>
-        <span class="ratio">7.90:1</span></div>
+        <span class="ratio">7.07:1</span></div>
     </div>
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#8b7fa8">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#8b7fa8">Aa</div>
       <div class="sw-meta"><b>tertiary</b><code>#8b7fa8</code>
-        <span class="ratio">5.33:1</span></div>
+        <span class="ratio">4.77:1</span></div>
     </div>
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#5c5178">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#5c5178">Aa</div>
       <div class="sw-meta"><b>disabled</b><code>#5c5178</code>
-        <span class="ratio">2.72:1</span></div>
+        <span class="ratio">2.43:1</span></div>
     </div>
       </div>
       <p class="nota">Contraste contra <code>raised</code>. En oscuro el terciario baja a 3.0 y el deshabilitado no se mide: decisión asumida.</p>
@@ -1636,21 +1636,21 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Bordes y estados</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip" style="background:#191622"></div>
-      <div class="sw-meta"><b>subtle</b><code>#191622</code><span class="ratio">1.13</span></div>
+      <div class="sw-chip" style="background:#1e1f2d"></div>
+      <div class="sw-meta"><b>subtle</b><code>#1e1f2d</code><span class="ratio">1.13</span></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#221e2c"></div>
-      <div class="sw-meta"><b>default</b><code>#221e2c</code><span class="ratio">1.24</span></div>
+      <div class="sw-chip" style="background:#262636"></div>
+      <div class="sw-meta"><b>default</b><code>#262636</code><span class="ratio">1.24</span></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#332f41"></div>
-      <div class="sw-meta"><b>strong</b><code>#332f41</code><span class="ratio">1.56</span></div>
+      <div class="sw-chip" style="background:#35364a"></div>
+      <div class="sw-meta"><b>strong</b><code>#35364a</code><span class="ratio">1.56</span></div>
     </div>
         <div class="sw">
-      <div class="sw-chip" style="background:#1b1827"></div>
-      <div class="sw-meta"><b>hover</b><code>#1b1827</code><span class="ratio">1.12</span></div>
+      <div class="sw-chip" style="background:#242431"></div>
+      <div class="sw-meta"><b>hover</b><code>#242431</code><span class="ratio">1.15</span></div>
     </div><div class="sw">
-      <div class="sw-chip" style="background:#262235"></div>
-      <div class="sw-meta"><b>active</b><code>#262235</code><span class="ratio">1.27</span></div>
+      <div class="sw-chip" style="background:#2c2c3a"></div>
+      <div class="sw-meta"><b>active</b><code>#2c2c3a</code><span class="ratio">1.28</span></div>
     </div>
       </div>
     </div>
@@ -1659,18 +1659,18 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Acento por defecto</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip" style="background:#c4b5fd"></div>
-      <div class="sw-meta"><b>accent-primary</b><code>#c4b5fd</code></div>
+      <div class="sw-chip" style="background:#b6f09c"></div>
+      <div class="sw-meta"><b>accent-primary</b><code>#b6f09c</code></div>
     </div>
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#c4b5fd">Aa</div>
-      <div class="sw-meta"><b>como texto</b><code>#c4b5fd</code>
-        <span class="ratio">10.90:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#13131f;color:#b6f09c">Aa</div>
+      <div class="sw-meta"><b>como texto</b><code>#b6f09c</code>
+        <span class="ratio">13.97:1</span></div>
     </div>
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#c4b5fd;color:#08060f">Aa</div>
-      <div class="sw-meta"><b>texto en botón</b><code>#08060f</code>
-        <span class="ratio">10.90:1</span></div>
+      <div class="sw-chip sw-chip--txt" style="background:#b6f09c;color:#13131f">Aa</div>
+      <div class="sw-meta"><b>texto en botón</b><code>#13131f</code>
+        <span class="ratio">13.97:1</span></div>
     </div>
       </div>
       <p class="nota">El acento se usa de dos maneras. En claro las dos exigencias se cumplen a la vez solo en L 0.47–0.52.</p>
@@ -1680,41 +1680,41 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Sintaxis <span class="sub">sobre el lienzo del editor</span></h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#b69af2">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#13131f;color:#b69af2">Aa</div>
       <div class="sw-meta"><b>keyword</b><code>#b69af2</code>
-        <span class="ratio">8.52:1</span></div>
+        <span class="ratio">7.80:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#5ec9ae">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#13131f;color:#5ec9ae">Aa</div>
       <div class="sw-meta"><b>string</b><code>#5ec9ae</code>
-        <span class="ratio">10.01:1</span></div>
+        <span class="ratio">9.15:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#f2c46d">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#13131f;color:#f2c46d">Aa</div>
       <div class="sw-meta"><b>number</b><code>#f2c46d</code>
-        <span class="ratio">12.36:1</span></div>
+        <span class="ratio">11.30:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#86a8e8">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#13131f;color:#86a8e8">Aa</div>
       <div class="sw-meta"><b>function</b><code>#86a8e8</code>
-        <span class="ratio">8.42:1</span></div>
+        <span class="ratio">7.70:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#e88bdd">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#13131f;color:#e88bdd">Aa</div>
       <div class="sw-meta"><b>type</b><code>#e88bdd</code>
-        <span class="ratio">8.79:1</span></div>
+        <span class="ratio">8.04:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#b7c8d1">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#13131f;color:#b7c8d1">Aa</div>
       <div class="sw-meta"><b>operator</b><code>#b7c8d1</code>
-        <span class="ratio">11.69:1</span></div>
+        <span class="ratio">10.69:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#ede9f5">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#13131f;color:#ede9f5">Aa</div>
       <div class="sw-meta"><b>variable</b><code>#ede9f5</code>
-        <span class="ratio">16.85:1</span></div>
+        <span class="ratio">15.41:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#f29a88">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#13131f;color:#f29a88">Aa</div>
       <div class="sw-meta"><b>constant</b><code>#f29a88</code>
-        <span class="ratio">9.35:1</span></div>
+        <span class="ratio">8.55:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#08060f;color:#645980">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#13131f;color:#645980">Aa</div>
       <div class="sw-meta"><b>comment</b><code>#645980</code>
-        <span class="ratio">3.15:1</span></div>
+        <span class="ratio">2.88:1</span></div>
     </div>
       </div>
     </div>
@@ -1723,29 +1723,29 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Tipos de dato</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#86a8e8">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#86a8e8">Aa</div>
       <div class="sw-meta"><b>integer</b><code>#86a8e8</code>
-        <span class="ratio">8.21:1</span></div>
+        <span class="ratio">7.35:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#5ec9ae">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#5ec9ae">Aa</div>
       <div class="sw-meta"><b>float</b><code>#5ec9ae</code>
-        <span class="ratio">9.77:1</span></div>
+        <span class="ratio">8.74:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#f2c46d">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#f2c46d">Aa</div>
       <div class="sw-meta"><b>text</b><code>#f2c46d</code>
-        <span class="ratio">12.06:1</span></div>
+        <span class="ratio">10.79:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#b69af2">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#b69af2">Aa</div>
       <div class="sw-meta"><b>datetime</b><code>#b69af2</code>
-        <span class="ratio">8.32:1</span></div>
+        <span class="ratio">7.44:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#e88bdd">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#e88bdd">Aa</div>
       <div class="sw-meta"><b>boolean</b><code>#e88bdd</code>
-        <span class="ratio">8.58:1</span></div>
+        <span class="ratio">7.67:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#b7c8d1">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#b7c8d1">Aa</div>
       <div class="sw-meta"><b>default</b><code>#b7c8d1</code>
-        <span class="ratio">11.41:1</span></div>
+        <span class="ratio">10.21:1</span></div>
     </div>
       </div>
     </div>
@@ -1754,21 +1754,21 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Feedback</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#78d8c1">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#78d8c1">Aa</div>
       <div class="sw-meta"><b>success</b><code>#78d8c1</code>
-        <span class="ratio">11.59:1</span></div>
+        <span class="ratio">10.37:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#f6aa9a">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#f6aa9a">Aa</div>
       <div class="sw-meta"><b>error</b><code>#f6aa9a</code>
-        <span class="ratio">10.41:1</span></div>
+        <span class="ratio">9.32:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#f5cb7c">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#f5cb7c">Aa</div>
       <div class="sw-meta"><b>warning</b><code>#f5cb7c</code>
-        <span class="ratio">12.83:1</span></div>
+        <span class="ratio">11.48:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#9bb9ef">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#9bb9ef">Aa</div>
       <div class="sw-meta"><b>info</b><code>#9bb9ef</code>
-        <span class="ratio">9.90:1</span></div>
+        <span class="ratio">8.85:1</span></div>
     </div>
       </div>
     </div>
@@ -1777,37 +1777,37 @@ sitio. Los números son contraste WCAG 2.x; en rojo, lo que baja del piso.</p>
       <h4>Iconos de archivo</h4>
       <div class="sws">
         <div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#d9a440">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#d9a440">Aa</div>
       <div class="sw-meta"><b>folder</b><code>#d9a440</code>
-        <span class="ratio">8.73:1</span></div>
+        <span class="ratio">7.81:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#70b3f7">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#70b3f7">Aa</div>
       <div class="sw-meta"><b>sql</b><code>#70b3f7</code>
-        <span class="ratio">8.87:1</span></div>
+        <span class="ratio">7.93:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#3bb974">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#3bb974">Aa</div>
       <div class="sw-meta"><b>notebook</b><code>#3bb974</code>
-        <span class="ratio">7.84:1</span></div>
+        <span class="ratio">7.01:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#47b777">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#47b777">Aa</div>
       <div class="sw-meta"><b>csv</b><code>#47b777</code>
-        <span class="ratio">7.77:1</span></div>
+        <span class="ratio">6.95:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#d9a440">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#d9a440">Aa</div>
       <div class="sw-meta"><b>json</b><code>#d9a440</code>
-        <span class="ratio">8.73:1</span></div>
+        <span class="ratio">7.81:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#5e93ca">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#5e93ca">Aa</div>
       <div class="sw-meta"><b>md</b><code>#5e93ca</code>
-        <span class="ratio">6.08:1</span></div>
+        <span class="ratio">5.44:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#d297cc">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#d297cc">Aa</div>
       <div class="sw-meta"><b>parquet</b><code>#d297cc</code>
-        <span class="ratio">8.45:1</span></div>
+        <span class="ratio">7.56:1</span></div>
     </div><div class="sw">
-      <div class="sw-chip sw-chip--txt" style="background:#0c0a14;color:#00884b">Aa</div>
+      <div class="sw-chip sw-chip--txt" style="background:#181824;color:#00884b">Aa</div>
       <div class="sw-meta"><b>excel</b><code>#00884b</code>
-        <span class="ratio">4.32:1</span></div>
+        <span class="ratio">3.87:1</span></div>
     </div>
       </div>
     </div>

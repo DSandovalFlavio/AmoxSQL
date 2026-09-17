@@ -1088,38 +1088,165 @@ svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
 }
 
 /* ═══════════════════════════════════════════════
-   DARK THEME: ONYX — true black
-   The deepest theme: pure-neutral near-black.
+   DARK THEME: EMBER — suelo frio, codigo calido
+
+   El unico tema de la casa donde el calor vive en la SINTAXIS y no en el fondo.
+   Los otros ocho oscuros pintan el codigo en azules, violetas y verdes; aqui el
+   esqueleto del SQL es coral y lo que se lee todo el dia cambia de temperatura
+   sin que el lienzo deje de ser un gris frio.
+
+   Por que 285° y no el tono vecino: la rampa de superficies es de tono fijo y
+   croma bajo (0,012–0,021), o sea un gris con inclinacion violeta, no un violeta.
+   Ese es el sitio exacto para que un acento a 10° —casi el complementario— salte
+   sin pelearse con el fondo.
+
+   Y por que el lienzo es #16161C y no un peldano mas arriba: a L 0,237 el suelo
+   cae a 0,003 de claridad y 12° de tono de Nord Dark, o sea el MISMO color
+   dentro del ruido, y en el selector saldrian dos filas de gris identico.
+   A 0,203 la distancia sube a 0,031 y 23°, que ya se ve.
+
+   El texto y el peldano #0F0F15 estan derivados en el mismo tono 285°; el resto
+   de valores son de la paleta. Medido: el texto principal contrasta 11,8–14,7
+   segun la superficie, el secundario 6,5–8,1, los nueve papeles de sintaxis
+   entre 4,8 y 12,7, y ninguno baja de AA salvo el comentario (3,4), que es la
+   norma de la casa —Nord da 3,26 y Sterling 2,88— porque un comentario tiene que
+   retroceder.
    ═══════════════════════════════════════════════ */
-.theme-onyx {
-  --surface-base:    #0b0c0d;
-  --surface-raised:  #131415;
-  --surface-overlay: #191a1c;
-  --surface-inset:   #08090a;
+.theme-ember {
+  --surface-base:    #16161c;
+  --surface-raised:  #1a1a23;
+  --surface-overlay: #232530;
+  --surface-inset:   #0f0f15;
 
-  --border-subtle:  rgba(255, 255, 255, 0.085);
-  --border-default: rgba(255, 255, 255, 0.10);
-  --border-strong:  rgba(255, 255, 255, 0.16);
+  --border-subtle:  rgba(226, 226, 235, 0.07);
+  --border-default: rgba(226, 226, 235, 0.11);
+  --border-strong:  rgba(226, 226, 235, 0.18);
 
-  --text-primary:   rgba(255, 255, 255, 0.90);
-  --text-secondary: rgba(255, 255, 255, 0.54);
-  --text-tertiary:  rgba(255, 255, 255, 0.34);
-  --text-disabled:  rgba(255, 255, 255, 0.19);
+  --text-primary:   #e2e2eb;
+  --text-secondary: #a7a8b7;
+  --text-tertiary:  #6c6f93;
+  --text-disabled:  #4d4d63;
 
-  --hover-bg:   rgba(255, 255, 255, 0.05);
-  --active-bg:  rgba(255, 255, 255, 0.09);
+  --hover-bg:   rgba(226, 226, 235, 0.05);
+  --active-bg:  rgba(226, 226, 235, 0.09);
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
+
+  /* El coral de firma vive en .theme-ember:not([class*="accent-"]) mas abajo,
+     para que un acento elegido a mano lo gane —mismo patron que Nord. */
+
+  --feedback-success:      #27d796;
+  --feedback-success-bg:   rgba(39, 215, 150, 0.10);
+  --feedback-success-border: rgba(39, 215, 150, 0.22);
+  --feedback-success-text: #27d796;
+  --feedback-error:        #f43e5c;
+  --feedback-error-bg:     rgba(244, 62, 92, 0.10);
+  --feedback-error-border: rgba(244, 62, 92, 0.22);
+  /* El rojo de la paleta da 4,13 como TEXTO sobre la superficie de modales, que
+     se queda corto. Como marca y borde se queda tal cual; para texto va el mismo
+     tono aclarado, que sube a 5,23. Para eso existe el token -text aparte. */
+  --feedback-error-text:   #fb6574;
+  --feedback-warning:      #fac29a;
+  --feedback-warning-bg:   rgba(250, 194, 154, 0.10);
+  --feedback-warning-border: rgba(250, 194, 154, 0.22);
+  --feedback-warning-text: #fac29a;
+  --feedback-info:         #21bfc2;
+  --feedback-info-bg:      rgba(33, 191, 194, 0.10);
+  --feedback-info-border:  rgba(33, 191, 194, 0.22);
+  --feedback-info-text:    #21bfc2;
+
+  /* Sintaxis: los seis calidos/frios de la paleta, repartidos para que dos
+     papeles vecinos en una consulta nunca compartan tono. El numero se va al
+     violeta a proposito —si fuera otro durazno no se distinguiria de la cadena,
+     y en SQL saber si '2024' lleva comillas importa. Nord hace lo mismo. */
+  --syntax-keyword:  #e95678;   /* coral — SELECT/FROM/WHERE, la firma */
+  --syntax-string:   #fab795;   /* durazno */
+  --syntax-number:   #b877db;   /* violeta — separado de la cadena */
+  --syntax-function: #25b2bc;   /* cian */
+  --syntax-comment:  #6c6f93;   /* el apagado de la paleta */
+  --syntax-type:     #fac29a;   /* durazno claro */
+  --syntax-operator: #f09383;   /* salmon */
+  --syntax-variable: #e2e2eb;
+  --syntax-constant: #27d796;   /* verde — TRUE/FALSE/NULL */
+
+  --type-integer:  #b877db;
+  --type-float:    #25b2bc;
+  --type-text:     #fab795;
+  --type-datetime: #e95678;
+  --type-boolean:  #27d796;
+  --type-default:  #a7a8b7;
 
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
   --input-bg: var(--surface-inset);
   --panel-bg: var(--surface-raised);
   --panel-section-bg: var(--surface-inset);
-  --table-row-hover: rgba(255, 255, 255, 0.03);
+  --table-row-hover: rgba(226, 226, 235, 0.03);
 }
+
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: DEEP DARK — el negro de verdad
+   El unico tema sin tinte: los siete oscuros de la casa llevan entre 2 y 12 de
+   croma y todos tiran a azul. Aqui los tres canales son iguales, asi que un
+   dato con color es lo unico coloreado de la pantalla.
+   Es el espejo de Mist: alli el editor es la superficie mas CLARA y el cromo se
+   retira hacia abajo; aqui el editor es el negro del fondo y el cromo sube.
+   La elevacion es por luminancia, no por sombra: sobre negro una sombra negra
+   no se ve, asi que las capas se separan subiendo y con un filete algo mas vivo
+   que el de Onyx.
+   ═══════════════════════════════════════════════ */
+.theme-deepdark {
+  /* La escalera, afinada a mano en el banco de grises y medida despues.
+     De donde viene: la primera version iba de #000000 a #1a1a1a, 0,218 de
+     claridad —el DOBLE que el siguiente tema mas estirado (Nord, 0,112) y cuatro
+     veces el de Obsidian (0,050)—. Acababa en un gris mas claro que los paneles
+     de Amox Dark, y sobre un lienzo negro puro cada panel aparecia como un gris
+     salido de la nada en vez de como el mismo material un poco mas alto.
+     Ahora el recorrido es 0,075, el segundo mas apretado de la casa detras de
+     Obsidian. Los tres peldanos visibles caben en 24 unidades hex.
+     El unico valor que NO sale tal cual del ajuste a mano es --surface-raised:
+     el elegido era #040405, que deja el escalon lienzo->panel en 1,012 y no pasa
+     el minimo de 1,02 de checkThemeContrast. #060607 son dos unidades mas y lo
+     sube a 1,024. Se movio el panel y no el lienzo a proposito: el lienzo es la
+     superficie mas grande de la pantalla, o sea la que de verdad se juzgo.
+     A esta profundidad el relleno casi no separa, asi que la estructura la
+     llevan los FILETES. Por eso el borde sutil se afino aparte, al 6 %: sobre un
+     lienzo casi negro eso da 1,099 de contraste, dentro del objetivo 1,08-1,30.
+     Mas alfa aqui no dibuja mejor, subraya. */
+  --surface-base:    #020202;
+  --surface-raised:  #060607;
+  --surface-overlay: #0d0d0f;
+  /* Los huecos donde se escribe quedan al ras del lienzo: a esta profundidad
+     hundirlos mas no se ve, y el filete ya los dibuja. */
+  --surface-inset:   #020202;
+
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.13);
+  --border-strong:  rgba(255, 255, 255, 0.20);
+
+  --text-primary:   rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.56);
+  --text-tertiary:  rgba(255, 255, 255, 0.36);
+  --text-disabled:  rgba(255, 255, 255, 0.21);
+
+  --hover-bg:   rgba(255, 255, 255, 0.06);
+  --active-bg:  rgba(255, 255, 255, 0.11);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.60);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.70);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.80);
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(255, 255, 255, 0.04);
+}
+
 
 /* ═══════════════════════════════════════════════
    DARK THEME: AMOXDARK — signature brand theme
@@ -1297,84 +1424,6 @@ svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
   --table-row-hover: rgba(196, 181, 253, 0.03);
 }
 
-/* ═══════════════════════════════════════════════
-   DARK THEME: AYU DARK — faithful to ayu-theme/ayu-colors (themes/dark.yaml)
-   Ink-blue near-black (#0D1017) with the signature Ayu gold accent (#E6B450)
-   and warm, readable syntax: orange keywords, gold functions, blue types,
-   green strings, purple constants. Elevation by luminance, not borders.
-   ═══════════════════════════════════════════════ */
-.theme-ayu {
-  --surface-base:    #0d1017;   /* Ayu surface.base / ui.bg — the iconic ink */
-  --surface-raised:  #141821;   /* Ayu panel.bg — panels, sidebar, table header */
-  --surface-overlay: #1b2029;   /* +L — modals, popovers, row hover */
-  --surface-inset:   #080a0f;   /* Ayu surface.sunk — gutter, inputs, code wells */
-
-  /* Borders barely visible — separation by elevation (tint = Ayu ui.fg #5A6378) */
-  --border-subtle:  rgba(92, 103, 122, 0.13);
-  --border-default: rgba(92, 103, 122, 0.26);
-  --border-strong:  rgba(92, 103, 122, 0.48);
-
-  --text-primary:   #c5c3bc;   /* Ayu editor.fg #BFBDB6, a hair brighter to clear the ≥10:1 floor on raised */
-  --text-secondary: #8b93a1;
-  --text-tertiary:  #63708a;
-  --text-disabled:  #3d4453;
-
-  /* Ayu gold default accent lives in .theme-ayu:not([class*="accent-"]) below,
-     so a user-picked accent overrides it (consistent with the other themes). */
-
-  /* 0.06 / 0.11 daba 1.07 y 1.14, por debajo del resto de oscuros. */
-  --hover-bg:   rgba(115, 130, 160, 0.09);
-  --active-bg:  rgba(115, 130, 160, 0.16);
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
-
-  /* Feedback — Ayu vcs/common hues */
-  --feedback-success:        #7fd962;
-  --feedback-success-bg:     rgba(127, 217, 98, 0.10);
-  --feedback-success-border: rgba(127, 217, 98, 0.25);
-  --feedback-success-text:   #a2e585;
-  --feedback-error:          #f07178;   /* Ayu markup red */
-  --feedback-error-bg:       rgba(240, 113, 120, 0.10);
-  --feedback-error-border:   rgba(240, 113, 120, 0.25);
-  --feedback-error-text:     #f79aa0;
-  --feedback-warning:        #ffb454;   /* Ayu func gold */
-  --feedback-warning-bg:     rgba(255, 180, 84, 0.10);
-  --feedback-warning-border: rgba(255, 180, 84, 0.25);
-  --feedback-warning-text:   #ffcb87;
-  --feedback-info:           #59c2ff;   /* Ayu entity blue */
-  --feedback-info-bg:        rgba(89, 194, 255, 0.10);
-  --feedback-info-border:    rgba(89, 194, 255, 0.25);
-  --feedback-info-text:      #8ad4ff;
-
-  /* Syntax — faithful to Ayu Dark (themes/dark.yaml) */
-  --syntax-keyword:   #ff8f40;   /* orange — SELECT/FROM/WHERE */
-  --syntax-string:    #aad94c;   /* green string literals */
-  --syntax-number:    #d2a6ff;   /* purple — numeric literals (Ayu constant) */
-  --syntax-function:  #ffb454;   /* gold — COUNT/SUM */
-  --syntax-comment:   #646d7c;   /* muted blue-grey, italic (Ayu gray) */
-  --syntax-type:      #59c2ff;   /* blue — data types, CAST */
-  --syntax-operator:  #f29668;   /* peach/pink */
-  --syntax-variable:  #bfbdb6;   /* = text: identifiers stay neutral */
-  --syntax-constant:  #d2a6ff;   /* purple — TRUE/FALSE/NULL */
-
-  /* Database types (mirror the syntax family) */
-  --type-integer:  #59c2ff;
-  --type-float:    #95e6cb;
-  --type-text:     #aad94c;
-  --type-datetime: #d2a6ff;
-  --type-boolean:  #ff8f40;
-  --type-default:  #e6b450;
-
-  --editor-bg: var(--surface-base);
-  --header-bg: var(--surface-raised);
-  --input-bg: var(--surface-inset);
-  --button-text-color: #0d1017;   /* dark text on the bright gold accent */
-  --panel-bg: var(--surface-raised);
-  --panel-section-bg: var(--surface-inset);
-  --table-row-hover: rgba(115, 130, 160, 0.04);
-}
 
 /* ═══════════════════════════════════════════════
    DARK THEME: NORD DARK
@@ -1546,6 +1595,9 @@ svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
 .theme-nord:not([class*="accent-"]) {
   --accent-primary: #81a1c1;
 }
+.theme-ember:not([class*="accent-"]) {
+  --accent-primary: #e95678;
+}
 .theme-islands:not([class*="accent-"]) {
   --accent-primary: #548af7;
 }
@@ -1558,10 +1610,6 @@ svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
   /* El teal de marca, bajado lo justo para llegar a 4.5:1 como texto sobre las
      cuatro superficies del tema: estaba en 4.05 sobre --surface-inset. */
   --accent-primary: oklch(0.515 0.092 209.7);   /* ≈ #007584 (era #0a7d8c) */
-}
-/* Ayu Dark ships its signature gold accent by default (overridable). */
-.theme-ayu:not([class*="accent-"]) {
-  --accent-primary: #e6b450;
 }
 /* Sterling themes ship the Sterling "period" accent by default (overridable).
    Values from Sterling (MIT) © La Matemaga. */
@@ -11095,9 +11143,19 @@ tr:hover td {
 
 /* ── Theme Card ── */
 
+/* Cada columna es una pareja —el mismo tema en oscuro y en claro— o dos temas
+   de caracter propio ordenados de mas oscuro a mas claro. Las columnas siguen
+   plegandose solas cuando no caben; lo que no se rompe es la pareja. */
 .stg-theme-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.stg-theme-col {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
 }
 

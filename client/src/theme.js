@@ -30,6 +30,17 @@ const RETIRADOS = {
     light: 'amoxlight',
     ivory: 'amoxlight',
     sterlingdark: 'sterlingdeep',
+    // Onyx se llamaba «true black» y no lo era: 0,003 de croma y a 0,009 de
+    // Obsidian en claridad, o sea un gris a medio camino entre dos temas que ya
+    // hacen mejor su trabajo. Deep Dark ocupa ese sitio de verdad —croma 0— asi
+    // que quien tuviera Onyx va ahi.
+    onyx: 'deepdark',
+    // Ayu se iba al tema mas parecido por SUPERFICIE, que es lo que se ve: su
+    // fondo era azul tinta (#0d1017, tono 267°) y Amox Dark es el azul vecino
+    // (#0f141a, 253°). Ember ocupa su hueco de claridad y tambien es frio, pero
+    // su gracia es la sintaxis calida: quien eligio Ayu eligio un fondo, asi que
+    // va al fondo mas parecido y ya decidira si quiere el otro.
+    ayu: 'amoxdark',
 };
 
 export const migrateTheme = (theme) => RETIRADOS[theme] || theme || 'dark';
