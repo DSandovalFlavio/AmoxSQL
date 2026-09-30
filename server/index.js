@@ -10,6 +10,7 @@ const path = require('path');
 const yaml = require('js-yaml');
 const { exec } = require('child_process');
 const dbManager        = require('./DatabaseManager');
+const baseCentral      = require('./central/BaseCentral');
 const scaffolder       = require('./projectScaffolder');
 const { applyRowLimit } = require('./_sqlUtils');
 const { detectResultType } = require('./_sqlClassify');
@@ -6015,6 +6016,28 @@ if (process.env.NODE_ENV === 'production') {
 // ─── Graceful shutdown endpoint ───────────────────────────────────────────────
 // Called by Electron's before-quit handler to close DuckDB connections cleanly
 // before the process exits, preventing write corruption on abrupt termination.
+// ─── La base de AmoxSQL (A5) ────────────────────────────────────────────────
+// Se abre en segundo plano al arrancar. Quien la use la espera con abrir(), que
+// no hace nada si ya está abierta; si no se pudo abrir, estado() dice por qué.
+
+app.get('/api/central/estado', async (_req, res) => {
+    try { await baseCentral.abrir(); } catch { /* el estado ya lo cuenta */ }
+    res.json(baseCentral.estado());
+});
+
+/**
+ * Los recientes de la 5.8 vivían en el localStorage del renderer. El cliente los
+ * manda una vez; la base los convierte en proyectos y anota que ya lo hizo.
+ */
+app.post('/api/central/recientes', async (req, res) => {
+    try {
+        await baseCentral.abrir();
+        res.json(await baseCentral.importarRecientes(req.body?.rutas));
+    } catch (err) {
+        res.status(503).json({ error: err.message });
+    }
+});
+
 app.post('/api/shutdown', async (_req, res) => {
     res.json({ ok: true });
     try {
@@ -6022,6 +6045,11 @@ app.post('/api/shutdown', async (_req, res) => {
         console.log('[Server] DuckDB connections closed — shutting down.');
     } catch (err) {
         console.error('[Server] Error closing DB on shutdown:', err.message);
+    }
+    try {
+        await baseCentral.cerrar();
+    } catch (err) {
+        console.error('[Central] Error al cerrar:', err.message);
     }
     // Give the response time to flush, then exit.
     setTimeout(() => process.exit(0), 200);
@@ -6060,6 +6088,10 @@ const startServer = (preferredPort = 3001) => {
             aiPersistence.initSchema(dbManager).catch(err =>
                 console.warn('[AI] Startup schema init warning (non-fatal):', err.message)
             );
+
+            // La base de AmoxSQL, igual: en segundo plano. Si no se puede abrir,
+            // el servidor sigue; /api/central/estado dice por qué.
+            baseCentral.abrir().catch(() => { /* ya lo ha contado en el registro */ });
 
             // Re-activate extensions the user auto-loads. Fire-and-forget igual;
             // dbManager las vuelve a LOADear en cada reconexion una vez sembradas.

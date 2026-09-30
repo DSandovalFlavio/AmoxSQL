@@ -23,7 +23,8 @@ Lo que falta son tres cosas que un profesional de datos da por hechas y que hoy 
 existen en ninguna forma:
 
 1. **Un nivel por encima del proyecto.** Los proyectos recientes son una lista plana en
-   `~/.amoxsql/config.json`. No hay cliente, ni estado, ni fechas, ni etiquetas. Quien
+   el `localStorage` de la aplicación (`amoxsql-recent-projects`; corregido el 2026-09-30,
+   antes decía `config.json`). No hay cliente, ni estado, ni fechas, ni etiquetas. Quien
    lleva nueve proyectos de cuatro clientes los lleva de cabeza.
 2. **Algo que pase sin que esté mirando.** No hay programación, ni línea de comandos, ni
    disparadores, ni avisos. Todo lo que ocurre, ocurre porque alguien pulsó un botón con
@@ -41,7 +42,7 @@ Y un cuarto que no es una ausencia sino un riesgo, y que va primero en cualquier
 | Pieza | Qué hace | Lo que significa para quien lleva varios clientes |
 |---|---|---|
 | **`project.json`** | `name`, `folders`, `defaultDb` (relativo), `git`, `wizard` | La base viaja bien porque la ruta es relativa. Pero no hay cliente, estado, entornos, requisitos ni responsable |
-| **Recientes** | Lista plana en la configuración global | No se agrupan, no se archivan, no se buscan |
+| **Recientes** | Lista plana de rutas en el `localStorage` de la aplicación | No se agrupan, no se archivan, no se buscan, y el servidor no los ve |
 | **Claves de API** | Texto plano en `~/.amoxsql/config.json` (p. ej. `geminiApiKey`) | Nada las cifra: no se usa el llavero del sistema en ningún sitio |
 | **Claves de S3/GCS** | Se fijan con `SET s3_access_key_id=…` **global a la sesión** | Sólo puede haber un juego a la vez: dos clientes con buckets distintos no conviven. El motor ya trae `CREATE SECRET` con `SCOPE` por prefijo, que resuelve justo eso —aquí sólo se usa para Sheets— |
 | **Cuenta de servicio de Sheets** | Ruta **absoluta** al archivo de clave | Ese proyecto no funciona en otra máquina sin reconfigurar a mano |
