@@ -10,6 +10,7 @@ const path = require('path');
 const EventEmitter = require('events');
 const chainPersistence = require('./ChainPersistence');
 const aiManager = require('./AiManager');
+const secretos = require('./secretos');
 const { detectResultType } = require('./_sqlClassify');
 
 /**
@@ -564,23 +565,19 @@ class ChainExecutor extends EventEmitter {
 
     // --- Cloud / external source helpers (reuse the app's existing config & extensions) ---
 
-    /** Load httpfs + apply S3/GCS credentials from config (mirrors /api/export/cloud). */
+    /**
+     * Load httpfs + deja listo el secreto de S3/GCS (lo mismo que /api/export/cloud).
+     *
+     * Hasta la 5.8 esto hacía `SET s3_secret_access_key='…'` con dbManager.query,
+     * y query() REGISTRA cada sentencia en amox_query_history: cada lectura de la
+     * nube desde un pipeline dejaba la clave en claro en el historial del
+     * proyecto. prepararNube usa systemQuery, que no se registra, y crea un
+     * secreto temporal con nombre en vez de fijar valores globales.
+     */
     async prepareCloud(dbManager, provider) {
         const config = aiManager.getConfig();
         await dbManager.query('INSTALL httpfs; LOAD httpfs;');
-        if (provider === 'gcs') {
-            const gcs = config.gcsConfig || {};
-            await dbManager.query(`SET s3_endpoint='storage.googleapis.com'`);
-            await dbManager.query(`SET s3_url_style='path'`);
-            if (gcs.accessKeyId) await dbManager.query(`SET s3_access_key_id='${gcs.accessKeyId}'`);
-            if (gcs.secretKey) await dbManager.query(`SET s3_secret_access_key='${gcs.secretKey}'`);
-        } else {
-            const s3 = config.s3Config || {};
-            if (s3.accessKeyId) await dbManager.query(`SET s3_access_key_id='${s3.accessKeyId}'`);
-            if (s3.secretKey) await dbManager.query(`SET s3_secret_access_key='${s3.secretKey}'`);
-            if (s3.region) await dbManager.query(`SET s3_region='${s3.region}'`);
-            if (s3.endpoint) await dbManager.query(`SET s3_endpoint='${s3.endpoint}'`);
-        }
+        await secretos.prepararNube(dbManager, provider === 'gcs' ? 'gcs' : 's3', config);
     }
 
     /** Ensure the DuckDB gsheets extension + service-account secret (mirrors ensureGSheetsReady). */

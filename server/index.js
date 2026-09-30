@@ -11,6 +11,8 @@ const yaml = require('js-yaml');
 const { exec } = require('child_process');
 const dbManager        = require('./DatabaseManager');
 const baseCentral      = require('./central/BaseCentral');
+const secretos         = require('./secretos');
+const manifiesto       = require('./manifiesto');
 const scaffolder       = require('./projectScaffolder');
 const { applyRowLimit } = require('./_sqlUtils');
 const { detectResultType } = require('./_sqlClassify');
@@ -79,6 +81,10 @@ BigInt.prototype.toJSON = function () {
 };
 
 let ROOT_DIR = process.cwd();
+// ¿Es ROOT_DIR un proyecto que el usuario abrió? Hasta que no, es sólo el cwd
+// del proceso —la carpeta de instalación, o el repo— y nada debe escribir en
+// ella un project.json (el manifiesto, A2).
+let PROYECTO_ABIERTO = false;
 const APP_DIR = process.cwd(); // AmoxSQL app directory — never changes, unlike ROOT_DIR
 
 /**
@@ -117,6 +123,7 @@ app.post('/api/project/open', async (req, res) => {
 
         ROOT_DIR = newPath;
         process.chdir(ROOT_DIR);
+        PROYECTO_ABIERTO = true;
         // El vigilante mira UNA raiz: al cambiar de proyecto hay que rearmarlo,
         // o seguiria avisando de los archivos del proyecto anterior.
         rearmarVigilante();
@@ -1099,6 +1106,7 @@ app.post('/api/db/extensions/install', async (req, res) => {
         await dbManager.systemQuery(`LOAD ${safeName}`);
         dbManager.rememberExtension(safeName);
         addAutoloadExtension(safeName);
+        anotarExtensionDelProyecto(safeName);
         res.json({
             success: true,
             message: `Extension '${safeName}' installed and loaded.`,
@@ -1134,6 +1142,7 @@ app.post('/api/db/extensions/load', async (req, res) => {
         await dbManager.systemQuery(`LOAD ${safeName}`);
         dbManager.rememberExtension(safeName);
         addAutoloadExtension(safeName);
+        anotarExtensionDelProyecto(safeName);
         const rows = await dbManager.systemQuery(
             `SELECT * FROM duckdb_extensions() WHERE extension_name = '${safeName}'`
         );
@@ -1331,7 +1340,9 @@ app.get('/api/ai/status', (req, res) => {
 app.get('/api/settings/config', (req, res) => {
     try {
         const config = aiManager.getConfig();
-        res.json(config);
+        // Desde la 5.9 el renderer no recibe ni un secreto: ve SENTINELA donde
+        // hay algo guardado (ver server/secretos.js).
+        res.json(secretos.configParaElCliente(config));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -1343,15 +1354,12 @@ app.post('/api/settings/config', async (req, res) => {
         duckdbDocsUpdate, duckdbDocsIntervalDays } = req.body;
     try {
         const config = aiManager.getConfig();
-        if (geminiApiKey    !== undefined) config.geminiApiKey    = geminiApiKey;
-        if (anthropicApiKey !== undefined) config.anthropicApiKey = anthropicApiKey;
-        if (minimaxApiKey   !== undefined) config.minimaxApiKey   = minimaxApiKey;
+        // Claves de IA y de la nube: al llavero (o a config en modo texto).
+        await secretos.aplicarCambiosDeConfig(config, { geminiApiKey, anthropicApiKey, minimaxApiKey, s3Config, gcsConfig });
         if (gcpProject      !== undefined) config.gcpProject      = gcpProject;
         if (gcpLocation     !== undefined) config.gcpLocation     = gcpLocation || 'us-central1';
         if (provider        !== undefined) config.provider        = provider;
         if (defaultModel    !== undefined) config.defaultModel    = defaultModel;
-        if (s3Config        !== undefined) config.s3Config        = s3Config;
-        if (gcsConfig       !== undefined) config.gcsConfig       = gcsConfig;
         if (experimental  !== undefined) {
             config.experimental = { ...config.experimental, ...experimental };
         }
@@ -1383,7 +1391,7 @@ app.post('/api/settings/config', async (req, res) => {
         }
 
         await fs.promises.writeFile(aiManager.configPath, JSON.stringify(config, null, 2));
-        res.json({ success: true, config });
+        res.json({ success: true, config: secretos.configParaElCliente(config) });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -1392,7 +1400,7 @@ app.post('/api/settings/config', async (req, res) => {
 app.get('/api/settings/gemini/models', async (req, res) => {
     try {
         const config = aiManager.getConfig();
-        const apiKey = config.geminiApiKey;
+        const apiKey = secretos.claveDeIA('gemini', config);
         
         // Default hardcoded list for fallback or ADC mode
         const defaultModels = [
@@ -1476,7 +1484,7 @@ async function fetchCloudModels(provider, config) {
 
     try {
         if (provider === 'gemini') {
-            const key = config.geminiApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+            const key = secretos.claveDeIA('gemini', config);
             if (!key) return { models: fallback, source: 'fallback' };
             // Cabecera, no query string — ver el comentario del endpoint de
             // arriba, que hace esta misma petición.
@@ -1494,7 +1502,7 @@ async function fetchCloudModels(provider, config) {
         }
 
         if (provider === 'anthropic') {
-            const key = config.anthropicApiKey || process.env.ANTHROPIC_API_KEY;
+            const key = secretos.claveDeIA('anthropic', config);
             if (!key) return { models: fallback, source: 'fallback' };
             const r = await fetch('https://api.anthropic.com/v1/models?limit=100', {
                 headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
@@ -1506,7 +1514,7 @@ async function fetchCloudModels(provider, config) {
         }
 
         if (provider === 'minimax') {
-            const key = config.minimaxApiKey || process.env.MINIMAX_API_KEY;
+            const key = secretos.claveDeIA('minimax', config);
             if (!key) return { models: fallback, source: 'fallback' };
             // MiniMax is OpenAI-compatible; /v1/models may or may not be exposed.
             const r = await fetch('https://api.minimax.io/v1/models', {
@@ -1603,26 +1611,14 @@ app.post('/api/export/cloud', async (req, res) => {
         // Load httpfs extension
         await dbManager.systemQuery('INSTALL httpfs; LOAD httpfs;');
 
-        // Set credentials based on provider
-        if (cloudProvider === 's3') {
-            const s3 = config.s3Config || {};
-            if (s3.accessKeyId) await dbManager.systemQuery(`SET s3_access_key_id='${s3.accessKeyId}'`);
-            if (s3.secretKey) await dbManager.systemQuery(`SET s3_secret_access_key='${s3.secretKey}'`);
-            if (s3.region) await dbManager.systemQuery(`SET s3_region='${s3.region}'`);
-            if (s3.endpoint) await dbManager.systemQuery(`SET s3_endpoint='${s3.endpoint}'`);
-        } else if (cloudProvider === 'gcs') {
-            const gcs = config.gcsConfig || {};
-            // GCS uses S3-compatible API via DuckDB
-            await dbManager.systemQuery(`SET s3_endpoint='storage.googleapis.com'`);
-            await dbManager.systemQuery(`SET s3_url_style='path'`);
-            if (gcs.accessKeyId) await dbManager.systemQuery(`SET s3_access_key_id='${gcs.accessKeyId}'`);
-            if (gcs.secretKey) await dbManager.systemQuery(`SET s3_secret_access_key='${gcs.secretKey}'`);
-        }
+        // Un secreto temporal con nombre, en vez de SET globales: antes el valor
+        // iba pegado al SQL y GCS dejaba s3_endpoint apuntando a Google.
+        if (cloudProvider === 's3' || cloudProvider === 'gcs') await secretos.prepararNube(dbManager, cloudProvider, config);
 
         // Build COPY statement
         const formatUpper = (format || 'parquet').toUpperCase();
         const copyOpts = formatUpper === 'CSV' ? "(FORMAT CSV, HEADER)" : formatUpper === 'JSON' ? "(FORMAT JSON, ARRAY true)" : "(FORMAT PARQUET)";
-        const copyQuery = `COPY (${query}) TO '${destination}' ${copyOpts}`;
+        const copyQuery = `COPY (${query}) TO '${String(destination).replace(/'/g, "''")}' ${copyOpts}`;
 
         await dbManager.systemQuery(copyQuery);
         res.json({ success: true, message: `Exported to ${destination}` });
@@ -1639,24 +1635,16 @@ app.post('/api/export/cloud/test', async (req, res) => {
         await dbManager.systemQuery('INSTALL httpfs; LOAD httpfs;');
 
         if (cloudProvider === 's3') {
-            const s3 = config.s3Config || {};
-            if (s3.accessKeyId) await dbManager.systemQuery(`SET s3_access_key_id='${s3.accessKeyId}'`);
-            if (s3.secretKey) await dbManager.systemQuery(`SET s3_secret_access_key='${s3.secretKey}'`);
-            if (s3.region) await dbManager.systemQuery(`SET s3_region='${s3.region}'`);
-            if (s3.endpoint) await dbManager.systemQuery(`SET s3_endpoint='${s3.endpoint}'`);
+            const s3 = await secretos.prepararNube(dbManager, 's3', config);
             // Try to list a bucket
             if (s3.defaultBucket) {
-                const result = await dbManager.systemQuery(`SELECT count(*) as cnt FROM glob('s3://${s3.defaultBucket}/*')`);
+                const result = await dbManager.systemQuery(`SELECT count(*) as cnt FROM glob('s3://${String(s3.defaultBucket).replace(/'/g, "''")}/*')`);
                 res.json({ success: true, message: `Connected. Found files in bucket.`, count: result[0]?.cnt });
             } else {
                 res.json({ success: true, message: 'Credentials set. No bucket specified for testing.' });
             }
         } else if (cloudProvider === 'gcs') {
-            const gcs = config.gcsConfig || {};
-            await dbManager.systemQuery(`SET s3_endpoint='storage.googleapis.com'`);
-            await dbManager.systemQuery(`SET s3_url_style='path'`);
-            if (gcs.accessKeyId) await dbManager.systemQuery(`SET s3_access_key_id='${gcs.accessKeyId}'`);
-            if (gcs.secretKey) await dbManager.systemQuery(`SET s3_secret_access_key='${gcs.secretKey}'`);
+            await secretos.prepararNube(dbManager, 'gcs', config);
             res.json({ success: true, message: 'GCS credentials configured.' });
         } else {
             res.json({ success: false, message: 'Unknown provider' });
@@ -1694,7 +1682,7 @@ async function ensureGSheetsReady() {
         try {
             // Drop existing secret first to avoid conflicts
             try { await dbManager.systemQuery("DROP SECRET IF EXISTS __amox_gsheet"); } catch {}
-            const saPath = gsheets.serviceAccountKeyPath.replace(/\\/g, '/');
+            const saPath = gsheets.serviceAccountKeyPath.replace(/\\/g, '/').replace(/'/g, "''");
             await dbManager.systemQuery(
                 `CREATE SECRET __amox_gsheet (TYPE gsheet, PROVIDER key_file, FILEPATH '${saPath}')`
             );
@@ -3788,6 +3776,7 @@ app.post('/api/query', async (req, res) => {
                     dbManager.rememberExtension(extName);
                     addAutoloadExtension(extName);
                 }
+                anotarExtensionDelProyecto(extName);
             }
         } catch { /* non-fatal bookkeeping */ }
 
@@ -5588,6 +5577,7 @@ app.post('/api/chains/run', async (req, res) => {
         if (!validation.valid) {
             return res.status(400).json({ error: 'Validation failed', details: validation.errors });
         }
+        anotarCredencialesDeCadena(chainDefinition);
 
         // Execute asynchronously — respond with runId immediately
         const result = await chainExecutor.run(dbManager, chainDefinition, ROOT_DIR, {
@@ -6038,6 +6028,49 @@ app.post('/api/central/recientes', async (req, res) => {
     }
 });
 
+// ─── El llavero (A1) ─────────────────────────────────────────────────────────
+// Nombres, tipos y fechas; nunca valores.
+
+app.get('/api/secretos', async (_req, res) => {
+    try {
+        res.json({ modo: secretos.modo(), credenciales: await secretos.listar() });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/secretos/:nombre', async (req, res) => {
+    try {
+        await secretos.borrar(req.params.nombre);
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// ─── El manifiesto del proyecto (A2) ────────────────────────────────────────
+
+function anotarExtensionDelProyecto(nombre) {
+    if (!PROYECTO_ABIERTO) return;
+    try { manifiesto.anotarExtension(ROOT_DIR, nombre); }
+    catch (e) { console.warn('[Manifiesto] No se pudo anotar la extensión:', e.message); }
+}
+
+function anotarCredencialesDeCadena(definicion) {
+    if (!PROYECTO_ABIERTO) return;
+    try { manifiesto.anotarDesdeCadena(ROOT_DIR, definicion); }
+    catch (e) { console.warn('[Manifiesto] No se pudieron anotar las credenciales:', e.message); }
+}
+
+app.get('/api/project/requisitos', async (_req, res) => {
+    if (!PROYECTO_ABIERTO) return res.json({ requiere: { credenciales: [], extensiones: [] }, faltan: { credenciales: [], extensiones: [] }, completo: true });
+    try {
+        res.json(await manifiesto.comprobar(ROOT_DIR, dbManager, aiManager.getConfig()));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 app.post('/api/shutdown', async (_req, res) => {
     res.json({ ok: true });
     try {
@@ -6091,7 +6124,11 @@ const startServer = (preferredPort = 3001) => {
 
             // La base de AmoxSQL, igual: en segundo plano. Si no se puede abrir,
             // el servidor sigue; /api/central/estado dice por qué.
-            baseCentral.abrir().catch(() => { /* ya lo ha contado en el registro */ });
+            // Detrás de ella, el llavero: migra lo que la 5.8 tenía en claro y
+            // descifra las credenciales a memoria (A1).
+            baseCentral.abrir()
+                .then(() => secretos.iniciar(aiManager.getConfig()))
+                .catch(err => console.warn('[Secretos] Arranque:', err.message));
 
             // Re-activate extensions the user auto-loads. Fire-and-forget igual;
             // dbManager las vuelve a LOADear en cada reconexion una vez sembradas.

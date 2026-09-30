@@ -50,12 +50,13 @@ const MIGRACIONES = [
                 no_preguntar   BOOLEAN NOT NULL DEFAULT false,
                 origen         VARCHAR
             )`,
-            // A1. `cifrado` es lo que devuelve el llavero del sistema: el valor
-            // en claro no toca nunca esta tabla.
+            // A1. `cifrado` es lo que devuelve el llavero del sistema, en base64:
+            // el valor en claro no toca nunca esta tabla. Texto y no BLOB porque
+            // así ida y vuelta por getRowObjectsJson es exacta.
             `CREATE TABLE credenciales (
                 nombre     VARCHAR PRIMARY KEY,
                 tipo       VARCHAR NOT NULL,
-                cifrado    BLOB NOT NULL,
+                cifrado    VARCHAR NOT NULL,
                 creada     TIMESTAMP NOT NULL DEFAULT current_timestamp,
                 ultimo_uso TIMESTAMP
             )`,

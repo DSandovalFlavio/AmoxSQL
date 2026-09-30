@@ -9,6 +9,7 @@
 const path = require('path');
 const fs = require('fs');
 const { homeAmox } = require('./rutas');
+const secretos = require('./secretos');
 const { generateText, streamText, stepCountIs } = require('ai');
 const { createGoogleGenerativeAI } = require('@ai-sdk/google');
 const { createAnthropic } = require('@ai-sdk/anthropic');
@@ -228,7 +229,7 @@ class AiManager {
         const config = this.getConfig();
 
         if (providerName === 'gemini') {
-            const apiKey = config.geminiApiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+            const apiKey = secretos.claveDeIA('gemini', config);
 
             if (apiKey) {
                 // API Key mode — uses Gemini Developer API (generativelanguage.googleapis.com)
@@ -266,19 +267,19 @@ class AiManager {
             // Vertex AI model IDs use the same names as Gemini Developer API
             return vertex(modelName || 'gemini-2.5-flash');
         } else if (providerName === 'anthropic') {
-            if (!config.anthropicApiKey && !process.env.ANTHROPIC_API_KEY) {
+            const apiKey = secretos.claveDeIA('anthropic', config);
+            if (!apiKey) {
                 throw new Error("Anthropic API Key is not configured. Please add it in Settings > AI Assistant.");
             }
-            const anthropic = createAnthropic({
-                apiKey: config.anthropicApiKey || process.env.ANTHROPIC_API_KEY,
-            });
+            const anthropic = createAnthropic({ apiKey });
             return anthropic(modelName || 'claude-3-7-sonnet-latest');
         } else if (providerName === 'minimax') {
-            if (!config.minimaxApiKey && !process.env.MINIMAX_API_KEY) {
+            const apiKey = secretos.claveDeIA('minimax', config);
+            if (!apiKey) {
                 throw new Error("MiniMax API Key is not configured. Please add it in Settings > AI Assistant.");
             }
             const minimax = createOpenAI({
-                apiKey: config.minimaxApiKey || process.env.MINIMAX_API_KEY,
+                apiKey,
                 baseURL: 'https://api.minimax.io/v1',
                 compatibility: 'compatible',
                 // MiniMax M-series advanced reasoning, ALWAYS ON. On the

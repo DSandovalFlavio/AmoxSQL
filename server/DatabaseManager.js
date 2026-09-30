@@ -25,6 +25,13 @@ const fs = require('fs');
  */
 const LANES = ['main', 'meta', 'ai'];
 
+/**
+ * Sentencias que llevan un secreto dentro: crear o reemplazar un secreto de
+ * DuckDB, o fijar a mano una clave de S3/GCS/Azure. No se registran nunca en
+ * amox_query_history.
+ */
+const LLEVA_SECRETO = /\bCREATE\s+(OR\s+REPLACE\s+)?((PERSISTENT|TEMPORARY)\s+)?SECRET\b|\bSET\s+((GLOBAL|SESSION|LOCAL)\s+)?(s3_secret_access_key|s3_access_key_id|s3_session_token|azure_[a-z_]*(key|secret|token|connection_string)[a-z_]*)\b/i;
+
 class DatabaseManager {
     constructor() {
         this.instance = null;
@@ -455,6 +462,11 @@ class DatabaseManager {
 
         // Filter tagged system queries (comment-based tagging)
         if (sql.trimStart().startsWith('-- AMOX_SYSTEM')) return;
+
+        // Nada que lleve un secreto va al historial, venga de donde venga —
+        // también si lo escribe el usuario en el editor. Hasta la 5.8 las
+        // lecturas de la nube de Data Flow dejaban aquí la clave en claro.
+        if (LLEVA_SECRETO.test(sql)) return;
 
         // Filter out system queries and self-logging
         const trimmed = sql.trim().toUpperCase();

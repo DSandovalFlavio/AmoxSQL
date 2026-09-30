@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE as API } from '../api.js';
-import { LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuCircleCheck, LuCircle, LuPlug, LuFileSpreadsheet, LuCopy, LuGitBranch } from 'react-icons/lu';
+import { LuKeyRound, LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuCircleCheck, LuCircle, LuPlug, LuFileSpreadsheet, LuCopy, LuGitBranch } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
 import SkillsPanel from './ai/SkillsPanel';
 import TabWithSubTabs from './settings/TabWithSubTabs';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
+import CredentialsPanel from './CredentialsPanel';
+
+/**
+ * Desde la 5.9 el servidor nunca manda un secreto: donde hay uno guardado manda
+ * esta marca (ver server/secretos.js). Se enseña como un campo vacío con una
+ * indicación; si el usuario no escribe nada, al guardar vuelve tal cual y el
+ * servidor no toca la clave. Borrar con la X la deja vacía, y eso la borra.
+ */
+const EN_EL_LLAVERO = '__amox_en_el_llavero__';
+const valorVisible = (v) => (v === EN_EL_LLAVERO ? '' : (v ?? ''));
+const indicacion = (v, normal) => (v === EN_EL_LLAVERO ? 'Saved in your system keychain — type to replace' : normal);
 import { StoryFlowGuide } from './DataVisualizer/StoryFlowGuide';
 import { DataFlowGuide } from './chains/DataFlowGuide';
 import { openTour, hasSeenTour } from './onboarding/tourRegistry';
@@ -621,6 +632,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const [geminiApiKey, setGeminiApiKey] = useState('');
     const [anthropicApiKey, setAnthropicApiKey] = useState('');
     const [minimaxApiKey, setMinimaxApiKey] = useState('');
+    // Dónde viven las claves: 'llavero' desde la 5.9; 'texto' si el llavero del
+    // sistema no está (config.json, como antes). Lo dice el servidor.
+    const [modoLlavero, setModoLlavero] = useState(null);
     const [provider, setProvider] = useState('ollama');
     const [defaultModel, setDefaultModel] = useState('qwen3:1.7b');
     const [isSaving, setIsSaving] = useState(false);
@@ -741,6 +755,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     setGeminiApiKey(data.geminiApiKey || '');
                     setAnthropicApiKey(data.anthropicApiKey || '');
                     setMinimaxApiKey(data.minimaxApiKey || '');
+                    setModoLlavero(data._llavero || null);
                     setGcpProject(data.gcpProject   || '');
                     setGcpLocation(data.gcpLocation || 'us-central1');
                     setProvider(data.provider || 'ollama');
@@ -986,6 +1001,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
                         { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI' },
                         { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Store Integrations' },
+                        { id: 'credentials',   icon: <LuKeyRound  size={16} />, label: 'Credentials' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Workspace' },
                         // ── Help & info ──
                         { separator: true, id: '_sep_help' },
@@ -1974,9 +1990,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <input
                                                     type={geminiApiKey ? "password" : "text"}
                                                     className={`stg-input${geminiApiKey ? ' stg-input--mono' : ''}`}
-                                                    value={geminiApiKey}
+                                                    value={valorVisible(geminiApiKey)}
                                                     onChange={(e) => setGeminiApiKey(e.target.value)}
-                                                    placeholder="Enter API Key — or leave blank to use ADC (Vertex AI)"
+                                                    placeholder={indicacion(geminiApiKey, "Enter API Key — or leave blank to use ADC (Vertex AI)")}
                                                 />
                                                 {geminiApiKey && (
                                                     <button onClick={() => setGeminiApiKey('')} className="stg-btn stg-btn--danger-text" title="Clear API Key">
@@ -2041,7 +2057,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                                             {geminiApiKey && (
                                                 <p className="stg-card-desc">
-                                                    API Key mode active. Your key is stored in <code className="stg-code">~/.amoxsql/config.json</code>. Clear the key to switch to ADC (Vertex AI).
+                                                    API Key mode active. {modoLlavero === 'llavero'
+                                                        ? <>Your key is encrypted in your system keychain.</>
+                                                        : <>Your key is stored in <code className="stg-code">~/.amoxsql/config.json</code>.</>} Clear the key to switch to ADC (Vertex AI).
                                                 </p>
                                             )}
                                         </div>
@@ -2124,9 +2142,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <input
                                                     type={anthropicApiKey ? "password" : "text"}
                                                     className={`stg-input${anthropicApiKey ? ' stg-input--mono' : ''}`}
-                                                    value={anthropicApiKey}
+                                                    value={valorVisible(anthropicApiKey)}
                                                     onChange={(e) => setAnthropicApiKey(e.target.value)}
-                                                    placeholder="Enter your Anthropic API Key"
+                                                    placeholder={indicacion(anthropicApiKey, "Enter your Anthropic API Key")}
                                                 />
                                                 {anthropicApiKey && (
                                                     <button onClick={() => setAnthropicApiKey('')} className="stg-btn stg-btn--danger-text" title="Clear API Key">
@@ -2150,9 +2168,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                 <input
                                                     type={minimaxApiKey ? "password" : "text"}
                                                     className={`stg-input${minimaxApiKey ? ' stg-input--mono' : ''}`}
-                                                    value={minimaxApiKey}
+                                                    value={valorVisible(minimaxApiKey)}
                                                     onChange={(e) => setMinimaxApiKey(e.target.value)}
-                                                    placeholder="Enter your MiniMax API Key"
+                                                    placeholder={indicacion(minimaxApiKey, "Enter your MiniMax API Key")}
                                                 />
                                                 {minimaxApiKey && (
                                                     <button onClick={() => setMinimaxApiKey('')} className="stg-btn stg-btn--danger-text" title="Clear API Key">
@@ -2564,9 +2582,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     <input
                                                         type={f.type || 'text'}
                                                         className={`stg-input${f.mono ? ' stg-input--mono' : ''}`}
-                                                        value={s3Config[f.key]}
+                                                        value={valorVisible(s3Config[f.key])}
                                                         onChange={(e) => setS3Config({ ...s3Config, [f.key]: e.target.value })}
-                                                        placeholder={f.placeholder}
+                                                        placeholder={indicacion(s3Config[f.key], f.placeholder)}
                                                     />
                                                 </div>
                                             ))}
@@ -2595,9 +2613,9 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     <input
                                                         type={f.type || 'text'}
                                                         className={`stg-input${f.mono ? ' stg-input--mono' : ''}`}
-                                                        value={gcsConfig[f.key]}
+                                                        value={valorVisible(gcsConfig[f.key])}
                                                         onChange={(e) => setGcsConfig({ ...gcsConfig, [f.key]: e.target.value })}
-                                                        placeholder={f.placeholder}
+                                                        placeholder={indicacion(gcsConfig[f.key], f.placeholder)}
                                                     />
                                                 </div>
                                             ))}
@@ -2726,6 +2744,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                         {/* ═══ CHART GALLERY ═══ */}
                         {/* ═══ WORKSPACE ═══ */}
+                        {activeTab === 'credentials' && (
+                            <CredentialsPanel />
+                        )}
+
                         {activeTab === 'workspace' && (
                             <WorkspaceSettingsPanel />
                         )}
