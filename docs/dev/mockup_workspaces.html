@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AmoxSQL Workspaces</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* ────────────────────────────────────────────────────────────────────────────
+   Mockup de un solo tema, a proposito: es una pantalla de AmoxSQL con Amox Dark,
+   el tema de firma. Los tokens son los de client/src/index.css, copiados tal cual.
+   Lo que NO es producto —la columna de notas y las chinchetas— usa otra voz:
+   color arena y numeros, para que nunca se confunda con la interfaz.
+   ──────────────────────────────────────────────────────────────────────────── */
+:root{
+  color-scheme:dark;
+  /* producto: Amox Dark */
+  --inset:#0c1014; --base:#0f141a; --raised:#151b22; --overlay:#1c242d;
+  --b1:rgba(190,214,232,.06); --b2:rgba(190,214,232,.10); --b3:rgba(190,214,232,.18);
+  --t1:#e6edf3; --t2:#9ba9b8; --t3:#6a7a8b; --t4:#46525f;
+  --acc:oklch(.73 .155 195); --acc-ink:#04141a;
+  --acc-soft:color-mix(in oklch, var(--acc) 13%, transparent);
+  --acc-line:color-mix(in oklch, var(--acc) 38%, transparent);
+  --ok:#4ade80; --err:#f87171; --warn:#fbbf24;
+  --ok-soft:rgba(74,222,128,.12); --err-soft:rgba(248,113,113,.12); --warn-soft:rgba(251,191,36,.12);
+  --kw:#7dd3fc; --str:#7ee0c0; --num:#f0a868; --fn:#c4b5fd; --com:#546475;
+  --sans:'Manrope','Inter',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono',Consolas,monospace;
+  /* mesa del storyboard */
+  --mesa:#07090c; --mesa-2:#0d1116; --mesa-linea:#1c222b;
+  --nota:#e8c99b; --nota-ink:#231708; --nota-soft:rgba(232,201,155,.10);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--mesa); color:var(--t1); font:14px/1.55 var(--sans);
+  padding:20px 16px 64px; -webkit-font-smoothing:antialiased;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--nota);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.i{width:15px;height:15px;display:inline-block;flex:none;vertical-align:-3px;stroke-width:1.9}
+.i.s{width:13px;height:13px}
+.mono{font-family:var(--mono)}
+
+/* ── cabecera del storyboard ─────────────────────────────────────────────── */
+.mesa{max-width:1440px;margin:0 auto}
+.cab{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px 28px;margin-bottom:16px}
+.cab h1{margin:0;font-size:clamp(22px,3.2vw,30px);font-weight:800;letter-spacing:-.03em;text-wrap:balance}
+.cab h1 span{color:var(--t3);font-weight:600}
+.cab p{margin:4px 0 0;color:var(--t2);max-width:68ch;font-size:13.5px}
+.cab p b{color:var(--t1);font-weight:600}
+.interruptor{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--t2);background:none;border:1px solid var(--mesa-linea);border-radius:99px;padding:6px 12px 6px 7px}
+.interruptor .pista{width:28px;height:16px;border-radius:99px;background:var(--t4);position:relative;transition:background .15s}
+.interruptor .pista::after{content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#fff;transition:transform .15s}
+.interruptor[aria-pressed=true] .pista{background:var(--nota)}
+.interruptor[aria-pressed=true] .pista::after{transform:translateX(12px);background:var(--nota-ink)}
+
+.pasos{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;margin-bottom:14px;scrollbar-width:thin}
+.paso{flex:none;display:flex;align-items:center;gap:8px;background:var(--mesa-2);border:1px solid var(--mesa-linea);border-radius:9px;padding:7px 12px 7px 8px;font-size:12.5px;color:var(--t2);text-align:left}
+.paso b{display:grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--mesa-linea);color:var(--t2);font:600 11px/1 var(--mono)}
+.paso[aria-current=step]{border-color:var(--nota);color:var(--t1)}
+.paso[aria-current=step] b{background:var(--nota);color:var(--nota-ink)}
+
+.escenario{display:grid;grid-template-columns:minmax(0,1fr) 318px;gap:16px;align-items:start}
+@media (max-width:1180px){.escenario{grid-template-columns:1fr}}
+.visor{overflow-x:auto;border-radius:12px;scrollbar-width:thin}
+
+/* ── notas ───────────────────────────────────────────────────────────────── */
+.notas{background:var(--mesa-2);border:1px solid var(--mesa-linea);border-radius:12px;padding:16px 16px 12px;position:sticky;top:16px}
+.notas .ep{font:600 10.5px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;color:var(--nota);margin:0 0 7px}
+.notas h2{margin:0 0 6px;font-size:17px;font-weight:700;letter-spacing:-.015em;text-wrap:balance}
+.notas .bajada{margin:0 0 12px;color:var(--t2);font-size:12.8px}
+.notas ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.notas li{display:grid;grid-template-columns:22px 1fr;gap:9px;font-size:12.6px;color:var(--t2)}
+.notas li strong{color:var(--t1);font-weight:600}
+.notas .ids{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.id{font:500 10.5px/1 var(--mono);color:var(--nota);background:var(--nota-soft);border-radius:4px;padding:3px 5px}
+.nav{display:flex;justify-content:space-between;gap:8px;margin-top:16px;padding-top:12px;border-top:1px solid var(--mesa-linea)}
+.nav button{display:flex;align-items:center;gap:6px;background:var(--mesa-linea);border:0;border-radius:7px;padding:7px 11px;font-size:12.5px;color:var(--t1)}
+.nav button:disabled{opacity:.35;cursor:default}
+.nav .sig{background:var(--nota);color:var(--nota-ink);font-weight:600}
+.pin,.nota-n{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--nota);color:var(--nota-ink);font:700 10px/1 var(--mono);flex:none;box-shadow:0 0 0 3px rgba(7,9,12,.85)}
+.pin{margin:0 4px;vertical-align:1px}
+body.sin-notas .pin{display:none}
+
+/* ── la ventana de AmoxSQL ───────────────────────────────────────────────── */
+.ventana{width:1060px;height:680px;background:var(--base);border:1px solid var(--b3);border-radius:10px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.55);position:relative}
+.titulo{height:38px;flex:none;display:flex;align-items:center;gap:10px;padding:0 10px 0 12px;background:var(--raised);border-bottom:1px solid var(--b1)}
+.logo{width:20px;height:20px;border-radius:5px;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;font:800 12px/1 var(--sans)}
+.migas{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--t2);white-space:nowrap}
+.migas b{color:var(--t1);font-weight:600}
+.migas .ws{display:flex;align-items:center;gap:6px;background:none;border:0;padding:3px 6px;border-radius:5px;color:var(--t1);font-weight:600}
+.migas .ws:hover{background:var(--overlay)}
+.punto{width:8px;height:8px;border-radius:3px;flex:none}
+.buscar{margin:0 auto;width:330px;height:24px;display:flex;align-items:center;gap:7px;padding:0 9px;background:var(--inset);border:1px solid var(--b2);border-radius:6px;color:var(--t3);font-size:12px}
+.buscar kbd{margin-left:auto;font:500 10px/1 var(--mono);color:var(--t3);border:1px solid var(--b2);border-radius:3px;padding:2px 4px}
+.ctrl{display:flex;gap:14px;color:var(--t3);padding-left:6px}
+.ctrl span{width:10px;height:10px;border:1.5px solid var(--t4);border-radius:2px}
+
+.pantalla{flex:1;min-height:0;display:flex;flex-direction:column}
+.pantalla[hidden]{display:none}
+.cuerpo{flex:1;min-height:0;display:flex}
+.riel{width:44px;flex:none;background:var(--raised);border-right:1px solid var(--b1);display:flex;flex-direction:column;align-items:center;padding:8px 0;gap:4px}
+.riel span{width:32px;height:32px;display:grid;place-items:center;border-radius:7px;color:var(--t3)}
+.riel span.on{background:var(--acc-soft);color:var(--acc)}
+.riel .abajo{margin-top:auto}
+
+/* barra lateral de inicio */
+.lateral{width:232px;flex:none;background:var(--raised);border-right:1px solid var(--b1);display:flex;flex-direction:column;min-height:0}
+.lateral .enc{display:flex;align-items:center;justify-content:space-between;padding:12px 12px 8px;font:700 10.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--t3)}
+.lateral .enc button{background:none;border:0;color:var(--t2);display:grid;place-items:center;width:22px;height:22px;border-radius:5px}
+.lateral .enc button:hover{background:var(--overlay);color:var(--t1)}
+.lista{padding:0 6px;display:flex;flex-direction:column;gap:1px;overflow:auto}
+.it{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:6px;font-size:13px;color:var(--t2);background:none;border:0;width:100%;text-align:left}
+.it:hover{background:var(--overlay);color:var(--t1)}
+.it.on{background:var(--overlay);color:var(--t1)}
+.it .n{margin-left:auto;font:500 11px/1 var(--mono);color:var(--t3)}
+.lateral hr{border:0;border-top:1px solid var(--b1);margin:8px 12px}
+.lateral .pie{margin-top:auto;padding:10px 12px;border-top:1px solid var(--b1);font-size:11.5px;color:var(--t3);display:flex;align-items:center;gap:7px}
+
+.principal{flex:1;min-width:0;overflow:auto;padding:22px 26px 28px}
+.principal h3{margin:0;font-size:21px;font-weight:700;letter-spacing:-.02em}
+.sub{color:var(--t2);font-size:12.8px;margin:3px 0 0}
+.fila{display:flex;align-items:center;gap:10px}
+.sep{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:6px;border:1px solid var(--b2);background:var(--overlay);color:var(--t1);font-size:12.5px;font-weight:600;white-space:nowrap}
+.btn:hover{border-color:var(--b3)}
+.btn.pri{background:var(--acc);color:var(--acc-ink);border-color:transparent}
+.btn.fant{background:none}
+.chip{display:inline-flex;align-items:center;gap:5px;height:21px;padding:0 8px;border-radius:99px;font-size:11.2px;font-weight:600;background:var(--overlay);color:var(--t2);border:1px solid var(--b1);white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.chip.err{background:var(--err-soft);color:var(--err);border-color:transparent}
+.chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.chip.acc{background:var(--acc-soft);color:var(--acc);border-color:transparent}
+.etq{font:700 10.5px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;color:var(--t3);margin:22px 0 9px;display:flex;align-items:center;gap:6px}
+
+/* hoy: operaciones */
+.hoy{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--b1);border:1px solid var(--b1);border-radius:9px;overflow:hidden}
+.run{background:var(--raised);padding:10px 12px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.run .q{display:flex;align-items:center;gap:6px;font-size:12.6px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.run .d{font-size:11.5px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.run.falla{background:linear-gradient(0deg,var(--err-soft),var(--err-soft)),var(--raised)}
+.run.falla .d{color:#f3a4a4}
+
+/* tarjetas de workspace */
+.rej{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.wsc{text-align:left;background:var(--raised);border:1px solid var(--b1);border-radius:10px;padding:14px 15px 13px;display:flex;flex-direction:column;gap:10px;transition:border-color .12s}
+.wsc:hover{border-color:var(--acc-line)}
+.wsc .t{display:flex;align-items:center;gap:10px}
+.av{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font:800 11.5px/1 var(--sans);color:#0b0f14;flex:none}
+.wsc .nom{display:block;font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+.wsc .sec{display:block;font-size:11.5px;color:var(--t3)}
+.estados{display:flex;gap:6px;flex-wrap:wrap}
+.wsc .prox{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--t2);padding-top:9px;border-top:1px solid var(--b1)}
+.wsc .prox b{color:var(--t1);font-weight:600}
+
+/* tabla simple */
+.tabla{width:100%;border-collapse:collapse;font-size:12.6px}
+.tabla th{text-align:left;font:700 10.5px/1 var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--t3);padding:0 10px 8px;border-bottom:1px solid var(--b2)}
+.tabla td{padding:9px 10px;border-bottom:1px solid var(--b1);color:var(--t2);vertical-align:middle}
+.tabla td b{color:var(--t1);font-weight:600}
+.tabla .num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.tabla tr:last-child td{border-bottom:0}
+.caja{background:var(--raised);border:1px solid var(--b1);border-radius:10px;padding:4px 6px}
+
+/* cabecera del workspace */
+.wsh{display:flex;align-items:center;gap:14px}
+.wsh .av{width:44px;height:44px;border-radius:11px;font-size:15px}
+.fichas{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.pest{display:flex;gap:2px;margin:18px 0 0;border-bottom:1px solid var(--b2)}
+.pest button{background:none;border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:8px 11px;font-size:12.8px;color:var(--t2);font-weight:600;display:flex;align-items:center;gap:6px}
+.pest button:hover{color:var(--t1)}
+.pest button[aria-selected=true]{color:var(--t1);border-bottom-color:var(--acc)}
+.panel{display:none;padding-top:18px}
+.panel.on{display:block}
+.dos{display:grid;grid-template-columns:1.25fr 1fr;gap:14px}
+.cifras{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.cifra{background:var(--raised);border:1px solid var(--b1);border-radius:9px;padding:11px 13px}
+.cifra .v{font:700 20px/1.1 var(--sans);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.cifra .k{font-size:11.5px;color:var(--t3);margin-top:2px}
+.medida{background:var(--inset);border:1px solid var(--b1);border-radius:8px;padding:10px 12px;font:12px/1.65 var(--mono);color:var(--t1);white-space:pre;overflow-x:auto}
+.kw{color:var(--kw)}.st{color:var(--str)}.nu{color:var(--num)}.fn{color:var(--fn)}.co{color:var(--com);font-style:italic}
+.ctx{display:grid;grid-template-columns:200px 1fr;gap:14px}
+.ctx .lista{padding:0}
+.aviso{display:flex;gap:10px;align-items:flex-start;background:var(--acc-soft);border:1px solid var(--acc-line);border-radius:9px;padding:10px 12px;font-size:12.6px;color:var(--t1)}
+.aviso .i{color:var(--acc);margin-top:2px}
+.aviso p{margin:0}
+.aviso small{display:block;color:var(--t2);font-size:12px;margin-top:2px}
+
+/* ajustes */
+.ajustes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grupo{background:var(--raised);border:1px solid var(--b1);border-radius:10px;padding:14px 15px}
+.grupo h4{margin:0 0 3px;font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+.grupo .sub{margin:0 0 11px}
+.opcion{display:flex;gap:9px;align-items:flex-start;padding:7px 9px;border-radius:7px;border:1px solid transparent;font-size:12.6px}
+.opcion.on{border-color:var(--acc-line);background:var(--acc-soft)}
+.opcion .radio{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--t3);margin-top:2px;flex:none;position:relative}
+.opcion.on .radio{border-color:var(--acc)}
+.opcion.on .radio::after{content:"";position:absolute;inset:2.5px;border-radius:50%;background:var(--acc)}
+.opcion b{font-weight:600;color:var(--t1)}
+.opcion small{display:block;color:var(--t3);font-size:11.5px}
+.muestras{display:flex;gap:7px}
+.muestras span{width:24px;height:24px;border-radius:6px;border:2px solid transparent}
+.muestras span.on{border-color:var(--t1)}
+
+/* modales */
+.velo{position:absolute;inset:38px 0 0 0;background:rgba(4,7,10,.66);display:grid;place-items:center;backdrop-filter:blur(1.5px)}
+.modal{width:520px;background:var(--overlay);border:1px solid var(--b3);border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.6);overflow:hidden}
+.modal .mh{padding:16px 18px 4px}
+.modal .mh h4{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em}
+.modal .mb{padding:8px 18px 4px;display:flex;flex-direction:column;gap:12px}
+.modal .mf{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:14px 18px;margin-top:10px;border-top:1px solid var(--b2);background:var(--raised)}
+.campo label{display:block;font-size:11.5px;font-weight:600;color:var(--t2);margin-bottom:5px}
+.entrada{height:32px;display:flex;align-items:center;padding:0 10px;background:var(--inset);border:1px solid var(--b2);border-radius:7px;font-size:13px;color:var(--t1)}
+.entrada.foco{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+.dos-c{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ruta{font:12px/1 var(--mono);color:var(--t2);background:var(--inset);border:1px solid var(--b1);border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px}
+.elige{display:flex;flex-direction:column;gap:4px}
+.elige button{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:1px solid var(--b1);background:var(--raised);text-align:left;font-size:13px}
+.elige button.on{border-color:var(--acc);background:var(--acc-soft)}
+.elige button small{margin-left:auto;color:var(--t3);font-size:11.5px}
+
+/* primer arranque */
+.bienvenida{flex:1;display:grid;place-items:center;padding:24px;background:
+  radial-gradient(700px 360px at 50% -10%, color-mix(in oklch, var(--acc) 9%, transparent), transparent 70%), var(--base)}
+.bv{width:640px;text-align:center}
+.bv .logo{width:40px;height:40px;border-radius:11px;font-size:22px;margin:0 auto 14px}
+.bv h3{margin:0;font-size:24px;font-weight:800;letter-spacing:-.03em}
+.bv .sub{font-size:13.5px;margin:6px auto 20px;max-width:46ch}
+.opciones{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;text-align:left}
+.op{display:flex;flex-direction:column;gap:6px;padding:12px 11px;border-radius:10px;background:var(--raised);border:1px solid var(--b2);min-height:112px}
+.op .i{width:18px;height:18px;color:var(--t2)}
+.op b{font-size:13.5px;font-weight:700}
+.op small{font-size:11.2px;color:var(--t3);line-height:1.4}
+.op[aria-pressed=true]{border-color:var(--acc);background:var(--acc-soft)}
+.op[aria-pressed=true] .i{color:var(--acc)}
+.bv .pie{margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.bv .pie small{color:var(--t3);font-size:12px}
+.mejora{margin-top:18px;text-align:left}
+
+/* proyecto abierto */
+.explorador{width:248px;flex:none;background:var(--raised);border-right:1px solid var(--b1);overflow:auto;padding-bottom:10px}
+.secc{padding:10px 12px 5px;font:700 10px/1 var(--sans);letter-spacing:.11em;text-transform:uppercase;color:var(--t3);display:flex;align-items:center;gap:6px}
+.secc{white-space:nowrap}
+.secc .ws-t{color:var(--t2);text-transform:none;letter-spacing:0;font-weight:600;font-size:11px;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.nodo{display:flex;align-items:center;gap:8px;padding:4px 12px 4px 16px;font-size:12.6px;color:var(--t2);white-space:nowrap}
+.nodo.hijo{padding-left:32px}
+.nodo.on{background:var(--overlay);color:var(--t1)}
+.nodo .tipo{margin-left:auto;font:500 10px/1 var(--mono);color:var(--t3)}
+.nodo .i{color:var(--t3)}
+.nodo .ok{color:var(--ok)}
+.editor{flex:1;min-width:0;display:flex;flex-direction:column}
+.tabs{height:34px;flex:none;display:flex;align-items:flex-end;gap:2px;padding:0 8px;background:var(--raised);border-bottom:1px solid var(--b1)}
+.tab{height:28px;display:flex;align-items:center;gap:7px;padding:0 12px;font-size:12.3px;color:var(--t2);border-radius:6px 6px 0 0}
+.tab.on{background:var(--base);color:var(--t1);box-shadow:inset 0 2px 0 var(--acc)}
+.barra{height:40px;flex:none;display:flex;align-items:center;gap:6px;padding:0 12px;border-bottom:1px solid var(--b1)}
+.var{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:6px;background:var(--inset);border:1px solid var(--b2);font:12px/1 var(--mono);color:var(--t2)}
+.var b{color:var(--num);font-weight:500}
+.codigo{flex:1;min-height:0;display:grid;grid-template-columns:40px 1fr;font:12.6px/1.8 var(--mono);overflow:auto;padding-top:8px}
+.codigo .ln{color:var(--t4);text-align:right;padding-right:12px;user-select:none;white-space:pre}
+.codigo pre{margin:0;white-space:pre;color:var(--t1)}
+.marca-ws{background:var(--acc-soft);border-bottom:1px dashed var(--acc-line);border-radius:3px;padding:0 2px}
+.resultados{height:188px;flex:none;border-top:1px solid var(--b2);background:var(--base);display:flex;flex-direction:column}
+.resultados .rb{display:flex;align-items:center;gap:4px;padding:7px 12px;border-bottom:1px solid var(--b1)}
+.rtab{font-size:12px;padding:4px 9px;border-radius:5px;color:var(--t2);display:flex;align-items:center;gap:5px}
+.rtab.on{background:var(--acc-soft);color:var(--acc);font-weight:600}
+.resultados .tabla td{padding:6px 12px}
+.resultados .tabla th{padding:8px 12px 7px}
+.estado{height:24px;flex:none;display:flex;align-items:center;gap:14px;padding:0 12px;background:var(--raised);border-top:1px solid var(--b1);font-size:11.3px;color:var(--t3);white-space:nowrap}
+.estado b{color:var(--t2);font-weight:600}
+.estado .dcha{margin-left:auto;display:flex;gap:14px}
+.asist{width:236px;flex:none;border-left:1px solid var(--b1);background:var(--raised);display:flex;flex-direction:column}
+.asist .ah{padding:11px 12px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:7px;font-size:12.8px;font-weight:700}
+.asist .ab{padding:12px;display:flex;flex-direction:column;gap:10px;font-size:12.3px;color:var(--t2)}
+.burbuja{background:var(--overlay);border:1px solid var(--b1);border-radius:9px;padding:9px 10px;color:var(--t1)}
+.burbuja small{display:block;color:var(--t3);font-size:11px;margin-bottom:3px}
+.politica{display:flex;gap:8px;align-items:flex-start;padding:9px 10px;border-radius:8px;background:var(--inset);border:1px solid var(--b1);font-size:11.8px}
+.politica .i{color:var(--acc);margin-top:1px}
+</style>
+</head>
+<body>
+<div class="mesa">
+
+  <header class="cab">
+    <div>
+      <h1>Workspaces <span>· de la bienvenida al proyecto abierto</span></h1>
+      <p>
+        Cómo se vería en AmoxSQL 5.9 —el primer tramo del camino a la 6.0— lo que agrupa proyectos. Seis pantallas, en el orden
+        en que alguien las encuentra. La palabra que elijas en la <b>primera</b> —Clients,
+        Teams, Brands…— se aplica a todo el recorrido. Los números en arena señalan lo que
+        explica la columna de notas; los códigos son los de
+        <span class="mono">candidatos_v6.md</span>.
+      </p>
+    </div>
+    <button class="interruptor" id="alternar-notas" type="button" aria-pressed="true">
+      <span class="pista" aria-hidden="true"></span> Marcas de notas
+    </button>
+  </header>
+
+  <nav class="pasos" id="pasos" aria-label="Pantallas del recorrido"></nav>
+
+  <div class="escenario">
+    <div class="visor">
+      <div class="ventana" id="ventana">
+
+        <!-- barra de título (común) -->
+        <div class="titulo">
+          <div class="logo" aria-hidden="true">A</div>
+          <div class="migas" id="migas"></div>
+          <div class="buscar"><svg class="i s" data-i="search"></svg><span id="buscar-txt">Search all projects</span><kbd>Ctrl K</kbd></div>
+          <div class="ctrl" aria-hidden="true"><span></span><span></span><span></span></div>
+        </div>
+
+        <!-- ═════ 1 · PRIMER ARRANQUE ═════ -->
+        <section class="pantalla" data-p="1">
+          <div class="cuerpo">
+            <div class="bienvenida">
+              <div class="bv">
+                <div class="logo" aria-hidden="true">A</div>
+                <h3>Welcome to AmoxSQL 5.9</h3>
+                <p class="sub">How do you organize your work? Projects are grouped by this — and it's the word you'll see everywhere.<span class="pin">1</span></p>
+                <div class="opciones" id="opciones"></div>
+                <div class="pie">
+                  <small>You can change this later in Settings.</small>
+                  <button class="btn pri" type="button" data-ir="2">Continue <svg class="i s" data-i="arrow-right"></svg></button>
+                </div>
+                <div class="aviso mejora">
+                  <svg class="i" data-i="info"></svg>
+                  <p><b>Upgrading from 5.8?</b> Your workspaces are now called <b>projects</b>. <span data-l="P"></span> group them.<span class="pin">2</span>
+                    <small>Nothing moved on disk. Every folder you had is still here, as a project.</small></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═════ 2 · INICIO ═════ -->
+        <section class="pantalla" data-p="2">
+          <div class="cuerpo">
+            <div class="riel" aria-hidden="true">
+              <span class="on"><svg class="i" data-i="house"></svg></span>
+              <span><svg class="i" data-i="calendar-clock"></svg></span>
+              <span><svg class="i" data-i="send"></svg></span>
+              <span class="abajo"><svg class="i" data-i="settings"></svg></span>
+            </div>
+            <aside class="lateral">
+              <div class="enc"><span data-l="P"></span><button type="button" data-ir="4" aria-label="New"><svg class="i s" data-i="plus"></svg></button></div>
+              <div class="lista" id="lista-ws-2"></div>
+              <hr>
+              <div class="lista">
+                <button class="it" type="button" data-ir="5"><svg class="i s" data-i="folder-open"></svg>Unassigned<span class="n">2</span></button>
+                <button class="it" type="button"><svg class="i s" data-i="archive"></svg>Archived<span class="n">7</span></button>
+              </div>
+              <div class="pie"><svg class="i s" data-i="hard-drive"></svg>9 projects · 6.4 GB</div>
+            </aside>
+            <main class="principal">
+              <div class="fila">
+                <div>
+                  <h3>Monday, Sept 29</h3>
+                  <p class="sub">4 <span data-l="p"></span> · 9 active projects · 2 deliveries this week</p>
+                </div>
+                <span class="sep"></span>
+                <button class="btn fant" type="button" data-ir="5"><svg class="i s" data-i="folder-plus"></svg>Open folder…</button>
+                <button class="btn pri" type="button" data-ir="4"><svg class="i s" data-i="plus"></svg>New <span data-l="s"></span></button>
+              </div>
+
+              <div class="etq"><svg class="i s" data-i="calendar-clock"></svg>Today, across all <span data-l="p"></span><span class="pin">1</span></div>
+              <div class="hoy">
+                <div class="run"><div class="q"><svg class="i s" style="color:var(--ok)" data-i="circle-check"></svg>Weekly sales report</div><div class="d">Tiendas del Norte · 07:00 · 4 s</div></div>
+                <div class="run"><div class="q"><svg class="i s" style="color:var(--ok)" data-i="circle-check"></svg>Ad spend import</div><div class="d">Tiendas del Norte · 06:30 · 11 s</div></div>
+                <div class="run falla"><div class="q"><svg class="i s" style="color:var(--err)" data-i="circle-x"></svg>Monthly close</div><div class="d">Banco Andino · column “Importe” missing</div></div>
+                <div class="run"><div class="q"><svg class="i s" style="color:var(--ok)" data-i="circle-check"></svg>Social listening</div><div class="d">Grupo Solar · 07:15 · 38 s</div></div>
+              </div>
+
+              <div class="etq"><span data-l="P"></span><span class="pin">2</span></div>
+              <div class="rej" id="rejilla-ws"></div>
+
+              <div class="etq">Not linked to any <span data-l="s"></span> yet<span class="pin">3</span></div>
+              <div class="caja">
+                <table class="tabla">
+                  <tbody>
+                    <tr><td><b>social-q4</b></td><td class="mono">D:\Trabajo\social-q4</td><td>opened 2 days ago</td><td style="text-align:right"><button class="btn" type="button" data-ir="5">Link to a <span data-l="s"></span>…</button></td></tr>
+                    <tr><td><b>scratch-exploracion</b></td><td class="mono">D:\Trabajo\scratch</td><td>opened last week</td><td style="text-align:right"><button class="btn" type="button" data-ir="5">Link to a <span data-l="s"></span>…</button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </main>
+          </div>
+        </section>
+
+        <!-- ═════ 3 · EL WORKSPACE ═════ -->
+        <section class="pantalla" data-p="3">
+          <div class="cuerpo">
+            <div class="riel" aria-hidden="true">
+              <span class="on"><svg class="i" data-i="house"></svg></span>
+              <span><svg class="i" data-i="calendar-clock"></svg></span>
+              <span><svg class="i" data-i="send"></svg></span>
+              <span class="abajo"><svg class="i" data-i="settings"></svg></span>
+            </div>
+            <aside class="lateral">
+              <div class="enc"><span data-l="P"></span><button type="button" data-ir="4" aria-label="New"><svg class="i s" data-i="plus"></svg></button></div>
+              <div class="lista" id="lista-ws-3"></div>
+              <hr>
+              <div class="lista">
+                <button class="it" type="button" data-ir="5"><svg class="i s" data-i="folder-open"></svg>Unassigned<span class="n">2</span></button>
+                <button class="it" type="button"><svg class="i s" data-i="archive"></svg>Archived<span class="n">7</span></button>
+              </div>
+              <div class="pie"><svg class="i s" data-i="hard-drive"></svg>9 projects · 6.4 GB</div>
+            </aside>
+            <main class="principal">
+              <div class="wsh">
+                <div class="av" style="background:#34d399">TN</div>
+                <div>
+                  <h3>Tiendas del Norte</h3>
+                  <div class="fichas">
+                    <span class="chip">Retail</span>
+                    <span class="chip acc"><svg class="i s" data-i="shield-check"></svg>Cloud AI · schema only</span>
+                    <span class="chip"><svg class="i s" data-i="calendar"></svg>Mon–Fri · MX holidays</span>
+                  </div>
+                </div>
+                <span class="sep"></span>
+                <button class="btn fant" type="button"><svg class="i s" data-i="download"></svg>Export <span data-l="s"></span></button>
+                <button class="btn pri" type="button" data-ir="6"><svg class="i s" data-i="folder-open"></svg>Open project</button>
+              </div>
+
+              <div class="pest" role="tablist" id="pestanas">
+                <button role="tab" type="button" aria-selected="true" data-t="resumen">Overview</button>
+                <button role="tab" type="button" aria-selected="false" data-t="proyectos">Projects <span class="n mono" style="color:var(--t3)">3</span></button>
+                <button role="tab" type="button" aria-selected="false" data-t="contexto">Context<span class="pin">1</span></button>
+                <button role="tab" type="button" aria-selected="false" data-t="fuentes">Sources<span class="pin">2</span></button>
+                <button role="tab" type="button" aria-selected="false" data-t="programas">Schedules<span class="pin">3</span></button>
+                <button role="tab" type="button" aria-selected="false" data-t="entregas">Deliveries<span class="pin">4</span></button>
+                <button role="tab" type="button" aria-selected="false" data-t="ajustes">Settings<span class="pin">5</span></button>
+              </div>
+
+              <!-- resumen -->
+              <div class="panel on" data-panel="resumen">
+                <div class="cifras">
+                  <div class="cifra"><div class="v">3</div><div class="k">active projects</div></div>
+                  <div class="cifra"><div class="v">12</div><div class="k">shared measures</div></div>
+                  <div class="cifra"><div class="v">4</div><div class="k">named sources</div></div>
+                  <div class="cifra"><div class="v">v38</div><div class="k">last delivery · today 07:04</div></div>
+                </div>
+                <div class="dos" style="margin-top:14px">
+                  <div>
+                    <div class="etq" style="margin-top:4px">Projects</div>
+                    <div class="caja">
+                      <table class="tabla"><tbody>
+                        <tr><td><b>weekly-sales-report</b></td><td><span class="chip ok">In progress</span></td><td>due Mon</td></tr>
+                        <tr><td><b>campaign-roi-q3</b></td><td><span class="chip warn">In review</span></td><td>due Oct 3</td></tr>
+                        <tr><td><b>store-footfall</b></td><td><span class="chip ok">In progress</span></td><td>—</td></tr>
+                      </tbody></table>
+                    </div>
+                  </div>
+                  <div>
+                    <div class="etq" style="margin-top:4px">Pinned measure</div>
+                    <div class="medida"><span class="co">-- ROAS · return on ad spend</span>
+<span class="kw">roas</span>(revenue, ad_spend) =
+  <span class="fn">sum</span>(revenue) / <span class="fn">nullif</span>(<span class="fn">sum</span>(ad_spend), <span class="nu">0</span>)
+<span class="co">-- used in 3 projects · edited Sep 12</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- proyectos -->
+              <div class="panel" data-panel="proyectos">
+                <div class="caja">
+                  <table class="tabla">
+                    <thead><tr><th>Project</th><th>Folder on this machine</th><th>Status</th><th>Last opened</th></tr></thead>
+                    <tbody>
+                      <tr><td><b>weekly-sales-report</b></td><td class="mono">D:\Trabajo\TN\weekly-sales</td><td><span class="chip ok">In progress</span></td><td>today</td></tr>
+                      <tr><td><b>campaign-roi-q3</b></td><td class="mono">D:\Trabajo\TN\roi-q3</td><td><span class="chip warn">In review</span></td><td>Friday</td></tr>
+                      <tr><td><b>store-footfall</b></td><td class="mono">D:\Trabajo\TN\footfall</td><td><span class="chip ok">In progress</span></td><td>Sep 22</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="fila" style="margin-top:10px"><button class="btn" type="button" data-ir="5"><svg class="i s" data-i="link"></svg>Link a folder…</button><span class="sub" style="margin:0">A project is still a folder. Linking only writes this <span data-l="s"></span>'s id and name into its <span class="mono">project.json</span>.</span></div>
+              </div>
+
+              <!-- contexto -->
+              <div class="panel" data-panel="contexto">
+                <div class="ctx">
+                  <div class="lista">
+                    <button class="it on" type="button"><svg class="i s" data-i="sigma"></svg>Measures<span class="n">12</span></button>
+                    <button class="it" type="button"><svg class="i s" data-i="book-open"></svg>Glossary<span class="n">31</span></button>
+                    <button class="it" type="button"><svg class="i s" data-i="file-text"></svg>Docs<span class="n">4</span></button>
+                    <button class="it" type="button"><svg class="i s" data-i="list-checks"></svg>AI rules<span class="n">1</span></button>
+                  </div>
+                  <div>
+                    <div class="caja">
+                      <table class="tabla">
+                        <thead><tr><th>Measure</th><th>Definition</th><th>Used in</th></tr></thead>
+                        <tbody>
+                          <tr><td><b class="mono">roas</b></td><td class="mono">sum(revenue) / sum(ad_spend)</td><td>3 projects</td></tr>
+                          <tr><td><b class="mono">cac</b></td><td class="mono">sum(ad_spend) / count(new_customers)</td><td>2 projects</td></tr>
+                          <tr><td><b class="mono">venta_neta</b></td><td class="mono">sum(importe) - sum(devoluciones)</td><td>3 projects</td></tr>
+                          <tr><td><b class="mono">ticket_promedio</b></td><td class="mono">venta_neta / count(tickets)</td><td>1 project</td></tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <p class="sub" style="margin-top:10px">Plain text files, kept by AmoxSQL for this <span data-l="s"></span> — readable and editable with no project open. A project can add its own or override one.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- fuentes -->
+              <div class="panel" data-panel="fuentes">
+                <div class="caja">
+                  <table class="tabla">
+                    <thead><tr><th>Name</th><th>Kind</th><th>On this machine</th><th>Credential</th><th></th></tr></thead>
+                    <tbody>
+                      <tr><td><b class="mono">ventas-semanales</b></td><td>Newest file · <span class="mono">ventas*.xlsx</span></td><td class="mono">G:\Tiendas\entrada</td><td>—</td><td><span class="chip ok">found</span></td></tr>
+                      <tr><td><b class="mono">ads-spend</b></td><td>Parquet in a bucket</td><td class="mono">s3://tn-media/spend/</td><td><svg class="i s" data-i="key-round"></svg> <span class="mono">bucket-tn</span></td><td><span class="chip ok">found</span></td></tr>
+                      <tr><td><b class="mono">lago-marketing</b></td><td>Iceberg lake</td><td class="mono">s3://tn-lake/marketing</td><td><svg class="i s" data-i="key-round"></svg> <span class="mono">bucket-tn</span></td><td><span class="chip ok">found</span></td></tr>
+                      <tr><td><b class="mono">ventas-limpias</b></td><td>Published file</td><td class="mono">G:\Tiendas\publicado</td><td>—</td><td><span class="chip warn">9 days old</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="sub" style="margin-top:10px">Each project uses a source by its <b>name</b>. Where it lives is set per machine; the key sits in the system keychain and never in the project.</p>
+              </div>
+
+              <!-- programaciones -->
+              <div class="panel" data-panel="programas">
+                <div class="fila" style="margin-bottom:10px"><span class="sub" style="margin:0">Runs with AmoxSQL closed. Anything missed while the computer was off runs when you open the app.</span><span class="sep"></span><button class="btn fant" type="button"><svg class="i s" data-i="pause"></svg>Pause all</button></div>
+                <div class="caja">
+                  <table class="tabla">
+                    <thead><tr><th>Process</th><th>When</th><th>Next</th><th>Last run</th></tr></thead>
+                    <tbody>
+                      <tr><td><b>Weekly sales report</b><br><span class="mono" style="font-size:11px;color:var(--t3)">weekly-sales-report</span></td><td>Mondays 07:00</td><td>Oct 6, 07:00</td><td><span class="chip ok"><svg class="i s" data-i="circle-check"></svg>today · 4 s</span></td></tr>
+                      <tr><td><b>Ad spend import</b><br><span class="mono" style="font-size:11px;color:var(--t3)">campaign-roi-q3</span></td><td>Every day 06:30</td><td>tomorrow, 06:30</td><td><span class="chip ok"><svg class="i s" data-i="circle-check"></svg>today · 11 s</span></td></tr>
+                      <tr><td><b>Month-end pack</b><br><span class="mono" style="font-size:11px;color:var(--t3)">weekly-sales-report</span></td><td>1st business day, 07:00</td><td>Oct 1, 07:00</td><td><span class="chip">Sep 1 · 22 s</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- entregas -->
+              <div class="panel" data-panel="entregas">
+                <div class="caja">
+                  <table class="tabla">
+                    <thead><tr><th>Delivery</th><th>Version</th><th>Where</th><th>When</th></tr></thead>
+                    <tbody>
+                      <tr><td><b>Weekly sales · Excel</b></td><td class="mono">v38</td><td class="mono">G:\Tiendas\reportes</td><td>today 07:04 · scheduled</td></tr>
+                      <tr><td><b>Campaign ROI Q3 · deck</b></td><td class="mono">v3</td><td>exported by hand</td><td>Friday 18:12</td></tr>
+                      <tr><td><b>Weekly sales · Excel</b></td><td class="mono">v37</td><td class="mono">G:\Tiendas\reportes</td><td>Sep 22 07:03 · scheduled</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- ajustes -->
+              <div class="panel" data-panel="ajustes">
+                <div class="ajustes">
+                  <div class="grupo">
+                    <h4><svg class="i s" data-i="shield-check"></svg>AI policy</h4>
+                    <p class="sub">Applies to every project of this <span data-l="s"></span>.</p>
+                    <div class="opcion"><span class="radio"></span><div><b>Local models only</b><small>Nothing leaves this machine.</small></div></div>
+                    <div class="opcion on"><span class="radio"></span><div><b>Cloud allowed — schema only</b><small>Table and column names, never rows.</small></div></div>
+                    <div class="opcion"><span class="radio"></span><div><b>Cloud allowed — with sample rows</b><small>Sensitive columns are always masked.</small></div></div>
+                  </div>
+                  <div class="grupo">
+                    <h4><svg class="i s" data-i="palette"></svg>Brand</h4>
+                    <p class="sub">Every new deck and chart starts with it.</p>
+                    <div class="muestras"><span class="on" style="background:#34d399"></span><span style="background:#0f766e"></span><span style="background:#e6edf3"></span><span style="background:#1c242d"></span></div>
+                    <div class="fila" style="margin-top:12px"><span class="av" style="background:#34d399;width:26px;height:26px;border-radius:7px;font-size:10px">TN</span><span class="sub" style="margin:0">logo-tiendas.svg</span></div>
+                  </div>
+                  <div class="grupo">
+                    <h4><svg class="i s" data-i="calendar"></svg>Business calendar</h4>
+                    <p class="sub">What “first business day” means for this <span data-l="s"></span>.</p>
+                    <div class="fila"><span class="chip">Mon–Fri</span><span class="chip">Holidays: Mexico</span><span class="chip">America/Monterrey</span></div>
+                  </div>
+                  <div class="grupo">
+                    <h4><svg class="i s" data-i="download"></svg>Share this <span data-l="s"></span></h4>
+                    <p class="sub">Measures, glossary, docs, brand and named sources — in one file. Never credentials: each person adds those to their own keychain.</p>
+                    <button class="btn" type="button"><svg class="i s" data-i="download"></svg>Export…</button>
+                  </div>
+                </div>
+              </div>
+            </main>
+          </div>
+        </section>
+
+        <!-- ═════ 4 · NUEVO ═════ -->
+        <section class="pantalla" data-p="4">
+          <div class="cuerpo" aria-hidden="true" style="filter:saturate(.7)">
+            <div class="riel"><span class="on"><svg class="i" data-i="house"></svg></span></div>
+            <aside class="lateral"><div class="enc"><span data-l="P"></span></div><div class="lista" id="lista-ws-4"></div></aside>
+            <main class="principal"><h3>Monday, Sept 29</h3></main>
+          </div>
+          <div class="velo">
+            <div class="modal" role="dialog" aria-label="New">
+              <div class="mh"><h4>New <span data-l="s"></span></h4><p class="sub">It lives in AmoxSQL, not in a folder. Projects are linked to it afterwards.</p></div>
+              <div class="mb">
+                <div class="dos-c">
+                  <div class="campo"><label>Name</label><div class="entrada foco">Clínica Vida</div></div>
+                  <div class="campo"><label>Tag</label><div class="entrada">Health</div></div>
+                </div>
+                <div class="campo"><label>Brand color<span class="pin">1</span></label>
+                  <div class="muestras"><span style="background:#34d399"></span><span class="on" style="background:#60a5fa"></span><span style="background:#f472b6"></span><span style="background:#fbbf24"></span><span style="background:#a78bfa"></span><span style="background:#f87171"></span></div>
+                </div>
+                <div class="campo"><label>AI policy<span class="pin">2</span></label>
+                  <div class="opcion on"><span class="radio"></span><div><b>Local models only</b><small>Recommended for health and financial data. Nothing leaves this machine.</small></div></div>
+                  <div class="opcion"><span class="radio"></span><div><b>Cloud allowed — schema only</b></div></div>
+                </div>
+                <div class="campo"><label>Business calendar<span class="pin">3</span></label>
+                  <div class="fila"><span class="chip">Mon–Fri</span><span class="chip">Holidays: Mexico</span><span class="chip">America/Mexico_City</span></div>
+                </div>
+              </div>
+              <div class="mf">
+                <button class="btn fant" type="button" style="margin-right:auto"><svg class="i s" data-i="upload"></svg>Import from a file…<span class="pin">4</span></button>
+                <button class="btn fant" type="button" data-ir="2">Cancel</button>
+                <button class="btn pri" type="button" data-ir="3">Create <span data-l="s"></span></button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═════ 5 · ASIGNAR CARPETA ═════ -->
+        <section class="pantalla" data-p="5">
+          <div class="cuerpo" aria-hidden="true" style="filter:saturate(.7)">
+            <div class="riel"><span class="on"><svg class="i" data-i="house"></svg></span></div>
+            <aside class="lateral"><div class="enc"><span data-l="P"></span></div><div class="lista" id="lista-ws-5"></div></aside>
+            <main class="principal"><h3>Monday, Sept 29</h3></main>
+          </div>
+          <div class="velo">
+            <div class="modal" role="dialog" aria-label="Link project">
+              <div class="mh"><h4>Which <span data-l="s"></span> does this project belong to?</h4><p class="sub">You're opening a folder that isn't linked yet.</p></div>
+              <div class="mb">
+                <div class="ruta"><svg class="i s" data-i="folder"></svg>D:\Trabajo\social-q4</div>
+                <div class="elige" id="elige-ws"></div>
+                <button class="btn fant" type="button" data-ir="4" style="align-self:flex-start"><svg class="i s" data-i="plus"></svg>New <span data-l="s"></span>…</button>
+                <p class="sub" style="margin:0">Saved in the folder's <span class="mono">project.json</span> as the <span data-l="s"></span>'s id and name — nothing else. On another machine without it, AmoxSQL offers to create or import it.<span class="pin">1</span></p>
+              </div>
+              <div class="mf">
+                <button class="btn fant" type="button" style="margin-right:auto" data-ir="6">Leave unlinked<span class="pin">2</span></button>
+                <button class="btn pri" type="button" data-ir="6">Link and open <svg class="i s" data-i="arrow-right"></svg></button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ═════ 6 · PROYECTO ABIERTO ═════ -->
+        <section class="pantalla" data-p="6">
+          <div class="cuerpo">
+            <div class="riel" aria-hidden="true">
+              <span class="on"><svg class="i" data-i="files"></svg></span>
+              <span><svg class="i" data-i="search"></svg></span>
+              <span><svg class="i" data-i="database"></svg></span>
+              <span><svg class="i" data-i="workflow"></svg></span>
+              <span><svg class="i" data-i="git-branch"></svg></span>
+              <span><svg class="i" data-i="sparkles"></svg></span>
+              <span class="abajo"><svg class="i" data-i="settings"></svg></span>
+            </div>
+            <aside class="explorador">
+              <div class="secc">Project</div>
+              <div class="nodo"><svg class="i s" data-i="folder-open"></svg>queries</div>
+              <div class="nodo hijo on"><svg class="i s" data-i="file-code"></svg>weekly_sales.sql</div>
+              <div class="nodo"><svg class="i s" data-i="folder"></svg>processes</div>
+              <div class="nodo hijo"><svg class="i s" data-i="workflow"></svg>weekly_sales.sqlchain</div>
+              <div class="nodo"><svg class="i s" data-i="folder"></svg>charts</div>
+              <div class="nodo"><svg class="i s" data-i="folder"></svg>exports</div>
+
+              <div class="secc" style="margin-top:8px"><svg class="i s" data-i="plug"></svg>Sources<span class="ws-t">· Tiendas del Norte</span><span class="pin">2</span></div>
+              <div class="nodo"><svg class="i s" data-i="file-spreadsheet"></svg>ventas_semanales<span class="tipo">xlsx</span></div>
+              <div class="nodo"><svg class="i s" data-i="cloud"></svg>ads_spend<span class="tipo">parquet</span></div>
+              <div class="nodo"><svg class="i s" data-i="layers"></svg>lago_marketing<span class="tipo">iceberg</span></div>
+              <div class="nodo"><svg class="i s" data-i="package-check"></svg>ventas_limpias<span class="tipo">published</span></div>
+
+              <div class="secc" style="margin-top:8px"><svg class="i s" data-i="sigma"></svg>Measures<span class="ws-t">· Tiendas del Norte</span><span class="pin">3</span></div>
+              <div class="nodo"><span class="mono" style="font-size:12px">roas</span><span class="tipo">3 uses</span></div>
+              <div class="nodo"><span class="mono" style="font-size:12px">cac</span><span class="tipo">2 uses</span></div>
+              <div class="nodo"><span class="mono" style="font-size:12px">venta_neta</span><span class="tipo">3 uses</span></div>
+            </aside>
+
+            <div class="editor">
+              <div class="tabs">
+                <div class="tab on"><svg class="i s" data-i="file-code"></svg>weekly_sales.sql</div>
+                <div class="tab"><svg class="i s" data-i="workflow"></svg>weekly_sales.sqlchain</div>
+              </div>
+              <div class="barra">
+                <button class="btn pri" type="button"><svg class="i s" data-i="play"></svg>Run</button>
+                <button class="btn fant" type="button"><svg class="i s" data-i="save"></svg>Save</button>
+                <button class="btn fant" type="button"><svg class="i s" data-i="file-spreadsheet"></svg>Export</button>
+                <span class="var">week = <b>38</b></span>
+                <span class="sep"></span>
+                <span class="chip"><svg class="i s" data-i="cpu"></svg>in memory · no database<span class="pin">4</span></span>
+              </div>
+              <div class="codigo">
+                <div class="ln">1
+2
+3
+4
+5
+6
+7
+8
+9
+10</div>
+                <pre><span class="co">-- ROAS by channel, one week</span>
+<span class="kw">SELECT</span> channel,
+       <span class="fn">sum</span>(revenue)            <span class="kw">AS</span> revenue,
+       <span class="marca-ws"><span class="fn">roas</span>(revenue, ad_spend)</span> <span class="kw">AS</span> roas     <span class="co">-- client measure</span>
+<span class="kw">FROM</span>   <span class="marca-ws">ventas_semanales</span>                     <span class="co">-- newest ventas*.xlsx</span>
+<span class="kw">JOIN</span>   <span class="marca-ws">ads_spend</span> <span class="kw">USING</span> (week, channel)
+<span class="kw">WHERE</span>  week = {{week}}
+<span class="kw">GROUP BY</span> channel
+<span class="kw">ORDER BY</span> roas <span class="kw">DESC</span>;</pre>
+              </div>
+              <div class="resultados">
+                <div class="rb">
+                  <span class="rtab on"><svg class="i s" data-i="table"></svg>Table</span>
+                  <span class="rtab"><svg class="i s" data-i="chart-column"></svg>Chart</span>
+                  <span class="sep"></span>
+                  <span class="chip">4 rows · 0.21 s</span>
+                </div>
+                <table class="tabla">
+                  <thead><tr><th>channel</th><th class="num">revenue</th><th class="num">roas</th></tr></thead>
+                  <tbody>
+                    <tr><td>Email</td><td class="num">412,900</td><td class="num">5.20</td></tr>
+                    <tr><td>Search</td><td class="num">1,284,300</td><td class="num">3.84</td></tr>
+                    <tr><td>Social</td><td class="num">906,150</td><td class="num">2.91</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <aside class="asist">
+              <div class="ah"><svg class="i s" data-i="sparkles"></svg>Assistant</div>
+              <div class="ab">
+                <div class="politica"><svg class="i s" data-i="shield-check"></svg><div><b style="color:var(--t1)">Cloud AI · schema only</b><br>Set by Tiendas del Norte. The assistant sees tables and columns, never rows.<span class="pin">5</span></div></div>
+                <div class="burbuja"><small>You</small>Why did Social drop vs last week?</div>
+                <div class="burbuja"><small>Assistant</small>I'll compare weeks 37 and 38 with the client's <span class="mono" style="color:var(--fn)">roas</span> measure, so it's calculated the same way as in the report.</div>
+              </div>
+            </aside>
+          </div>
+          <div class="estado">
+            <span><b>Tiendas del Norte</b> · weekly-sales-report</span>
+            <span><svg class="i s" data-i="calendar-clock"></svg> Weekly sales report · next Mon 07:00 · last run OK<span class="pin">6</span></span>
+            <span class="dcha"><span>week = 38</span><span>UTF-8</span><span>SQL</span></span>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <aside class="notas" aria-live="polite">
+      <p class="ep" id="n-ep"></p>
+      <h2 id="n-titulo"></h2>
+      <p class="bajada" id="n-bajada"></p>
+      <ol id="n-lista"></ol>
+      <div class="nav">
+        <button type="button" id="anterior"><svg class="i s" data-i="arrow-left"></svg>Anterior</button>
+        <button type="button" class="sig" id="siguiente">Siguiente<svg class="i s" data-i="arrow-right"></svg></button>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<script>
+/* ── Iconos: trazos de Lucide (ISC), los mismos que usa la aplicación ──────── */
+const ICONOS = {
+  'search':'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  'arrow-right':'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  'arrow-left':'<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  'info':'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  'house':'<path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  'calendar-clock':'<path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h5"/><path d="M17.5 17.5 16 16.3V14"/><circle cx="16" cy="16" r="6"/>',
+  'calendar':'<path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+  'send':'<path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/>',
+  'settings':'<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  'plus':'<path d="M5 12h14"/><path d="M12 5v14"/>',
+  'folder':'<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  'folder-open':'<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+  'folder-plus':'<path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+  'archive':'<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+  'hard-drive':'<line x1="22" x2="2" y1="12" y2="12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/><line x1="6" x2="6.01" y1="16" y2="16"/><line x1="10" x2="10.01" y1="16" y2="16"/>',
+  'circle-check':'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+  'circle-x':'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  'shield-check':'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+  'download':'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+  'upload':'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/>',
+  'link':'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  'sigma':'<path d="M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2"/>',
+  'book-open':'<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+  'file-text':'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  'list-checks':'<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  'key-round':'<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
+  'pause':'<rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/>',
+  'palette':'<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>',
+  'files':'<path d="M20 7h-3a2 2 0 0 1-2-2V2"/><path d="M9 18a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h7l4 4v10a2 2 0 0 1-2 2Z"/><path d="M3 7.6v12.8A1.6 1.6 0 0 0 4.6 22h9.8"/>',
+  'database':'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
+  'workflow':'<rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/>',
+  'git-branch':'<line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>',
+  'sparkles':'<path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/>',
+  'file-code':'<path d="M10 12.5 8 15l2 2.5"/><path d="m14 12.5 2 2.5-2 2.5"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/>',
+  'plug':'<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',
+  'file-spreadsheet':'<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M8 13h2"/><path d="M14 13h2"/><path d="M8 17h2"/><path d="M14 17h2"/>',
+  'cloud':'<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  'layers':'<path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>',
+  'package-check':'<path d="m16 16 2 2 4-4"/><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/>',
+  'play':'<polygon points="6 3 20 12 6 21 6 3"/>',
+  'save':'<path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/>',
+  'cpu':'<rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/>',
+  'table':'<path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/>',
+  'chart-column':'<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>',
+  'briefcase':'<path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  'users':'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  'megaphone':'<path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>',
+  'package':'<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/>',
+  'layout-grid':'<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+};
+function pintarIconos(raiz = document) {
+  raiz.querySelectorAll('svg[data-i]').forEach(el => {
+    if (el.dataset.hecho) return;
+    el.setAttribute('viewBox', '0 0 24 24');
+    el.setAttribute('fill', 'none');
+    el.setAttribute('stroke', 'currentColor');
+    el.setAttribute('stroke-linecap', 'round');
+    el.setAttribute('stroke-linejoin', 'round');
+    el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = ICONOS[el.dataset.i] || '';
+    el.dataset.hecho = '1';
+  });
+}
+
+/* ── La palabra que elige el usuario (B8) ──────────────────────────────── */
+const PALABRAS = {
+  clients:    { s: 'client',    p: 'clients',    icon: 'briefcase',   desc: 'Agencies, consultants and freelancers' },
+  teams:      { s: 'team',      p: 'teams',      icon: 'users',       desc: 'In-house data teams and departments' },
+  brands:     { s: 'brand',     p: 'brands',     icon: 'megaphone',   desc: 'Several brands under one roof' },
+  products:   { s: 'product',   p: 'products',   icon: 'package',     desc: 'Product companies and product lines' },
+  workspaces: { s: 'workspace', p: 'workspaces', icon: 'layout-grid', desc: 'Keep the neutral name' },
+};
+let palabra = 'clients';
+const may = t => t.charAt(0).toUpperCase() + t.slice(1);
+function aplicarPalabra() {
+  const w = PALABRAS[palabra];
+  document.querySelectorAll('[data-l]').forEach(el => {
+    const k = el.dataset.l;
+    el.textContent = k === 's' ? w.s : k === 'p' ? w.p : k === 'S' ? may(w.s) : may(w.p);
+  });
+  document.querySelectorAll('#opciones .op').forEach(b => b.setAttribute('aria-pressed', b.dataset.k === palabra));
+  pintarNotas();
+}
+
+/* ── Datos de ejemplo: una agencia de marketing ─────────────────────────── */
+const WS = [
+  { id: 'tn', nom: 'Tiendas del Norte', sec: 'Retail', color: '#34d399', ini: 'TN',
+    estados: [['ok', '2 in progress'], ['warn', '1 in review']], prox: ['Weekly sales report', 'Mon 07:00'], ia: 'Cloud · schema only', n: 3 },
+  { id: 'ba', nom: 'Banco Andino', sec: 'Financial', color: '#fbbf24', ini: 'BA',
+    estados: [['ok', '1 in progress'], ['err', '1 run failed']], prox: ['Monthly close', 'Oct 1'], ia: 'Local only', n: 2 },
+  { id: 'gs', nom: 'Grupo Solar', sec: 'Energy', color: '#f472b6', ini: 'GS',
+    estados: [['ok', '1 in progress']], prox: ['Social listening', 'daily 07:15'], ia: 'Cloud · sample rows', n: 1 },
+  { id: 'cv', nom: 'Clínica Vida', sec: 'Health', color: '#60a5fa', ini: 'CV',
+    estados: [['', '1 delivered']], prox: ['Patient funnel', 'no schedule'], ia: 'Local only', n: 1 },
+];
+function pintarListas() {
+  const item = (w, on) => `<button class="it${on ? ' on' : ''}" type="button" data-ir="3"><span class="punto" style="background:${w.color}"></span>${w.nom}<span class="n">${w.n}</span></button>`;
+  ['lista-ws-2', 'lista-ws-4', 'lista-ws-5'].forEach(id => { document.getElementById(id).innerHTML = WS.map(w => item(w, false)).join(''); });
+  document.getElementById('lista-ws-3').innerHTML = WS.map((w, i) => item(w, i === 0)).join('');
+  document.getElementById('rejilla-ws').innerHTML = WS.map(w => `
+    <button class="wsc" type="button" data-ir="3">
+      <span class="t"><span class="av" style="background:${w.color}">${w.ini}</span>
+        <span><span class="nom">${w.nom}</span><span class="sec">${w.sec} · ${w.n} project${w.n > 1 ? 's' : ''}</span></span>
+        <span class="sep"></span><span class="chip${w.ia.startsWith('Local') ? ' acc' : ''}"><svg class="i s" data-i="shield-check"></svg>${w.ia}</span></span>
+      <span class="estados">${w.estados.map(([c, t]) => `<span class="chip ${c}">${t}</span>`).join('')}</span>
+      <span class="prox"><svg class="i s" data-i="calendar-clock"></svg>Next: <b>${w.prox[0]}</b> · ${w.prox[1]}</span>
+    </button>`).join('');
+  document.getElementById('elige-ws').innerHTML = WS.map((w, i) => `
+    <button type="button" class="${i === 2 ? 'on' : ''}" data-elige><span class="punto" style="background:${w.color}"></span>${w.nom}<small>${w.n} project${w.n > 1 ? 's' : ''}</small></button>`).join('');
+  document.getElementById('opciones').innerHTML = Object.entries(PALABRAS).map(([k, w]) => `
+    <button class="op" type="button" data-k="${k}" aria-pressed="${k === palabra}">
+      <svg class="i" data-i="${w.icon}"></svg><b>${may(w.p)}</b><small>${w.desc}</small></button>`).join('');
+}
+
+/* ── Las seis pantallas y sus notas ─────────────────────────────────────── */
+const PASOS = [
+  { corto: 'Primer arranque', titulo: 'La palabra la eliges tú',
+    bajada: 'Lo primero que ve alguien que abre la 5.9, nuevo o no.',
+    notas: [
+      ['Una sola pregunta. La respuesta cambia la palabra en toda la interfaz; el concepto es el mismo para todos. Prueba a elegir otra y recorre las pantallas.', ['B8']],
+      ['Quien viene de la 5.8 lee aquí, una vez, por qué «workspace» ya no es su carpeta. No se mueve nada en disco.', ['B7']],
+    ] },
+  { corto: 'Inicio', titulo: 'Todo lo tuyo, agrupado',
+    bajada: 'La pantalla de inicio deja de ser una lista de recientes.',
+    notas: [
+      ['Lo que corrió hoy, de todos los {p}. El fallo dice en qué y por qué, sin abrir nada.', ['D7', 'D2', 'E2']],
+      ['Un bloque por {s}: estado de sus proyectos, próxima entrega y su política de IA a la vista.', ['B3', 'B4']],
+      ['Los proyectos sueltos no desaparecen: se ven aparte y se enganchan con un clic.', ['B1', '#160']],
+    ] },
+  { corto: 'El {s}', titulo: 'Un {s}, sin abrir ningún proyecto',
+    bajada: 'Lo transversal vive aquí y sirve a todos sus proyectos. Recorre las pestañas.',
+    notas: [
+      ['Medidas, glosario, documentos y reglas de la IA. Son archivos de texto que guarda AmoxSQL; se leen y se editan sin proyecto abierto.', ['B2', 'E1']],
+      ['Fuentes con nombre. Dónde viven se decide por máquina; la clave está en el llavero del sistema, nunca en el proyecto.', ['C1', 'A1', 'C4', 'C6']],
+      ['Lo programado corre con la aplicación cerrada, y lo que se perdió se pone al día al abrir.', ['D1', 'A3']],
+      ['Qué se entregó, en qué versión y dónde. Las ejecuciones programadas lo apuntan solas.', ['F1', 'D6']],
+      ['Política de IA, marca, calendario de días hábiles y exportar el {s} entero, sin credenciales.', ['B4', 'B5', 'B6']],
+    ] },
+  { corto: 'Nuevo {s}', titulo: 'Crear un {s}',
+    bajada: 'Vive en AmoxSQL, no en una carpeta. Los proyectos se enganchan después.',
+    notas: [
+      ['La marca se pone una vez y la heredan todos sus decks y gráficos.', ['B5']],
+      ['La política de IA se decide al crearlo. Para salud o finanzas, la opción sugerida es «sólo local».', ['B4']],
+      ['El calendario es lo que da sentido a «el primer día hábil del mes».', ['D1']],
+      ['O se importa uno que exportó otra persona u otra máquina tuya.', ['B6']],
+    ] },
+  { corto: 'Asignar carpeta', titulo: 'Una carpeta que aún no es de nadie',
+    bajada: 'Pasa al abrir una carpeta suelta, o desde «Link to a {s}».',
+    notas: [
+      ['Sólo se escribe el id y el nombre del {s} en project.json. La carpeta sabe de quién es aunque cambie de sitio o de máquina.', ['B1', '#160']],
+      ['Se puede dejar suelta. Nada obliga a tener {p}.', ['B1']],
+    ] },
+  { corto: 'Proyecto abierto', titulo: 'El proyecto, con su {s} alrededor',
+    bajada: 'La interfaz de siempre. Lo nuevo es lo que llega del {s}.',
+    notas: [
+      ['La miga lleva al {s}. Un clic y estás en su espacio.', ['B1', 'B3']],
+      ['Las fuentes del {s} aparecen en el explorador y se consultan por su nombre, como una tabla.', ['C1', 'C4', 'C6']],
+      ['Sus medidas se usan en el SQL y dan lo mismo en todos los proyectos.', ['E1', 'B2']],
+      ['Este proyecto no tiene base: lee archivos y trabaja en memoria. La base es opcional.', ['A4']],
+      ['El asistente obedece la política del {s}, y lo dice.', ['B4']],
+      ['La barra de estado recuerda lo programado y cómo salió la última vez.', ['D1', 'D2']],
+    ] },
+];
+let paso = 1;
+// Las notas nombran el CONCEPTO, siempre «workspace». Sólo la interfaz simulada
+// usa la palabra elegida: es la misma convención que candidatos_v6.md.
+const sust = t => t.replaceAll('{s}', 'workspace').replaceAll('{p}', 'workspaces');
+
+function pintarPasos() {
+  document.getElementById('pasos').innerHTML = PASOS.map((p, i) => `
+    <button class="paso" type="button" data-ir="${i + 1}" ${i + 1 === paso ? 'aria-current="step"' : ''}><b>${i + 1}</b>${sust(p.corto)}</button>`).join('');
+}
+function pintarNotas() {
+  const p = PASOS[paso - 1];
+  document.getElementById('n-ep').textContent = `Pantalla ${paso} de ${PASOS.length}`;
+  document.getElementById('n-titulo').textContent = sust(p.titulo);
+  document.getElementById('n-bajada').textContent = sust(p.bajada);
+  document.getElementById('n-lista').innerHTML = p.notas.map(([t, ids], i) => `
+    <li><span class="nota-n">${i + 1}</span><div>${sust(t)}<div class="ids">${ids.map(x => `<span class="id">${x}</span>`).join('')}</div></div></li>`).join('');
+  document.getElementById('anterior').disabled = paso === 1;
+  const sig = document.getElementById('siguiente');
+  sig.disabled = paso === PASOS.length;
+  pintarPasos();
+}
+function migas() {
+  const w = PALABRAS[palabra];
+  const m = document.getElementById('migas');
+  if (paso === 1) m.innerHTML = '<b>AmoxSQL</b>';
+  else if (paso === 6) m.innerHTML = `<button class="ws" type="button" data-ir="3"><span class="punto" style="background:#34d399"></span>Tiendas del Norte</button><span>›</span><b>weekly-sales-report</b><span class="pin">1</span>`;
+  else if (paso === 3) m.innerHTML = `<b>${may(w.p)}</b><span>›</span><span class="punto" style="background:#34d399"></span><b>Tiendas del Norte</b>`;
+  else m.innerHTML = `<b>${may(w.p)}</b>`;
+  document.getElementById('buscar-txt').textContent = paso === 6 ? 'Search in weekly-sales-report' : paso === 3 ? 'Search in Tiendas del Norte' : 'Search all projects';
+}
+function ir(n) {
+  paso = Math.max(1, Math.min(PASOS.length, n));
+  document.querySelectorAll('.pantalla').forEach(s => { s.hidden = +s.dataset.p !== paso; });
+  migas();
+  pintarNotas();
+  aplicarPalabra();
+  pintarIconos();
+}
+
+/* ── Eventos ─────────────────────────────────────────────────────────────── */
+document.addEventListener('click', e => {
+  const op = e.target.closest('#opciones .op');
+  if (op) { palabra = op.dataset.k; aplicarPalabra(); pintarPasos(); migas(); pintarIconos(); return; }
+  const el = e.target.closest('[data-elige]');
+  if (el) { el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el)); return; }
+  const t = e.target.closest('#pestanas [data-t]');
+  if (t) {
+    document.querySelectorAll('#pestanas [data-t]').forEach(b => b.setAttribute('aria-selected', b === t));
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('on', p.dataset.panel === t.dataset.t));
+    return;
+  }
+  const d = e.target.closest('[data-ir]');
+  if (d) ir(+d.dataset.ir);
+});
+document.getElementById('anterior').addEventListener('click', () => ir(paso - 1));
+document.getElementById('siguiente').addEventListener('click', () => ir(paso + 1));
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input,textarea')) return;
+  if (e.key === 'ArrowRight') ir(paso + 1);
+  if (e.key === 'ArrowLeft') ir(paso - 1);
+});
+const alt = document.getElementById('alternar-notas');
+alt.addEventListener('click', () => {
+  const on = alt.getAttribute('aria-pressed') !== 'true';
+  alt.setAttribute('aria-pressed', on);
+  document.body.classList.toggle('sin-notas', !on);
+});
+
+pintarListas();
+ir(1);
+</script>
+</body>
+</html>
