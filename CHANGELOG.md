@@ -5,6 +5,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.8.1] — 2026-09-30
+
+### Arreglado
+
+- **Una viñeta ya no es una tarea.** En la vista previa de markdown, toda viñeta
+  (`- texto`) salía con una casilla, y además marcable: al hacer clic escribía `[x]` en el
+  documento. Ahora sólo llevan casilla los puntos que la tienen en el texto, `- [ ]` y
+  `- [x]`. El panel de tareas ya contaba bien; el fallo era sólo de la vista previa.
+
+Es la última versión de la línea 5.8. La siguiente es la 5.9.0: cimientos y workspaces
+(ver `docs/dev/plan_v6_cimientos_y_workspaces.md`).
+
+---
+
 ## [5.8.0] — 2026-09-17
 
 ### Los temas oscuros, reordenados
