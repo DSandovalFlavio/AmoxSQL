@@ -309,7 +309,14 @@ function TaskItem({ node, className, children, onToggleTask, ...props }) {
     const rest = kids.filter(c => c !== box);
     const checked = !!box?.props?.checked;
 
-    if (!onToggleTask || !line) {
+    // Sin `!box` esto le ponia casilla a TODA vinuta. TaskItem es el renderer de
+    // cualquier <li>, no solo de las tareas, y la guarda solo miraba si habia con
+    // que escribir en el documento —no si el punto era una tarea—. Como
+    // MarkdownEditor siempre pasa onToggleTask, no saltaba nunca: un `- texto`
+    // normal salia con casilla, y encima marcable.
+    // `box` es el discriminador correcto porque remark-gfm solo mete un hijo
+    // <input type="checkbox"> cuando el original lleva `- [ ]` o `- [x]`.
+    if (!box || !onToggleTask || !line) {
         return <li className={className} {...props}>{children}</li>;
     }
 
