@@ -4,7 +4,7 @@
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
 import { API_BASE } from './api.js';
-import { importarRecientesUnaVez } from './central.js';
+import { importarRecientesUnaVez, requisitosQueFaltan, describirFaltantes } from './central.js';
 import { themeClassFor, modeClassFor, migrateTheme } from './theme.js';
 import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
@@ -915,6 +915,10 @@ function App() {
 
       if (response.ok) {
         setProjectPath(data.path);
+
+        // Lo que el proyecto necesita y aquí falta (el manifiesto): se dice al
+        // abrir, no a mitad de una carga. Sin esperar: no retrasa la apertura.
+        requisitosQueFaltan().then(f => { if (f) toast.warning(describirFaltantes(f)); });
 
         // Save to recent projects
         try {

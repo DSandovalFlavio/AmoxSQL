@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
-const { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess, protocol, net } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess, protocol, net, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -444,6 +444,36 @@ const registerAppProtocol = () => {
     });
 };
 
+/**
+ * El llavero, para el servidor (A1).
+ *
+ * `safeStorage` —DPAPI en Windows, Keychain en macOS— sólo existe en el proceso
+ * principal, y el servidor corre en un utilityProcess. Así que se lo pide por
+ * mensaje: `{ type: 'secreto', id, op, valor }`, y aquí se contesta con
+ * `{ type: 'secreto:respuesta', id, ok, valor | error }`. Lo cifrado viaja en
+ * base64. El valor en claro existe sólo en este proceso y en la memoria del
+ * servidor; nunca en disco.
+ */
+const responderSecreto = (destino, msg) => {
+    const responder = (r) => {
+        try { destino?.postMessage({ type: 'secreto:respuesta', id: msg.id, ...r }); } catch { /* el servidor ya no está */ }
+    };
+    try {
+        const hay = safeStorage.isEncryptionAvailable();
+        if (msg.op === 'disponible') return responder({ ok: true, valor: hay });
+        if (!hay) return responder({ ok: false, error: 'El llavero del sistema no está disponible.' });
+        if (msg.op === 'cifrar') {
+            return responder({ ok: true, valor: safeStorage.encryptString(String(msg.valor)).toString('base64') });
+        }
+        if (msg.op === 'descifrar') {
+            return responder({ ok: true, valor: safeStorage.decryptString(Buffer.from(String(msg.valor), 'base64')) });
+        }
+        responder({ ok: false, error: `Operación de llavero desconocida: ${msg.op}` });
+    } catch (e) {
+        responder({ ok: false, error: e.message });
+    }
+};
+
 const initApp = () => {
     registerAppProtocol();
     console.log("Starting Local Server in utility process...");
@@ -482,6 +512,10 @@ const initApp = () => {
     }, 30000);
 
     serverProcess.on('message', (msg) => {
+        if (msg.type === 'secreto') {
+            responderSecreto(serverProcess, msg);
+            return;
+        }
         if (msg.type === 'ready') {
             serverReady = true;
             startupReported = true;

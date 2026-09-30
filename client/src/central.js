@@ -14,6 +14,29 @@ import { API_BASE } from './api.js';
 
 const RECIENTES = 'amoxsql-recent-projects';
 
+/**
+ * Lo que el proyecto recién abierto necesita y esta máquina no tiene (el
+ * manifiesto, A2). null si no falta nada o si no se pudo saber: un aviso de más
+ * sobre algo que quizá esté es peor que ninguno.
+ */
+export async function requisitosQueFaltan() {
+    try {
+        const r = await fetch(`${API_BASE}/api/project/requisitos`);
+        if (!r.ok) return null;
+        const d = await r.json();
+        return d.completo ? null : d.faltan;
+    } catch { return null; }
+}
+
+export function describirFaltantes(faltan) {
+    const partes = [];
+    const cred = faltan?.credenciales || [];
+    const ext = faltan?.extensiones || [];
+    if (cred.length) partes.push(`the credential${cred.length > 1 ? 's' : ''} ${cred.map(c => c.nombre).join(', ')}`);
+    if (ext.length) partes.push(`the extension${ext.length > 1 ? 's' : ''} ${ext.join(', ')}`);
+    return `This project needs ${partes.join(' and ')}, which ${cred.length + ext.length > 1 ? 'are' : 'is'} missing on this machine.`;
+}
+
 export async function importarRecientesUnaVez() {
     let rutas = [];
     try { rutas = JSON.parse(localStorage.getItem(RECIENTES) || '[]'); } catch { /* sin localStorage: nada que importar */ }
