@@ -257,7 +257,7 @@ AmoxSQL.exe run <proceso.sqlchain> --project <ruta> [--param nombre=valor]…
 | 4.2 | Si la aplicación está abierta | Recibe los datos en `second-instance(evento, argv, cwd, datos)`, se los manda a su servidor y escribe el resultado en `<home>/ejecuciones/<id>.json`. El proceso que la lanzó espera a ese archivo y sale con su código |
 | 4.3 | Si no lo está | Arranca sin ventana: no crea ventana al recibir `ready`, no se cierra por `window-all-closed` mientras corre, ejecuta, escribe el resultado y sale con su código. Si mientras tanto el usuario abre AmoxSQL, ese arranque llega aquí y este proceso **abre su ventana y se queda** |
 | 4.4 | Códigos de salida | 0 bien · 1 el proceso falló · 2 argumentos inválidos · 3 falta una credencial (lo dice el manifiesto) · 4 la aplicación abierta no contestó · 5 no existe el proyecto o el proceso |
-| 4.5 | Registro | Uno por ejecución en `<home>/registros/<id>.log`. Si la prueba 0.3 confirmó que la consola no ve la salida, se incluye `amoxsql.cmd`, que espera y enseña el registro, vía `extraResources` |
+| 4.5 | Registro | Uno por ejecución en `<home>/registros/<id>.log`. **Se incluye `amoxsql.cmd`** vía `extraResources` —la prueba 0.3 confirmó que una consola interactiva no espera a un ejecutable gráfico, y dentro de un `.cmd` sí—, que espera, enseña la salida y devuelve el código |
 | 4.6 | Documentación | Una página nueva de usuario, en español e inglés: «Correr un proceso desde la línea de comandos», con un ejemplo de tarea en el programador de Windows. **La programación desde la interfaz no está aquí**: es D1, en la 5.11.0 |
 
 **Se comprueba con** `probarLineaDeComandos.mjs`, que lanza el ejecutable de desarrollo con
@@ -350,7 +350,7 @@ reconoce el workspace importado.
 
 | Riesgo | Qué lo cubre |
 |---|---|
-| La instancia única no entrega los datos como se espera, o no se puede abrir la interfaz sobre un arranque sin ventana | Prueba de concepto 0.3, **antes** de escribir la fase 4. Plan B escrito: puerto en `<home>/puerto` y HTTP local |
+| La instancia única no entrega los datos como se espera, o no se puede abrir la interfaz sobre un arranque sin ventana | **Descartado el 2026-09-30** por la prueba 0.3: entrega los datos enteros y avisa al dueño sin ventana. El plan B no hace falta |
 | En Windows, un ejecutable de subsistema gráfico no escribe en la consola y el que lo lanza no espera | Prueba 0.3; registro por ejecución y `amoxsql.cmd` |
 | Un secreto acaba en claro en disco | Dec-3: nada de secretos persistentes de DuckDB; la prueba busca el valor en los bytes de la base; purga sólo tras comprobar que se lee del llavero |
 | La política de IA se escapa por un camino que nadie miró | Se aplica en el servidor con un solo ayudante, y la prueba con proveedor falso busca los valores en **todo** lo enviado |
@@ -373,3 +373,7 @@ basta para validar la base antes de construir la interfaz encima.
 | Fecha | Fase | Qué pasó |
 |---|---|---|
 | 2026-09-29 | — | Plan escrito sobre la 5.8.0 |
+| 2026-09-30 | 0.1 | **5.8.1 publicada**: arreglo de las viñetas (#125), release (#127), Drive y GitHub como *Latest*. Los documentos de la 6 entraron en `main` con #126 |
+| 2026-09-30 | 0.3 | Prueba de concepto con una app Electron mínima, aparte y con otro nombre para no cruzar su bloqueo con el de AmoxSQL. **`requestSingleInstanceLock(datos)` entrega el objeto entero** en `second-instance`. El segundo arranque espera un archivo de resultado y **sale con su código**: bash, PowerShell `Start-Process -Wait`, `cmd /c` y `start /wait` reciben el 3. Si el dueño corre sin ventana y el usuario abre la app, **el dueño recibe `second-instance` con datos vacíos** y puede abrir su ventana sin cortar la ejecución. Dos hallazgos: Chromium añade sus propios argumentos a `argv` (`--allow-file-access-from-files`), así que **se lee de `additionalData`, no de `argv`**; y una consola interactiva no espera a un ejecutable gráfico, así que el `amoxsql.cmd` de 4.5 sí hace falta |
+| 2026-09-30 | 0.4 | **`safeStorage` pedido desde un `utilityProcess` por `parentPort` funciona**: `isEncryptionAvailable()` es cierto en Windows, ida y vuelta en 2–22 ms, y lo cifrado no contiene el secreto en claro |
+| 2026-09-30 | 0.2 | `AMOXSQL_HOME`: `server/rutas.js` con `homeAmox()`, y los tres sitios que construían `~/.amoxsql` (`AiManager.js`, `galleryManager.js`, `ai/duckdbDocs.js`) pasan por ella. `scripts/probarRutasHome.mjs` 9/9, incluido que `~/.amoxsql` queda idéntica al cargar los módulos con la variable puesta. El servidor arranca con un home temporal y crea allí `config.json` y la galería. **Fase 0 cerrada** |

@@ -8,7 +8,7 @@
  */
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
+const { homeAmox } = require('./rutas');
 const { generateText, streamText, stepCountIs } = require('ai');
 const { createGoogleGenerativeAI } = require('@ai-sdk/google');
 const { createAnthropic } = require('@ai-sdk/anthropic');
@@ -40,7 +40,7 @@ class AiManager {
         this.modelName = "gemma4:e2b";
 
         // Ensure config exists in home directory for secure storage
-        this.configPath = path.join(os.homedir(), '.amoxsql', 'config.json');
+        this.configPath = path.join(homeAmox(), 'config.json');
         this.ensureConfig();
     }
 

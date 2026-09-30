@@ -18,7 +18,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
+const { homeAmox } = require('../rutas');
 
 const REPO = 'duckdb/duckdb-web';
 const REF = 'main';
@@ -90,7 +90,7 @@ function bundledDir() {
 }
 
 function userDir() {
-    return path.join(os.homedir(), '.amoxsql', 'duckdb-docs');
+    return path.join(homeAmox(), 'duckdb-docs');
 }
 
 /** The active snapshot: the user refresh if it has a manifest, else the bundle. */
