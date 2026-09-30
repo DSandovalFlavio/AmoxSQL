@@ -4,6 +4,7 @@
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
 import { API_BASE } from './api.js';
+import { importarRecientesUnaVez } from './central.js';
 import { themeClassFor, modeClassFor, migrateTheme } from './theme.js';
 import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
@@ -227,6 +228,10 @@ function App() {
   // Tell main.js the current project root, so exported files (chart PNG,
   // HTML/Word/PPT reports) default their Save As dialog into this project's
   // charts/ or reports/ folder instead of the OS Downloads folder.
+  // Los recientes de la 5.8 pasan a la base de AmoxSQL. Una vez: el servidor
+  // anota que ya lo hizo y las siguientes llamadas no hacen nada.
+  useEffect(() => { importarRecientesUnaVez(); }, []);
+
   useEffect(() => {
     if (projectPath && window.electronAPI?.setProjectRoot) {
       window.electronAPI.setProjectRoot(projectPath);
