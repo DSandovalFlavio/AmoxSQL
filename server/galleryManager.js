@@ -1,11 +1,12 @@
 /**
- * Gallery Manager — Seeds and serves chart gallery files from ~/.amoxsql/gallery/
+ * Gallery Manager — Seeds and serves chart gallery files from <homeAmox>/gallery/
+ * (~/.amoxsql/gallery salvo que AMOXSQL_HOME diga otra cosa).
  */
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
+const { homeAmox } = require('./rutas');
 
-const GALLERY_DIR = path.join(os.homedir(), '.amoxsql', 'gallery');
+const GALLERY_DIR = path.join(homeAmox(), 'gallery');
 const THUMBS_DIR = path.join(GALLERY_DIR, 'thumbnails');
 
 // ─── Gallery Chart Definitions (CommonJS version) ────────────────────────────
