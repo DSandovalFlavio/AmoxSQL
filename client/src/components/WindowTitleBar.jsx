@@ -4,6 +4,7 @@ import {
   LuSearch, LuSettings, LuKeyboard, LuRefreshCw, LuLayers,
 } from 'react-icons/lu';
 import { useEnlace, pedirEnlazar } from './workspaces/WorkspacesHost';
+import PoliticaIAChip from './workspaces/PoliticaIAChip';
 import { useEtiqueta } from '../etiqueta';
 
 const RECENT_KEY = 'amoxsql-recent-projects';
@@ -136,6 +137,7 @@ const WindowTitleBar = ({
                   <span className="wtb-crumb-ws">
                     <span className="wtb-crumb-ws-dot" style={{ background: grupo.color || 'var(--text-tertiary)' }} />
                     {grupo.nombre}
+                    <PoliticaIAChip compacto />
                   </span>
                   <span className="wtb-crumb-sep">/</span>
                 </>

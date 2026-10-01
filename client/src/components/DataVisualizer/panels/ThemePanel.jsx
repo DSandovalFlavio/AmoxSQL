@@ -31,7 +31,7 @@ const PalettePreview = memo(({ colors, isActive, onClick }) => (
 PalettePreview.displayName = 'PalettePreview';
 
 const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData }) => {
-    const { colorTheme, backgroundTone, customBgColor, borderStyle, borderColor,
+    const { colorTheme, brandColors, backgroundTone, customBgColor, borderStyle, borderColor,
         fontFamily, textScale, seriesConfig, chartType, axisLabelOpacity = 0.8,
         fillStyle = 'gradient', cardStyle = {} } = state;
 
@@ -65,6 +65,20 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
             {/* ── Color Palette ── */}
             <Section title="Color Palette">
                 <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {Array.isArray(brandColors) && brandColors.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                            <span title="The palette of this project's brand" style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
+                                Brand
+                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '3px' }}>
+                                <PalettePreview
+                                    colors={brandColors}
+                                    isActive={colorTheme === 'brand'}
+                                    onClick={() => setField('colorTheme', 'brand')}
+                                />
+                            </div>
+                        </div>
+                    )}
                     {paletteGroups.map(group => (
                         <div key={group.label} style={{ marginBottom: '8px' }}>
                             {group.credit ? (

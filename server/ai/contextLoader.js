@@ -112,8 +112,13 @@ function parseMetrics(text) {
 
     for (const block of blocks) {
         const name  = (block.match(/name:\s*(.+)/))?.[1]?.trim();
-        const sql   = (block.match(/sql:\s*"?(.+?)"?\s*$/))?.[1]?.trim() ||
-                      (block.match(/sql:\s*'(.+?)'\s*$/))?.[1]?.trim();
+        // `m`: el valor va hasta el final de SU línea. Sin ella `$` era el final
+        // del bloque, y como detrás del sql vienen description/grain/table, no
+        // casaba nunca: hasta la 5.9 ninguna métrica llegaba a la IA, ni las
+        // de la plantilla (lo destapó la prueba del contexto en capas).
+        const sql   = (block.match(/^\s*sql:\s*"(.+)"\s*$/m))?.[1]?.trim() ||
+                      (block.match(/^\s*sql:\s*'(.+)'\s*$/m))?.[1]?.trim() ||
+                      (block.match(/^\s*sql:\s*(.+?)\s*$/m))?.[1]?.trim();
         const desc  = (block.match(/description:\s*(.+)/))?.[1]?.trim();
         const grain = (block.match(/grain:\s*(.+)/))?.[1]?.trim();
         const table = (block.match(/table:\s*(.+)/))?.[1]?.trim();
@@ -141,8 +146,10 @@ function parseJoins(text) {
     for (const block of blocks) {
         const from = (block.match(/from:\s*(.+)/))?.[1]?.trim();
         const to   = (block.match(/to:\s*(.+)/))?.[1]?.trim();
-        const on   = (block.match(/on:\s*"?(.+?)"?\s*$/))?.[1]?.trim() ||
-                     (block.match(/on:\s*'(.+?)'\s*$/))?.[1]?.trim();
+        // Lo mismo que el sql de las métricas: el valor acaba en su línea.
+        const on   = (block.match(/^\s*on:\s*"(.+)"\s*$/m))?.[1]?.trim() ||
+                     (block.match(/^\s*on:\s*'(.+)'\s*$/m))?.[1]?.trim() ||
+                     (block.match(/^\s*on:\s*(.+?)\s*$/m))?.[1]?.trim();
         const type = (block.match(/type:\s*(.+)/))?.[1]?.trim() || 'INNER';
 
         if (from && to && on) {
@@ -197,8 +204,16 @@ function parseExampleFile(fileName, text) {
  */
 async function loadProjectContext(projectPath) {
     if (!projectPath) return null;
+    // B2 (5.9): debajo, el contexto del workspace de la carpeta, si lo tiene.
+    const { workspaceDelProyecto, fusionarContexto } = require('./capaWorkspace');
+    const propio = await loadContextDir(path.join(projectPath, 'context'));
+    const ws = workspaceDelProyecto(projectPath);
+    const delWs = ws ? await loadContextDir(path.join(ws.dir, 'contexto')) : null;
+    return fusionarContexto(delWs, propio, ws?.nombre);
+}
 
-    const contextDir = path.join(projectPath, 'context');
+/** Lee una carpeta de contexto: la de un proyecto o la de un workspace. */
+async function loadContextDir(contextDir) {
     if (!fs.existsSync(contextDir)) return null;
 
     const ctx = { metrics: [], joins: [], glossary: '', examples: [] };
@@ -256,7 +271,7 @@ function buildProjectContextSection(ctx) {
     if (ctx.metrics.length > 0) {
         parts.push('### Business Metrics\n');
         for (const m of ctx.metrics) {
-            parts.push(`**${m.name}**${m.description ? ` — ${m.description}` : ''}`);
+            parts.push(`**${m.name}**${m.description ? ` — ${m.description}` : ''}${m.compartida ? ` _(shared — ${m.compartida})_` : ''}`);
             parts.push(`  SQL: \`${m.sql}\``);
             if (m.grain)  parts.push(`  Grain: ${m.grain}`);
             if (m.table)  parts.push(`  Table: ${m.table}`);
@@ -293,4 +308,4 @@ function buildProjectContextSection(ctx) {
     return parts.join('\n');
 }
 
-module.exports = { loadProjectContext, buildProjectContextSection };
+module.exports = { loadProjectContext, loadContextDir, parseMetrics, buildProjectContextSection };

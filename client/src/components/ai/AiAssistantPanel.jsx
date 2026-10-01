@@ -6,6 +6,7 @@ import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import FileConversationList from './FileConversationList';
 import ModelDropdown from './ModelDropdown';
+import PoliticaIAChip from '../workspaces/PoliticaIAChip';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
@@ -367,6 +368,7 @@ const AiAssistantPanel = ({
                     {provider === 'gemini' && (
                         <span className="ai-badge-cloud">CLOUD</span>
                     )}
+                    <PoliticaIAChip />
                 </div>
                 <div className="ai-header-right">
                     <button

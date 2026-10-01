@@ -136,7 +136,10 @@ app.post('/api/project/open', async (req, res) => {
         PROYECTO_ABIERTO = true;
         // La base de AmoxSQL anota que se abrió (y la ruta, si la carpeta se
         // movió). Sin esperar: abrir no depende de ella.
-        baseCentral.abrir().then(() => workspaces.registrar(ROOT_DIR, { abrir: true })).catch(() => {});
+        baseCentral.abrir()
+            .then(() => workspaces.registrar(ROOT_DIR, { abrir: true }))
+            .then(() => workspaces.refrescarPolitica(ROOT_DIR))
+            .catch(() => {});
         // El vigilante mira UNA raiz: al cambiar de proyecto hay que rearmarlo,
         // o seguiria avisando de los archivos del proyecto anterior.
         rearmarVigilante();
@@ -6094,12 +6097,35 @@ app.get('/api/workspaces/:id', conCentral(async (req) => {
     if (!w) throw new Error('It does not exist.');
     return w;
 }));
-app.put('/api/workspaces/:id', conCentral(async (req) => workspaces.actualizar(req.params.id, req.body || {})));
+app.put('/api/workspaces/:id', conCentral(async (req) => {
+    const w = await workspaces.actualizar(req.params.id, req.body || {});
+    if (PROYECTO_ABIERTO) await workspaces.refrescarPolitica(ROOT_DIR);
+    return w;
+}));
 app.post('/api/workspaces/:id/archivar', conCentral(async (req) =>
     workspaces.archivar(req.params.id, req.body?.archivado !== false)));
 app.get('/api/workspaces/:id/proyectos', conCentral(async (req) => ({
     proyectos: await workspaces.proyectosDe(req.params.id),
 })));
+
+// Su contexto (B2): archivos de texto, editables sin proyecto abierto.
+app.get('/api/workspaces/:id/contexto', conCentral(async (req) => ({
+    archivos: await workspaces.archivosDeContexto(req.params.id),
+})));
+app.get('/api/workspaces/:id/contexto/archivo', conCentral(async (req) =>
+    workspaces.leerArchivo(req.params.id, req.query.ruta)));
+app.put('/api/workspaces/:id/contexto/archivo', conCentral(async (req) =>
+    workspaces.escribirArchivo(req.params.id, req.body?.ruta, req.body?.texto)));
+app.post('/api/workspaces/:id/contexto/subir-metrica', conCentral(async (req) => {
+    if (!PROYECTO_ABIERTO) throw new Error('Open the project that has the metric.');
+    return workspaces.subirMetrica(req.params.id, ROOT_DIR, req.body?.nombre);
+}));
+app.get('/api/project/marca', conCentral(async () => ({
+    marca: PROYECTO_ABIERTO ? await workspaces.marcaDelProyecto(ROOT_DIR) : null,
+})));
+app.get('/api/project/metricas', (_req, res) => {
+    res.json({ metricas: PROYECTO_ABIERTO ? workspaces.metricasDelProyecto(ROOT_DIR).map(m => ({ name: m.name, description: m.description })) : [] });
+});
 
 // El enlace de la carpeta abierta: qué es, y cambiarlo.
 app.get('/api/project/workspace', conCentral(async () => {
@@ -6109,8 +6135,16 @@ app.get('/api/project/workspace', conCentral(async () => {
 app.put('/api/project/workspace', conCentral(async (req) => {
     if (!PROYECTO_ABIERTO) throw new Error('No project is open.');
     const { workspaceId = null, noPreguntar } = req.body || {};
-    return workspaces.enlazar(ROOT_DIR, workspaceId, { noPreguntar });
+    const r = await workspaces.enlazar(ROOT_DIR, workspaceId, { noPreguntar });
+    await workspaces.refrescarPolitica(ROOT_DIR);
+    return r;
 }));
+
+// La política de IA que rige ahora (B4): la interfaz la enseña en el asistente.
+app.get('/api/ai/politica', (_req, res) => {
+    const p = require('./ai/politica').actual();
+    res.json({ ...p, restringe: require('./ai/politica').restringe(p) });
+});
 
 // La palabra: null mientras el usuario no la haya elegido (pantalla 1).
 app.get('/api/preferencias/etiqueta', conCentral(async () => {

@@ -617,6 +617,12 @@ class ChainExecutor extends EventEmitter {
         const cfg = aiManager.getConfig();
         const provider = opts.provider || cfg.provider || 'ollama';
         const model = opts.model || cfg.defaultModel;
+        // Este paso manda filas al modelo: la política de IA del workspace del
+        // proyecto (no el que tenga abierto la interfaz) decide si puede.
+        if (opts.proyecto) {
+            const politica = require('./ai/politica');
+            politica.comprobarFilas(provider, await politica.deProyecto(opts.proyecto));
+        }
         const llm = aiManager.getModel(provider, model);
         const o = opts.options || {};
         const buildPrompt = (val) => {
@@ -1918,7 +1924,7 @@ class ChainExecutor extends EventEmitter {
                 const tmp = `__ai_src_${this.hashString(String(node.id))}`;
                 await dbManager.query(`CREATE OR REPLACE TEMP TABLE "${tmp}" AS SELECT *, ROW_NUMBER() OVER () AS __rn FROM (${sourceQuery}) AS _src LIMIT ${maxRows}`);
                 const rows = await dbManager.query(`SELECT __rn, "${inputColumn}" AS __val FROM "${tmp}"`);
-                const results = await this.runAiEnrich(rows, { task: config.task || 'classify', options: config.options || {}, provider: config.provider, model: config.model });
+                const results = await this.runAiEnrich(rows, { task: config.task || 'classify', options: config.options || {}, provider: config.provider, model: config.model, proyecto: projectPath });
                 const valuesList = results.map(r => `(${parseInt(r.rn)}, '${String(r.out ?? '').replace(/'/g, "''")}')`).join(', ');
                 const valuesClause = valuesList ? `(VALUES ${valuesList})` : `(SELECT NULL::BIGINT AS __rn, NULL::VARCHAR AS out WHERE false)`;
                 sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT t.* EXCLUDE (__rn), v.out AS "${outputColumn}" FROM "${tmp}" AS t LEFT JOIN ${valuesClause} AS v(__rn, out) ON t.__rn = v.__rn`;

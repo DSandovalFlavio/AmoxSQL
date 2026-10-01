@@ -340,6 +340,9 @@ export const DEFAULT_CONFIG = {
 
     // Colors & Theme
     colorTheme: 'default',
+    // La paleta de la marca del workspace (5.9, B5): viaja dentro del archivo,
+    // así la figura se ve igual fuera de ese workspace. Se usa con colorTheme 'brand'.
+    brandColors: null,
     backgroundTone: 'default',
     customBgColor: '',
     borderStyle: 'subtle',   // filete de 1 px: la tarjeta se lee como objeto

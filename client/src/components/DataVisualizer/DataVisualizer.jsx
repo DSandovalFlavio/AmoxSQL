@@ -253,8 +253,10 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
 
     // ── Active colors ──
     const activeColors = useMemo(() =>
-        COLOR_PALETTES[state.colorTheme] || COLOR_PALETTES.default,
-        [state.colorTheme]
+        (state.colorTheme === 'brand' && Array.isArray(state.brandColors) && state.brandColors.length
+            ? state.brandColors
+            : COLOR_PALETTES[state.colorTheme] || COLOR_PALETTES.default),
+        [state.colorTheme, state.brandColors]
     );
 
     // ── Inline legend items (legendPosition 'inline' — Sterling-style, woven

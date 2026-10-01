@@ -25,6 +25,7 @@ const _ollamaModelCache = new Map();
 const { createTools } = require('./ai/tools');
 const { buildSystemPrompt } = require('./ai/systemPrompt');
 const { loadUserRules } = require('./ai/userRules');
+const politica = require('./ai/politica');
 const { compactContext } = require('./ai/compaction');
 const { loadMemoriesText, extractMemories, memoryExtractionAllowed } = require('./ai/memory');
 const { getSkill } = require('./ai/skills');
@@ -225,7 +226,17 @@ class AiManager {
      * @param {string} modelName - The model identifier
      * @returns {object} Vercel AI SDK model instance
      */
+    /**
+     * El modelo, con la política de IA del workspace puesta (B4): un proveedor
+     * en la nube con una política «sólo local» falla aquí, y lo que se le envía
+     * pasa por el filtro de datos. Toda llamada a un modelo pasa por aquí.
+     */
     getModel(providerName, modelName) {
+        politica.comprobarProveedor(providerName);
+        return politica.envolver(this._crearModelo(providerName, modelName), providerName);
+    }
+
+    _crearModelo(providerName, modelName) {
         const config = this.getConfig();
 
         if (providerName === 'gemini') {
@@ -399,7 +410,8 @@ class AiManager {
             fileType = null,
             tableRoster = null,
             conversationId = null,
-        } = options;
+            memoriasRetenidas = false,
+        } = politica.sanearOpciones(options, options.providerOverride || this.provider);
 
         const provider = providerOverride || this.provider;
         const model = modelOverride || this.modelName;
@@ -407,7 +419,7 @@ class AiManager {
 
         // Load dynamic human context
         const userRules = await loadUserRules(projectPath);
-        const memories = await loadMemoriesText(dbManager);
+        const memories = memoriasRetenidas ? '' : await loadMemoriesText(dbManager);
         const activeSkill = activeSkillId ? await getSkill(projectPath, activeSkillId) : null;
 
         // Get model profile for adaptive parameters
@@ -455,7 +467,7 @@ class AiManager {
             // Run memory extraction in the background (skip for low-tier models,
             // and — per policy — for local models to keep the Ollama slot free).
             if (profile.supportsMemory && memoryExtractionAllowed(provider, this.getConfig().memoryExtraction)) {
-                extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
+                if (politica.permiteMemorias(provider)) extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
             }
 
             // Track Gemini usage
@@ -532,7 +544,8 @@ class AiManager {
             fileType = null,
             tableRoster = null,
             conversationId = null,
-        } = options;
+            memoriasRetenidas = false,
+        } = politica.sanearOpciones(options, options.providerOverride || this.provider);
 
         const provider = providerOverride || this.provider;
         const model = modelOverride || this.modelName;
@@ -540,7 +553,7 @@ class AiManager {
 
         // Load dynamic human context
         const userRules = await loadUserRules(projectPath);
-        const memories = await loadMemoriesText(dbManager);
+        const memories = memoriasRetenidas ? '' : await loadMemoriesText(dbManager);
         const activeSkill = activeSkillId ? await getSkill(projectPath, activeSkillId) : null;
 
         // Get model profile for adaptive parameters
@@ -584,7 +597,7 @@ class AiManager {
                 // Run memory extraction in the background (skip for low-tier models,
                 // and — per policy — for local models to keep the Ollama slot free).
                 if (profile.supportsMemory && memoryExtractionAllowed(provider, this.getConfig().memoryExtraction)) {
-                    extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
+                    if (politica.permiteMemorias(provider)) extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
                 }
                 if (provider === 'gemini' && usage) {
                     this.trackUsage(model, usage);
@@ -816,7 +829,9 @@ ${schemaText}`;
         }
 
         // ── Pass 2: Ask LLM to summarize the results ──
-        if (queryResults.length > 0) {
+        // Manda filas en el texto: con una política que no lo permite, no se hace
+        // (el usuario ya tiene los resultados en pantalla).
+        if (queryResults.length > 0 && politica.datosPara(provider) === 'filas') {
             const resultsContext = queryResults.map((qr, i) => {
                 if (qr.result.error) {
                     return `Query ${i + 1} failed: ${qr.result.error}`;

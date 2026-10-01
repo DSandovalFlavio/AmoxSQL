@@ -19149,3 +19149,196 @@ tr:hover td {
 .wsx-form-botones { display: flex; gap: 6px; flex: none; }
 
 .wsx-ver-archivados { margin-top: 14px; }
+
+/* La política de IA que rige (B4) */
+.wsx-politica {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 9px;
+  font-size: 10.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--feedback-success-text, var(--text-secondary));
+  background: color-mix(in oklch, var(--feedback-success, var(--accent-primary)) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--feedback-success, var(--accent-primary)) 30%, transparent);
+}
+
+.wsx-politica--compacto {
+  height: auto;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+/* Settings: el formulario completo y sus bloques */
+.wsx-form--completo { flex-direction: column; align-items: stretch; }
+.wsx-form--completo .wsx-form-botones { align-self: flex-end; }
+
+.wsx-bloque {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.wsx-bloque-titulo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.wsx-paleta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.wsx-paleta-color { position: relative; display: inline-flex; }
+
+.wsx-paleta-color input[type="color"] {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--border-default);
+  border-radius: 7px;
+  background: none;
+  cursor: pointer;
+}
+
+.wsx-paleta-quitar {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border-default);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.wsx-logo { display: flex; align-items: center; gap: 10px; }
+
+.wsx-logo img {
+  max-width: 140px;
+  max-height: 48px;
+  object-fit: contain;
+  padding: 4px;
+  border-radius: 6px;
+  background: var(--surface-inset);
+}
+
+/* El editor de contexto del workspace */
+.wsx-card--contexto { width: 860px; }
+
+.wsx-contexto {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 14px;
+  padding: 16px 24px;
+  min-height: 0;
+}
+
+.wsx-contexto-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.wsx-contexto-archivo {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text-primary);
+  text-align: left;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.wsx-contexto-archivo small {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wsx-contexto-archivo:hover { background: var(--hover-bg); }
+
+.wsx-contexto-archivo--on {
+  background: color-mix(in oklch, var(--accent-primary) 9%, transparent);
+  border-color: color-mix(in oklch, var(--accent-primary) 30%, transparent);
+}
+
+.wsx-contexto-archivo--vacio span { color: var(--text-secondary); }
+
+.wsx-contexto-nuevo { display: flex; gap: 6px; margin-top: 6px; }
+
+.wsx-contexto-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.wsx-contexto-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wsx-contexto-barra code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wsx-contexto-texto {
+  min-height: 46vh;
+  resize: vertical;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  tab-size: 2;
+}
+
+.wsx-contexto-texto:focus { outline: none; border-color: var(--accent-primary); }
+
+.wsx-compartir {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 24px 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.wsx-compartir-lista { display: flex; flex-wrap: wrap; gap: 6px; }
+
+@media (max-width: 760px) {
+  .wsx-contexto { grid-template-columns: 1fr; }
+  .wsx-contexto-lista { max-height: 160px; }
+}

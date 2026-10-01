@@ -213,6 +213,18 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     margin-top: calc(40 * var(--u));
 }
 .deck-portada-meta div { display: flex; flex-direction: column; gap: calc(5 * var(--u)); }
+/* El logo de la marca, arriba a la derecha de la portada. La lámina sólo se
+   vuelve contenedor posicionado cuando lo lleva: así no mueve el ancla de
+   nada más. */
+.deck-slide:has(> .deck-portada-logo) { position: relative; }
+.deck-portada-logo {
+    position: absolute;
+    top: var(--s-margen);
+    right: var(--s-margen);
+    max-width: calc(220 * var(--u));
+    max-height: calc(90 * var(--u));
+    object-fit: contain;
+}
 .deck-portada-meta u {
     text-decoration: none;
     font-family: var(--font-mono);
