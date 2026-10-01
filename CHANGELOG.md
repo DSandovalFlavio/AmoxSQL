@@ -5,6 +5,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.9.0-beta.1] — 2026-10-01
+
+Primera beta de la 5.9.0: con ella está todo lo que trae la versión. Desde aquí,
+sólo arreglos. Prerelease: se instala aparte y no es la versión recomendada.
+
+### La vista de workspaces
+
+- **La bienvenida no cambia.** Cuando tienes algún workspace, la cabecera de los
+  proyectos recientes gana un botón con tu palabra —por ejemplo *Clients 4*— que
+  lleva a una pantalla aparte, con *Welcome* para volver.
+- En ella: lo último que corrió (desde la interfaz o la línea de comandos) con su
+  workspace; una tarjeta por workspace con sus proyectos por estado, la próxima
+  entrega y su política de IA; los proyectos sin workspace, que se enlazan sin
+  abrirlos; los archivados; y un buscador por nombre y carpeta en todos los
+  proyectos.
+- **Estado y fecha de entrega** de cada proyecto (*In progress*, *In review*,
+  *Delivered*, *Paused*), en la ficha del workspace. Se guardan en el
+  `project.json` de la carpeta: viajan con ella.
+
+### Compartir un workspace
+
+- **Export** guarda un archivo `.amoxworkspace`: sus datos, su política de IA,
+  su marca, sus archivos de contexto y los *nombres* de las credenciales que
+  usan sus proyectos —nunca sus valores—.
+- **Import…** lo trae con el mismo id, así que las carpetas enlazadas en otra
+  máquina lo reconocen. Si ya existe, lo nuevo se añade y tú eliges qué
+  archivos distintos reemplazar; o se importa aparte.
+
+---
+
 ## [5.9.0-alpha.3] — 2026-10-01
 
 Tercera prueba de la 5.9.0: lo que un workspace aporta a sus proyectos.
