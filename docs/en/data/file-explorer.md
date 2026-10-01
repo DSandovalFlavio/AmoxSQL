@@ -8,7 +8,7 @@
 
 ## What it is
 
-The file explorer is the left-hand panel that browses your project folder (the workspace). It shows your `.sql` scripts, `.sqlnb` notebooks, `.amoxvis` charts, `.amoxdeck` decks, data (CSV, Parquet, JSON, Excel), and any other file, each with a color-coded icon by type.
+The file explorer is the left-hand panel that browses your project folder. It shows your `.sql` scripts, `.sqlnb` notebooks, `.amoxvis` charts, `.amoxdeck` decks, data (CSV, Parquet, JSON, Excel), and any other file, each with a color-coded icon by type.
 
 It's your entry point to data: from here you open files, import them into the database, query them directly, or copy their column names. It also manages the file lifecycle (create, rename, move, duplicate, delete) without touching your operating system's explorer.
 

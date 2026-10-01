@@ -86,7 +86,7 @@ export default function WorkspaceWizard({ projectPath, onComplete, onSkip }) {
                         <LuSparkles size={20} />
                     </div>
                     <div className="ww-header-text">
-                        <h2 className="ww-title">Set Up Your Workspace</h2>
+                        <h2 className="ww-title">Set Up Your Project</h2>
                         <p className="ww-subtitle">
                             {projectPath
                                 ? <><strong>{projectPath.split(/[/\\]/).pop()}</strong> looks like a new project.</>
@@ -153,7 +153,7 @@ export default function WorkspaceWizard({ projectPath, onComplete, onSkip }) {
                     /* Done state */
                     <div className="ww-done">
                         <div className="ww-done-icon"><LuCheck size={28} /></div>
-                        <h3 className="ww-done-title">Workspace ready!</h3>
+                        <h3 className="ww-done-title">Project ready!</h3>
                         <div className="ww-done-list">
                             {created.map(p => (
                                 <div key={p} className="ww-done-item">

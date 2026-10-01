@@ -8,7 +8,7 @@
 
 ## 1. Abrir un proyecto
 
-Al iniciar, AmoxSQL muestra la **pantalla de bienvenida**. Ingresa la **ruta absoluta** de la carpeta de tu proyecto (donde viven tus `.sql`, datos, etc.). AmoxSQL trabaja centrado en proyectos: esa carpeta es tu espacio de trabajo.
+Al iniciar, AmoxSQL muestra la **pantalla de bienvenida**. Ingresa la **ruta absoluta** de la carpeta de tu proyecto (donde viven tus `.sql`, datos, etc.). AmoxSQL trabaja centrado en proyectos: esa carpeta es tu proyecto.
 
 Si ya abriste proyectos antes, aparecerán como **recientes** para volver a ellos con un clic.
 

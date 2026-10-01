@@ -289,7 +289,7 @@ function GitPanel({ projectPath, onFileClick }) {
             <div className="git-panel git-panel--empty">
                 <LuGitBranch size={32} style={{ opacity: 0.4 }} />
                 <p className="git-empty-title">No repository</p>
-                <p className="git-empty-sub">Initialize a Git repository for this workspace to track changes.</p>
+                <p className="git-empty-sub">Initialize a Git repository for this project to track changes.</p>
                 <button
                     className="git-init-btn"
                     onClick={handleInit}

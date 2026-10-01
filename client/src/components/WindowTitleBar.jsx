@@ -134,7 +134,7 @@ const WindowTitleBar = ({
 
             {openMenu === 'workspace' && (
               <div className="wtb-dropdown" role="menu">
-                <div className="wtb-dropdown-section-label">Current Workspace</div>
+                <div className="wtb-dropdown-section-label">Current Project</div>
                 <div className="wtb-dropdown-current">
                   <div className="wtb-dropdown-current-row">
                     <LuFolder size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
@@ -153,7 +153,7 @@ const WindowTitleBar = ({
                 {recentProjects.length > 0 && (
                   <>
                     <div className="wtb-dropdown-divider" />
-                    <div className="wtb-dropdown-section-label">Recent Workspaces</div>
+                    <div className="wtb-dropdown-section-label">Recent Projects</div>
                     {recentProjects.map((path, i) => {
                       const name = path.split(/[/\\]/).pop();
                       return (
@@ -176,7 +176,7 @@ const WindowTitleBar = ({
                 <div className="wtb-dropdown-divider" />
                 <button className="wtb-dropdown-item wtb-dropdown-item--danger" role="menuitem" onClick={handleCloseWorkspace}>
                   <LuX size={12} className="wtb-dropdown-item-icon" />
-                  <span>Close Workspace</span>
+                  <span>Close Project</span>
                 </button>
               </div>
             )}

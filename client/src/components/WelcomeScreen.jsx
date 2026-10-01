@@ -156,7 +156,7 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
                     {step === 1 ? (
                         <>
                             <form onSubmit={handleSubmitPath} className="ws-form ws-enter ws-enter-2">
-                                <label className="ws-label" htmlFor="ws-path">Open a workspace</label>
+                                <label className="ws-label" htmlFor="ws-path">Open a project</label>
                                 <div className="ws-field">
                                     <input
                                         id="ws-path"

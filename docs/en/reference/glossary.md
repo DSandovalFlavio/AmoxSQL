@@ -31,7 +31,7 @@ AmoxSQL has its own vocabulary: the names of its studios (Story Flow, Report Flo
 | **Metadata for AI** | An export of your database's schema/profile as context to paste into another AI tool. See [Metadata for AI](../ai/metadata-for-ai.md). |
 | **Prompt-only mode** | The fallback path when the active model can't do tool-calling: it maps virtual tables and extracts SQL blocks. See [Prompt-only mode](../ai/prompt-only-mode.md). |
 | **Notebook** | A cell-based narrated analysis (SQL, Markdown, input); a `.sqlnb` file. See [Notebooks](../notebooks/notebooks.md). |
-| **Project** | A folder with your SQL files, notebooks, context, and config; the unit of work. See [Projects & connections](../user-guide/projects-and-connections.md). |
+| **Project** | A folder with your SQL files, notebooks, context, and config; the unit of work. See [Projects & connections](../user-guide/projects-and-connections.md). Up to 5.8 the interface called it a *workspace*. |
 | **Read-only / read-write** | The connection mode for a database file: read-only (protected) or read-write. See [Projects & connections](../user-guide/projects-and-connections.md). |
 | **Report Flow** | The presentation studio: `.amoxdeck` decks with refreshable charts, exportable to Office. See [Report Flow](../reports/report-flow.md). |
 | **`RULES.md`** | A behavior-rules file the AI reads and follows in every conversation. See [Context as code](../ai/context-as-code.md). |
@@ -39,7 +39,7 @@ AmoxSQL has its own vocabulary: the names of its studios (Story Flow, Report Flo
 | **Skill** | A reusable procedure (`agent/skills/<id>/SKILL.md`) the AI activates to follow a method. See [Skills](../ai/skills.md). |
 | **Story Flow** | The visualization studio: charts in a six-stage flow with a storytelling layer. See [Story Flow](../visualization/story-flow.md). |
 | **Tier (model tier)** | An AI model's capability class (low/medium/high) that gates certain modes. See [Providers & models](../ai/providers-and-models.md). |
-| **Workspace** | The active workspace (project, database, context), configurable via its wizard. See [Configuration](configuration.md). |
+| **Workspace** | Since 5.9, what groups several projects — a client's, a team's, a brand's — with its own context. |
 
 ## Related
 

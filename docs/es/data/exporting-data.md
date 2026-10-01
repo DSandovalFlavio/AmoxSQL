@@ -10,7 +10,7 @@
 
 Exportar toma una query (o los resultados a la vista) y escribe un archivo. Por debajo usa el `COPY TO` nativo de DuckDB, así que es rápido incluso con muchas filas y no pasa por el navegador.
 
-Hay dos destinos: **local** (un archivo en tu workspace) y **nube** (un objeto en S3 o GCS vía la extensión `httpfs`). El formato disponible depende del destino.
+Hay dos destinos: **local** (un archivo en tu proyecto) y **nube** (un objeto en S3 o GCS vía la extensión `httpfs`). El formato disponible depende del destino.
 
 Un matiz importante: el export está **ligado a la query**, no a lo que ves en pantalla. Ver "Dónde vive el export" más abajo y [Guardar resultados](../results/saving-results.md).
 
@@ -26,7 +26,7 @@ Un matiz importante: el export está **ligado a la query**, no a lo que ves en p
 1. Abre el diálogo **Exportar datos** (botón **Export** del editor, o **Exportar resultados…** sobre un `.sql` en el explorador).
 2. Elige destino **Local**.
 3. Elige el **formato**: CSV, Parquet o **Excel (.xlsx)**.
-4. Escribe el **nombre de archivo**. Se guarda en la carpeta de tu workspace.
+4. Escribe el **nombre de archivo**. Se guarda en la carpeta de tu proyecto.
 5. Pulsa **Exportar**. Verás la ruta y el número de filas al terminar.
 
 ### Exportar a la nube
@@ -54,7 +54,7 @@ Un matiz importante: el export está **ligado a la query**, no a lo que ves en p
 ### Campos del diálogo
 | Campo | Qué hace |
 |---|---|
-| Destino | Local (archivo en el workspace) · Nube (S3 / GCS) |
+| Destino | Local (archivo en el proyecto) · Nube (S3 / GCS) |
 | Proveedor (nube) | Amazon S3 · Google Cloud Storage |
 | Formato | CSV · Parquet · Excel (local) / CSV · JSON · Parquet (nube) |
 | Nombre de archivo (local) | Base del archivo; la extensión se añade sola |

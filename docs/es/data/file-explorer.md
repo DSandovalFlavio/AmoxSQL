@@ -8,7 +8,7 @@
 
 ## Qué es
 
-El explorador de archivos es el panel de la izquierda que navega la carpeta de tu proyecto (el workspace). Muestra tus scripts `.sql`, notebooks `.sqlnb`, gráficos `.amoxvis`, decks `.amoxdeck`, datos (CSV, Parquet, JSON, Excel) y cualquier otro archivo, con un icono de color por tipo.
+El explorador de archivos es el panel de la izquierda que navega la carpeta de tu proyecto. Muestra tus scripts `.sql`, notebooks `.sqlnb`, gráficos `.amoxvis`, decks `.amoxdeck`, datos (CSV, Parquet, JSON, Excel) y cualquier otro archivo, con un icono de color por tipo.
 
 Es tu punto de entrada a los datos: desde aquí abres archivos, los importas a la base de datos, los consultas directamente o copias sus nombres de columna. También gestiona el ciclo de vida de los archivos (crear, renombrar, mover, duplicar, borrar) sin tocar el explorador del sistema operativo.
 

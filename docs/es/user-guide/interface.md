@@ -9,9 +9,9 @@
 ## Zonas principales
 
 ### Barra de título (arriba)
-Muestra el **workspace activo** (nombre · modo de conexión MEM/RO/RW · base) y controles de ventana. El widget de workspace despliega proyectos recientes y la opción de cerrar el workspace.
+Muestra el **proyecto activo** (nombre · modo de conexión MEM/RO/RW · base) y controles de ventana. El widget del proyecto despliega los proyectos recientes y la opción de cerrarlo.
 
-<!-- 📷 CAPTURE: docs/images/user-guide/title-bar-workspace.png — barra de título con el widget de workspace desplegado -->
+<!-- 📷 CAPTURE: docs/images/user-guide/title-bar-workspace.png — barra de título con el widget del proyecto desplegado -->
 
 ### Barra de actividad (extremo izquierdo)
 Iconos que cambian el contenido del panel lateral:

@@ -10,7 +10,7 @@
 
 Exporting takes a query (or the visible results) and writes a file. Under the hood it uses DuckDB's native `COPY TO`, so it's fast even with many rows and doesn't go through the browser.
 
-There are two destinations: **local** (a file in your workspace) and **cloud** (an object in S3 or GCS via the `httpfs` extension). The available format depends on the destination.
+There are two destinations: **local** (a file in your project) and **cloud** (an object in S3 or GCS via the `httpfs` extension). The available format depends on the destination.
 
 One important nuance: export is **tied to the query**, not to what's on screen. See "Where export lives" below and [Saving results](../results/saving-results.md).
 
@@ -26,7 +26,7 @@ One important nuance: export is **tied to the query**, not to what's on screen. 
 1. Open the **Export Data** dialog (editor **Export** button, or **Export results…** on a `.sql` in the explorer).
 2. Choose the **Local** destination.
 3. Pick the **format**: CSV, Parquet, or **Excel (.xlsx)**.
-4. Type the **filename**. It's saved in your workspace folder.
+4. Type the **filename**. It's saved in your project folder.
 5. Click **Export**. You'll see the path and row count when it finishes.
 
 ### Export to the cloud
@@ -54,7 +54,7 @@ One important nuance: export is **tied to the query**, not to what's on screen. 
 ### Dialog fields
 | Field | What it does |
 |---|---|
-| Destination | Local (file in the workspace) · Cloud (S3 / GCS) |
+| Destination | Local (file in the project) · Cloud (S3 / GCS) |
 | Provider (cloud) | Amazon S3 · Google Cloud Storage |
 | Format | CSV · Parquet · Excel (local) / CSV · JSON · Parquet (cloud) |
 | Filename (local) | File base; the extension is added for you |

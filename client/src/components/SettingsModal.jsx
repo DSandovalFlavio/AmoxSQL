@@ -94,7 +94,7 @@ const TAB_TITLES = {
     behavior:    'Behavior',
     ai:          'AI',
     integrations:'Store Integrations',
-    workspace:   'Workspace',
+    workspace:   'Project',
     shortcuts:   'Keyboard Shortcuts',
     about:       'About AmoxSQL',
     storyflow:   'Story Flow',
@@ -455,7 +455,7 @@ function WorkspaceSettingsPanel() {
         <div className="stg-section">
             <h3 className="stg-section-title">Folder Structure</h3>
             <p className="stg-row-desc stg-row-desc--mb14">
-                Canonical workspace folders help keep your project organized.
+                Standard project folders help keep your work organized.
                 Missing folders can be created at any time.
             </p>
             <div className="stg-group stg-group--mt14">
@@ -496,7 +496,7 @@ function WorkspaceSettingsPanel() {
                         className="stg-btn"
                         onClick={() => window.dispatchEvent(new CustomEvent('amox_open_workspace_wizard'))}
                     >
-                        Open Workspace Wizard
+                        Open Project Setup
                     </button>
                 </div>
             )}
@@ -1002,7 +1002,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI' },
                         { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Store Integrations' },
                         { id: 'credentials',   icon: <LuKeyRound  size={16} />, label: 'Credentials' },
-                        { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Workspace' },
+                        { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Project' },
                         // ── Help & info ──
                         { separator: true, id: '_sep_help' },
                         { id: 'shortcuts',     icon: <LuKeyboard  size={16} />, label: 'Shortcuts' },
