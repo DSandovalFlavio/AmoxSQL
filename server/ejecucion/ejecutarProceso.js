@@ -7,27 +7,35 @@
  */
 const chainExecutor = require('../ChainExecutor');
 const baseCentral = require('../central/BaseCentral');
-const { resolverBase, abrirContexto } = require('./ContextoDeEjecucion');
-const { historialCentral, historialDeReserva } = require('./historial');
+const { resolverBase, abrirContexto, soltarTrabajos } = require('./ContextoDeEjecucion');
+const { historialCentral, historialDeReserva, historialMudo } = require('./historial');
 
 async function ejecutarProceso({
     dbManager, chainDef, proyecto, chainFile = '',
     mode = 'full', startNodeId = null, variables,
-    origen = 'interfaz', workspaceId = null,
+    origen = 'interfaz', workspaceId = null, oyente = null,
 }) {
     const base = resolverBase(chainDef);
+    // `fuera`: no la lanzó la interfaz (línea de comandos). El proyecto puede no
+    // ser el abierto, así que la base de la interfaz no se usa para nada: ni
+    // para correr (salvo que sea la de ese mismo proyecto) ni de reserva para
+    // el historial.
+    const fuera = origen !== 'interfaz';
     const historial = baseCentral.estaAbierta()
         ? historialCentral(baseCentral, { proyecto, workspaceId, origen, parametros: variables })
-        : await historialDeReserva(dbManager);
+        : (fuera ? historialMudo() : await historialDeReserva(dbManager));
 
-    const ctx = await abrirContexto(base.resuelta, { dbManager, proyecto, chainFile });
+    const ctx = await abrirContexto(base.resuelta, { dbManager, proyecto, chainFile, fuera });
     try {
         const r = await chainExecutor.run(ctx, chainDef, proyecto, {
-            mode, startNodeId, chainFile, variables, historial,
+            mode, startNodeId, chainFile, variables, historial, oyente,
         });
-        return { ...r, base: base.resuelta };
+        return { ...r, base: base.resuelta, rutaBase: ctx.ruta || null };
     } finally {
         await ctx.cerrar();
+        // Una orden de fuera no deja abierta su base de trabajo: el proceso
+        // puede estar a punto de salir, o el proyecto no ser el de la interfaz.
+        if (fuera) await soltarTrabajos(proyecto).catch(() => {});
     }
 }
 

@@ -46,6 +46,9 @@ class ChainExecutor extends EventEmitter {
         this.activeRuns = new Map();
         // SSE subscribers: runId -> res[]
         this.sseClients = new Map();
+        // Quien quiere los eventos de una ejecución sin un SSE: el registro de
+        // la línea de comandos. runId -> fn(evento)
+        this.oyentes = new Map();
     }
 
     // --- SSE helpers ---
@@ -61,6 +64,8 @@ class ChainExecutor extends EventEmitter {
     }
 
     emitLog(runId, event) {
+        const oyente = this.oyentes.get(runId);
+        if (oyente) { try { oyente(event); } catch { /* un registro roto no para la ejecución */ } }
         const clients = this.sseClients.get(runId) || [];
         const data = JSON.stringify({ ...event, timestamp: new Date().toISOString() });
         for (const res of clients) {
@@ -2191,7 +2196,17 @@ class ChainExecutor extends EventEmitter {
      * misma forma. `historial` es donde se anota la ejecución; sin él, en esa
      * misma base, como hasta la 5.8.
      */
-    async run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, historial = null } = {}) {
+    async run(dbManager, chainDef, projectPath, opciones = {}) {
+        let runId = null;
+        try {
+            const r = await this._run(dbManager, chainDef, projectPath, { ...opciones, alCrear: (id) => { runId = id; } });
+            return r;
+        } finally {
+            if (runId) this.oyentes.delete(runId);
+        }
+    }
+
+    async _run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, historial = null, oyente = null, alCrear = null } = {}) {
         const { nodes, edges = [], name = 'Untitled Chain' } = chainDef;
         const anotar = historial || chainPersistence.ligar(dbManager);
         // Chain-level variables (from the .sqlchain) merged with run-time overrides.
@@ -2232,6 +2247,8 @@ class ChainExecutor extends EventEmitter {
         });
 
         this.activeRuns.set(runId, { cancelled: false });
+        if (oyente) this.oyentes.set(runId, oyente);
+        alCrear?.(runId);
 
         // Create node run records
         const nodeMap = new Map(nodes.map(n => [n.id, n]));

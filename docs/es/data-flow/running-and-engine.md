@@ -97,3 +97,4 @@ Un flujo de archivo a archivo —leer un CSV o un Excel, transformarlo y exporta
 
 - [Data Flow](data-flow.md) · [Referencia de nodos](node-reference.md)
 - [Editor SQL](../editor/sql-editor.md) · [Exportar datos](../data/exporting-data.md)
+- [Correr un proceso desde la línea de comandos](command-line.md)

@@ -48,6 +48,7 @@
     "productName": "AmoxSQL",
     "files": [
       "electron/**/*",
+      "!electron/cli/**",
       "server/**/*",
       "!server/models/*.gguf",
       "!server/ai/data/duckdb-docs/**",
@@ -66,6 +67,10 @@
       {
         "from": "server/ai/data/duckdb-docs",
         "to": "duckdb-docs"
+      },
+      {
+        "from": "electron/cli/amoxsql.cmd",
+        "to": "amoxsql.cmd"
       }
     ],
     "directories": {

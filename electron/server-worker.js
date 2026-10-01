@@ -17,5 +17,16 @@ process.parentPort.on('message', async (e) => {
             process.parentPort.postMessage({ type: 'error', message: err.message });
             process.exit(1);
         }
+    } else if (msg.type === 'ejecutar') {
+        // Una orden de la línea de comandos (A3). El resultado lo escribe
+        // atenderOrden en su archivo; aquí sólo se devuelve el código.
+        let codigo = 1;
+        try {
+            const { atenderOrden } = require('../server/index.js');
+            codigo = (await atenderOrden(msg.orden)).codigo;
+        } catch (err) {
+            console.error('[CLI] La orden falló sin resultado:', err.message);
+        }
+        process.parentPort.postMessage({ type: 'ejecutado', id: msg.orden.id, codigo });
     }
 });

@@ -14,6 +14,9 @@ const baseCentral      = require('./central/BaseCentral');
 const secretos         = require('./secretos');
 const manifiesto       = require('./manifiesto');
 const contextoDeEjecucion = require('./ejecucion/ContextoDeEjecucion');
+const lineaDeComandos  = require('./ejecucion/lineaDeComandos');
+// La apertura de la base de AmoxSQL y del llavero (ver startServer).
+let arranque = Promise.resolve();
 const scaffolder       = require('./projectScaffolder');
 const { applyRowLimit } = require('./_sqlUtils');
 const { detectResultType } = require('./_sqlClassify');
@@ -6165,7 +6168,7 @@ const startServer = (preferredPort = 3001) => {
             // el servidor sigue; /api/central/estado dice por qué.
             // Detrás de ella, el llavero: migra lo que la 5.8 tenía en claro y
             // descifra las credenciales a memoria (A1).
-            baseCentral.abrir()
+            arranque = baseCentral.abrir()
                 .then(() => secretos.iniciar(aiManager.getConfig()))
                 .catch(err => console.warn('[Secretos] Arranque:', err.message));
 
@@ -6215,5 +6218,15 @@ if (require.main === module) {
     startServer(PORT);
 }
 
-module.exports = { startServer };
+/**
+ * Una orden de la línea de comandos (A3), que llega del proceso principal por
+ * parentPort. Espera a que la base de AmoxSQL y el llavero estén listos: en
+ * un arranque sin ventana, la orden llega justo detrás del servidor.
+ */
+async function atenderOrden(orden) {
+    await arranque;
+    return lineaDeComandos.atender(orden, { dbManager, config: aiManager.getConfig() });
+}
+
+module.exports = { startServer, atenderOrden };
 // Trigger restart for Excel Import features
