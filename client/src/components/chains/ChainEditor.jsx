@@ -100,7 +100,12 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         name: initialChain.name || 'New Chain',
         description: initialChain.description || '',
         variables: initialChain.variables || {},
+        // Sin tocar si no viene: una cadena de la 5.8 se guarda igual que llegó.
+        config: initialChain.config,
     });
+    // Dónde viven los pasos intermedios y por qué; lo resuelve el servidor,
+    // que es quien decide al ejecutar.
+    const [baseInfo, setBaseInfo] = useState(null);
 
     const [selectedNode, setSelectedNode] = useState(null);
     // El panel de datos se conmuta desde la barra flotante. Es preferencia de
@@ -182,6 +187,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             version: '1.0',
             name: chainMeta.name,
             description: chainMeta.description,
+            ...(chainMeta.config ? { config: chainMeta.config } : {}),
             nodes: nodes.map(n => ({
                 id: n.id,
                 type: n.data.nodeType,
@@ -213,6 +219,26 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         }, 300);
         return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
     }, [nodes, edges, chainMeta]);
+
+    // Lo que dice la etiqueta de la barra. Lo pregunta tras cada cambio, con
+    // la misma pausa que el autoguardado: añadir un paso de SQL cambia la base.
+    useEffect(() => {
+        const t = setTimeout(() => {
+            fetch(`${API_BASE}/api/chains/base`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chainDefinition: serialize(), chainFile: filePath }),
+            })
+                .then(r => (r.ok ? r.json() : null))
+                .then(d => { if (d) setBaseInfo(d); })
+                .catch(() => {});
+        }, 300);
+        return () => clearTimeout(t);
+    }, [serialize, filePath]);
+
+    const changeBase = useCallback((base) => {
+        setChainMeta(m => ({ ...m, config: { ...(m.config || {}), base } }));
+    }, []);
 
     // --- Manual save (Ctrl+S / Save button) ---
     const handleSave = useCallback(() => {
@@ -783,7 +809,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     if (!ok) return;
                 }
 
-                setChainMeta({ name: chain.name, description: chain.description, variables: chain.variables });
+                setChainMeta(m => ({ name: chain.name, description: chain.description, variables: chain.variables, config: chain.config ?? m.config }));
                 setNodes(chain.nodes.map(n => ({
                     id: n.id,
                     type: n.type,
@@ -1141,6 +1167,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                         setSourcePicker({ x: r.left + r.width / 2, y: r.top });
                     }}
                     onAutoLayout={handleAutoLayout}
+                    base={baseInfo}
+                    onChangeBase={changeBase}
                     onFitView={() => fitVisible()}
                     zoom={zoom}
                     panelOpen={panelOpen}
@@ -1213,6 +1241,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
             {previewTable && (
                 <ChainDataPreview
                     tableName={previewTable}
+                    chainFile={filePath}
+                    base={baseInfo?.resuelta}
                     onClose={() => setPreviewTable(null)}
                 />
             )}

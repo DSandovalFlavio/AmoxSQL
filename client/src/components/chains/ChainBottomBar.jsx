@@ -24,8 +24,31 @@ import {
     LuPlay, LuSquare, LuPlus, LuLayoutDashboard, LuMaximize, LuPanelRight,
     LuEllipsis, LuVariable, LuFileCode2, LuFileDown, LuFileUp, LuTerminal,
     LuHistory, LuSparkles, LuLoader, LuTrash2, LuCircleAlert, LuSave,
-    LuChevronUp, LuPencil, LuInfo,
+    LuChevronUp, LuPencil, LuInfo, LuMemoryStick, LuHardDrive, LuDatabase, LuCheck,
 } from 'react-icons/lu';
+
+// Dónde viven los pasos intermedios (5.9). `etiqueta` es lo que se lee en la
+// barra; `detalle`, lo que explica el menú.
+const BASES = {
+    memoria: { icono: LuMemoryStick, etiqueta: 'In memory · no database', corta: 'In memory' },
+    trabajo: { icono: LuHardDrive, etiqueta: 'Work database', corta: 'Work database' },
+    proyecto: { icono: LuDatabase, etiqueta: 'Project database', corta: 'Project database' },
+};
+const OPCIONES = [
+    { id: 'auto', titulo: 'Auto', detalle: "A work database, unless a step reads the project's tables" },
+    { id: 'memoria', titulo: 'In memory', detalle: 'Nothing is kept once the flow finishes' },
+    { id: 'trabajo', titulo: 'Work database', detalle: 'Its own file, kept to preview steps and resume' },
+    { id: 'proyecto', titulo: 'Project database', detalle: 'Steps leave their tables in the project, as before' },
+];
+
+function explicarBase(base) {
+    if (!base) return '';
+    const donde = BASES[base.resuelta]?.etiqueta || '';
+    if (base.motivo === 'anterior') return `${donde} — saved before 5.9; pick another to keep the project database untouched`;
+    if (base.elegida !== 'auto') return `${donde}${base.ruta ? ` — ${base.ruta}` : ''}`;
+    if (base.resuelta === 'trabajo') return `Auto: every step reads files, so nothing touches the project database${base.ruta ? ` — ${base.ruta}` : ''}`;
+    return `Auto: "${base.nodo}" ${base.motivo === 'desconocido' ? 'may read' : 'reads'} the project database, so the flow runs there`;
+}
 
 /** Alto que la barra ocupa sobre el lienzo, en pixeles de pantalla. */
 export const BOTTOM_BAR_SAFE_AREA = 96;
@@ -33,7 +56,7 @@ export const BOTTOM_BAR_SAFE_AREA = 96;
 const ChainBottomBar = ({
     isRunning, runStatus, errorCount = 0, warningCount = 0, progress = { completed: 0, total: 0 },
     onRun, onCancel, onClearStatus,
-    onAddSource, onAutoLayout, onFitView, zoom = 1,
+    onAddSource, onAutoLayout, onFitView, zoom = 1, base = null, onChangeBase,
     panelOpen, onTogglePanel,
     isDirty, onSave, onRename, onShowGuide,
     onToggleVariables, onExportSql, onExportYaml, onImportYaml, onToggleLogs, onToggleHistory,
@@ -41,7 +64,7 @@ const ChainBottomBar = ({
 }) => {
     // Un solo estado para los dos menús: así no pueden quedar los dos abiertos
     // a la vez ni pelearse dos manejadores de "pulsar fuera".
-    const [menu, setMenu] = useState(null);   // 'more' | 'save' | null
+    const [menu, setMenu] = useState(null);   // 'more' | 'save' | 'base' | null
     const [text, setText] = useState('');
     const barRef = useRef(null);
 
@@ -112,6 +135,23 @@ const ChainBottomBar = ({
 
                 <span className="chain-bb-gap" />
 
+                {base && BASES[base.resuelta] && (() => {
+                    const B = BASES[base.resuelta];
+                    const Icono = B.icono;
+                    return (
+                        <button
+                            className={`chain-bb-btn chain-bb-base ${menu === 'base' ? 'chain-bb-on' : ''}`}
+                            onClick={() => setMenu((m) => (m === 'base' ? null : 'base'))}
+                            title={explicarBase(base)}
+                            aria-expanded={menu === 'base'}
+                        >
+                            <Icono size={12} />
+                            {base.elegida === 'auto' && <span className="chain-bb-base-auto">Auto</span>}
+                            <span>{B.corta}</span>
+                        </button>
+                    );
+                })()}
+
                 <span className="chain-bb-zoom" title="Canvas zoom">{Math.round(zoom * 100)} %</span>
                 <button className="chain-bb-btn" onClick={onFitView} title="Fit the flow to the view">
                     <LuMaximize size={13} />
@@ -159,6 +199,26 @@ const ChainBottomBar = ({
                         <button onClick={pick(onRename)}>
                             <LuPencil size={12} /><span>Rename flow…</span>
                         </button>
+                    </div>
+                )}
+
+                {menu === 'base' && (
+                    <div className="chain-bb-menu chain-bb-menu-base" role="menu">
+                        <div className="chain-bb-menu-title">Where intermediate steps live</div>
+                        {OPCIONES.map(o => {
+                            const marcada = (base?.elegida || 'proyecto') === o.id;
+                            return (
+                                <button key={o.id} role="menuitemradio" aria-checked={marcada}
+                                    onClick={pick(() => onChangeBase?.(o.id))}>
+                                    <span className="chain-bb-base-check">{marcada && <LuCheck size={12} />}</span>
+                                    <span className="chain-bb-base-text">
+                                        <span>{o.titulo}</span>
+                                        <small>{o.detalle}</small>
+                                    </span>
+                                </button>
+                            );
+                        })}
+                        {base && <div className="chain-bb-menu-note">{explicarBase(base)}</div>}
                     </div>
                 )}
 

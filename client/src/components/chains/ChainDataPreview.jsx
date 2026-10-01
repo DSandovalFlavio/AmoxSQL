@@ -9,7 +9,7 @@ import { LuX, LuLoader, LuTable2 } from 'react-icons/lu';
 import { API_BASE as _API } from '../../api.js';
 const API_BASE = `${_API}/api/chains`;
 
-const ChainDataPreview = ({ tableName, onClose }) => {
+const ChainDataPreview = ({ tableName, chainFile = '', base = null, onClose }) => {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -19,7 +19,9 @@ const ChainDataPreview = ({ tableName, onClose }) => {
         setLoading(true);
         setError(null);
 
-        fetch(`${API_BASE}/preview/${encodeURIComponent(tableName)}?limit=50`)
+        // Lo que materializó una cadena con base de trabajo está en esa base.
+        const donde = base === 'trabajo' ? `&base=trabajo&chainFile=${encodeURIComponent(chainFile || '')}` : '';
+        fetch(`${API_BASE}/preview/${encodeURIComponent(tableName)}?limit=50${donde}`)
             .then(res => res.json())
             .then(result => {
                 if (result.error) { setError(result.error); return; }
@@ -27,7 +29,7 @@ const ChainDataPreview = ({ tableName, onClose }) => {
             })
             .catch(err => setError(err.message))
             .finally(() => setLoading(false));
-    }, [tableName]);
+    }, [tableName, chainFile, base]);
 
     const formatCell = (value) => {
         if (value === null || value === undefined) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 10 }}>null</span>;

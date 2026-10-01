@@ -1,8 +1,11 @@
 /**
  * AmoxSQL — Execution Chain Persistence Layer
  *
- * Manages the `amoxsql_chains` schema within each project's DuckDB database.
- * Stores execution history (runs and per-node results) for .sqlchain workflows.
+ * Manages the `amoxsql_chains` schema: runs and per-node results of .sqlchain
+ * workflows. Since 5.9 it lives in AmoxSQL's own database (central migration 2,
+ * one history for every project); a project's database keeps the history the
+ * 5.8 wrote there, read-only. Every method takes the database it writes to, so
+ * the same code serves both.
  *
  * Chain definitions live as .sqlchain files in the project directory.
  * Only execution history is persisted in DuckDB.
@@ -61,13 +64,15 @@ class ChainPersistence {
 
     // --- Run CRUD ---
 
-    async createRun(dbManager, { chainFile, chainName, runMode, startNodeId, totalNodes }) {
+    async createRun(dbManager, { chainFile, chainName, runMode, startNodeId, totalNodes, proyecto }) {
         const id = generateId();
         const escapeSql = (s) => s ? `'${String(s).replace(/'/g, "''")}'` : 'NULL';
+        // `proyecto` sólo existe en la tabla de la base central.
+        const conProyecto = proyecto !== undefined;
 
         await dbManager.systemQuery(`
-            INSERT INTO amoxsql_chains.runs (id, chain_file, chain_name, run_mode, start_node_id, total_nodes)
-            VALUES ('${id}', ${escapeSql(chainFile)}, ${escapeSql(chainName)}, ${escapeSql(runMode)}, ${escapeSql(startNodeId)}, ${totalNodes || 0})
+            INSERT INTO amoxsql_chains.runs (id, chain_file, chain_name, run_mode, start_node_id, total_nodes${conProyecto ? ', proyecto' : ''})
+            VALUES ('${id}', ${escapeSql(chainFile)}, ${escapeSql(chainName)}, ${escapeSql(runMode)}, ${escapeSql(startNodeId)}, ${totalNodes || 0}${conProyecto ? `, ${escapeSql(proyecto)}` : ''})
         `);
         return id;
     }
@@ -154,6 +159,32 @@ class ChainPersistence {
         const runs = await this.listRuns(dbManager, { chainFile, limit: 1 });
         if (!runs.length) return [];
         return await this.getNodeRuns(dbManager, runs[0].id);
+    }
+
+    /**
+     * Lo que el ejecutor necesita para ir anotando una ejecución, atado a una
+     * base. Es el historial «de siempre», en la base del proyecto: el de la
+     * base central lo arma `server/ejecucion/historial.js` con las mismas piezas.
+     */
+    ligar(db) {
+        return {
+            createRun: (d) => this.createRun(db, d),
+            createNodeRun: (d) => this.createNodeRun(db, d),
+            updateNodeRun: (id, d) => this.updateNodeRun(db, id, d),
+            updateRunStatus: (id, d) => this.updateRunStatus(db, id, d),
+        };
+    }
+
+    /** ¿Tiene esta base el historial de la 5.8? Mirar no lo crea. */
+    async tieneHistorial(db) {
+        try {
+            const filas = await db.systemQuery(
+                `SELECT count(*)::INTEGER AS n FROM duckdb_tables() WHERE schema_name = 'amoxsql_chains' AND table_name = 'runs'`
+            );
+            return (filas[0]?.n || 0) > 0;
+        } catch {
+            return false;
+        }
     }
 }
 

@@ -80,6 +80,49 @@ const MIGRACIONES = [
             )`,
         ],
     },
+    {
+        version: 2,
+        nombre: 'historial de Data Flow',
+        // A4 (fase 3.5). Hasta la 5.8 el historial de las cadenas vivía en la
+        // base de cada proyecto (`amoxsql_chains` dentro de su .duckdb), y por
+        // eso correr un proceso escribía en ella aunque sólo moviera archivos.
+        // Aquí las tablas son las mismas —ChainPersistence escribe igual en una
+        // y en otra— más `proyecto`, porque esta base es de todos los
+        // proyectos. `chain_file` va con la ruta absoluta por la misma razón.
+        // El id de cada `runs` es el de su fila en `ejecuciones`.
+        sql: [
+            `CREATE SCHEMA amoxsql_chains`,
+            `CREATE TABLE amoxsql_chains.runs (
+                id              VARCHAR PRIMARY KEY,
+                chain_file      VARCHAR NOT NULL,
+                chain_name      VARCHAR,
+                started_at      TIMESTAMP DEFAULT current_timestamp,
+                finished_at     TIMESTAMP,
+                status          VARCHAR DEFAULT 'running',
+                start_node_id   VARCHAR,
+                run_mode        VARCHAR DEFAULT 'full',
+                total_nodes     INTEGER,
+                completed_nodes INTEGER DEFAULT 0,
+                failed_node_id  VARCHAR,
+                proyecto        VARCHAR
+            )`,
+            `CREATE TABLE amoxsql_chains.node_runs (
+                id              VARCHAR PRIMARY KEY,
+                run_id          VARCHAR NOT NULL,
+                node_id         VARCHAR NOT NULL,
+                node_type       VARCHAR NOT NULL,
+                node_label      VARCHAR,
+                status          VARCHAR DEFAULT 'pending',
+                started_at      TIMESTAMP,
+                finished_at     TIMESTAMP,
+                duration_ms     INTEGER,
+                result_type     VARCHAR,
+                result_summary  VARCHAR,
+                error_message   VARCHAR,
+                sql_executed    VARCHAR
+            )`,
+        ],
+    },
 ];
 
 module.exports = { MIGRACIONES };

@@ -33,9 +33,21 @@ Besides running, you can **export** the chain to YAML, **compile** it to a runna
 - The bottom **progress bar** and status bar show how many nodes are done (e.g. "3 / 7 nodes, 43%").
 - The **Logs** panel streams execution events live (via SSE); open it with the **Logs** button. You can clear it anytime.
 
+### Where intermediate steps live
+Each step leaves its result in a database for the next one to read. The label in the bottom bar says which one; click it to change it:
+
+| Option | What it does |
+|---|---|
+| **Auto** | The default for new flows. If no step reads the project's tables, it uses a **work database**; if one does — free SQL, a table reference, creating a named table, a chart or a report — it uses the **project database**. Hover the label to see which step decides |
+| **In memory** | An in-memory database that disappears when the flow finishes. Nothing stays on disk except what the flow exports |
+| **Work database** | A file of the flow's own in `.amoxsql/trabajo/` inside the project. It is kept so you can preview each step and resume, and it is rewritten on the next run. That folder carries its own `.gitignore` |
+| **Project database** | The project's database, as before 5.9: steps leave their tables there |
+
+A file-to-file flow — read a CSV or an Excel file, transform it and export a Parquet file — runs in Auto **without writing a single line to the project database**. Flows saved before 5.9 don't carry this option and stay in the project database until you pick another one.
+
 ### History and resume
-- **History** opens the panel of previous runs for this chain.
-- From a run that **failed** or was **paused at a checkpoint**, you can **resume**: the chain continues from the failed node or the checkpoint, reusing the intermediate results already materialized — it doesn't re-run everything.
+- **History** opens the panel of previous runs for this chain. Since 5.9 the history lives in AmoxSQL's own database, not in the project's; runs that 5.8 recorded in the project are still shown, marked **before 5.9**, and can't be deleted.
+- From a run that **failed** or was **paused at a checkpoint**, you can **resume**: the chain continues from the failed node or the checkpoint, reusing the intermediate results already materialized — it doesn't re-run everything. With a work database this works even after closing and reopening AmoxSQL.
 
 ### Export, compile, and create SQL
 | Action | What it produces |

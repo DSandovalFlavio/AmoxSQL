@@ -327,7 +327,12 @@ class ChainExecutor extends EventEmitter {
         try {
             await dbManager.query(asView ? `DROP TABLE IF EXISTS "${name}"` : `DROP VIEW IF EXISTS "${name}"`);
         } catch { /* tolerant */ }
-        return asView ? `CREATE OR REPLACE TEMP VIEW "${name}"` : `CREATE OR REPLACE TABLE "${name}"`;
+        // En una base de trabajo (fase 3 de la 5.9) la vista es normal, no
+        // temporal: la base es sólo del proceso, y así sobrevive para reanudar
+        // desde un punto de control o para que la interfaz vea el paso, aunque
+        // entre medias se haya cerrado la aplicación.
+        const vista = dbManager.vistasPersistentes ? 'VIEW' : 'TEMP VIEW';
+        return asView ? `CREATE OR REPLACE ${vista} "${name}"` : `CREATE OR REPLACE TABLE "${name}"`;
     }
 
     /**
@@ -935,7 +940,7 @@ class ChainExecutor extends EventEmitter {
      */
     bareSelectBody(sql) {
         if (!sql) return null;
-        const stripped = sql.replace(/^CREATE OR REPLACE (?:TABLE|TEMP VIEW)\s+"[^"]*"\s+AS\s+/i, '');
+        const stripped = sql.replace(/^CREATE OR REPLACE (?:TABLE|TEMP VIEW|VIEW)\s+"[^"]*"\s+AS\s+/i, '');
         const forCheck = stripped.replace(/^(--[^\n]*\n)+/, '').trim();
         if (!/^(select|with)\b/i.test(forCheck)) return null;
         return stripped;
@@ -2180,8 +2185,15 @@ class ChainExecutor extends EventEmitter {
 
     // --- Main Execution Loop ---
 
-    async run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {} } = {}) {
+    /**
+     * `dbManager` es la base donde corren los pasos: la del proyecto, o un
+     * contexto aislado (server/ejecucion/ContextoDeEjecucion.js) que tiene la
+     * misma forma. `historial` es donde se anota la ejecución; sin él, en esa
+     * misma base, como hasta la 5.8.
+     */
+    async run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, historial = null } = {}) {
         const { nodes, edges = [], name = 'Untitled Chain' } = chainDef;
+        const anotar = historial || chainPersistence.ligar(dbManager);
         // Chain-level variables (from the .sqlchain) merged with run-time overrides.
         const chainVars = { ...(chainDef.variables || {}), ...(variables || {}) };
 
@@ -2211,7 +2223,7 @@ class ChainExecutor extends EventEmitter {
         const layers = this.computeLayers(activeNodes, activeEdges);
 
         // Create run record
-        const runId = await chainPersistence.createRun(dbManager, {
+        const runId = await anotar.createRun({
             chainFile,
             chainName: name,
             runMode: mode,
@@ -2227,7 +2239,7 @@ class ChainExecutor extends EventEmitter {
         const nodeStatuses = new Map(); // nodeId -> status
 
         for (const node of activeNodes) {
-            const nodeRunId = await chainPersistence.createNodeRun(dbManager, {
+            const nodeRunId = await anotar.createNodeRun({
                 runId,
                 nodeId: node.id,
                 nodeType: node.type,
@@ -2269,7 +2281,7 @@ class ChainExecutor extends EventEmitter {
             for (const layer of layers) {
                 // Check cancellation
                 if (this.activeRuns.get(runId)?.cancelled) {
-                    await chainPersistence.updateRunStatus(dbManager, runId, { status: 'cancelled', completedNodes: completedCount });
+                    await anotar.updateRunStatus(runId, { status: 'cancelled', completedNodes: completedCount });
                     this.activeRuns.delete(runId);
                     return { runId, status: 'cancelled' };
                 }
@@ -2286,7 +2298,7 @@ class ChainExecutor extends EventEmitter {
                     const allParentsOk = parents.every(pid => nodeStatuses.get(pid) === 'success');
 
                     if (!allParentsOk) {
-                        await chainPersistence.updateNodeRun(dbManager, nodeRunId, { status: 'skipped' });
+                        await anotar.updateNodeRun(nodeRunId, { status: 'skipped' });
                         nodeStatuses.set(nodeId, 'skipped');
                         continue;
                     }
@@ -2300,7 +2312,7 @@ class ChainExecutor extends EventEmitter {
                     // doesn't cascade-skip everything downstream of it.
                     if (node.disabled) {
                         if (upstreamOutputs[0]) nodeOutputs.set(nodeId, upstreamOutputs[0]);
-                        await chainPersistence.updateNodeRun(dbManager, nodeRunId, {
+                        await anotar.updateNodeRun(nodeRunId, {
                             status: 'success', durationMs: 0, resultType: 'disabled',
                             resultSummary: { message: 'Disabled — passed through unchanged' },
                         });
@@ -2308,12 +2320,12 @@ class ChainExecutor extends EventEmitter {
                         completedCount++;
                         this.emitLog(runId, { type: 'node_complete', nodeId, nodeLabel: node.label || node.id, durationMs: 0, resultType: 'disabled' });
                         this.emitLog(runId, { type: 'run_progress', completed: completedCount, total: activeNodes.length });
-                        await chainPersistence.updateRunStatus(dbManager, runId, { status: 'running', completedNodes: completedCount });
+                        await anotar.updateRunStatus(runId, { status: 'running', completedNodes: completedCount });
                         continue;
                     }
 
                     // Mark as running
-                    await chainPersistence.updateNodeRun(dbManager, nodeRunId, { status: 'running' });
+                    await anotar.updateNodeRun(nodeRunId, { status: 'running' });
                     nodeStatuses.set(nodeId, 'running');
                     this.emitLog(runId, { type: 'node_start', nodeId, nodeLabel: node.label || node.id, nodeType: node.type });
 
@@ -2336,7 +2348,7 @@ class ChainExecutor extends EventEmitter {
 
                         // Handle checkpoint
                         if (result.isCheckpoint) {
-                            await chainPersistence.updateNodeRun(dbManager, nodeRunId, {
+                            await anotar.updateNodeRun(nodeRunId, {
                                 status: 'success',
                                 durationMs,
                                 resultType: result.resultType,
@@ -2346,7 +2358,7 @@ class ChainExecutor extends EventEmitter {
                             completedCount++;
 
                             this.emitLog(runId, { type: 'node_complete', nodeId, nodeLabel: node.label || node.id, durationMs, resultType: result.resultType, resultSummary: result.resultSummary });
-                            await chainPersistence.updateRunStatus(dbManager, runId, {
+                            await anotar.updateRunStatus(runId, {
                                 status: 'paused',
                                 completedNodes: completedCount,
                             });
@@ -2356,7 +2368,7 @@ class ChainExecutor extends EventEmitter {
                             return { runId, status: 'paused', pausedAtNode: nodeId };
                         }
 
-                        await chainPersistence.updateNodeRun(dbManager, nodeRunId, {
+                        await anotar.updateNodeRun(nodeRunId, {
                             status: 'success',
                             durationMs,
                             resultType: result.resultType,
@@ -2378,13 +2390,13 @@ class ChainExecutor extends EventEmitter {
                         });
                         this.emitLog(runId, { type: 'run_progress', completed: completedCount, total: activeNodes.length });
 
-                        await chainPersistence.updateRunStatus(dbManager, runId, {
+                        await anotar.updateRunStatus(runId, {
                             status: 'running',
                             completedNodes: completedCount,
                         });
                     } catch (err) {
                         const durationMs = Date.now() - startTime;
-                        await chainPersistence.updateNodeRun(dbManager, nodeRunId, {
+                        await anotar.updateNodeRun(nodeRunId, {
                             status: 'failed',
                             durationMs,
                             errorMessage: err.message,
@@ -2400,15 +2412,16 @@ class ChainExecutor extends EventEmitter {
                         for (const skipId of downstream) {
                             const skipRunId = nodeRunIds.get(skipId);
                             if (skipRunId && nodeStatuses.get(skipId) === 'pending') {
-                                await chainPersistence.updateNodeRun(dbManager, skipRunId, { status: 'skipped' });
+                                await anotar.updateNodeRun(skipRunId, { status: 'skipped' });
                                 nodeStatuses.set(skipId, 'skipped');
                             }
                         }
 
-                        await chainPersistence.updateRunStatus(dbManager, runId, {
+                        await anotar.updateRunStatus(runId, {
                             status: 'failed',
                             completedNodes: completedCount,
                             failedNodeId: nodeId,
+                            error: err.message,
                         });
                         this.emitLog(runId, { type: 'run_complete', status: 'failed', failedNodeId: nodeId });
                         this.closeSSE(runId);
@@ -2418,14 +2431,14 @@ class ChainExecutor extends EventEmitter {
                 }
             }
         } catch (err) {
-            await chainPersistence.updateRunStatus(dbManager, runId, { status: 'failed', completedNodes: completedCount });
+            await anotar.updateRunStatus(runId, { status: 'failed', completedNodes: completedCount, error: err.message });
             this.emitLog(runId, { type: 'run_complete', status: 'failed', error: err.message });
             this.closeSSE(runId);
             this.activeRuns.delete(runId);
             return { runId, status: 'failed', error: err.message };
         }
 
-        await chainPersistence.updateRunStatus(dbManager, runId, { status: 'completed', completedNodes: completedCount });
+        await anotar.updateRunStatus(runId, { status: 'completed', completedNodes: completedCount });
         this.emitLog(runId, { type: 'run_complete', status: 'completed', totalNodes: activeNodes.length });
         this.closeSSE(runId);
         this.activeRuns.delete(runId);

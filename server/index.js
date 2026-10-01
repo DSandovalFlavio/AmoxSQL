@@ -13,6 +13,7 @@ const dbManager        = require('./DatabaseManager');
 const baseCentral      = require('./central/BaseCentral');
 const secretos         = require('./secretos');
 const manifiesto       = require('./manifiesto');
+const contextoDeEjecucion = require('./ejecucion/ContextoDeEjecucion');
 const scaffolder       = require('./projectScaffolder');
 const { applyRowLimit } = require('./_sqlUtils');
 const { detectResultType } = require('./_sqlClassify');
@@ -121,6 +122,11 @@ app.post('/api/project/open', async (req, res) => {
         // era un resto del modelo viejo —workspace = carpeta, y cambiabas de base
         // dentro de la sesion— y costaba ~620 ms en cada apertura.
 
+        // Las bases de trabajo de Data Flow que siguieran abiertas son del
+        // proyecto que se deja: se sueltan, para no retener sus archivos.
+        if (path.resolve(newPath) !== path.resolve(ROOT_DIR)) {
+            contextoDeEjecucion.soltarTrabajos(ROOT_DIR).catch(() => {});
+        }
         ROOT_DIR = newPath;
         process.chdir(ROOT_DIR);
         PROYECTO_ABIERTO = true;
@@ -557,13 +563,9 @@ app.post('/api/db/connect', async (req, res) => {
             } catch (aiErr) {
                 console.warn('[AI] Schema init warning (non-fatal):', aiErr.message);
             }
-            // Initialize chain execution history schema
-            try {
-                const chainPersistenceModule = require('./ChainPersistence');
-                await chainPersistenceModule.initSchema(dbManager);
-            } catch (chainErr) {
-                console.warn('[Chains] Schema init warning (non-fatal):', chainErr.message);
-            }
+            // El historial de Data Flow ya no se crea aquí: desde la 5.9 vive en
+            // la base de AmoxSQL (server/ejecucion/historial.js). El que la 5.8
+            // dejó en la del proyecto se sigue leyendo, sin tocarlo.
         }
 
         res.json({ success: true, path: dbManager.getCurrentPath() });
@@ -5563,8 +5565,20 @@ app.post('/api/dbt/execute', (req, res) => {
 /* ============================================================
  * Execution Chain APIs
  * ============================================================ */
-const chainPersistence = require('./ChainPersistence');
 const chainExecutor = require('./ChainExecutor');
+const historialDeProcesos = require('./ejecucion/historial');
+const { ejecutarProceso } = require('./ejecucion/ejecutarProceso');
+
+// Dónde viven los pasos intermedios de una cadena, y por qué (fase 3).
+app.post('/api/chains/base', (req, res) => {
+    const { chainDefinition, chainFile } = req.body || {};
+    if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition required' });
+    const r = contextoDeEjecucion.resolverBase(chainDefinition);
+    const ruta = r.resuelta === 'trabajo' && PROYECTO_ABIERTO
+        ? path.relative(ROOT_DIR, contextoDeEjecucion.rutaDeTrabajo(ROOT_DIR, chainFile || ''))
+        : null;
+    res.json({ ...r, ruta });
+});
 
 // Run a chain
 app.post('/api/chains/run', async (req, res) => {
@@ -5579,11 +5593,13 @@ app.post('/api/chains/run', async (req, res) => {
         }
         anotarCredencialesDeCadena(chainDefinition);
 
-        // Execute asynchronously — respond with runId immediately
-        const result = await chainExecutor.run(dbManager, chainDefinition, ROOT_DIR, {
+        const result = await ejecutarProceso({
+            dbManager,
+            chainDef: chainDefinition,
+            proyecto: ROOT_DIR,
+            chainFile: chainFile || '',
             mode: mode || 'full',
             startNodeId,
-            chainFile: chainFile || '',
             variables: variables || undefined,
         });
 
@@ -5597,8 +5613,7 @@ app.post('/api/chains/run', async (req, res) => {
 // Get run status (for polling)
 app.get('/api/chains/run/:runId/status', async (req, res) => {
     try {
-        const run = await chainPersistence.getRun(dbManager, req.params.runId);
-        const nodeRuns = await chainPersistence.getNodeRuns(dbManager, req.params.runId);
+        const { run, nodeRuns } = await historialDeProcesos.leer({ base: baseCentral, dbManager, runId: req.params.runId });
         res.json({ run, nodeRuns });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -5618,10 +5633,13 @@ app.post('/api/chains/run/:runId/resume', async (req, res) => {
         return res.status(400).json({ error: 'chainDefinition and startNodeId required' });
     }
     try {
-        const result = await chainExecutor.run(dbManager, chainDefinition, ROOT_DIR, {
+        const result = await ejecutarProceso({
+            dbManager,
+            chainDef: chainDefinition,
+            proyecto: ROOT_DIR,
+            chainFile: chainFile || '',
             mode: 'from_node',
             startNodeId,
-            chainFile: chainFile || '',
             variables: variables || undefined,
         });
         res.json(result);
@@ -5642,9 +5660,9 @@ app.post('/api/chains/validate', (req, res) => {
 app.get('/api/chains/history', async (req, res) => {
     const { chainFile, limit } = req.query;
     try {
-        const runs = await chainPersistence.listRuns(dbManager, {
-            chainFile,
-            limit: parseInt(limit) || 20,
+        const runs = await historialDeProcesos.listar({
+            base: baseCentral, dbManager, proyecto: ROOT_DIR,
+            chainFile, limit: parseInt(limit) || 20,
         });
         res.json({ runs });
     } catch (err) {
@@ -5655,8 +5673,7 @@ app.get('/api/chains/history', async (req, res) => {
 // Get detailed run
 app.get('/api/chains/history/:runId', async (req, res) => {
     try {
-        const run = await chainPersistence.getRun(dbManager, req.params.runId);
-        const nodeRuns = await chainPersistence.getNodeRuns(dbManager, req.params.runId);
+        const { run, nodeRuns } = await historialDeProcesos.leer({ base: baseCentral, dbManager, runId: req.params.runId });
         res.json({ run, nodeRuns });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -5666,7 +5683,9 @@ app.get('/api/chains/history/:runId', async (req, res) => {
 // Delete a run
 app.delete('/api/chains/history/:runId', async (req, res) => {
     try {
-        await chainPersistence.deleteRun(dbManager, req.params.runId);
+        const borrada = await historialDeProcesos.borrar({ base: baseCentral, runId: req.params.runId });
+        // Lo anterior a la 5.9 está en la base del proyecto y es de sólo lectura.
+        if (!borrada) return res.status(409).json({ error: 'Runs from before 5.9 are read-only.' });
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -5800,6 +5819,11 @@ app.get('/api/chains/run/:runId/stream', (req, res) => {
 app.get('/api/chains/preview/:tableName', async (req, res) => {
     const { tableName } = req.params;
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    // La interfaz dice en qué base corrió la cadena; sin eso, la del proyecto.
+    const db = await contextoDeEjecucion.abrirParaVer(null, {
+        dbManager, proyecto: ROOT_DIR, chainFile: req.query.chainFile || '',
+        base: req.query.base === 'trabajo' ? 'trabajo' : 'proyecto',
+    });
     try {
         let schema = req.query.schema || null;
         let bare = tableName.replace(/[^a-zA-Z0-9_\-.]/g, '');
@@ -5809,14 +5833,14 @@ app.get('/api/chains/preview/:tableName', async (req, res) => {
             bare = bare.slice(dot + 1);
         }
         if (!schema) {
-            const found = await dbManager.query(
+            const found = await db.query(
                 `SELECT table_schema FROM information_schema.tables WHERE table_name = '${bare.replace(/'/g, "''")}' ORDER BY (table_schema = 'main') DESC LIMIT 1`
             );
             schema = found[0]?.table_schema || 'main';
         }
         const qref = `"${schema}"."${bare}"`;
-        const rows = await dbManager.query(`SELECT * FROM ${qref} LIMIT ${limit}`);
-        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM ${qref}`);
+        const rows = await db.query(`SELECT * FROM ${qref} LIMIT ${limit}`);
+        const countResult = await db.query(`SELECT COUNT(*) as cnt FROM ${qref}`);
         const totalRows = countResult[0]?.cnt || 0;
         const columns = rows.length > 0 ? Object.keys(rows[0]).map(k => ({
             name: k,
@@ -5825,6 +5849,8 @@ app.get('/api/chains/preview/:tableName', async (req, res) => {
         res.json({ columns, rows, totalRows });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    } finally {
+        await db.cerrar();
     }
 });
 
@@ -5844,20 +5870,27 @@ app.post('/api/chains/preview-node', async (req, res) => {
             chainFile: chainFile || '', projectPath: ROOT_DIR,
         });
         if (!compiled.sql) return res.json({ available: false, reason: compiled.reason });
-        if (compiled.sql.includes('read_xlsx(')) { try { await chainExecutor.ensureSpatialExtension(dbManager); } catch {} }
 
-        const wrapped = `SELECT * FROM (${compiled.sql}) AS _amox_preview`;
-        const rows = await dbManager.query(`${wrapped} LIMIT ${limit}`);
-        const countResult = await dbManager.query(`SELECT COUNT(*) AS cnt FROM (${compiled.sql}) AS _amox_count`);
-        const columns = rows.length > 0
-            ? Object.keys(rows[0]).map(k => ({ name: k, type: typeof rows[0][k] === 'number' ? 'number' : 'string' }))
-            : (await dbManager.query(`DESCRIBE ${compiled.sql}`)).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
-        res.json({
-            available: true,
-            source: compiled.inlinable ? 'live' : 'materialized',
-            table: compiled.materialized ? (chainExecutor.staticOutputRef(node, chainFile || '')?.table || null) : null,
-            columns, rows, totalRows: countResult[0]?.cnt || 0,
-        });
+        // Lo que un paso materializó está en la base donde corrió la cadena.
+        const db = await contextoDeEjecucion.abrirParaVer(chainDefinition, { dbManager, proyecto: ROOT_DIR, chainFile: chainFile || '' });
+        try {
+            if (compiled.sql.includes('read_xlsx(')) { try { await chainExecutor.ensureSpatialExtension(db); } catch {} }
+
+            const wrapped = `SELECT * FROM (${compiled.sql}) AS _amox_preview`;
+            const rows = await db.query(`${wrapped} LIMIT ${limit}`);
+            const countResult = await db.query(`SELECT COUNT(*) AS cnt FROM (${compiled.sql}) AS _amox_count`);
+            const columns = rows.length > 0
+                ? Object.keys(rows[0]).map(k => ({ name: k, type: typeof rows[0][k] === 'number' ? 'number' : 'string' }))
+                : (await db.query(`DESCRIBE ${compiled.sql}`)).map(r => ({ name: r.column_name || r.name, type: r.column_type || r.type }));
+            res.json({
+                available: true,
+                source: compiled.inlinable ? 'live' : 'materialized',
+                table: compiled.materialized ? (chainExecutor.staticOutputRef(node, chainFile || '')?.table || null) : null,
+                columns, rows, totalRows: countResult[0]?.cnt || 0,
+            });
+        } finally {
+            await db.cerrar();
+        }
     } catch (err) {
         res.json({ available: false, error: err.message });
     }
@@ -5882,21 +5915,26 @@ app.post('/api/chains/schema/infer', async (req, res) => {
 
         const seen = new Set();
         const columns = [];
-        for (const parentId of parentIds) {
-            const compiled = chainExecutor.compileNodeQuery(chainDefinition, parentId, {
-                chainFile: chainFile || '', projectPath: ROOT_DIR,
-            });
-            if (!compiled.sql) continue;
-            if (compiled.sql.includes('read_xlsx(')) { try { await chainExecutor.ensureSpatialExtension(dbManager); } catch {} }
-            try {
-                const result = await dbManager.query(`DESCRIBE ${compiled.sql}`);
-                for (const r of (result || [])) {
-                    const name = r.column_name || r.name;
-                    if (!name || seen.has(name)) continue;
-                    seen.add(name);
-                    columns.push({ name, type: r.column_type || r.type });
-                }
-            } catch {}
+        const db = await contextoDeEjecucion.abrirParaVer(chainDefinition, { dbManager, proyecto: ROOT_DIR, chainFile: chainFile || '' });
+        try {
+            for (const parentId of parentIds) {
+                const compiled = chainExecutor.compileNodeQuery(chainDefinition, parentId, {
+                    chainFile: chainFile || '', projectPath: ROOT_DIR,
+                });
+                if (!compiled.sql) continue;
+                if (compiled.sql.includes('read_xlsx(')) { try { await chainExecutor.ensureSpatialExtension(db); } catch {} }
+                try {
+                    const result = await db.query(`DESCRIBE ${compiled.sql}`);
+                    for (const r of (result || [])) {
+                        const name = r.column_name || r.name;
+                        if (!name || seen.has(name)) continue;
+                        seen.add(name);
+                        columns.push({ name, type: r.column_type || r.type });
+                    }
+                } catch {}
+            }
+        } finally {
+            await db.cerrar();
         }
 
         res.json({ columns });
@@ -6079,6 +6117,7 @@ app.post('/api/shutdown', async (_req, res) => {
     } catch (err) {
         console.error('[Server] Error closing DB on shutdown:', err.message);
     }
+    try { await contextoDeEjecucion.soltarTrabajos(); } catch { /* nada que cerrar */ }
     try {
         await baseCentral.cerrar();
     } catch (err) {
