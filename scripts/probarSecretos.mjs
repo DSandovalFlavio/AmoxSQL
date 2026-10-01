@@ -179,6 +179,34 @@ try {
     comprobar('una consulta normal sí se registra', JSON.stringify(hist).includes('marca_de_la_prueba'), `${hist.length} filas`);
     comprobar('un SET o un CREATE SECRET con claves, no', !sinSecretos(JSON.stringify(hist)).length, sinSecretos(JSON.stringify(hist)).join(', '));
 
+    // Lo que ya dejó la 5.8: se escribe a mano, como lo habría escrito ella, y
+    // se reconecta. Al conectar, el historial se revisa y se tachan los valores.
+    const comoLa58 = [
+        `SET s3_access_key_id='${SECRETOS.s3Id}'`,
+        `SET s3_secret_access_key='${SECRETOS.s3Clave}'`,
+        `CREATE SECRET x (TYPE s3, KEY_ID '${SECRETOS.s3Id}', SECRET '${SECRETOS.s3Clave}', REGION 'us-east-1')`,
+        `SELECT 'texto normal con una comilla''s' AS c`,
+    ];
+    for (const q of comoLa58) {
+        await dbManager.systemQuery(`INSERT INTO amoxsql_ai.query_history (query) VALUES ('${q.replace(/'/g, "''")}')`);
+    }
+    const antesDe = (await dbManager.systemQuery(`SELECT count(*)::INTEGER AS n FROM amoxsql_ai.query_history`))[0].n;
+    await dbManager.close();
+    await dbManager.connect(path.join(PROYECTO, 'main.duckdb'), PROYECTO);
+    const tras58 = await dbManager.systemQuery(`SELECT query FROM amoxsql_ai.query_history`);
+    comprobar('al reconectar, los secretos que dejó la 5.8 quedan tachados', !sinSecretos(JSON.stringify(tras58)).length,
+        sinSecretos(JSON.stringify(tras58)).join(', '));
+    comprobar('pero las entradas se conservan', tras58.length === antesDe, `${antesDe} → ${tras58.length}`);
+    comprobar('y dicen qué se hizo', tras58.some(r => /s3_secret_access_key='\*\*\*'/.test(r.query))
+        && tras58.some(r => /KEY_ID '\*\*\*', SECRET '\*\*\*', REGION 'us-east-1'/.test(r.query)),
+        tras58.map(r => r.query).filter(q => /\*\*\*/.test(q)).join(' | '));
+    comprobar('lo que no es secreto no se toca', tras58.some(r => r.query === comoLa58[3]));
+    await dbManager.close();
+    await dbManager.connect(path.join(PROYECTO, 'main.duckdb'), PROYECTO);
+    const otraVez = await dbManager.systemQuery(`SELECT query FROM amoxsql_ai.query_history ORDER BY query`);
+    comprobar('y una segunda conexión no cambia nada (idempotente)',
+        JSON.stringify(otraVez) === JSON.stringify([...tras58].sort((a, b) => a.query < b.query ? -1 : 1)));
+
     console.log('\nel manifiesto del proyecto');
     comprobar('anotar una extensión', manifiesto.anotarExtension(PROYECTO, 'Iceberg') === true);
     comprobar('la segunda vez no la repite', manifiesto.anotarExtension(PROYECTO, 'iceberg') === false);

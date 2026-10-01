@@ -451,9 +451,46 @@ class DatabaseManager {
 
             // Prune old records (> 30 days)
             await this.query(`DELETE FROM amoxsql_ai.query_history WHERE executed_at < CURRENT_DATE - INTERVAL '30 days'`);
+            await this._tacharSecretosDelHistorial();
             console.log("[DB Manager] Query History initialized and pruned.");
         } catch (e) {
             console.warn("[DB Manager] Failed to init history table:", e.message);
+        }
+    }
+
+    /**
+     * Hasta la 5.8, Data Flow fijaba las claves de S3/GCS con query(), que las
+     * registraba: el historial de un proyecto que hubiera leído de la nube
+     * guarda la clave secreta en claro. _logQuery ya no deja entrar ninguna
+     * (LLEVA_SECRETO); esto limpia las que entraron antes.
+     *
+     * Tacha el VALOR —queda `s3_secret_access_key='***'`— y conserva la entrada:
+     * el historial sigue diciendo qué se hizo y cuándo. Es idempotente: sólo
+     * toca valores que no empiezan por `*`, así que lo ya tachado no se reescribe
+     * en cada conexión.
+     */
+    async _tacharSecretosDelHistorial() {
+        // Los patrones llevan comillas simples dentro, y van DENTRO de un literal
+        // SQL: sin duplicarlas, el SQL sale roto (y antes salía).
+        const lit = (s) => s.replace(/'/g, "''");
+        const enSet = lit(`((s3_secret_access_key|s3_access_key_id|s3_session_token|azure_[a-z_]*(key|secret|token|connection_string)[a-z_]*)\\s*=\\s*)'[^'*][^']*'`);
+        const enCreate = lit(`((KEY_ID|SECRET|SESSION_TOKEN|ACCOUNT_KEY|CONNECTION_STRING|CLIENT_SECRET|PASSWORD|TOKEN)\\s+)'[^'*][^']*'`);
+        try {
+            const [{ n }] = await this.systemQuery(
+                `SELECT count(*)::INTEGER AS n FROM amoxsql_ai.query_history
+                 WHERE regexp_matches(query, '${enSet}', 'i') OR regexp_matches(query, '${enCreate}', 'i')`
+            );
+            if (!n) return 0;
+            await this.systemQuery(
+                `UPDATE amoxsql_ai.query_history
+                 SET query = regexp_replace(regexp_replace(query, '${enSet}', '\\1''***''', 'gi'), '${enCreate}', '\\1''***''', 'gi')
+                 WHERE regexp_matches(query, '${enSet}', 'i') OR regexp_matches(query, '${enCreate}', 'i')`
+            );
+            console.log(`[DB Manager] Historial: ${n} entrada(s) con un secreto en claro, tachadas.`);
+            return n;
+        } catch (e) {
+            console.warn('[DB Manager] No se pudo revisar el historial en busca de secretos:', e.message);
+            return 0;
         }
     }
 
