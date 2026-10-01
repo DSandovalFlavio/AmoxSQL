@@ -255,11 +255,12 @@ async function* agenticLoop(options, getModelFn) {
     }
 
     // ── Load shared context once ──
-    const [userRules, memories, activeSkill, projectCtx] = await Promise.all([
+    const [userRules, memories, activeSkill, projectCtx, grupo] = await Promise.all([
         loadUserRules(projectPath),
         loadMemoriesText(dbManager),
         resolveSkill(),
         loadProjectContext(projectPath).catch(() => null),
+        require('../workspaces').grupoDelProyecto(projectPath).catch(() => null),
     ]);
 
     const profile = getModelProfile(model, provider);
@@ -284,6 +285,7 @@ async function* agenticLoop(options, getModelFn) {
         filePath, fileType,
         enablePlanner: mode === 'diving',
         projectCtx,
+        grupo,
         uiTheme,
         thinkTokenPrefix,
     };

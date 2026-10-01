@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   LuDatabase, LuBrain, LuChevronDown, LuX, LuFolder, LuClock,
-  LuSearch, LuSettings, LuKeyboard, LuRefreshCw,
+  LuSearch, LuSettings, LuKeyboard, LuRefreshCw, LuLayers,
 } from 'react-icons/lu';
+import { useEnlace, pedirEnlazar } from './workspaces/WorkspacesHost';
+import { useEtiqueta } from '../etiqueta';
 
 const RECENT_KEY = 'amoxsql-recent-projects';
 
@@ -38,6 +40,10 @@ const WindowTitleBar = ({
   const wsRef = useRef(null);
 
   const projectName = projectPath ? projectPath.split(/[/\\]/).pop() : '';
+  // El workspace de la carpeta abierta (B1) y la palabra del usuario (B8).
+  const enlace = useEnlace();
+  const etiqueta = useEtiqueta();
+  const grupo = enlace?.estado === 'enlazado' ? enlace.workspace : null;
 
   const isAttached = currentDb && typeof currentDb === 'string' && currentDb !== ':memory:';
   const dbName = isAttached ? currentDb.split(/[/\\]/).pop() : 'In-Memory';
@@ -125,6 +131,15 @@ const WindowTitleBar = ({
               aria-haspopup="menu"
               aria-expanded={openMenu === 'workspace'}
             >
+              {grupo && (
+                <>
+                  <span className="wtb-crumb-ws">
+                    <span className="wtb-crumb-ws-dot" style={{ background: grupo.color || 'var(--text-tertiary)' }} />
+                    {grupo.nombre}
+                  </span>
+                  <span className="wtb-crumb-sep">/</span>
+                </>
+              )}
               <span className="wtb-crumb-project">{projectName}</span>
               <span className="wtb-crumb-sep">/</span>
               <span className="wtb-crumb-db">{dbName}</span>
@@ -149,6 +164,12 @@ const WindowTitleBar = ({
                     <span className={`wtb-mode-badge ${modeClass}`}>{modeLabel}</span>
                   </div>
                 </div>
+                <button className="wtb-dropdown-item" role="menuitem" onClick={runAndClose(pedirEnlazar)}>
+                  <LuLayers size={12} className="wtb-dropdown-item-icon" />
+                  {grupo
+                    ? <><span>{etiqueta.S}: {grupo.nombre}</span><span className="wtb-dropdown-item-key">Change</span></>
+                    : <span>Link to a {etiqueta.s}…</span>}
+                </button>
 
                 {recentProjects.length > 0 && (
                   <>

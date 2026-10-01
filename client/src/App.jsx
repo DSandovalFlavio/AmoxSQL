@@ -26,6 +26,7 @@ import LayoutManager from './components/LayoutManager';
 // New Components
 import WelcomeScreen from './components/WelcomeScreen';
 import WorkspaceWizard from './components/WorkspaceWizard';
+import WorkspacesHost from './components/workspaces/WorkspacesHost';
 import AiAssistantPanel from './components/ai/AiAssistantPanel';
 import AiDivingPanel from './components/ai/AiDivingPanel';
 import ConversationList from './components/ai/ConversationList';
@@ -919,6 +920,8 @@ function App() {
         // Lo que el proyecto necesita y aquí falta (el manifiesto): se dice al
         // abrir, no a mitad de una carga. Sin esperar: no retrasa la apertura.
         requisitosQueFaltan().then(f => { if (f) toast.warning(describirFaltantes(f)); });
+        // Su workspace (B1): WorkspacesHost mira el enlace y, si toca, pregunta.
+        window.dispatchEvent(new CustomEvent('amox_proyecto_abierto', { detail: data.path }));
 
         // Save to recent projects
         try {
@@ -953,6 +956,7 @@ function App() {
     // Reset everything to Welcome State
     setAppPhase(PHASE.WELCOME);
     setProjectPath('');
+    window.dispatchEvent(new CustomEvent('amox_proyecto_cerrado'));
   }, []);
 
 
@@ -1337,6 +1341,7 @@ function App() {
         onOpenShortcuts={() => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); }}
           onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
         />
+        <WorkspacesHost />
         <WelcomeScreen 
           initialPath={projectPath}
           onSelectWorkspace={handleWorkspaceSelect} 
@@ -1421,6 +1426,8 @@ function App() {
         recientes={recientes}
       />
 
+
+      <WorkspacesHost />
 
       {/* Workspace Scaffolding Wizard — shown on first open of new projects */}
       {showWorkspaceWizard && (

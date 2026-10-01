@@ -631,6 +631,24 @@ svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
 
 .wtb-crumb-sep { color: var(--text-disabled); }
 
+/* El workspace de la carpeta abierta (B1), delante del proyecto */
+.wtb-crumb-ws {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.wtb-crumb-ws-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
 .wtb-crumb-db {
   color: var(--text-tertiary);
   overflow: hidden;
@@ -18847,3 +18865,287 @@ tr:hover td {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ═══ Workspaces (B1) y la palabra (B8) — 5.9 ═══════════════════════════════
+   Los diálogos reutilizan el asistente (ww-*); aquí sólo lo suyo. */
+.wsx-card { width: 560px; }
+
+.wsx-opciones,
+.wsx-elige {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wsx-opciones { padding: 18px 24px 4px; }
+
+.wsx-opcion,
+.wsx-ws {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-inset);
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms;
+}
+
+.wsx-opcion:hover,
+.wsx-ws:hover {
+  background: var(--surface-overlay);
+  border-color: var(--border-default);
+}
+
+.wsx-opcion--on,
+.wsx-ws--on {
+  background: color-mix(in oklch, var(--accent-primary) 8%, var(--surface-inset));
+  border-color: color-mix(in oklch, var(--accent-primary) 40%, transparent);
+}
+
+.wsx-opcion:focus-visible,
+.wsx-ws:focus-visible,
+.wsx-palabra:focus-visible,
+.wsx-muestra:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.wsx-opcion-icono { flex: none; color: var(--accent-primary); }
+
+.wsx-opcion-texto,
+.wsx-ws-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.wsx-opcion-texto b,
+.wsx-ws-texto b {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.wsx-opcion-texto small,
+.wsx-ws-texto small {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+
+.wsx-radio {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-default);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--surface-base);
+}
+
+.wsx-opcion--on .wsx-radio,
+.wsx-ws--on .wsx-radio {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.wsx-aviso {
+  display: flex;
+  gap: 10px;
+  margin: 14px 24px 4px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  background: color-mix(in oklch, var(--accent-primary) 7%, transparent);
+  border: 1px solid color-mix(in oklch, var(--accent-primary) 22%, transparent);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.wsx-aviso > svg { flex: none; margin-top: 2px; color: var(--accent-primary); }
+.wsx-aviso p { margin: 0; }
+.wsx-aviso b { color: var(--text-primary); }
+.wsx-aviso small { display: block; margin-top: 2px; color: var(--text-tertiary); }
+
+.wsx-actions { margin-top: 14px; }
+.wsx-nota { margin-right: auto; font-size: 12px; color: var(--text-tertiary); }
+
+.wsx-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 24px 4px;
+}
+
+.wsx-ruta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: var(--surface-inset);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.wsx-ruta > svg { flex: none; }
+
+.wsx-elige {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.wsx-avatar {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: oklch(0.2 0.02 260);
+}
+
+.wsx-avatar--apagado {
+  background: var(--surface-overlay);
+  color: var(--text-tertiary);
+}
+
+.wsx-nuevo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.wsx-nuevo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+}
+
+.wsx-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+}
+
+.wsx-input:focus { outline: none; border-color: var(--accent-primary); }
+.wsx-input--corto { flex: 0 1 150px; }
+
+.wsx-muestras { display: flex; gap: 6px; }
+
+.wsx-muestra {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.wsx-muestra--on {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--surface-raised) inset;
+}
+
+.wsx-letra {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+.wsx-letra code { font-family: var(--font-mono); font-size: 11px; }
+
+.wsx-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--feedback-error-text);
+}
+
+.wsx-dejar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: auto;
+}
+
+.wsx-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+/* Settings */
+.wsx-palabras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wsx-palabra {
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 15px;
+  border: 1px solid var(--border-default);
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.wsx-palabra:hover { color: var(--text-primary); border-color: var(--border-strong); }
+
+.wsx-palabra--on {
+  background: color-mix(in oklch, var(--accent-primary) 14%, var(--surface-inset));
+  border-color: color-mix(in oklch, var(--accent-primary) 50%, transparent);
+  color: var(--text-primary);
+}
+
+.wsx-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.wsx-form { flex-wrap: wrap; gap: 10px; }
+
+.wsx-form-campos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.wsx-form-botones { display: flex; gap: 6px; flex: none; }
+
+.wsx-ver-archivados { margin-top: 14px; }

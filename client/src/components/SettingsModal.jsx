@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE as API } from '../api.js';
-import { LuKeyRound, LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuCircleCheck, LuCircle, LuPlug, LuFileSpreadsheet, LuCopy, LuGitBranch } from 'react-icons/lu';
+import { LuKeyRound, LuX, LuPalette, LuMoon, LuSun, LuCpu, LuDownload, LuCheck, LuLoader, LuInfo, LuGithub, LuGlobe, LuHeart, LuRows3, LuColumns3, LuCode, LuCloud, LuKeyboard, LuSettings, LuTrash2, LuBrain, LuWrapText, LuWrench, LuEye, LuSparkles, LuLayoutGrid, LuFolderOpen, LuCircleCheck, LuCircle, LuPlug, LuFileSpreadsheet, LuCopy, LuGitBranch, LuLayers } from 'react-icons/lu';
 import MemoriesPanel from './ai/MemoriesPanel';
 import SkillsPanel from './ai/SkillsPanel';
 import TabWithSubTabs from './settings/TabWithSubTabs';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
 import CredentialsPanel from './CredentialsPanel';
+import WorkspacesPanel from './workspaces/WorkspacesPanel';
+import { useEtiqueta } from '../etiqueta';
 
 /**
  * Desde la 5.9 el servidor nunca manda un secreto: donde hay uno guardado manda
@@ -94,6 +96,7 @@ const TAB_TITLES = {
     behavior:    'Behavior',
     ai:          'AI',
     integrations:'Store Integrations',
+    credentials: 'Credentials',
     workspace:   'Project',
     shortcuts:   'Keyboard Shortcuts',
     about:       'About AmoxSQL',
@@ -626,6 +629,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     const contentRef = useRef(null);
     const toast = useToast();
     const dialog = useDialog();
+    // La sección de workspaces lleva el nombre que eligió el usuario (B8).
+    const etiqueta = useEtiqueta();
 
 
     // AI Settings State
@@ -1003,6 +1008,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Store Integrations' },
                         { id: 'credentials',   icon: <LuKeyRound  size={16} />, label: 'Credentials' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Project' },
+                        { id: 'workspaces',    icon: <LuLayers    size={16} />, label: etiqueta.P },
                         // ── Help & info ──
                         { separator: true, id: '_sep_help' },
                         { id: 'shortcuts',     icon: <LuKeyboard  size={16} />, label: 'Shortcuts' },
@@ -1034,7 +1040,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                 {/* ─── Content ─── */}
                 <div className="stg-content">
                     <div className="stg-content-header">
-                        <h2 className="stg-content-title">{TAB_TITLES[activeTab]}</h2>
+                        <h2 className="stg-content-title">{activeTab === 'workspaces' ? etiqueta.P : TAB_TITLES[activeTab]}</h2>
                         <button onClick={onClose} className="stg-close-btn"><LuX size={18} /></button>
                     </div>
 
@@ -2750,6 +2756,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                         {activeTab === 'workspace' && (
                             <WorkspaceSettingsPanel />
+                        )}
+
+                        {activeTab === 'workspaces' && (
+                            <WorkspacesPanel />
                         )}
 
 

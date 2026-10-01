@@ -41,3 +41,4 @@ Even with a database attached, you can always query loose files from disk direct
 - [First steps](first-steps.md) · [File explorer](../data/file-explorer.md)
 - [Database explorer](../data/database-explorer.md) · [Importing data](../data/importing-data.md)
 - [Architecture](../concepts/architecture.md)
+- [Workspaces: grouping projects](workspaces.md)

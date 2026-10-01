@@ -14,6 +14,7 @@ const baseCentral      = require('./central/BaseCentral');
 const secretos         = require('./secretos');
 const manifiesto       = require('./manifiesto');
 const contextoDeEjecucion = require('./ejecucion/ContextoDeEjecucion');
+const workspaces       = require('./workspaces');
 const lineaDeComandos  = require('./ejecucion/lineaDeComandos');
 // La apertura de la base de AmoxSQL y del llavero (ver startServer).
 let arranque = Promise.resolve();
@@ -133,6 +134,9 @@ app.post('/api/project/open', async (req, res) => {
         ROOT_DIR = newPath;
         process.chdir(ROOT_DIR);
         PROYECTO_ABIERTO = true;
+        // La base de AmoxSQL anota que se abrió (y la ruta, si la carpeta se
+        // movió). Sin esperar: abrir no depende de ella.
+        baseCentral.abrir().then(() => workspaces.registrar(ROOT_DIR, { abrir: true })).catch(() => {});
         // El vigilante mira UNA raiz: al cambiar de proyecto hay que rearmarlo,
         // o seguiria avisando de los archivos del proyecto anterior.
         rearmarVigilante();
@@ -6068,6 +6072,63 @@ app.post('/api/central/recientes', async (req, res) => {
         res.status(503).json({ error: err.message });
     }
 });
+
+// ─── Workspaces (B1) y su palabra (B8) ────────────────────────────────────────
+// Un workspace vive en AmoxSQL; las carpetas se le enlazan (server/workspaces.js).
+
+const conCentral = (fn) => async (req, res) => {
+    try {
+        await baseCentral.abrir();
+        res.json(await fn(req, res));
+    } catch (err) {
+        res.status(/does not exist/.test(err.message) ? 404 : 400).json({ error: err.message });
+    }
+};
+
+app.get('/api/workspaces', conCentral(async (req) => ({
+    workspaces: await workspaces.listar({ archivados: req.query.archivados === '1' }),
+})));
+app.post('/api/workspaces', conCentral(async (req) => workspaces.crear(req.body || {})));
+app.get('/api/workspaces/:id', conCentral(async (req) => {
+    const w = await workspaces.leer(req.params.id);
+    if (!w) throw new Error('It does not exist.');
+    return w;
+}));
+app.put('/api/workspaces/:id', conCentral(async (req) => workspaces.actualizar(req.params.id, req.body || {})));
+app.post('/api/workspaces/:id/archivar', conCentral(async (req) =>
+    workspaces.archivar(req.params.id, req.body?.archivado !== false)));
+app.get('/api/workspaces/:id/proyectos', conCentral(async (req) => ({
+    proyectos: await workspaces.proyectosDe(req.params.id),
+})));
+
+// El enlace de la carpeta abierta: qué es, y cambiarlo.
+app.get('/api/project/workspace', conCentral(async () => {
+    if (!PROYECTO_ABIERTO) return { estado: 'sin_proyecto', preguntar: false };
+    return workspaces.estadoDelEnlace(ROOT_DIR);
+}));
+app.put('/api/project/workspace', conCentral(async (req) => {
+    if (!PROYECTO_ABIERTO) throw new Error('No project is open.');
+    const { workspaceId = null, noPreguntar } = req.body || {};
+    return workspaces.enlazar(ROOT_DIR, workspaceId, { noPreguntar });
+}));
+
+// La palabra: null mientras el usuario no la haya elegido (pantalla 1).
+app.get('/api/preferencias/etiqueta', conCentral(async () => {
+    const elegida = await workspaces.etiquetaElegida();
+    const importados = (await baseCentral.preferencia('recientes_importados'))?.importados || 0;
+    const [{ n }] = await baseCentral.query(`SELECT count(*)::INTEGER AS n FROM proyectos`);
+    return {
+        clave: elegida || workspaces.ETIQUETA_POR_DEFECTO,
+        elegida: !!elegida,
+        opciones: workspaces.ETIQUETAS,
+        // Viene de la 5.8 si trajo proyectos de entonces: la pantalla 1 lo explica.
+        actualizacion: importados > 0 || n > 0,
+    };
+}));
+app.put('/api/preferencias/etiqueta', conCentral(async (req) => ({
+    clave: await workspaces.elegirEtiqueta(req.body?.clave),
+    elegida: true,
+})));
 
 // ─── El llavero (A1) ─────────────────────────────────────────────────────────
 // Nombres, tipos y fechas; nunca valores.

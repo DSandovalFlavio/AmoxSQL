@@ -26,7 +26,8 @@ const CLIENTE = path.join(RAIZ, 'client', 'src');
 // Usos permitidos: el concepto nuevo. Cada entrada, archivo y un texto que el
 // literal tiene que contener. Se añaden aquí al construir B1/B8.
 const PERMITIDOS = [
-    // ['components/AlgoNuevo.jsx', 'Workspaces group them'],
+    // El aviso de la actualización (5.4): habla de la palabra vieja a propósito.
+    ['components/workspaces/EleccionEtiqueta.jsx', 'Your workspaces are now called'],
 ];
 
 function archivos(dir) {

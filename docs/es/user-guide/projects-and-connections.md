@@ -41,3 +41,4 @@ Aun con una base adjunta, siempre puedes consultar archivos sueltos del disco di
 - [Primeros pasos](first-steps.md) · [Explorador de archivos](../data/file-explorer.md)
 - [Explorador de base de datos](../data/database-explorer.md) · [Importar datos](../data/importing-data.md)
 - [Arquitectura](../concepts/architecture.md)
+- [Workspaces: agrupar proyectos](workspaces.md)
