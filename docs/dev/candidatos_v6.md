@@ -96,7 +96,7 @@ las 46 que declaran los candidatos apunta a una familia posterior.
 
 | Versión | Familia |
 |---|---|
-| **5.9.0** | A + B · cimientos y workspaces |
+| **5.9.0** | A + B · cimientos y workspaces — **publicada el 2026-10-01** |
 | 5.10.0 | C · los datos donde están |
 | 5.11.0 | D · procesos que corren solos |
 | 5.12.0 | E · confianza en los números |
@@ -179,6 +179,9 @@ Agrupados en once familias. Las tres primeras son las que sostienen la frase de 
 
 ### A · Cimientos
 
+> **Hecha en la 5.9.0** (fases 0–4 del plan). Lo que cambió al implementar está en la
+> bitácora de `plan_v6_cimientos_y_workspaces.md`.
+
 Lo que todo lo demás necesita. Ninguno se ve mucho; sin ellos, nada de lo vistoso funciona
 sin el usuario delante.
 
@@ -255,6 +258,10 @@ sin el usuario delante.
 ---
 
 ### B · El workspace
+
+> **Hecha en la 5.9.0** (fases 5–8). Un cambio respecto a esta ficha, decidido con el
+> autor: B3 no sustituye la bienvenida, que se queda como estaba y sólo gana un botón a
+> la vista de workspaces.
 
 Un espacio que gobierna AmoxSQL. Los proyectos se le asignan; el workspace no vive dentro
 de ninguna carpeta.

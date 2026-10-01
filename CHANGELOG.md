@@ -5,6 +5,75 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.9.0] — 2026-10-01
+
+**Cimientos y workspaces.** El primer tramo del camino a la 6.0 (plan en
+`docs/dev/plan_v6_cimientos_y_workspaces.md`): lo que hace falta para que un
+proceso corra solo, y una forma de agrupar el trabajo por cliente, equipo, marca
+o producto. Reúne lo que trajeron 5.9.0-alpha.1 a beta.1; el detalle de cada
+paso está en sus entradas, más abajo.
+
+### Las claves, en el llavero del sistema
+
+- Las claves de los proveedores de IA y de la nube se cifran con el llavero del
+  sistema y se guardan en la base propia de AmoxSQL. **Desde esta versión ya no
+  están en `config.json`**: al arrancar, cada copia en claro se borra en cuanto
+  se comprueba que se lee bien del llavero (si alguna no se puede descifrar en
+  esta máquina, se conserva y se avisa). Un aviso lo cuenta una vez.
+- Settings → **Credentials** las lista; ningún valor llega nunca a la interfaz.
+- Un proyecto anota en su `project.json` los *nombres* de las credenciales y las
+  extensiones que usa, y al abrirlo en otra máquina dice qué falta.
+- Arreglada una fuga de la 5.8: las claves de S3/GCS de Data Flow quedaban en
+  claro en el historial de consultas del proyecto. Ya no se registran, y las que
+  había se tachan.
+
+### Procesos que corren solos
+
+- **La línea de comandos:** `AmoxSQL.exe run <proceso.sqlchain> --project <carpeta>
+  [--param nombre=valor]` corre un proceso de Data Flow sin abrir la aplicación —o
+  se lo entrega si está abierta—, devuelve un código de salida y deja un registro.
+  Con `amoxsql.cmd` y el Programador de tareas de Windows, corre a la hora que
+  quieras.
+- **Un flujo de archivo a archivo no toca la base del proyecto:** cada flujo dice
+  dónde viven sus pasos intermedios (*Auto*, *In memory*, *Work database*,
+  *Project database*). El historial de ejecuciones vive en la base de AmoxSQL.
+- *Resume* también después de un fallo.
+
+### Workspaces
+
+- **Un proyecto se llama *project*** en toda la interfaz (hasta la 5.8 era
+  *workspace*).
+- **Un workspace agrupa proyectos** y vive en AmoxSQL. Tú eliges cómo llamarlos:
+  *Clients*, *Teams*, *Brands*, *Products* o *Workspaces*. El enlace viaja en el
+  `project.json` de cada carpeta.
+- **Su contexto** —reglas para el asistente, métricas, glosario, ejemplos,
+  skills— vale para todos sus proyectos.
+- **Su política de IA** —sólo modelos locales, o qué ve un modelo en la nube:
+  sólo el esquema, unas filas de muestra o todo— se aplica en el servidor antes
+  de mandar nada.
+- **Su marca** —color, paleta, logo— la heredan los decks y gráficos nuevos.
+- **La bienvenida no cambia**: gana un botón con tu palabra que lleva a la vista
+  de workspaces —lo que corrió, una tarjeta por workspace, estado y entrega de
+  cada proyecto, los sueltos y los archivados—.
+- **Un workspace se comparte** como archivo `.amoxworkspace`, sin ningún valor de
+  credenciales.
+
+### Arreglado
+
+- El chat agéntico con modelos de Anthropic fallaba siempre desde el paso al
+  SDK 6.
+- Ninguna métrica ni join de `context/` llegaba al asistente.
+- A Settings → Credentials le faltaba el título.
+
+### Para volver a la 5.8
+
+La 5.8 sigue abriendo los proyectos, pero ya no encuentra las claves en
+`config.json`: habría que volver a escribirlas en ella. Lo demás que añade la 5.9
+—la base de AmoxSQL, `project.json`, la clave `config` de un `.sqlchain`— lo
+ignora sin romperse.
+
+---
+
 ## [5.9.0-beta.1] — 2026-10-01
 
 Primera beta de la 5.9.0: con ella está todo lo que trae la versión. Desde aquí,
