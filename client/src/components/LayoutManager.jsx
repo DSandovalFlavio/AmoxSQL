@@ -10,6 +10,7 @@ import { useDialog } from './dialogs/DialogProvider';
 import SqlSourcePicker from './SqlSourcePicker';
 import { saveDraft, getDraft, clearDraft } from '../utils/draftSaver';
 import { DECK_STARTER_TEMPLATE } from '../utils/deckParser';
+import { conMarcaDeck, conMarcaGrafico } from './workspaces/marca';
 import { DIAGRAMA_INICIAL } from './diagram/diagramFile';
 import { fusionar, envoltorio, MOTIVOS } from './diagram/diagramMerge';
 import { bloquesCercados } from './markdown/fencedBlocks';
@@ -1145,12 +1146,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 : normalizedType === 'sqlchain'
                 ? JSON.stringify({ version: '1.0', name: 'New Chain', description: '', nodes: [], edges: [], variables: {} }, null, 2)
                 : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...'
-                : normalizedType === 'amoxdeck' ? DECK_STARTER_TEMPLATE
+                : normalizedType === 'amoxdeck' ? conMarcaDeck(DECK_STARTER_TEMPLATE)
                 : normalizedType === 'amoxdiagram' ? DIAGRAMA_INICIAL
                 // Blank config, no query yet — AmoxvisPane's own empty state
                 // ("No query" + Edit SQL) already guides the user from here;
                 // nothing new needed there.
-                : normalizedType === 'amoxvis' ? JSON.stringify({ chartType: 'bar', query: '' }, null, 2)
+                : normalizedType === 'amoxvis' ? JSON.stringify(conMarcaGrafico({ chartType: 'bar', query: '' }), null, 2)
                 // En blanco a propósito: un borrador de texto no sabe para qué
                 // es, y cualquier plantilla habría que borrarla antes de usarlo.
                 : normalizedType === 'texto' ? ''
@@ -1235,9 +1236,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const openChartFor = useCallback((eleccion) => {
         const targetPane = chartSourceFor?.targetPane;
         setChartSourceFor(null);
-        const config = eleccion
+        // B5: una figura nueva de un proyecto enlazado nace con la paleta de su marca.
+        const config = conMarcaGrafico(eleccion
             ? { chartType: 'bar', query: eleccion.query || '', source: eleccion.path }
-            : { chartType: 'bar', query: '' };
+            : { chartType: 'bar', query: '' });
         spawnTab('amoxvis', JSON.stringify(config, null, 2), targetPane);
     }, [chartSourceFor, spawnTab]);
 

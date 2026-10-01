@@ -3,6 +3,7 @@ import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, Lu
 import { AiModesGuideModal } from './AiModesGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 import ChatMessage from './ChatMessage';
+import PoliticaIAChip from '../workspaces/PoliticaIAChip';
 import DeepDiveTranscript from './DeepDiveTranscript';
 import DeepDiveInspector from './DeepDiveInspector';
 import { groupIntoTurns, buildSessionArtifacts, buildStepGroups } from './deepDiveTurns';
@@ -592,6 +593,7 @@ const AiDivingPanel = ({
                         {provider === 'gemini' && (
                             <span className="ai-badge-cloud">CLOUD</span>
                         )}
+                        <PoliticaIAChip />
                     </div>
                     <div className="ai-diving-header-right">
                         {messages.length > 0 && (

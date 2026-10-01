@@ -206,7 +206,12 @@ function buildFallbackSummary(activePlan) {
  * @param {Function} getModelFn   - AiManager.getModel bound to the instance
  * @returns {AsyncGenerator}      - Yields SSE-event objects
  */
-async function* agenticLoop(options, getModelFn) {
+async function* agenticLoop(opcionesOriginales, getModelFn) {
+    // La política de IA del workspace (B4): lo que el prompt lleva escrito y no
+    // podría filtrarse después se quita aquí; los resultados de herramientas los
+    // filtra el modelo envuelto (ai/politica.js).
+    const politica = require('./politica');
+    const options = politica.sanearOpciones(opcionesOriginales, opcionesOriginales.providerOverride);
     const {
         messages,
         dbManager,
@@ -229,6 +234,7 @@ async function* agenticLoop(options, getModelFn) {
         continueMode = false,
         uiTheme = null,
         memoryExtraction = 'cloud-only',
+        memoriasRetenidas = false,
     } = options;
 
     const provider = providerOverride;
@@ -257,7 +263,7 @@ async function* agenticLoop(options, getModelFn) {
     // ── Load shared context once ──
     const [userRules, memories, activeSkill, projectCtx, grupo] = await Promise.all([
         loadUserRules(projectPath),
-        loadMemoriesText(dbManager),
+        memoriasRetenidas ? Promise.resolve('') : loadMemoriesText(dbManager),
         resolveSkill(),
         loadProjectContext(projectPath).catch(() => null),
         require('../workspaces').grupoDelProyecto(projectPath).catch(() => null),
@@ -444,14 +450,18 @@ async function* agenticLoop(options, getModelFn) {
         try {
             // Build system argument: array of content blocks for Anthropic (enables
             // prompt caching on the stable static section), plain string for others.
+            // AI SDK 6: el system en partes son MENSAJES de sistema, no bloques de
+            // texto. Con {type:'text'} el SDK lo rechaza ("system must be a string,
+            // SystemModelMessage…") y la conversación con Anthropic no llegaba a
+            // salir: lo destapó la prueba de la política de IA (5.9, fase 7).
             const systemArg = useStructuredSystem
                 ? [
                     {
-                        type: 'text',
-                        text: systemParts.static,
+                        role: 'system',
+                        content: systemParts.static,
                         providerOptions: { anthropic: { cacheControl: { type: 'ephemeral' } } },
                     },
-                    { type: 'text', text: systemParts.dynamic },
+                    { role: 'system', content: systemParts.dynamic },
                   ]
                 : systemPrompt;
 
@@ -871,7 +881,7 @@ async function* agenticLoop(options, getModelFn) {
 
     // Background memory extraction (gated by policy — off for local models by
     // default so the extra LLM call doesn't compete for the Ollama slot / cache).
-    if (profile.supportsMemory && memoryExtractionAllowed(provider, memoryExtraction)) {
+    if (profile.supportsMemory && memoryExtractionAllowed(provider, memoryExtraction) && politica.permiteMemorias(provider)) {
         const llm = llmModel;
         extractMemories(llm, messages, dbManager).catch(e =>
             console.error('[AgenticLoop] Memory extraction error:', e)

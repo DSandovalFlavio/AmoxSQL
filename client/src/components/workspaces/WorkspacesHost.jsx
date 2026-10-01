@@ -16,6 +16,7 @@ import EleccionEtiqueta from './EleccionEtiqueta';
 import EnlazarProyecto from './EnlazarProyecto';
 import { cargarEtiqueta } from '../../etiqueta';
 import { enlaceDelProyecto } from './api';
+import { refrescarMarca, olvidarMarca } from './marca';
 
 // ── el enlace de la carpeta abierta ─────────────────────────────────────────
 let enlaceActual = null;
@@ -49,12 +50,13 @@ export default function WorkspacesHost() {
         const mirar = (pregunta) => enlaceDelProyecto()
             .then(est => {
                 publicar(est.estado === 'sin_proyecto' ? null : est);
+                refrescarMarca();
                 if (pregunta === 'siempre' || (pregunta === 'si-toca' && est.preguntar)) setDialogo(est);
             })
             .catch(() => publicar(null));
 
         const alAbrir = () => mirar('si-toca');
-        const alCerrar = () => { publicar(null); setDialogo(null); };
+        const alCerrar = () => { publicar(null); setDialogo(null); olvidarMarca(); };
         const alPedir = () => mirar('siempre');
         window.addEventListener('amox_proyecto_abierto', alAbrir);
         window.addEventListener('amox_proyecto_cerrado', alCerrar);
@@ -74,7 +76,7 @@ export default function WorkspacesHost() {
                 enlace={dialogo}
                 onClose={(resultado) => {
                     setDialogo(null);
-                    if (resultado) publicar(resultado);
+                    if (resultado) { publicar(resultado); refrescarMarca(); }
                 }}
             />
         );

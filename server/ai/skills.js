@@ -126,29 +126,36 @@ async function loadSkills(projectPath) {
     const builtins = await loadBuiltinSkills();
 
     let projectSkills = [];
+    let workspaceSkills = [];
     if (projectPath) {
-        const skillsDir = path.join(projectPath, 'agent', 'skills');
-        try {
-            if (fs.existsSync(skillsDir)) {
-                const dirStat = await fs.promises.stat(skillsDir);
-                const cached = cache.get(projectPath);
-                if (cached && cached.mtime >= dirStat.mtimeMs) {
-                    projectSkills = cached.skills;
-                } else {
-                    projectSkills = await readSkillsDir(skillsDir, false);
-                    cache.set(projectPath, { skills: projectSkills, mtime: dirStat.mtimeMs });
-                }
-            }
-        } catch (err) {
-            console.warn('[AI Skills] Error loading project skills:', err.message);
-        }
+        projectSkills = await skillsDeCarpeta(path.join(projectPath, 'agent', 'skills'));
+        // B2 (5.9): los del workspace de la carpeta, entre los de serie y los del proyecto.
+        const ws = require('./capaWorkspace').workspaceDelProyecto(projectPath);
+        if (ws) workspaceSkills = (await skillsDeCarpeta(path.join(ws.dir, 'skills'))).map(s => ({ ...s, workspace: ws.nombre }));
     }
 
-    // Merge: built-ins first, project skills override by id.
+    // Merge: built-ins first, then the workspace's, then the project's — by id.
     const byId = new Map();
     for (const s of builtins) byId.set(s.id, s);
+    for (const s of workspaceSkills) byId.set(s.id, s);
     for (const s of projectSkills) byId.set(s.id, s);
     return Array.from(byId.values());
+}
+
+/** Los skills de una carpeta, con caché por fecha de modificación. */
+async function skillsDeCarpeta(skillsDir) {
+    try {
+        if (!fs.existsSync(skillsDir)) return [];
+        const dirStat = await fs.promises.stat(skillsDir);
+        const cached = cache.get(skillsDir);
+        if (cached && cached.mtime >= dirStat.mtimeMs) return cached.skills;
+        const skills = await readSkillsDir(skillsDir, false);
+        cache.set(skillsDir, { skills, mtime: dirStat.mtimeMs });
+        return skills;
+    } catch (err) {
+        console.warn('[AI Skills] Error loading skills:', err.message);
+        return [];
+    }
 }
 
 /**
@@ -210,7 +217,11 @@ function matchSkillByIntent(userMessage, skills) {
  * Invalidate the cache for a project (call when skill files change).
  */
 function invalidateCache(projectPath) {
-    cache.delete(projectPath);
+    // La caché va por carpeta de skills (la del proyecto y la de su workspace).
+    if (!projectPath) { cache.clear(); return; }
+    cache.delete(path.join(projectPath, 'agent', 'skills'));
+    const ws = require('./capaWorkspace').workspaceDelProyecto(projectPath);
+    if (ws) cache.delete(path.join(ws.dir, 'skills'));
 }
 
 module.exports = { loadSkills, loadBuiltinSkills, getSkill, matchSkillByIntent, invalidateCache };

@@ -77,16 +77,24 @@ const COVER_META = [
 export function SlideCoverMeta({ frontMatter, layout }) {
     if (layout !== 'cover' || !frontMatter) return null;
     const campos = COVER_META.filter(([k]) => frontMatter[k]);
-    if (!campos.length) return null;
+    // El logo de la marca (5.9, B5): sólo una imagen embebida, nunca una URL
+    // que haría a la portada pedir algo fuera de la máquina.
+    const logo = typeof frontMatter.logo === 'string' && /^data:image\//.test(frontMatter.logo) ? frontMatter.logo : null;
+    if (!campos.length && !logo) return null;
     return (
-        <div className="deck-portada-meta">
-            {campos.map(([k, etiqueta]) => (
-                <div key={k}>
-                    <u>{etiqueta}</u>
-                    <b>{String(frontMatter[k])}</b>
+        <>
+            {logo && <img className="deck-portada-logo" src={logo} alt="" />}
+            {campos.length > 0 && (
+                <div className="deck-portada-meta">
+                    {campos.map(([k, etiqueta]) => (
+                        <div key={k}>
+                            <u>{etiqueta}</u>
+                            <b>{String(frontMatter[k])}</b>
+                        </div>
+                    ))}
                 </div>
-            ))}
-        </div>
+            )}
+        </>
     );
 }
 

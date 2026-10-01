@@ -21,6 +21,7 @@ const baseCentral = require('./central/BaseCentral');
 const { normalizarRuta, marcaDeTiempo } = require('./central/BaseCentral');
 const scaffolder = require('./projectScaffolder');
 const { homeAmox } = require('./rutas');
+const politica = require('./ai/politica');
 
 // ── La palabra (B8) ─────────────────────────────────────────────────────────
 const ETIQUETAS = ['clients', 'teams', 'brands', 'products', 'workspaces'];
@@ -61,6 +62,20 @@ function crearCarpeta(id) {
 
 const limpiar = (v, max = 120) => String(v ?? '').trim().slice(0, max);
 
+/**
+ * La marca (B5): paleta (hasta 8 colores) y logo (una imagen pequeña en data
+ * URL, ya reducida en el cliente). El color principal es la columna `color`.
+ * Los decks y figuras NUEVOS de un proyecto enlazado la toman como valores
+ * iniciales; lo que ya existe no cambia.
+ */
+const LOGO = /^data:image\/(png|jpeg|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
+function normalizarMarca(m) {
+    const x = (m && typeof m === 'object') ? m : {};
+    const paleta = (Array.isArray(x.paleta) ? x.paleta : []).filter(c => COLOR.test(String(c))).slice(0, 8);
+    const logo = typeof x.logo === 'string' && x.logo.length <= 300 * 1024 && LOGO.test(x.logo) ? x.logo : null;
+    return { paleta, logo };
+}
+
 function fila(w) {
     if (!w) return null;
     return {
@@ -68,6 +83,8 @@ function fila(w) {
         nombre: w.nombre,
         etiqueta: w.etiqueta || null,
         color: w.color || null,
+        politicaIa: (() => { try { return politica.normalizar(JSON.parse(w.politica_ia || 'null')); } catch { return politica.normalizar(null); } })(),
+        marca: (() => { try { return normalizarMarca(JSON.parse(w.marca || 'null')); } catch { return normalizarMarca(null); } })(),
         creado: w.creado,
         archivado: w.archivado || null,
         proyectos: w.proyectos != null ? Number(w.proyectos) : undefined,
@@ -96,31 +113,33 @@ async function leer(id) {
  * `id` sólo se da al crear el workspace que trae una carpeta de otra máquina:
  * así el enlace que ya está en su project.json sigue valiendo.
  */
-async function crear({ id = null, nombre, etiqueta: tag = null, color = null }) {
+async function crear({ id = null, nombre, etiqueta: tag = null, color = null, politicaIa = null, marca = null }) {
     const n = limpiar(nombre);
     if (!n) throw new Error('A name is required.');
     const nuevoId = id ? limpiar(id, 64) : crypto.randomUUID();
     if (!/^[\w-]{4,64}$/.test(nuevoId)) throw new Error('Invalid id.');
     if (await leer(nuevoId)) throw new Error('That one already exists.');
     await baseCentral.query(
-        `INSERT INTO workspaces (id, nombre, etiqueta, color) VALUES ($1, $2, $3, $4)`,
-        [nuevoId, n, limpiar(tag, 60) || null, COLOR.test(color || '') ? color : null]
+        `INSERT INTO workspaces (id, nombre, etiqueta, color, politica_ia, marca) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [nuevoId, n, limpiar(tag, 60) || null, COLOR.test(color || '') ? color : null, JSON.stringify(politica.normalizar(politicaIa)), JSON.stringify(normalizarMarca(marca))]
     );
     crearCarpeta(nuevoId);
     return leer(nuevoId);
 }
 
-async function actualizar(id, { nombre, etiqueta: tag, color }) {
+async function actualizar(id, { nombre, etiqueta: tag, color, politicaIa, marca }) {
     const actual = await leer(id);
     if (!actual) throw new Error('It does not exist.');
     const n = nombre !== undefined ? limpiar(nombre) : actual.nombre;
     if (!n) throw new Error('A name is required.');
     await baseCentral.query(
-        `UPDATE workspaces SET nombre = $2, etiqueta = $3, color = $4 WHERE id = $1`,
+        `UPDATE workspaces SET nombre = $2, etiqueta = $3, color = $4, politica_ia = $5, marca = $6 WHERE id = $1`,
         [id,
             n,
             tag !== undefined ? (limpiar(tag, 60) || null) : actual.etiqueta,
-            color !== undefined ? (COLOR.test(color || '') ? color : null) : actual.color]
+            color !== undefined ? (COLOR.test(color || '') ? color : null) : actual.color,
+            JSON.stringify(politicaIa !== undefined ? politica.normalizar(politicaIa) : actual.politicaIa),
+            JSON.stringify(marca !== undefined ? normalizarMarca(marca) : actual.marca)]
     );
     return leer(id);
 }
@@ -245,7 +264,115 @@ async function grupoDelProyecto(raiz) {
     return { palabra: singular(clave), plural: clave, nombre };
 }
 
+// ── El contexto del workspace (B2, 7.2) ─────────────────────────────────────
+// Archivos de texto que escribe una persona (Dec-5). Sólo estos nombres: la
+// ruta llega del cliente y no puede salirse de la carpeta del workspace.
+const PERMITIDOS = [
+    /^RULES\.md$/,
+    /^contexto\/(metrics\.yml|joins\.yml|glossary\.md)$/,
+    /^contexto\/examples\/[\w.-]+\.sql$/,
+    /^skills\/[\w-]+\/SKILL\.md$/,
+];
+const CANONICOS = ['RULES.md', 'contexto/metrics.yml', 'contexto/joins.yml', 'contexto/glossary.md'];
+
+function rutaSegura(id, ruta) {
+    const r = String(ruta || '').replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!PERMITIDOS.some(re => re.test(r))) throw new Error(`Not a context file: ${r}`);
+    const raiz = carpetaDe(id);
+    const abs = path.resolve(raiz, r);
+    if (!abs.startsWith(path.resolve(raiz) + path.sep)) throw new Error('Path is outside the workspace.');
+    return { r, abs };
+}
+
+async function archivosDeContexto(id) {
+    if (!(await leer(id))) throw new Error('It does not exist.');
+    const raiz = crearCarpeta(id);
+    const vistos = new Map();
+    const anotar = (r) => {
+        const abs = path.join(raiz, r);
+        const st = fs.existsSync(abs) ? fs.statSync(abs) : null;
+        vistos.set(r, { ruta: r, existe: !!st, tamano: st ? st.size : 0 });
+    };
+    CANONICOS.forEach(anotar);
+    const ej = path.join(raiz, 'contexto', 'examples');
+    if (fs.existsSync(ej)) for (const f of fs.readdirSync(ej)) if (/\.sql$/i.test(f)) anotar(`contexto/examples/${f}`);
+    const sk = path.join(raiz, 'skills');
+    if (fs.existsSync(sk)) {
+        for (const d of fs.readdirSync(sk, { withFileTypes: true })) {
+            if (d.isDirectory() && fs.existsSync(path.join(sk, d.name, 'SKILL.md'))) anotar(`skills/${d.name}/SKILL.md`);
+        }
+    }
+    return [...vistos.values()];
+}
+
+async function leerArchivo(id, ruta) {
+    if (!(await leer(id))) throw new Error('It does not exist.');
+    const { r, abs } = rutaSegura(id, ruta);
+    return { ruta: r, texto: fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : '' };
+}
+
+async function escribirArchivo(id, ruta, texto) {
+    if (!(await leer(id))) throw new Error('It does not exist.');
+    const { r, abs } = rutaSegura(id, ruta);
+    const t = String(texto ?? '');
+    if (t.length > 512 * 1024) throw new Error('The file is too large (512 KB at most).');
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, t, 'utf8');
+    return { ruta: r, tamano: Buffer.byteLength(t) };
+}
+
+/** Las métricas de un proyecto, para ofrecer subirlas a su workspace. */
+function metricasDelProyecto(raiz) {
+    const { parseMetrics } = require('./ai/contextLoader');
+    const archivo = path.join(raiz, 'context', 'metrics.yml');
+    if (!fs.existsSync(archivo)) return [];
+    return parseMetrics(fs.readFileSync(archivo, 'utf8'));
+}
+
+/**
+ * «Subir al workspace» (7.2): copia una métrica de un proyecto al metrics.yml
+ * del workspace, para que valga en todos sus proyectos. Es una copia: la del
+ * proyecto sigue ahí y, mientras exista, manda en ese proyecto.
+ */
+async function subirMetrica(id, raiz, nombre) {
+    const { parseMetrics } = require('./ai/contextLoader');
+    const m = metricasDelProyecto(raiz).find(x => x.name === nombre);
+    if (!m) throw new Error(`The project has no metric named "${nombre}".`);
+    const { abs } = rutaSegura(id, 'contexto/metrics.yml');
+    const actual = fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : '';
+    if (parseMetrics(actual).some(x => x.name === nombre)) throw new Error(`"${nombre}" is already shared.`);
+    const bloque = [
+        `  - name: ${m.name}`,
+        `    sql: "${m.sql}"`,
+        m.description ? `    description: ${m.description}` : null,
+        m.grain ? `    grain: ${m.grain}` : null,
+        m.table ? `    table: ${m.table}` : null,
+    ].filter(Boolean).join('\n');
+    const base = actual.trim() ? actual.replace(/\s*$/, '\n\n') : 'metrics:\n';
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, base + bloque + '\n', 'utf8');
+    return { nombre, compartida: true };
+}
+
+/** Pone al día la política de IA activa: la del workspace de la carpeta abierta. */
+async function refrescarPolitica(raiz) {
+    const p = raiz ? await politica.deProyecto(raiz) : { ...politica.POR_DEFECTO, workspace: null };
+    return politica.fijar(p, p.workspace);
+}
+
+/** La marca del workspace de la carpeta abierta, o null (B5). */
+async function marcaDelProyecto(raiz) {
+    const pj = scaffolder.getProjectConfig(raiz) || {};
+    if (!pj.workspace || !pj.workspace.id) return null;
+    const w = await leer(pj.workspace.id);
+    if (!w) return null;
+    return { workspace: w.nombre, color: w.color, paleta: w.marca.paleta, logo: w.marca.logo };
+}
+
 module.exports = {
+    marcaDelProyecto, normalizarMarca,
+    archivosDeContexto, leerArchivo, escribirArchivo, metricasDelProyecto, subirMetrica,
+    refrescarPolitica,
     grupoDelProyecto,
     ETIQUETAS, ETIQUETA_POR_DEFECTO, singular,
     etiqueta, etiquetaElegida, elegirEtiqueta,
