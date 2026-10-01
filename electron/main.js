@@ -51,11 +51,22 @@ if ((process.env.AMOXSQL_HOME || '').trim()) {
 const ordenes = require('../server/ejecucion/ordenes');
 const ordenInicial = ordenes.leerArgumentos(process.argv, { desde: app.isPackaged ? 1 : 2 });
 
-// El texto para la consola: a stdout, y al archivo que pasa amoxsql.cmd (un
-// ejecutable gráfico no escribe en la consola que lo lanzó).
+// El texto para la consola. Con --informe (lo pasa amoxsql.cmd) va SÓLO a ese
+// archivo, que el .cmd enseña al terminar: si fuera también a stdout, la
+// consola del .cmd lo vería dos veces. Sin él, a stdout/stderr, que es lo que
+// lee un script que lance el ejecutable y redirija su salida.
 function informar(orden, texto, alError = false) {
+    if (orden?.informe) {
+        try { fs.writeFileSync(orden.informe, texto); return; } catch { /* sin archivo: a la consola */ }
+    }
     try { (alError ? process.stderr : process.stdout).write(texto); } catch { /* sin consola */ }
-    if (orden?.informe) { try { fs.writeFileSync(orden.informe, texto); } catch { /* sin archivo */ } }
+}
+
+// Una orden se lee en la consola: lo que el proceso principal cuenta de sí
+// mismo («Starting Local Server…») no es para quien la lanzó.
+if (ordenInicial) {
+    console.log = () => {};
+    console.warn = () => {};
 }
 
 let headless = false;          // corre una orden sin ventana
