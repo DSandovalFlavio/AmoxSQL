@@ -84,16 +84,25 @@ try {
     comprobar('copia lo que la 5.8 tenía en claro, y sólo eso',
         JSON.stringify(nombres) === JSON.stringify(['ia-anthropic', 'ia-gemini', 'nube-s3']), nombres.join(', '));
     comprobar('la lista no trae valores', !sinSecretos(JSON.stringify(lista)).length);
-    // AiManager.ensureConfig rellena los valores por defecto que falten, así que
-    // el archivo puede cambiar. Lo que tiene que seguir igual para la 5.8 son
-    // las claves en claro.
-    const tras = JSON.parse(fs.readFileSync(RUTA_CONFIG, 'utf8'));
-    comprobar('las claves en claro de config.json siguen intactas: la 5.8 sigue funcionando',
-        tras.geminiApiKey === SECRETOS.gemini && tras.anthropicApiKey === SECRETOS.anthropic
-        && tras.s3Config?.accessKeyId === SECRETOS.s3Id && tras.s3Config?.secretKey === SECRETOS.s3Clave,
-        JSON.stringify({ g: tras.geminiApiKey === SECRETOS.gemini, a: tras.anthropicApiKey === SECRETOS.anthropic, s3: !!tras.s3Config }));
     const migr = await baseCentral.preferencia('migracion_credenciales');
     comprobar('la migración queda anotada', migr?.estado === 'copiadas' && migr.nombres.length === 3, JSON.stringify(migr));
+
+    console.log('\nla purga del texto plano (5.9.0)');
+    // AiManager.ensureConfig rellena los valores por defecto que falten, así que
+    // el archivo cambia; lo que importa son las claves.
+    const tras = JSON.parse(fs.readFileSync(RUTA_CONFIG, 'utf8'));
+    comprobar('las claves en claro ya no están en config.json', !sinSecretos(JSON.stringify(tras)).length, sinSecretos(JSON.stringify(tras)).join(', '));
+    comprobar('lo que no es secreto sigue igual', tras.provider === 'gemini' && tras.s3Config?.region === 'us-east-1' && tras.s3Config?.defaultBucket === 'mi-bucket', JSON.stringify(tras.s3Config));
+    // Se leen de la base sin «usarlas» (eso anotaría último uso, que se mira más abajo).
+    comprobar('y las claves siguen en el llavero, intactas',
+        (await secretos._leerDeLaBase('ia-gemini')) === SECRETOS.gemini
+        && JSON.parse(await secretos._leerDeLaBase('nube-s3')).secretKey === SECRETOS.s3Clave);
+    const purga = (await get('/api/secretos/purga')).purga;
+    comprobar('queda anotado qué se borró, para avisar una vez',
+        purga && purga.avisada === false && purga.borradas.sort().join() === 'anthropicApiKey,geminiApiKey,s3Config.accessKeyId,s3Config.secretKey', JSON.stringify(purga));
+    await post('/api/secretos/purga/vista', {});
+    comprobar('y el aviso se marca como visto', (await get('/api/secretos/purga')).purga.avisada === true);
+    comprobar('el anotado tampoco lleva valores', !sinSecretos(JSON.stringify(purga)).length);
 
     console.log('\nla base no guarda ningún valor en claro');
     const filas = await baseCentral.query(`SELECT * FROM credenciales`);
@@ -132,8 +141,32 @@ try {
     comprobar('la respuesta al guardar tampoco lleva secretos', !sinSecretos(cuerpo).length, sinSecretos(cuerpo).join(', '));
     const enDisco = fs.readFileSync(RUTA_CONFIG, 'utf8');
     comprobar('la clave nueva NO se escribe en config.json', !enDisco.includes(SECRETOS.nueva));
-    comprobar('la vieja sigue allí, congelada para la 5.8', enDisco.includes(SECRETOS.gemini) && enDisco.includes(SECRETOS.anthropic));
-    comprobar('y la borrada no resucita desde el texto plano', secretos.claveDeIA('anthropic', JSON.parse(enDisco)) === null);
+    comprobar('ni vuelve ninguna de las viejas', !enDisco.includes(SECRETOS.gemini) && !enDisco.includes(SECRETOS.anthropic));
+    comprobar('y la borrada no resucita', secretos.claveDeIA('anthropic', JSON.parse(enDisco)) === null);
+
+    console.log('\nuna clave escrita en la 5.8 después de migrar (volver a ella en las betas)');
+    const tardia = 'mm-TARDIA-PRUEBA-5c2e';
+    const conTardia = JSON.parse(fs.readFileSync(RUTA_CONFIG, 'utf8'));
+    conTardia.minimaxApiKey = tardia;
+    fs.writeFileSync(RUTA_CONFIG, JSON.stringify(conTardia, null, 2));
+    const p2 = await secretos.purgarTextoPlano(RUTA_CONFIG);
+    comprobar('no se pierde: se migra al llavero antes de borrarla',
+        p2.borradas.join() === 'minimaxApiKey' && secretos.claveDeIA('minimax', aiManager.getConfig()) === tardia, JSON.stringify(p2));
+    comprobar('y deja de estar en claro', !fs.readFileSync(RUTA_CONFIG, 'utf8').includes(tardia));
+
+    console.log('\nuna que no se puede descifrar en esta máquina');
+    // Una credencial que cifró otra máquina: el llavero de aquí no la abre.
+    await baseCentral.query(`INSERT OR REPLACE INTO credenciales (nombre, tipo, cifrado) VALUES ('nube-gcs', 'gcs', 'bm8tZXMtZGUtYXF1aQ==')`);
+    const gcsClave = 'gcs-UNICA-COPIA-PRUEBA-7f';
+    const conGcs = JSON.parse(fs.readFileSync(RUTA_CONFIG, 'utf8'));
+    conGcs.gcsConfig = { ...(conGcs.gcsConfig || {}), secretKey: gcsClave };
+    fs.writeFileSync(RUTA_CONFIG, JSON.stringify(conGcs, null, 2));
+    const re = await secretos.iniciar(aiManager.getConfig());
+    comprobar('su copia en claro se CONSERVA: es la única que sirve',
+        re.purga.conservadas.join() === 'gcsConfig.secretKey' && fs.readFileSync(RUTA_CONFIG, 'utf8').includes(gcsClave), JSON.stringify(re.purga));
+    comprobar('y se avisa de ello', (await get('/api/secretos/purga')).purga.conservadas.join() === 'gcsConfig.secretKey');
+    await baseCentral.query(`DELETE FROM credenciales WHERE nombre = 'nube-gcs'`);
+    await secretos.iniciar(aiManager.getConfig());
     r = await post('/api/settings/config', { s3Config: { accessKeyId: secretos.SENTINELA, secretKey: secretos.SENTINELA, region: 'eu-west-1', defaultBucket: 'otro' } });
     const s3 = secretos.credencialNube('s3', aiManager.getConfig());
     comprobar('en la nube se cambia lo público y se conservan los secretos',

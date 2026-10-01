@@ -37,6 +37,31 @@ export function describirFaltantes(faltan) {
     return `This project needs ${partes.join(' and ')}, which ${cred.length + ext.length > 1 ? 'are' : 'is'} missing on this machine.`;
 }
 
+/**
+ * La purga del texto plano (5.9.0): la primera vez que se quitan las claves de
+ * config.json, se dice una vez. Si alguna no se pudo quitar —no se puede
+ * descifrar en esta máquina—, también, para que el usuario la vuelva a escribir.
+ * Devuelve { tipo, texto } o null.
+ */
+export async function avisoDePurgaUnaVez() {
+    try {
+        const r = await fetch(`${API_BASE}/api/secretos/purga`);
+        if (!r.ok) return null;
+        const { purga } = await r.json();
+        if (!purga || purga.avisada) return null;
+        await fetch(`${API_BASE}/api/secretos/purga/vista`, { method: 'POST' });
+        const n = (purga.borradas || []).length;
+        const c = (purga.conservadas || []).length;
+        if (c) {
+            return { tipo: 'warning', texto: `${c} key${c > 1 ? 's' : ''} in config.json can't be read from this machine's keychain and ${c > 1 ? 'were' : 'was'} kept in plain text. Enter ${c > 1 ? 'them' : 'it'} again in Settings to protect ${c > 1 ? 'them' : 'it'}.` };
+        }
+        if (n) {
+            return { tipo: 'success', texto: `Your API and cloud keys now live only in the system keychain: ${n === 1 ? 'the plain-text copy was' : `${n} plain-text copies were`} removed from config.json.` };
+        }
+        return null;
+    } catch { return null; }
+}
+
 export async function importarRecientesUnaVez() {
     let rutas = [];
     try { rutas = JSON.parse(localStorage.getItem(RECIENTES) || '[]'); } catch { /* sin localStorage: nada que importar */ }
