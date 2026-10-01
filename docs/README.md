@@ -19,6 +19,7 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 | First steps | [es](es/user-guide/first-steps.md) | [en](en/user-guide/first-steps.md) | 🟢 |
 | The interface | [es](es/user-guide/interface.md) | [en](en/user-guide/interface.md) | 🟢 |
 | Projects & connections | [es](es/user-guide/projects-and-connections.md) | [en](en/user-guide/projects-and-connections.md) | 🟢 |
+| Workspaces | [es](es/user-guide/workspaces.md) | [en](en/user-guide/workspaces.md) | 🟢 |
 | Themes & appearance | [es](es/user-guide/themes-and-appearance.md) | [en](en/user-guide/themes-and-appearance.md) | 🟢 |
 
 ## Editor

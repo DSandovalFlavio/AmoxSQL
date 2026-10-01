@@ -84,6 +84,7 @@ function buildDynamicSection(options) {
         modelProfile = null,
         uiTheme = null,
         tableRoster = null,
+        grupo = null,
     } = options;
     const tier = modelProfile?.tier || 'high';
 
@@ -127,6 +128,10 @@ When you design a chart's palette, make it read on a ${mode_.toLowerCase()} back
     // Extensions
     d += buildReferencesSection(referencedArtifacts);
     d += buildProjectContextSection(projectCtx);
+    // B1/B8: el grupo del proyecto, con la palabra que eligió el usuario.
+    if (grupo && grupo.nombre) {
+        d += `\n\n## Project grouping\nThis project belongs to the ${grupo.palabra} "${grupo.nombre}". The user calls these groupings "${grupo.plural}" — use that word when you refer to them.`;
+    }
     d += buildSkillSection(activeSkill);
     d += buildUserRulesSection(userRules);
     d += buildMemoriesSection(memories);
