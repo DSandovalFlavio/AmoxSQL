@@ -5,6 +5,47 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.9.0-alpha.3] — 2026-10-01
+
+Tercera prueba de la 5.9.0: lo que un workspace aporta a sus proyectos.
+Prerelease: se instala aparte y no es la versión recomendada.
+
+### El contexto de un workspace vale para todos sus proyectos
+
+- Reglas para el asistente, métricas, joins, glosario, ejemplos y skills se
+  escriben una vez en el workspace —Settings, botón de contexto— y valen para
+  todos sus proyectos, aunque no haya ninguno abierto. Cada proyecto puede
+  sobrescribir una métrica o un skill usando el mismo nombre; reglas y
+  glosario se suman, cada uno bajo su título.
+- **Share** sube una métrica del proyecto abierto a su workspace.
+
+### La política de IA del workspace
+
+- Un workspace puede decir **sólo modelos locales**, o qué ve un modelo en la
+  nube: **sólo el esquema** (nombres, tipos y recuentos; ningún valor de una
+  fila), **unas filas de muestra** o **todo**. AmoxSQL la aplica en el
+  servidor, antes de mandar nada: también a los resultados de las
+  herramientas y a lo que haya en la conversación. Con un modelo local no se
+  limita nada.
+- El asistente, Deep Dive y la barra de título enseñan la política que rige.
+- El paso de IA de Data Flow no manda filas a la nube si la política no lo
+  permite.
+
+### La marca del workspace
+
+- Color, paleta y logo. Un deck nuevo de un proyecto enlazado nace con el
+  acento más cercano y el logo en la portada; un gráfico nuevo, con la paleta
+  de la marca. Lo que ya existe no cambia.
+
+### Arreglado
+
+- **El chat agéntico con modelos de Anthropic fallaba siempre** desde el paso
+  al SDK 6: el prompt de sistema iba en un formato que el SDK rechaza.
+- **Ninguna métrica ni join de `context/` llegaba al asistente**, ni siquiera
+  los de la plantilla: el lector no reconocía el valor de `sql:` ni de `on:`.
+
+---
+
 ## [5.9.0-alpha.2] — 2026-10-01
 
 Segunda prueba de la 5.9.0. Empieza la **familia B**: agrupar proyectos.
