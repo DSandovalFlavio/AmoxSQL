@@ -5,6 +5,63 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.9.0-alpha.1] — 2026-10-01
+
+Primera prueba de la 5.9.0, que trae los cimientos de la 6.0 (plan en
+`docs/dev/plan_v6_cimientos_y_workspaces.md`). Esta alfa cierra la **familia A**:
+lo que hace falta para que un proceso corra solo. Es una prerelease: se instala
+aparte de la carpeta principal y no es la versión recomendada.
+
+### La base de AmoxSQL
+
+- AmoxSQL tiene ahora su propia base, en `~/.amoxsql/amoxsql.duckdb`, para lo que
+  es de todos los proyectos: proyectos, credenciales, ejecuciones. La crea sola
+  la primera vez, con migraciones versionadas; si la abre una versión más vieja
+  que la que la creó, se niega y no toca nada. Los proyectos recientes se copian
+  a ella una vez.
+
+### El llavero
+
+- **Las claves ya no se guardan en claro.** Las de los proveedores de IA y las de
+  la nube se cifran con el llavero del sistema y se guardan cifradas en la base
+  de AmoxSQL. Settings ya no recibe ninguna clave: donde hay una guardada lo
+  dice, y si escribes otra la reemplaza. En esta alfa `config.json` conserva su
+  copia en claro, para poder volver a la 5.8; se borrará en la 5.9.0, tras
+  comprobar que cada una se lee del llavero.
+- **Settings → Credentials**: qué credenciales hay, cuándo se usaron por última
+  vez, y borrarlas.
+- **Un proyecto dice lo que necesita.** `project.json` anota los *nombres* de las
+  credenciales y las extensiones que usa —nunca un valor—, y al abrirlo en otra
+  máquina un aviso dice qué falta.
+- **Arreglado una fuga de la 5.8**: Data Flow fijaba las claves de S3/GCS con una
+  sentencia que quedaba en el historial de consultas del proyecto, en claro. Ya
+  no se registra ninguna sentencia que lleve un secreto, y las que ya estaban en
+  el historial se tachan al abrir el proyecto.
+- Exportar a GCS dejaba S3 apuntando a Google para el resto de la sesión. Ahora
+  cada nube usa su propio secreto con nombre, temporal.
+
+### Procesos aislados
+
+- **Un flujo de archivo a archivo ya no escribe en la base del proyecto.** Cada
+  flujo de Data Flow dice dónde viven sus pasos intermedios —la etiqueta nueva de
+  la barra inferior—: *Auto* (la de los flujos nuevos), *In memory*, *Work
+  database* (un archivo propio en `.amoxsql/trabajo/`) o *Project database*
+  (como hasta ahora, y donde se quedan los flujos guardados antes de la 5.9).
+- El historial de Data Flow pasa a la base de AmoxSQL. El que la 5.8 dejó en el
+  proyecto se sigue viendo, marcado *before 5.9*.
+- **Resume** también después de un fallo, no sólo en un checkpoint.
+
+### La línea de comandos
+
+- **`AmoxSQL.exe run <proceso.sqlchain> --project <carpeta> [--param nombre=valor]`**
+  corre un proceso sin abrir la aplicación —o se lo entrega si ya está abierta—,
+  devuelve un código de salida y deja un registro por ejecución en
+  `~/.amoxsql/registros/`. Con `amoxsql.cmd`, que se instala en la carpeta
+  `resources`, la consola espera y muestra el resultado. La documentación explica
+  cómo programarlo con el Programador de tareas de Windows.
+
+---
+
 ## [5.8.1] — 2026-09-30
 
 ### Arreglado
