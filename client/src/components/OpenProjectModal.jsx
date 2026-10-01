@@ -23,7 +23,7 @@ const OpenProjectModal = ({ isOpen, onClose, onOpen }) => {
             }}>
                 <h3 style={{ marginTop: 0, color: 'var(--text-active)', fontSize: '16px' }}>Open Folder</h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '15px' }}>
-                    Enter the absolute path of the folder you want to open as a workspace.
+                    Enter the absolute path of the folder you want to open as a project.
                 </p>
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     <div>

@@ -135,12 +135,12 @@ const ChartGallery = memo(({ onOpenChart, onClose }) => {
             });
             const data = await res.json();
             if (data.success) {
-                toast.success(`Saved to workspace: ${chartId}.amoxvis`);
+                toast.success(`Saved to project: ${chartId}.amoxvis`);
             } else {
                 toast.error(data.error || 'Failed to save');
             }
         } catch (err) {
-            toast.error('Failed to save to workspace');
+            toast.error('Failed to save to project');
         }
     }, []);
 
@@ -264,7 +264,7 @@ const ChartGallery = memo(({ onOpenChart, onClose }) => {
                                         <button
                                             className="chart-gallery-card__action"
                                             onClick={(e) => handleSaveToWorkspace(e, chart.id)}
-                                            title="Save to workspace"
+                                            title="Save to project"
                                         >
                                             <LuExternalLink size={16} />
                                         </button>

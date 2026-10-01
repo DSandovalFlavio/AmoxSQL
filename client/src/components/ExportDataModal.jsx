@@ -193,7 +193,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                             </div>
                         </div>
                         <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
-                            File will be saved in your workspace directory.
+                            File will be saved in your project folder.
                         </div>
                     </div>
                 ) : (

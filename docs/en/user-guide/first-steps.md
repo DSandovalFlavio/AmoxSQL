@@ -8,7 +8,7 @@
 
 ## 1. Open a project
 
-On launch, AmoxSQL shows the **welcome screen**. Enter the **absolute path** of your project folder (where your `.sql` files, data, etc. live). AmoxSQL is project-centric: that folder is your workspace.
+On launch, AmoxSQL shows the **welcome screen**. Enter the **absolute path** of your project folder (where your `.sql` files, data, etc. live). AmoxSQL is project-centric: that folder is your project.
 
 If you've opened projects before, they appear as **recents** to jump back with one click.
 

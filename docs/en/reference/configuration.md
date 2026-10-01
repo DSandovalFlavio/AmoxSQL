@@ -2,7 +2,7 @@
 
 **🌐 English · [Español](../../es/reference/configuration.md)**
 
-> AmoxSQL's Settings modal: appearance, editor, behavior, AI, store integrations, workspace, shortcuts, tours, and About — all in one place.
+> AmoxSQL's Settings modal: appearance, editor, behavior, AI, store integrations, project, shortcuts, tours, and About — all in one place.
 
 <img src="../../../images/09_settings_modal.png" alt="AmoxSQL Settings modal" width="100%" />
 
@@ -10,7 +10,7 @@
 
 Settings is AmoxSQL's central configuration panel. Open it with **Ctrl+,** (or the gear in the bar); it groups every preference into tabs on the left. A search box at the top filters the tabs by name.
 
-The tabs fall into two blocks: **Configure** (Appearance, Editor, Behavior, AI, Store Integrations, Workspace) and **Help & info** (Shortcuts, Story Flow, Data Flow, About). Most changes apply live.
+The tabs fall into two blocks: **Configure** (Appearance, Editor, Behavior, AI, Store Integrations, Project) and **Help & info** (Shortcuts, Story Flow, Data Flow, About). Most changes apply live.
 
 Configuration persists to `~/.amoxsql/config.json`; UI preferences are also stored in `localStorage` (see [Where configuration is stored](#where-configuration-is-stored)).
 
@@ -82,13 +82,13 @@ Connect cloud storage for importing and exporting data. See [Google Sheets](../d
 | GCS | Read/write data on Google Cloud Storage |
 | Google Sheets | Import/export Google Sheets spreadsheets |
 
-## Workspace
+## Project
 
-A wizard for setting up the active project/workspace (paths, database, context). See [Projects & connections](../user-guide/projects-and-connections.md).
+A wizard for setting up the active project (paths, database, context). See [Projects & connections](../user-guide/projects-and-connections.md).
 
 | Option | What it controls |
 |---|---|
-| Workspace wizard | Step-by-step guide to configure the active project |
+| Project setup (*Open Project Setup*) | Step-by-step guide to configure the active project |
 
 ## Shortcuts
 

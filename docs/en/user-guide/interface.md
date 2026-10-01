@@ -9,9 +9,9 @@
 ## Main areas
 
 ### Title bar (top)
-Shows the **active workspace** (name · connection mode MEM/RO/RW · database) and window controls. The workspace widget expands to show recent projects and the option to close the workspace.
+Shows the **active project** (name · connection mode MEM/RO/RW · database) and window controls. The project widget expands to show recent projects and the option to close it.
 
-<!-- 📷 CAPTURE: docs/images/user-guide/title-bar-workspace.png — title bar with the workspace widget expanded -->
+<!-- 📷 CAPTURE: docs/images/user-guide/title-bar-workspace.png — title bar with the project widget expanded -->
 
 ### Activity bar (far left)
 Icons that swap the side panel's content:

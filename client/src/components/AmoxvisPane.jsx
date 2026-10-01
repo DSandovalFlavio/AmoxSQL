@@ -205,13 +205,13 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange, onC
                                         body: JSON.stringify({ chartId }),
                                     });
                                     const result = await res.json();
-                                    if (result.success) toast.success(`Saved to workspace: ${chartId}.amoxvis`);
+                                    if (result.success) toast.success(`Saved to project: ${chartId}.amoxvis`);
                                     else toast.error(result.error || 'Failed to save');
                                 } catch (err) {
-                                    toast.error('Failed to save to workspace');
+                                    toast.error('Failed to save to project');
                                 }
                             }}
-                            title="Copy this chart to your current workspace"
+                            title="Copy this chart to your current project"
                             style={{
                                 display: 'flex', alignItems: 'center', gap: '5px',
                                 padding: '4px 10px', borderRadius: '4px', border: 'none',
@@ -220,7 +220,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange, onC
                                 fontSize: '12px', fontWeight: 600, cursor: 'pointer',
                             }}
                         >
-                            <LuSave size={12} /> Save to Workspace
+                            <LuSave size={12} /> Save to Project
                         </button>
                     )}
 

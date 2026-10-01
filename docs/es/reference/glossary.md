@@ -31,7 +31,7 @@ AmoxSQL tiene vocabulario propio: los nombres de sus estudios (Story Flow, Repor
 | **Metadata para IA** | Exportación del esquema/perfil de tu base como contexto para pegar en otra herramienta de IA. Ver [Metadata para IA](../ai/metadata-for-ai.md). |
 | **Modo prompt-only** | Ruta de respaldo cuando el modelo activo no soporta tool-calling: mapea tablas virtuales y extrae bloques SQL. Ver [Modo prompt-only](../ai/prompt-only-mode.md). |
 | **Notebook** | Análisis narrado por celdas (SQL, Markdown, input); archivo `.sqlnb`. Ver [Notebooks](../notebooks/notebooks.md). |
-| **Proyecto** | Una carpeta con tus archivos SQL, notebooks, contexto y config; la unidad de trabajo. Ver [Proyectos y conexiones](../user-guide/projects-and-connections.md). |
+| **Proyecto** | Una carpeta con tus archivos SQL, notebooks, contexto y config; la unidad de trabajo. Ver [Proyectos y conexiones](../user-guide/projects-and-connections.md). En la interfaz, *Project*; hasta la 5.8 la llamaba *workspace*. |
 | **Read-only / read-write** | Modo de conexión a un archivo de base de datos: solo lectura (protegido) o lectura-escritura. Ver [Proyectos y conexiones](../user-guide/projects-and-connections.md). |
 | **Report Flow** | El estudio de presentaciones: decks `.amoxdeck` con gráficos refrescables, exportables a Office. Ver [Report Flow](../reports/report-flow.md). |
 | **`RULES.md`** | Archivo de reglas de comportamiento que la IA lee y sigue en cada conversación. Ver [Contexto como código](../ai/context-as-code.md). |
@@ -39,7 +39,7 @@ AmoxSQL tiene vocabulario propio: los nombres de sus estudios (Story Flow, Repor
 | **Skill** | Procedimiento reutilizable (`agent/skills/<id>/SKILL.md`) que la IA activa para seguir un método. Ver [Skills](../ai/skills.md). |
 | **Story Flow** | El estudio de visualización: gráficos en un flujo de seis etapas con capa de storytelling. Ver [Story Flow](../visualization/story-flow.md). |
 | **Tier (nivel de modelo)** | Clasificación de capacidad de un modelo de IA (low/medium/high) que habilita ciertos modos. Ver [Proveedores y modelos](../ai/providers-and-models.md). |
-| **Workspace** | El espacio de trabajo activo (proyecto, base de datos, contexto), configurable con su asistente. Ver [Configuración](configuration.md). |
+| **Workspace** | Desde la 5.9, lo que agrupa varios proyectos —de un cliente, un equipo, una marca—, con su propio contexto. |
 
 ## Relacionado
 

@@ -1430,7 +1430,7 @@ function App() {
             setShowWorkspaceWizard(false);
             if (created && created.length > 0) {
               setFileRefreshTrigger(prev => prev + 1);
-              toast.success(`Workspace created with ${created.length} folder${created.length !== 1 ? 's' : ''}`);
+              toast.success(`Project set up with ${created.length} folder${created.length !== 1 ? 's' : ''}`);
             }
           }}
           onSkip={() => setShowWorkspaceWizard(false)}

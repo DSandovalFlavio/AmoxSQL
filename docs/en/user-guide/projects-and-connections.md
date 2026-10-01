@@ -9,8 +9,8 @@
 A **project** is simply a folder on your disk. Everything you create — `.sql` queries, notebooks, `.amoxvis` charts, decks, chains, AI context — lives inside that folder. When you open a project, the [file explorer](../data/file-explorer.md) shows its contents.
 
 - **Open:** on the welcome screen, enter the absolute path; or use a **recent**.
-- **Switch projects:** from the workspace widget in the title bar.
-- **Close workspace:** returns to the welcome screen.
+- **Switch projects:** from the project widget in the title bar.
+- **Close Project:** returns to the welcome screen.
 
 AmoxSQL recognizes canonical folders by name (queries, notebooks, charts, chains, data, exports, context, agent) and gives them special icons, but it doesn't force you to use them.
 

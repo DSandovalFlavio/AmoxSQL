@@ -9,8 +9,8 @@
 Un **proyecto** es simplemente una carpeta en tu disco. Todo lo que creas —queries `.sql`, notebooks, gráficos `.amoxvis`, decks, chains, contexto de IA— vive dentro de esa carpeta. Al abrir un proyecto, el [explorador de archivos](../data/file-explorer.md) muestra su contenido.
 
 - **Abrir:** en la pantalla de bienvenida, ingresa la ruta absoluta; o usa un **reciente**.
-- **Cambiar de proyecto:** desde el widget de workspace en la barra de título.
-- **Cerrar workspace:** vuelve a la pantalla de bienvenida.
+- **Cambiar de proyecto:** desde el widget del proyecto en la barra de título.
+- **Cerrar proyecto** (*Close Project*): vuelve a la pantalla de bienvenida.
 
 AmoxSQL reconoce carpetas canónicas por su nombre (queries, notebooks, charts, chains, data, exports, context, agent) y les pone iconos especiales, pero no te obliga a usarlas.
 

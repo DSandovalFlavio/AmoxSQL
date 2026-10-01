@@ -2,7 +2,7 @@
 
 **🌐 [English](../../en/reference/configuration.md) · Español**
 
-> El modal de Ajustes de AmoxSQL: apariencia, editor, comportamiento, IA, integraciones de almacenamiento, workspace, atajos, tours y "Acerca de" — todo en un solo lugar.
+> El modal de Ajustes de AmoxSQL: apariencia, editor, comportamiento, IA, integraciones de almacenamiento, proyecto, atajos, tours y "Acerca de" — todo en un solo lugar.
 
 <img src="../../../images/09_settings_modal.png" alt="Modal de Ajustes de AmoxSQL" width="100%" />
 
@@ -10,7 +10,7 @@
 
 Ajustes es el panel central de configuración de AmoxSQL. Se abre con **Ctrl+,** (o el engrane en la barra) y agrupa todas las preferencias en pestañas a la izquierda. Un buscador en la parte superior filtra las pestañas por nombre.
 
-Las pestañas se dividen en dos bloques: **Configurar** (Apariencia, Editor, Comportamiento, IA, Integraciones de almacenamiento, Workspace) y **Ayuda e info** (Atajos, Story Flow, Data Flow, Acerca de). La mayoría de los cambios se aplican en vivo.
+Las pestañas se dividen en dos bloques: **Configurar** (Apariencia, Editor, Comportamiento, IA, Integraciones de almacenamiento, Project) y **Ayuda e info** (Atajos, Story Flow, Data Flow, Acerca de). La mayoría de los cambios se aplican en vivo.
 
 La configuración persiste en `~/.amoxsql/config.json`; las preferencias de UI se guardan además en `localStorage` (ver [Dónde se guarda](#dónde-se-guarda-la-configuración)).
 
@@ -82,13 +82,13 @@ Conecta almacenamiento en la nube para importar y exportar datos. Ver [Google Sh
 | GCS | Leer/escribir datos en Google Cloud Storage |
 | Google Sheets | Importar/exportar hojas de cálculo de Google Sheets |
 
-## Workspace
+## Project
 
-Un asistente para configurar el proyecto/espacio de trabajo activo (rutas, base de datos, contexto). Ver [Proyectos y conexiones](../user-guide/projects-and-connections.md).
+Un asistente para configurar el proyecto activo (rutas, base de datos, contexto). Ver [Proyectos y conexiones](../user-guide/projects-and-connections.md).
 
 | Opción | Qué controla |
 |---|---|
-| Asistente de workspace | Guía paso a paso para configurar el proyecto activo |
+| Asistente del proyecto (*Open Project Setup*) | Guía paso a paso para configurar el proyecto activo |
 
 ## Atajos
 

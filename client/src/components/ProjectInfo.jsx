@@ -35,7 +35,7 @@ const ProjectInfo = ({ projectPath, currentDb, onCloseProject, readOnly }) => {
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
                 }}>
-                    Project Workspace
+                    Project
                 </span>
                 <span style={{
                     fontWeight: '700',
