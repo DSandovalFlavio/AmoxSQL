@@ -33,9 +33,21 @@ Además de ejecutar, puedes **exportar** el chain a YAML, **compilarlo** a un sc
 - La **barra de progreso** inferior y la barra de estado muestran cuántos nodos van (p. ej. "3 / 7 nodos, 43%").
 - El panel **Logs** transmite los eventos de ejecución en vivo (vía SSE); ábrelo con el botón **Logs**. Puedes limpiarlo cuando quieras.
 
+### Dónde viven los pasos intermedios
+Cada paso deja su resultado en alguna base para que el siguiente lo lea. La etiqueta de la barra inferior dice cuál; púlsala para cambiarla:
+
+| Opción | Qué hace |
+|---|---|
+| **Auto** | La de los flujos nuevos. Si ningún paso lee tablas del proyecto, usa una **base de trabajo**; si alguno lo hace —SQL libre, una referencia a tabla, crear una tabla con nombre, un gráfico o un informe—, usa la **base del proyecto**. Pasa el ratón por la etiqueta para ver qué paso decide |
+| **In memory** | Una base en memoria que desaparece al terminar. No queda nada en disco salvo lo que el flujo exporta |
+| **Work database** | Un archivo propio del flujo en `.amoxsql/trabajo/` dentro del proyecto. Se conserva para ver cada paso y reanudar, y se reescribe en la siguiente ejecución. Esa carpeta lleva su propio `.gitignore` |
+| **Project database** | La base del proyecto, como antes de la 5.9: los pasos dejan allí sus tablas |
+
+Un flujo de archivo a archivo —leer un CSV o un Excel, transformarlo y exportar un Parquet— corre en Auto **sin escribir una sola línea en la base del proyecto**. Los flujos guardados antes de la 5.9 no traen esta opción y siguen en la base del proyecto hasta que elijas otra.
+
 ### Historial y reanudar
-- **History** abre el panel de ejecuciones anteriores de este chain.
-- Desde una ejecución que **falló** o quedó **pausada en un checkpoint**, puedes **reanudar**: el chain continúa desde el nodo que falló o desde el checkpoint, reutilizando los resultados intermedios que ya estaban materializados — no re-ejecuta todo.
+- **History** abre el panel de ejecuciones anteriores de este chain. Desde la 5.9 el historial vive en la base propia de AmoxSQL, no en la del proyecto; las ejecuciones que la 5.8 anotó en el proyecto se siguen viendo, marcadas **before 5.9**, y no se pueden borrar.
+- Desde una ejecución que **falló** o quedó **pausada en un checkpoint**, puedes **reanudar**: el chain continúa desde el nodo que falló o desde el checkpoint, reutilizando los resultados intermedios que ya estaban materializados — no re-ejecuta todo. Con una base de trabajo funciona incluso después de cerrar y volver a abrir AmoxSQL.
 
 ### Exportar, compilar y crear SQL
 | Acción | Qué produce |

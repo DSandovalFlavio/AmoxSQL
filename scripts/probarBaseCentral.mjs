@@ -59,9 +59,11 @@ try {
     let e = db.estado();
     comprobar('queda abierta y bien', e.ok && e.abierta && db.estaAbierta(), JSON.stringify(e));
     comprobar('en el home apartado', e.ruta === RUTA && fs.existsSync(RUTA), e.ruta);
-    comprobar('con el esquema v1', e.version === 1 && e.versionMaxima === 1, `v${e.version}`);
+    comprobar('con el esquema v2', e.version === 2 && e.versionMaxima === 2, `v${e.version}`);
     const tablas = (await db.query(`SELECT table_name FROM duckdb_tables() WHERE schema_name = 'main' ORDER BY 1`)).map(t => t.table_name);
     comprobar('con sus seis tablas', ['credenciales', 'ejecuciones', 'meta', 'preferencias', 'proyectos', 'workspaces'].every(t => tablas.includes(t)), tablas.join(', '));
+    const deFlujo = (await db.query(`SELECT table_name FROM duckdb_tables() WHERE schema_name = 'amoxsql_chains' ORDER BY 1`)).map(t => t.table_name);
+    comprobar('y el historial de Data Flow (migración 2)', deFlujo.join() === 'node_runs,runs', deFlujo.join(', '));
     const [{ valor: creada }] = await db.query(`SELECT valor FROM meta WHERE clave = 'creada'`);
 
     console.log('\nlos valores viajan como parámetros');
@@ -105,7 +107,7 @@ try {
     db = new BaseCentral();
     await db.abrir();
     const [{ valor: creada2 }] = await db.query(`SELECT valor FROM meta WHERE clave = 'creada'`);
-    comprobar('no repite migraciones', db.estado().version === 1 && creada2 === creada);
+    comprobar('no repite migraciones', db.estado().version === 2 && creada2 === creada);
     comprobar('los datos siguen ahí', (await db.preferencia('prueba'))?.texto === malicioso);
     const [ej] = await db.query(`SELECT estado, fin FROM ejecuciones WHERE id = 'x1'`);
     comprobar('lo que quedó «en curso» pasa a interrumpida, con su fin', ej.estado === 'interrumpida' && ej.fin, JSON.stringify(ej));
@@ -125,6 +127,22 @@ try {
     comprobar('y su estado lo explica', rh.estado && rh.estado.ok === false && /otro proceso/.test(rh.estado.error || ''));
     await db.cerrar();
 
+    console.log('\nuna base que se quedó en la v1 (la que ya tiene el autor)');
+    {
+        const inst = await DuckDBInstance.create(RUTA);
+        const con = await inst.connect();
+        await con.run(`DROP SCHEMA amoxsql_chains CASCADE`);
+        await con.run(`UPDATE meta SET valor = '1' WHERE clave = 'version_esquema'`);
+        await con.run(`INSERT INTO ejecuciones (id, proceso, origen, inicio, estado) VALUES ('de-la-v1', 'x.sqlchain', 'interfaz', current_timestamp, 'ok')`);
+        con.closeSync(); inst.closeSync();
+    }
+    db = new BaseCentral();
+    await db.abrir();
+    comprobar('sube a la v2 al abrirla', db.estado().version === 2, `v${db.estado().version}`);
+    comprobar('con las tablas nuevas', (await db.query(`SELECT count(*)::INTEGER AS n FROM duckdb_tables() WHERE schema_name = 'amoxsql_chains'`))[0].n === 2);
+    comprobar('y sin perder lo que tenía', (await db.query(`SELECT count(*)::INTEGER AS n FROM ejecuciones WHERE id = 'de-la-v1'`))[0].n === 1);
+    await db.cerrar();
+
     console.log('\nuna base de una versión posterior');
     {
         const inst = await DuckDBInstance.create(RUTA);
@@ -137,7 +155,7 @@ try {
     let error = null;
     try { await db.abrir(); } catch (x) { error = x.message; }
     comprobar('se niega a abrirla', !!error && !db.estaAbierta());
-    comprobar('y explica por qué', /v99/.test(error || '') && /v1\b/.test(error || '') && /No se ha tocado nada/.test(error || ''), error);
+    comprobar('y explica por qué', /v99/.test(error || '') && /v2\b/.test(error || '') && /No se ha tocado nada/.test(error || ''), error);
     comprobar('su estado no está ok', db.estado().ok === false);
     const despues = await mirar(`SELECT (SELECT count(*) FROM duckdb_tables())::INTEGER AS tablas, (SELECT count(*) FROM proyectos)::INTEGER AS proyectos`);
     const [{ valor: v }] = await mirar(`SELECT valor FROM meta WHERE clave = 'version_esquema'`);

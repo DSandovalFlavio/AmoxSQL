@@ -207,6 +207,12 @@ class BaseCentral {
             await this._ejecutar(
                 `UPDATE ejecuciones SET estado = 'interrumpida', fin = coalesce(fin, current_timestamp) WHERE estado = 'en_curso'`
             );
+            // Su detalle de Data Flow, igual: el panel de historial no sabe de
+            // «interrumpida», así que cuenta como cancelada.
+            await this._ejecutar(
+                `UPDATE amoxsql_chains.runs SET status = 'cancelled', finished_at = coalesce(finished_at, current_timestamp)
+                 WHERE status = 'running' AND id IN (SELECT id FROM ejecuciones WHERE estado = 'interrumpida')`
+            );
         }
         return n;
     }

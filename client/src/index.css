@@ -15280,6 +15280,17 @@ tr:hover td {
   font-family: 'JetBrains Mono', monospace;
 }
 
+.chain-history-run-legacy {
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
 .chain-history-run-delete {
   background: transparent;
   border: none;
@@ -18407,6 +18418,86 @@ tr:hover td {
   left: 50%;
   transform: translateX(-50%);
   width: 168px;
+}
+
+/* ── Dónde viven los pasos intermedios (5.9) ── */
+.chain-bb-base {
+  gap: 5px;
+  /* Cede su ancho antes que los botones: en una barra estrecha se queda en
+     el icono y lo que quepa; el texto entero está en el title y en el menú. */
+  flex: 0 1 auto;
+  min-width: 30px;
+  max-width: 170px;
+  overflow: hidden;
+  color: var(--text-tertiary);
+}
+
+.chain-bb-base > svg { flex: none; }
+
+.chain-bb-base > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chain-bb-base-auto {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+}
+
+.chain-bb-menu-base {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 300px;
+}
+
+.chain-bb-menu-title {
+  padding: 6px 8px 4px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.chain-bb-menu-base button {
+  align-items: flex-start;
+}
+
+.chain-bb-base-check {
+  flex: none;
+  width: 12px;
+  padding-top: 1px;
+  color: var(--accent-primary);
+}
+
+.chain-bb-base-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chain-bb-base-text small {
+  font-size: 10px;
+  line-height: 1.35;
+  color: var(--text-tertiary);
+}
+
+.chain-bb-menu-note {
+  margin: 4px 4px 2px;
+  padding: 6px 6px 2px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
 }
 
 /* ── Datos: tarjeta flotante con UNA linea de cabecera ── */

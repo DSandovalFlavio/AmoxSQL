@@ -131,6 +131,9 @@ export function createEmptyChain(name = 'New Chain') {
         version: '1.0',
         name,
         description: '',
+        // Dónde viven los pasos intermedios (5.9). Las cadenas nuevas eligen
+        // solas; las que no traen la clave se quedan en la base del proyecto.
+        config: { base: 'auto' },
         nodes: [],
         edges: [],
         variables: {},

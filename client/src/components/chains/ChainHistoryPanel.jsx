@@ -120,13 +120,20 @@ const ChainHistoryPanel = ({ chainFile, isOpen, onClose, onResumeRun }) => {
                                     {formatDuration(run.started_at, run.finished_at)}
                                 </span>
                             )}
-                            <button
-                                className="chain-history-run-delete"
-                                onClick={(e) => { e.stopPropagation(); deleteRun(run.id); }}
-                                title="Delete run"
-                            >
-                                <LuTrash2 size={11} />
-                            </button>
+                            {run.anterior ? (
+                                // Lo anotó la 5.8 en la base del proyecto: se lee, no se borra.
+                                <span className="chain-history-run-legacy" title="Recorded before 5.9 in the project database — read-only">
+                                    before 5.9
+                                </span>
+                            ) : (
+                                <button
+                                    className="chain-history-run-delete"
+                                    onClick={(e) => { e.stopPropagation(); deleteRun(run.id); }}
+                                    title="Delete run"
+                                >
+                                    <LuTrash2 size={11} />
+                                </button>
+                            )}
                         </div>
 
                         {expandedRun === run.id && nodeRuns[run.id] && (
@@ -154,7 +161,7 @@ const ChainHistoryPanel = ({ chainFile, isOpen, onClose, onResumeRun }) => {
                             </div>
                         )}
 
-                        {run.status === 'paused' && (
+                        {(run.status === 'paused' || (run.status === 'failed' && run.failed_node_id)) && (
                             <button
                                 className="chain-history-resume"
                                 onClick={() => onResumeRun && onResumeRun(run)}
