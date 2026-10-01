@@ -35,13 +35,108 @@ protocol.registerSchemesAsPrivileged([{
     privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
 }]);
 
-// ─── Single instance lock ─────────────────────────────────────────────────────
-// Prevents opening the same .duckdb file from two instances simultaneously,
-// which would cause race conditions and potential data corruption.
-const gotTheLock = app.requestSingleInstanceLock();
-if (!gotTheLock) {
-    // Another instance is already running — hand focus to it and exit.
-    app.quit();
+// ─── Un home aparte es otro AmoxSQL ───────────────────────────────────────────
+// La instancia única se decide por la carpeta de datos de Electron. Con un
+// AMOXSQL_HOME propio (pruebas, una alfa en desarrollo) esa carpeta va dentro
+// de él: si no, la prueba entregaría sus órdenes a la aplicación del autor.
+if ((process.env.AMOXSQL_HOME || '').trim()) {
+    app.setPath('userData', path.join(path.resolve(process.env.AMOXSQL_HOME.trim()), 'electron'));
+}
+
+// ─── La línea de comandos (A3) ────────────────────────────────────────────────
+//     AmoxSQL.exe run <proceso.sqlchain> --project <ruta> [--param nombre=valor]…
+// Se lee ANTES del bloqueo de instancia única, porque viaja dentro de él: si
+// AmoxSQL ya está abierto, la orden se le entrega y este arranque sólo espera
+// el resultado; si no, este arranque la corre sin ventana (Dec-1).
+const ordenes = require('../server/ejecucion/ordenes');
+const ordenInicial = ordenes.leerArgumentos(process.argv, { desde: app.isPackaged ? 1 : 2 });
+
+// El texto para la consola: a stdout, y al archivo que pasa amoxsql.cmd (un
+// ejecutable gráfico no escribe en la consola que lo lanzó).
+function informar(orden, texto, alError = false) {
+    try { (alError ? process.stderr : process.stdout).write(texto); } catch { /* sin consola */ }
+    if (orden?.informe) { try { fs.writeFileSync(orden.informe, texto); } catch { /* sin archivo */ } }
+}
+
+let headless = false;          // corre una orden sin ventana
+let quedarse = false;          // ...pero el usuario abrió AmoxSQL entre medias
+const pendientes = new Map();  // id → orden entregada al servidor y sin terminar
+const enEspera = [];           // órdenes que llegaron antes de que hubiera servidor
+let gotTheLock = false;
+
+if (ordenInicial?.error) {
+    informar(ordenInicial, ordenInicial.error + '\n', true);
+    app.exit(ordenes.CODIGO.argumentos);
+} else if (ordenInicial && ordenes.comprobarQueExiste(ordenInicial)) {
+    informar(ordenInicial, ordenes.comprobarQueExiste(ordenInicial) + '\n', true);
+    app.exit(ordenes.CODIGO.noExiste);
+} else {
+    if (ordenInicial) ordenInicial.id = ordenes.nuevoId();
+    // Prevents opening the same .duckdb file from two instances simultaneously,
+    // which would cause race conditions and potential data corruption.
+    gotTheLock = app.requestSingleInstanceLock(ordenInicial ? { amoxsql: 'run', orden: ordenInicial } : {});
+    if (!gotTheLock) {
+        if (ordenInicial) esperarALaAbierta(ordenInicial);
+        else app.quit();       // Another instance is already running — hand focus to it and exit.
+    } else if (ordenInicial) {
+        headless = true;
+        enEspera.push(ordenInicial);
+    }
+}
+
+/**
+ * AmoxSQL ya estaba abierto y se le entregó la orden. Al recibirla escribe un
+ * acuse en el archivo del resultado; si en 30 s no hay ni eso, no contestó (4).
+ * Con el acuse, se espera lo que haga falta: un proceso puede tardar.
+ */
+function esperarALaAbierta(orden) {
+    const ruta = ordenes.rutaDelResultado(orden.id);
+    const inicio = Date.now();
+    const mirar = () => {
+        const r = ordenes.leerJson(ruta);
+        if (r && typeof r.codigo === 'number') {
+            try { fs.unlinkSync(ruta); } catch { /* ya no está */ }
+            informar(orden, ordenes.textoDelResultado(r), r.codigo !== 0);
+            app.exit(r.codigo);
+            return;
+        }
+        if (!r && Date.now() - inicio > 30000) {
+            informar(orden, 'AmoxSQL is open but did not answer in 30 s. Try again, or close it and run the command again.\n', true);
+            app.exit(ordenes.CODIGO.sinRespuesta);
+            return;
+        }
+        setTimeout(mirar, 250);
+    };
+    mirar();
+}
+
+/** Entrega una orden al servidor, o la guarda hasta que lo haya. */
+function entregar(orden) {
+    pendientes.set(orden.id, orden);
+    if (serverReady && serverProcess) serverProcess.postMessage({ type: 'ejecutar', orden });
+    else if (!enEspera.includes(orden)) enEspera.push(orden);
+}
+
+/** Termina una orden: el sin-ventana sale con su código cuando no queda nada. */
+async function ordenTerminada(id, codigo) {
+    const orden = pendientes.get(id);
+    pendientes.delete(id);
+    if (orden && orden === ordenInicial) {
+        const ruta = ordenes.rutaDelResultado(id);
+        const r = ordenes.leerJson(ruta) || { codigo, proceso: orden.proceso, mensaje: 'The process ended without a result.' };
+        try { fs.unlinkSync(ruta); } catch { /* ya no está */ }
+        informar(orden, ordenes.textoDelResultado(r), r.codigo !== 0);
+        codigoDeSalida = r.codigo;
+    }
+    if (headless && !quedarse && pendientes.size === 0) await salir(codigoDeSalida);
+}
+
+let codigoDeSalida = 0;
+async function salir(codigo) {
+    quitting = true;
+    await shutdownServer();
+    if (serverProcess) { serverProcess.kill(); serverProcess = null; }
+    app.exit(codigo);
 }
 
 // IPC Handler: Open native folder picker dialog
@@ -500,6 +595,11 @@ const initApp = () => {
         if (!startupReported) {
             startupReported = true;
             console.error('[Main] Server startup timed out after 30 s');
+            if (headless && !quedarse) {
+                informar(ordenInicial, 'AmoxSQL could not start its server in 30 s.\n', true);
+                app.exit(ordenes.CODIGO.fallo);
+                return;
+            }
             dialog.showErrorBox(
                 'AmoxSQL — Error de inicio',
                 'El servidor interno no respondió en 30 segundos.\n\n' +
@@ -521,12 +621,24 @@ const initApp = () => {
             startupReported = true;
             clearTimeout(startupTimeout);
             actualServerPort = msg.port || SERVER_PORT;
-            console.log(`Server ready on port ${actualServerPort}. Creating window...`);
-            createWindow();
+            if (!headless || quedarse) {
+                console.log(`Server ready on port ${actualServerPort}. Creating window...`);
+                createWindow();
+            }
+            // Las órdenes que esperaban al servidor (la de este arranque, u otras
+            // que llegaron mientras arrancaba).
+            for (const orden of enEspera.splice(0)) entregar(orden);
+        } else if (msg.type === 'ejecutado') {
+            ordenTerminada(msg.id, msg.codigo);
         } else if (msg.type === 'error') {
             startupReported = true;   // evita el doble dialogo, sin fingir que hay servidor
             clearTimeout(startupTimeout);
             console.error("Server failed to start:", msg.message);
+            if (headless && !quedarse) {
+                informar(ordenInicial, `AmoxSQL could not start its server: ${msg.message}\n`, true);
+                app.exit(ordenes.CODIGO.fallo);
+                return;
+            }
             dialog.showErrorBox(
                 'AmoxSQL — Error de inicio',
                 `El servidor interno no pudo iniciarse:\n\n${msg.message}\n\nLa aplicación se cerrará.`
@@ -542,6 +654,11 @@ const initApp = () => {
         serverProcess = null;
         if (code === 0 || quitting) return;
         console.error(`Server process exited unexpectedly (code ${code})`);
+        if (headless && !quedarse) {
+            informar(ordenInicial, `AmoxSQL's server stopped unexpectedly (code ${code}).\n`, true);
+            app.exit(ordenes.CODIGO.fallo);
+            return;
+        }
         dialog.showErrorBox(
             'AmoxSQL — El servidor interno se detuvo',
             `El servidor interno se detuvo de forma inesperada (codigo ${code}).
@@ -557,7 +674,20 @@ const initApp = () => {
 
 // ─── Second-instance handler ──────────────────────────────────────────────────
 // If the user tries to open a second instance, focus the existing main window.
-app.on('second-instance', () => {
+app.on('second-instance', (_event, _argv, _cwd, datos) => {
+    // Una orden de la línea de comandos: acuse de recibo y al servidor.
+    if (datos?.amoxsql === 'run' && datos.orden?.id) {
+        try { ordenes.escribirJson(ordenes.rutaDelResultado(datos.orden.id), { id: datos.orden.id, estado: 'recibida' }); } catch { /* el que espera dará 4 */ }
+        entregar({ ...datos.orden, entregada: true });
+        return;
+    }
+    // El usuario abre AmoxSQL mientras corre una orden sin ventana: se abre
+    // la ventana y este proceso se queda.
+    if (headless && !mainWindow) {
+        quedarse = true;
+        if (serverReady) createWindow();
+        return;
+    }
     if (mainWindow) {
         if (mainWindow.isMinimized()) mainWindow.restore();
         mainWindow.focus();
@@ -578,9 +708,15 @@ app.on('before-quit', async (event) => {
     app.quit();
 });
 
-app.whenReady().then(initApp);
+app.whenReady().then(() => {
+    // Sin el bloqueo, este arranque sólo entrega una orden y espera (o ya salió).
+    if (!gotTheLock) return;
+    initApp();
+});
 
 app.on('window-all-closed', () => {
+    // Con órdenes en marcha no se sale: al terminar la última, sale solo.
+    if (pendientes.size > 0) { headless = true; quedarse = false; return; }
     if (process.platform !== 'darwin') {
         app.quit();
     }

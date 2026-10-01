@@ -97,3 +97,4 @@ A file-to-file flow — read a CSV or an Excel file, transform it and export a P
 
 - [Data Flow](data-flow.md) · [Node reference](node-reference.md)
 - [SQL editor](../editor/sql-editor.md) · [Exporting data](../data/exporting-data.md)
+- [Run a process from the command line](command-line.md)

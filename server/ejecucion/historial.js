@@ -64,14 +64,19 @@ async function historialDeReserva(dbManager) {
         await chainPersistence.initSchema(dbManager);
         return chainPersistence.ligar(dbManager);
     } catch {
-        const crypto = require('crypto');
-        return {
-            createRun: async () => crypto.randomUUID(),
-            createNodeRun: async () => crypto.randomUUID(),
-            updateNodeRun: async () => {},
-            updateRunStatus: async () => {},
-        };
+        return historialMudo();
     }
+}
+
+/** Corre sin anotar nada: ids de usar y tirar. */
+function historialMudo() {
+    const crypto = require('crypto');
+    return {
+        createRun: async () => crypto.randomUUID(),
+        createNodeRun: async () => crypto.randomUUID(),
+        updateNodeRun: async () => {},
+        updateRunStatus: async () => {},
+    };
 }
 
 // ── Leer ────────────────────────────────────────────────────────────────────
@@ -119,4 +124,4 @@ async function borrar({ base, runId }) {
     return true;
 }
 
-module.exports = { historialCentral, historialDeReserva, listar, leer, borrar, procesoAbsoluto, ESTADO };
+module.exports = { historialCentral, historialDeReserva, historialMudo, listar, leer, borrar, procesoAbsoluto, ESTADO };

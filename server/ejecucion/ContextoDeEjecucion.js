@@ -189,6 +189,33 @@ function contextoDelProyecto(dbManager) {
     };
 }
 
+/** ¿Es la base que tiene abierta dbManager una de este proyecto? */
+function dbManagerEsDelProyecto(dbManager, proyecto) {
+    const actual = dbManager?.getCurrentPath?.();
+    if (!actual || actual === ':memory:' || !proyecto) return false;
+    const raiz = path.resolve(proyecto).toLowerCase() + path.sep;
+    return path.resolve(actual).toLowerCase().startsWith(raiz);
+}
+
+/**
+ * La base de un proyecto que no es el abierto: la que dice su project.json
+ * (`defaultDb`), o la única .duckdb de su raíz. Si no hay una clara, se dice.
+ */
+function baseDelProyecto(proyecto) {
+    let config = {};
+    try { config = JSON.parse(fs.readFileSync(path.join(proyecto, '.amoxsql', 'project.json'), 'utf8')); } catch { /* sin manifiesto */ }
+    if (config.defaultDb) {
+        const ruta = path.resolve(proyecto, config.defaultDb);
+        if (fs.existsSync(ruta)) return ruta;
+    }
+    let candidatas = [];
+    try { candidatas = fs.readdirSync(proyecto).filter(f => /\.duckdb$/i.test(f)); } catch { /* carpeta ilegible */ }
+    if (candidatas.length === 1) return path.join(proyecto, candidatas[0]);
+    throw new Error(candidatas.length
+        ? `This process uses the project database, and the project has ${candidatas.length} of them. Set "defaultDb" in .amoxsql/project.json, or set the process to a work database.`
+        : 'This process uses the project database, and the project has none. Set the process to a work database, or create the database first.');
+}
+
 async function cargarExtensiones(ctx, dbManager) {
     // Las extensiones son por instancia: la nueva no hereda las del proyecto.
     for (const ext of dbManager?.getLoadedExtensions?.() || []) {
@@ -201,11 +228,20 @@ async function cargarExtensiones(ctx, dbManager) {
  * Abre el contexto donde correrá una ejecución.
  * @param {'memoria'|'trabajo'|'proyecto'} modo
  */
-async function abrirContexto(modo, { dbManager, proyecto, chainFile }) {
-    if (modo === 'proyecto') return contextoDelProyecto(dbManager);
+async function abrirContexto(modo, { dbManager, proyecto, chainFile, fuera = false }) {
+    // `fuera`: la orden no viene de la interfaz (línea de comandos), así que el
+    // proyecto puede no ser el que la interfaz tiene abierto. Entonces su base
+    // se abre aparte; la de la interfaz no se toca.
+    if (modo === 'proyecto' && (!fuera || dbManagerEsDelProyecto(dbManager, proyecto))) {
+        return contextoDelProyecto(dbManager);
+    }
 
     let ctx;
-    if (modo === 'memoria') {
+    if (modo === 'proyecto') {
+        const ruta = baseDelProyecto(proyecto);
+        const instancia = await DuckDBInstance.create(ruta);
+        ctx = new ContextoAislado({ modo, ruta, instancia, conexion: await instancia.connect(), propia: true });
+    } else if (modo === 'memoria') {
         const instancia = await DuckDBInstance.create(':memory:');
         ctx = new ContextoAislado({ modo, ruta: null, instancia, conexion: await instancia.connect(), propia: true });
     } else if (modo === 'trabajo') {
@@ -215,6 +251,11 @@ async function abrirContexto(modo, { dbManager, proyecto, chainFile }) {
         ctx = new ContextoAislado({ modo, ruta, instancia: t.instancia, conexion: t.conexion, cola: t.cola, propia: false });
     } else {
         throw new Error(`Base desconocida: ${modo}`);
+    }
+    // Las rutas relativas del SQL se leen desde el proyecto, aunque el proceso
+    // de AmoxSQL esté en otra carpeta (una orden de la línea de comandos).
+    if (proyecto) {
+        try { await ctx.query(`SET file_search_path = '${String(proyecto).replace(/'/g, "''")}'`); } catch { /* no es crítico */ }
     }
     await cargarExtensiones(ctx, dbManager);
     return ctx;
@@ -239,5 +280,6 @@ module.exports = {
     rutaDeTrabajo,
     abrirContexto,
     abrirParaVer,
+    baseDelProyecto,
     soltarTrabajos,
 };
