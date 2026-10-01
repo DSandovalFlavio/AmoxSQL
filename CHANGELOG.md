@@ -5,6 +5,43 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.9.0-alpha.2] — 2026-10-01
+
+Segunda prueba de la 5.9.0. Empieza la **familia B**: agrupar proyectos.
+Prerelease: se instala aparte y no es la versión recomendada.
+
+### Un proyecto es un *project*
+
+- Hasta la 5.8 la interfaz llamaba *workspace* a la carpeta que abrías. Ahora se
+  llama **project** en todas partes: *Recent Projects*, *Close Project*, *Open a
+  project*, la sección *Project* de Settings, el asistente de carpetas, la
+  galería. Nada se movió en disco.
+
+### Workspaces
+
+- **Un workspace agrupa proyectos** —de un cliente, un equipo, una marca, un
+  producto—. Vive en AmoxSQL, no en una carpeta, y las carpetas se le enlazan.
+  El enlace se guarda en el `project.json` de la carpeta (id y nombre, nada
+  más), así que viaja con ella: en otra máquina, AmoxSQL ofrece crear el
+  workspace con el mismo id. Si la carpeta se mueve, se reconoce igual.
+- **La palabra la eliges tú**: la primera vez que abres la 5.9 eliges cómo los
+  llamas —*Clients*, *Teams*, *Brands*, *Products* o *Workspaces*— y esa
+  palabra es la que verás en toda la aplicación y la que usa el asistente de
+  IA. Se cambia en Settings.
+- Al abrir una carpeta sin enlace, si ya tienes algún workspace, se pregunta a
+  cuál pertenece (con *Leave unlinked* y *Don't ask again*). Si no usas
+  workspaces, no se pregunta nada.
+- Settings tiene una sección con tu palabra para crear, editar (nombre,
+  etiqueta, color), archivar y recuperar.
+- La barra de título enseña el workspace delante del proyecto, y desde su menú
+  se enlaza o se cambia.
+
+### Arreglado
+
+- A Settings → Credentials le faltaba el título.
+
+---
+
 ## [5.9.0-alpha.1] — 2026-10-01
 
 Primera prueba de la 5.9.0, que trae los cimientos de la 6.0 (plan en
