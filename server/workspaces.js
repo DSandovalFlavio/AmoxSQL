@@ -369,7 +369,194 @@ async function marcaDelProyecto(raiz) {
     return { workspace: w.nombre, color: w.color, paleta: w.marca.paleta, logo: w.marca.logo };
 }
 
+// ── La vista de workspaces (B3, fase 8.1) ───────────────────────────────────
+
+const ESTADOS = ['en_curso', 'en_revision', 'entregado', 'pausado'];
+
+const fecha = (v) => (v ? String(v).slice(0, 10) : null);
+
+function filaProyecto(p) {
+    return {
+        id: p.id, ruta: p.ruta, nombre: p.nombre, workspaceId: p.workspace_id || null,
+        estado: p.estado || null, entrega: fecha(p.entrega), ultimoAbierto: p.ultimo_abierto || null,
+        existe: fs.existsSync(p.ruta),
+    };
+}
+
+/**
+ * Todo lo que enseña la vista de workspaces de una vez: cada workspace con el
+ * estado de sus proyectos y su próxima entrega, los proyectos sin workspace,
+ * cuántos archivados hay, y lo último que corrió.
+ */
+async function resumenInicio() {
+    const activos = await listar();
+    const archivados = await listar({ archivados: true });
+    const proyectos = (await baseCentral.query(
+        `SELECT * FROM proyectos ORDER BY ultimo_abierto DESC NULLS LAST`
+    )).map(filaProyecto);
+    const ids = new Set(activos.map(w => w.id));
+    const hoy = new Date().toISOString().slice(0, 10);
+    const tarjetas = activos.map(w => {
+        const suyos = proyectos.filter(p => p.workspaceId === w.id);
+        const porEstado = {};
+        for (const p of suyos) if (p.estado) porEstado[p.estado] = (porEstado[p.estado] || 0) + 1;
+        const proxima = suyos.filter(p => p.entrega && p.entrega >= hoy && p.estado !== 'entregado')
+            .sort((a, b) => a.entrega.localeCompare(b.entrega))[0] || null;
+        return { ...w, porEstado, proximaEntrega: proxima ? { proyecto: proxima.nombre, fecha: proxima.entrega } : null };
+    });
+    const ejecuciones = (await baseCentral.query(
+        `SELECT e.id, e.proceso, e.proyecto, e.origen, e.inicio, e.fin, e.estado, e.error, w.nombre AS workspace, w.color
+         FROM ejecuciones e LEFT JOIN workspaces w ON w.id = e.workspace_id
+         ORDER BY e.inicio DESC LIMIT 8`
+    )).map(e => ({ ...e, nombreProceso: path.basename(String(e.proceso || '')).replace(/\.sqlchain$/i, '') }));
+    return {
+        workspaces: tarjetas,
+        sinWorkspace: proyectos.filter(p => !p.workspaceId || !ids.has(p.workspaceId)),
+        archivados,
+        totalProyectos: proyectos.length,
+        ejecuciones,
+    };
+}
+
+/** Buscar por nombre y ruta en todos los proyectos que AmoxSQL conoce. */
+async function buscarProyectos(texto) {
+    const q = String(texto || '').trim().toLowerCase();
+    const filas = (await baseCentral.query(`SELECT * FROM proyectos ORDER BY ultimo_abierto DESC NULLS LAST`)).map(filaProyecto);
+    return q ? filas.filter(p => `${p.nombre} ${p.ruta}`.toLowerCase().includes(q)).slice(0, 50) : filas.slice(0, 50);
+}
+
+/**
+ * Estado y fecha de entrega de un proyecto (8.2). Se escriben en su
+ * project.json —viajan con la carpeta— y se reflejan en la base de AmoxSQL.
+ */
+async function actualizarProyecto(id, { estado, entrega }) {
+    const [p] = await baseCentral.query(`SELECT * FROM proyectos WHERE id = $1`, [String(id)]);
+    if (!p) throw new Error('It does not exist.');
+    const e = estado === undefined ? p.estado : (estado === null || estado === '' ? null : estado);
+    if (e !== null && e !== undefined && !ESTADOS.includes(e)) throw new Error(`Unknown status: ${e}`);
+    let f = entrega === undefined ? fecha(p.entrega) : (entrega || null);
+    if (f !== null && !/^\d{4}-\d{2}-\d{2}$/.test(String(f))) throw new Error('The due date must be YYYY-MM-DD.');
+    if (fs.existsSync(p.ruta)) scaffolder.saveProjectConfig(p.ruta, { estado: e || null, entrega: f || null });
+    await baseCentral.query(`UPDATE proyectos SET estado = $2, entrega = $3::DATE WHERE id = $1`, [p.id, e || null, f || null]);
+    const [nueva] = await baseCentral.query(`SELECT * FROM proyectos WHERE id = $1`, [p.id]);
+    return filaProyecto(nueva);
+}
+
+/** Enlazar una carpeta sin abrirla (desde la lista de proyectos sueltos). */
+async function enlazarRuta(ruta, workspaceId) {
+    if (!ruta || !fs.existsSync(ruta)) throw new Error('That folder is no longer there.');
+    return enlazar(ruta, workspaceId);
+}
+
+// ── Exportar e importar (B6, fase 8.3) ──────────────────────────────────────
+// Un .amoxworkspace es JSON con versión, sin dependencias: metadatos, marca
+// (el logo en data URL), los archivos de contexto y los NOMBRES de las
+// credenciales que usan sus proyectos. Nunca un valor: cada persona añade las
+// suyas a su propio llavero.
+const FORMATO = 'amoxworkspace';
+const VERSION_FORMATO = 1;
+
+async function exportar(id) {
+    const w = await leer(id);
+    if (!w) throw new Error('It does not exist.');
+    const contexto = {};
+    for (const a of await archivosDeContexto(id)) {
+        if (a.existe) contexto[a.ruta] = (await leerArchivo(id, a.ruta)).texto;
+    }
+    const credenciales = new Map();
+    const extensiones = new Set();
+    for (const p of await proyectosDe(id)) {
+        const r = (scaffolder.getProjectConfig(p.ruta) || {}).requiere || {};
+        for (const c of r.credenciales || []) if (c && c.nombre) credenciales.set(c.nombre, { nombre: c.nombre, tipo: c.tipo || null });
+        for (const e of r.extensiones || []) if (typeof e === 'string') extensiones.add(e);
+    }
+    return {
+        formato: FORMATO,
+        version: VERSION_FORMATO,
+        exportado: new Date().toISOString(),
+        workspace: {
+            id: w.id, nombre: w.nombre, etiqueta: w.etiqueta, color: w.color,
+            politicaIa: w.politicaIa, marca: w.marca,
+        },
+        contexto,
+        requiere: { credenciales: [...credenciales.values()], extensiones: [...extensiones] },
+    };
+}
+
+function leerPaquete(contenido) {
+    let d = contenido;
+    if (typeof d === 'string') {
+        if (d.length > 8 * 1024 * 1024) throw new Error('The file is too large.');
+        try { d = JSON.parse(d); } catch { throw new Error('That is not an AmoxSQL workspace file.'); }
+    }
+    if (!d || d.formato !== FORMATO) throw new Error('That is not an AmoxSQL workspace file.');
+    if (Number(d.version) > VERSION_FORMATO) throw new Error(`The file was made by a newer AmoxSQL (format v${d.version}). Update to import it.`);
+    const w = d.workspace || {};
+    if (!w.id || !/^[\w-]{4,64}$/.test(String(w.id)) || !limpiar(w.nombre)) throw new Error('The file has no valid workspace.');
+    const contexto = {};
+    for (const [ruta, texto] of Object.entries(d.contexto || {})) {
+        const r = String(ruta).replace(/\\/g, '/');
+        if (!PERMITIDOS.some(re => re.test(r))) continue;      // lo que no es contexto, no se importa
+        contexto[r] = String(texto ?? '');
+    }
+    return { ...d, workspace: w, contexto };
+}
+
+/** Qué pasaría al importar: si el workspace ya existe y qué archivos cambian. */
+async function analizarImportacion(contenido) {
+    const d = leerPaquete(contenido);
+    const local = await leer(d.workspace.id);
+    const archivos = [];
+    for (const [ruta, texto] of Object.entries(d.contexto)) {
+        let estado = 'nuevo';
+        if (local) {
+            const { texto: actual } = await leerArchivo(local.id, ruta);
+            const existe = fs.existsSync(path.join(carpetaDe(local.id), ruta));
+            estado = !existe ? 'nuevo' : (actual === texto ? 'igual' : 'distinto');
+        }
+        archivos.push({ ruta, estado });
+    }
+    return {
+        workspace: { id: d.workspace.id, nombre: d.workspace.nombre },
+        existe: !!local,
+        local: local ? { nombre: local.nombre, archivado: !!local.archivado } : null,
+        archivos,
+        credenciales: (d.requiere?.credenciales || []).map(c => c.nombre),
+    };
+}
+
+/**
+ * Importa. Si ya existe: los archivos nuevos se añaden, los distintos sólo si
+ * están en `sobrescribir`, y los datos del workspace (nombre, color, política,
+ * marca) sólo con `metadatos`. `comoNuevo` lo crea aparte, con otro id.
+ */
+async function importar(contenido, { sobrescribir = [], metadatos = false, comoNuevo = false } = {}) {
+    const d = leerPaquete(contenido);
+    const w = d.workspace;
+    let destino = comoNuevo ? null : await leer(w.id);
+    const datos = { nombre: w.nombre, etiqueta: w.etiqueta || null, color: w.color || null, politicaIa: w.politicaIa || null, marca: w.marca || null };
+    if (!destino) {
+        destino = await crear({ ...datos, id: comoNuevo ? null : w.id });
+    } else if (metadatos) {
+        destino = await actualizar(destino.id, datos);
+    }
+    const quiere = new Set(sobrescribir);
+    const escritos = [];
+    for (const [ruta, texto] of Object.entries(d.contexto)) {
+        const existe = fs.existsSync(path.join(carpetaDe(destino.id), ruta));
+        if (existe) {
+            const { texto: actual } = await leerArchivo(destino.id, ruta);
+            if (actual === texto || !quiere.has(ruta)) continue;
+        }
+        await escribirArchivo(destino.id, ruta, texto);
+        escritos.push(ruta);
+    }
+    return { workspace: await leer(destino.id), escritos };
+}
+
 module.exports = {
+    ESTADOS, resumenInicio, buscarProyectos, actualizarProyecto, enlazarRuta,
+    FORMATO, exportar, analizarImportacion, importar,
     marcaDelProyecto, normalizarMarca,
     archivosDeContexto, leerArchivo, escribirArchivo, metricasDelProyecto, subirMetrica,
     refrescarPolitica,

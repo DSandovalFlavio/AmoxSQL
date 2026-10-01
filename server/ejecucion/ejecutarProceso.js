@@ -13,9 +13,18 @@ const { historialCentral, historialDeReserva, historialMudo } = require('./histo
 async function ejecutarProceso({
     dbManager, chainDef, proyecto, chainFile = '',
     mode = 'full', startNodeId = null, variables,
-    origen = 'interfaz', workspaceId = null, oyente = null,
+    origen = 'interfaz', workspaceId: workspaceIdDado = null, oyente = null,
 }) {
+    let workspaceId = workspaceIdDado;
     const base = resolverBase(chainDef);
+    // El workspace de la carpeta, para que la vista de workspaces sepa de quién es
+    // cada ejecución (B3). Se lee del project.json: vale aunque no esté abierta.
+    if (!workspaceId && proyecto) {
+        try {
+            const pj = JSON.parse(require('fs').readFileSync(require('path').join(proyecto, '.amoxsql', 'project.json'), 'utf8'));
+            workspaceId = pj?.workspace?.id || null;
+        } catch { /* sin manifiesto */ }
+    }
     // `fuera`: no la lanzó la interfaz (línea de comandos). El proyecto puede no
     // ser el abierto, así que la base de la interfaz no se usa para nada: ni
     // para correr (salvo que sea la de ese mismo proyecto) ni de reserva para

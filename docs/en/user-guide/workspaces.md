@@ -33,13 +33,30 @@ Once linked, the title bar shows the workspace before the project: `Northern Sto
 ### Rename and archive
 In Settings, each workspace has **edit** (name, tag, color) and **archive**. An archived one leaves the list and the questions on open, but it isn't deleted: **Show archived → Restore** brings it back.
 
+### The workspaces view (from the welcome screen)
+The welcome screen doesn't change: opening a path, the recent projects and the footer stay the same. Once you have a workspace, a button with your word — for example **Clients 4** — appears in the recent projects header. It leads to a separate screen, with **Welcome** at the top to go back:
+
+- **Overview:** what ran recently (from the interface or the command line) with its workspace, one card per workspace — its projects by status, the next due date and its AI policy — and the projects that don't have a workspace yet, which you can link right there without opening them.
+- **A workspace:** its projects with their **status** (*In progress*, *In review*, *Delivered*, *Paused*) and **due date**, editable in the table; what ran; and the **Context**, **Edit** and **Export** buttons.
+- **Unassigned** and **Archived**, plus a search by name and folder across all projects.
+
+Status and due date are saved in the folder's `project.json`, so they travel with it.
+
+### Sharing a workspace: export and import
+**Export** saves a `.amoxworkspace` file with its details, AI policy, brand (logo included), context files and the **names** of the credentials its projects use — never their values. **Import…** (in the view) brings it in:
+
+- If it isn't here, it's created with the **same id**, so folders linked on another machine recognize it.
+- If it already exists, new files are added and you choose which different ones to replace; optionally the name, color, policy and brand too. Or import it separately, as another workspace.
+- It tells you which credentials to add in **Settings → Credentials**.
+
 ## Reference: what is saved and where
 
 | What | Where |
 |---|---|
-| The workspace (name, tag, color) | AmoxSQL's database, in `~/.amoxsql/amoxsql.duckdb` |
-| Its context folder | `~/.amoxsql/workspaces/<id>/` (shared context and rules will fill it) |
-| A folder's link | Its `.amoxsql/project.json`: `workspace: { id, nombre }` and the project's `id`. Nothing else |
+| The workspace (name, tag, color, AI policy, brand) | AmoxSQL's database, in `~/.amoxsql/amoxsql.duckdb` |
+| Its context (rules, metrics, glossary, examples, skills) | `~/.amoxsql/workspaces/<id>/` |
+| A folder's link, status and due date | Its `.amoxsql/project.json`: `workspace: { id, nombre }`, the project's `id`, `estado` and `entrega` |
+| A workspace to share | A `.amoxworkspace` file (JSON), with no credential values |
 
 ## Tips & gems
 

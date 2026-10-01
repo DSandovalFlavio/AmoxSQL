@@ -106,6 +106,12 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `ai/userRules.js` — `RULES.md` loader for custom per-project AI behavior
 - `ai/testRunner.js` — Local test harness for AI flows
 - `ai/_sqlHelpers.js` — Shared SQL utilities for tools
+- `ai/politica.js` — A workspace's **AI policy** (local only · schema only · samples · everything), enforced server-side: provider check in `AiManager.getModel` + a model middleware that filters every tool result before it reaches a cloud model
+- `ai/capaWorkspace.js` — Layers the workspace's context (rules, metrics, glossary, skills from `~/.amoxsql/workspaces/<id>/`) under the project's
+- `central/` — **AmoxSQL's own database** (`~/.amoxsql/amoxsql.duckdb`): workspaces, projects, credentials (encrypted), runs, preferences. Versioned migrations in `central/migraciones.js` — a published migration is never edited; add a new one
+- `secretos.js` — Credentials encrypted with the OS keychain (`safeStorage` in Electron main, bridged over `parentPort`); the renderer never receives a key value
+- `workspaces.js` — Workspaces (B1), the user's word for them (B8), linking folders, the workspaces view summary, `.amoxworkspace` export/import
+- `ejecucion/` — Data Flow runs: isolated contexts (memory / work database / project), the central run history, and the command line (`AmoxSQL.exe run …`, see `ordenes.js`)
 
 ### Utilities
 - `client/src/utils/cuadernoFile.js` — Read/write `.sqlnb` (markdown + front matter); also reads JSON v3.0, v2.0 and the legacy `-- !CELL:` markers, and saves them in the new format
@@ -119,6 +125,8 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `.amoxvis` — Chart configuration files
 - `.amoxdeck` — **Report Flow** deck: markdown-first presentation (front-matter + slides split by `---` + `<!-- layout: X -->` directives + fenced ` ```amoxchart ` blocks referencing a `.amoxvis`). Edited visually via the in-tab Report Flow Studio (`client/src/components/deck/`); parsed by `client/src/utils/deckParser.js`. Exports to native/editable PowerPoint (`generatePptxReport.js`) and Word.
 - `.amoxdiagram` — **AmoxDiagram** diagram: front-matter + one fenced ` ```mermaid ` flowchart block. Edited visually in its own tab (`client/src/components/diagram/`); parsed by `client/src/components/markdown/mermaidFlow.js`, which reads and writes the same subset in both directions. A mermaid block inside a `.md` opens in the same editor and is written back into that block alone (`diagramMerge.js` guards the round trip). **Positions are not stored** — mermaid computes them and the editor reads them back from the rendered SVG (`mermaidGeometria.js`), so the canvas shows what the document will draw.
+- `.amoxworkspace` — A **workspace** exported to share it (5.9, B6): plain JSON `{ formato: 'amoxworkspace', version: 1, exportado, workspace: { id, nombre, etiqueta, color, politicaIa, marca }, contexto: { '<ruta>': '<texto>' }, requiere: { credenciales: [{ nombre, tipo }], extensiones } }`. Carries credential **names** only, never values. Importing keeps the same `id` (so folders linked elsewhere recognize it) and merges file by file. Written/read by `server/workspaces.js`
+- `.amoxsql/project.json` — Per-folder manifest: `requiere` (credential names, extensions), and since 5.9 `id`, `workspace: { id, nombre }`, `estado`, `entrega`. Writers must merge (`scaffolder.saveProjectConfig`)
 - `RULES.md` — Per-project AI behavior rules
 - `agent/skills/<id>/SKILL.md` — Project-level AI skills (markdown + YAML front-matter), loaded by `ai/skills.js`. The repo ships a starter set (eda-initial, data-quality, sql-optimization, time-series, cohort-comparison, metric-investigation, data-storytelling, analysis-planning).
 - `.amoxsql/context/*.md` — Per-project context fed to the AI (see `templates/.amoxsql/context/`)
