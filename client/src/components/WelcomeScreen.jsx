@@ -1,5 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { LuFolderOpen, LuSettings, LuClock, LuTrash2, LuSparkles, LuBrain, LuRocket, LuPencil, LuFolder } from "react-icons/lu";
+import { LuFolderOpen, LuSettings, LuClock, LuTrash2, LuSparkles, LuBrain, LuRocket, LuPencil, LuFolder, LuLayers } from "react-icons/lu";
+import VistaWorkspaces from './workspaces/VistaWorkspaces';
+import { listarWorkspaces } from './workspaces/api';
+import { useEtiqueta } from '../etiqueta';
 import Logo from './Logo';
 import AlertDialog from './AlertDialog';
 import LogoMorph from './welcome/LogoMorph';
@@ -38,6 +41,18 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
     // deja de parecer que no pasa nada mientras tarda.
     const [opening, setOpening] = useState(false);
     const openingRef = useRef(false);
+
+    // B3 (5.9): la bienvenida no cambia; sólo gana un botón a la vista de
+    // workspaces, y sólo cuando hay alguno.
+    const etiqueta = useEtiqueta();
+    const [vista, setVista] = useState('bienvenida');      // 'bienvenida' | 'workspaces'
+    const [cuantos, setCuantos] = useState(0);
+    useEffect(() => {
+        const contar = () => listarWorkspaces().then(l => setCuantos(l.length)).catch(() => setCuantos(0));
+        contar();
+        window.addEventListener('amox_workspaces_cambiaron', contar);
+        return () => window.removeEventListener('amox_workspaces_cambiaron', contar);
+    }, []);
 
     // Handle initialPath passed down
     useEffect(() => {
@@ -140,6 +155,15 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
         </button>
     );
 
+    if (vista === 'workspaces') {
+        return (
+            <VistaWorkspaces
+                onVolver={() => { setVista('bienvenida'); listarWorkspaces().then(l => setCuantos(l.length)).catch(() => {}); }}
+                onAbrir={(p) => { setVista('bienvenida'); setPath(p); processWorkspaceSelection(p); }}
+            />
+        );
+    }
+
     return (
         <div className="ws-root">
             {/* ── Mitad izquierda: todo lo accionable, a alto completo ── */}
@@ -191,14 +215,22 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
 
                             {/* Los recientes ya no van dentro de la tarjeta del paso 1: son la
                                 lista principal y se quedan con todo el alto que sobra. */}
-                            {recentProjects.length > 0 && (
+                            {(recentProjects.length > 0 || cuantos > 0) && (
                                 <div className="ws-recent">
                                     <div className="ws-recent-head">
                                         <LuClock size={13} style={{ color: 'var(--accent-primary)' }} />
                                         Recent projects
-                                        <button onClick={handleClearRecent} title="Clear all recent projects" className="ws-clear-btn">
-                                            <LuTrash2 size={12} /> Clear
-                                        </button>
+                                        {cuantos > 0 && (
+                                            <button type="button" onClick={() => setVista('workspaces')} className="ws-grupos-btn"
+                                                title={`Your ${etiqueta.p}: projects grouped, what ran recently, due dates`}>
+                                                <LuLayers size={12} /> {etiqueta.P}<span className="ws-grupos-n">{cuantos}</span>
+                                            </button>
+                                        )}
+                                        {recentProjects.length > 0 && (
+                                            <button onClick={handleClearRecent} title="Clear all recent projects" className="ws-clear-btn">
+                                                <LuTrash2 size={12} /> Clear
+                                            </button>
+                                        )}
                                     </div>
                                     <div className="ws-recent-list">
                                         {recentProjects.map((p, i) => {

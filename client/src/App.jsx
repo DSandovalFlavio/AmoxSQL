@@ -233,6 +233,14 @@ function App() {
   // anota que ya lo hizo y las siguientes llamadas no hacen nada.
   useEffect(() => { importarRecientesUnaVez(); }, []);
 
+  // Abrir Settings en una sección desde cualquier parte (la vista de
+  // workspaces de la bienvenida, por ejemplo): `detail` es la pestaña.
+  useEffect(() => {
+    const abrir = (e) => { setSettingsInitialTab(e.detail || null); setIsSettingsOpen(true); };
+    window.addEventListener('amox_abrir_ajustes', abrir);
+    return () => window.removeEventListener('amox_abrir_ajustes', abrir);
+  }, []);
+
   useEffect(() => {
     if (projectPath && window.electronAPI?.setProjectRoot) {
       window.electronAPI.setProjectRoot(projectPath);
@@ -1367,6 +1375,8 @@ function App() {
           onInterfaceFontChange={setInterfaceFont}
           currentLayout={editorLayout}
           onLayoutChange={setEditorLayout}
+          initialTab={settingsInitialTab}
+          onTabReset={() => setSettingsInitialTab(null)}
           uiZoomLevel={uiZoomLevel}
           onUiZoomChange={setUiZoomLevel}
         />

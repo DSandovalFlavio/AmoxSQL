@@ -62,7 +62,8 @@ for (const archivo of archivos(CLIENTE)) {
 
     for (const { valor, i } of candidatos) {
         if (!/workspace/i.test(valor)) continue;
-        if (/^[\w./:-]*$/.test(valor.trim())) continue;               // un identificador, un evento, una ruta
+        if (/^[\w./:,-]*$/.test(valor.trim())) continue;              // un identificador, un evento, una ruta, extensiones
+        if (/===|!==|\?\.|=>|\$\{/.test(valor)) continue;              // código, no texto (plantillas anidadas, JSX)
         if (PERMITIDOS.some(([a, t]) => a === rel && valor.includes(t))) continue;
         hallazgos.push(`${rel}:${lineaDe(i)}  «${valor.trim().slice(0, 90)}»`);
     }

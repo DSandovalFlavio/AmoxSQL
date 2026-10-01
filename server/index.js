@@ -6127,6 +6127,22 @@ app.get('/api/project/metricas', (_req, res) => {
     res.json({ metricas: PROYECTO_ABIERTO ? workspaces.metricasDelProyecto(ROOT_DIR).map(m => ({ name: m.name, description: m.description })) : [] });
 });
 
+// La vista de workspaces (B3) y los proyectos que AmoxSQL conoce.
+app.get('/api/inicio', conCentral(async () => workspaces.resumenInicio()));
+app.get('/api/proyectos', conCentral(async (req) => ({ proyectos: await workspaces.buscarProyectos(req.query.q) })));
+app.put('/api/proyectos/:id', conCentral(async (req) => workspaces.actualizarProyecto(req.params.id, req.body || {})));
+app.put('/api/proyectos-enlace', conCentral(async (req) => {
+    const r = await workspaces.enlazarRuta(req.body?.ruta, req.body?.workspaceId || null);
+    if (PROYECTO_ABIERTO) await workspaces.refrescarPolitica(ROOT_DIR);
+    return r;
+}));
+
+// Exportar e importar un workspace (B6): un .amoxworkspace sin credenciales.
+app.get('/api/workspaces/:id/exportar', conCentral(async (req) => workspaces.exportar(req.params.id)));
+app.post('/api/workspaces-importar/analizar', conCentral(async (req) => workspaces.analizarImportacion(req.body?.contenido)));
+app.post('/api/workspaces-importar', conCentral(async (req) =>
+    workspaces.importar(req.body?.contenido, req.body?.opciones || {})));
+
 // El enlace de la carpeta abierta: qué es, y cambiarlo.
 app.get('/api/project/workspace', conCentral(async () => {
     if (!PROYECTO_ABIERTO) return { estado: 'sin_proyecto', preguntar: false };

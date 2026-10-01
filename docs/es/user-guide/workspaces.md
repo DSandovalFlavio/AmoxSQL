@@ -33,13 +33,30 @@ Con la carpeta enlazada, la barra de título enseña el workspace delante del pr
 ### Renombrar y archivar
 En Settings, cada workspace tiene **editar** (nombre, etiqueta, color) y **archivar**. Uno archivado sale de la lista y de las preguntas al abrir, pero no se borra: **Show archived → Restore** lo recupera.
 
+### La vista de workspaces (desde la bienvenida)
+La bienvenida no cambia: abrir una ruta, los recientes y el pie siguen igual. Cuando tienes algún workspace aparece un botón con tu palabra —por ejemplo **Clients 4**— en la cabecera de los recientes. Lleva a una pantalla aparte, con **Welcome** arriba para volver:
+
+- **Overview:** lo último que corrió (de la interfaz o de la línea de comandos) con su workspace, una tarjeta por workspace —sus proyectos por estado, la próxima entrega y su política de IA— y los proyectos que aún no tienen workspace, que se enlazan ahí mismo sin abrirlos.
+- **Un workspace:** sus proyectos con su **estado** (*In progress*, *In review*, *Delivered*, *Paused*) y su **fecha de entrega**, que se cambian en la tabla; lo que corrió; y los botones **Context**, **Edit** y **Export**.
+- **Unassigned** y **Archived**, y un buscador por nombre y carpeta en todos los proyectos.
+
+El estado y la entrega se guardan en el `project.json` de la carpeta, así que viajan con ella.
+
+### Compartir un workspace: exportar e importar
+**Export** guarda un archivo `.amoxworkspace` con sus datos, su política de IA, su marca (con el logo), sus archivos de contexto y los **nombres** de las credenciales que usan sus proyectos —nunca sus valores—. **Import…** (en la vista) lo trae:
+
+- Si no existe aquí, se crea con el **mismo id**, así que las carpetas enlazadas en otra máquina lo reconocen.
+- Si ya existe, los archivos nuevos se añaden y tú eliges cuáles de los distintos reemplazar; opcionalmente también el nombre, el color, la política y la marca. O se importa aparte, como otro workspace.
+- Te dice qué credenciales hará falta añadir en **Settings → Credentials**.
+
 ## Referencia: qué se guarda y dónde
 
 | Qué | Dónde |
 |---|---|
-| El workspace (nombre, etiqueta, color) | La base de AmoxSQL, en `~/.amoxsql/amoxsql.duckdb` |
-| Su carpeta de contexto | `~/.amoxsql/workspaces/<id>/` (la llenarán el contexto y las reglas compartidas) |
-| El enlace de una carpeta | Su `.amoxsql/project.json`: `workspace: { id, nombre }` y el `id` del proyecto. Nada más |
+| El workspace (nombre, etiqueta, color, política de IA, marca) | La base de AmoxSQL, en `~/.amoxsql/amoxsql.duckdb` |
+| Su contexto (reglas, métricas, glosario, ejemplos, skills) | `~/.amoxsql/workspaces/<id>/` |
+| El enlace, el estado y la entrega de una carpeta | Su `.amoxsql/project.json`: `workspace: { id, nombre }`, el `id` del proyecto, `estado` y `entrega` |
+| Un workspace para compartir | Un archivo `.amoxworkspace` (JSON), sin valores de credenciales |
 
 ## Tips y gemas
 

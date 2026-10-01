@@ -206,6 +206,8 @@ export default function WorkspacesPanel() {
     const intentar = async (fn) => {
         try { await fn(); setEditando(null); } catch (err) { setError(err.message); }
         cargar();
+        // La vista de workspaces de la bienvenida puede estar detrás: que se ponga al día.
+        window.dispatchEvent(new CustomEvent('amox_workspaces_cambiaron'));
     };
 
     return (
