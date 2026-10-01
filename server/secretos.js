@@ -32,7 +32,10 @@
  * puede pasar por un llavero de verdad sin que se note.
  */
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const baseCentral = require('./central/BaseCentral');
+const { homeAmox } = require('./rutas');
 
 /** Lo que el cliente ve en lugar de un secreto que existe. */
 const SENTINELA = '__amox_en_el_llavero__';
@@ -272,10 +275,108 @@ async function iniciar(config) {
     _modo = 'llavero';
     const migracion = await migrarDesdeConfig(config);
     const carga = await precargar();
+    const purga = await purgarTextoPlano();
     console.log(`[Secretos] Llavero listo: ${carga.cargadas} credencial(es)` +
         (migracion.copiadas.length ? `, ${migracion.copiadas.length} copiada(s) desde config.json` : '') +
-        (carga.ilegibles.length ? `, ${carga.ilegibles.length} ilegible(s)` : '') + '.');
-    return { modo: _modo, migracion, carga };
+        (carga.ilegibles.length ? `, ${carga.ilegibles.length} ilegible(s)` : '') +
+        (purga.borradas.length ? `, ${purga.borradas.length} borrada(s) de config.json` : '') + '.');
+    return { modo: _modo, migracion, carga, purga };
+}
+
+/**
+ * La purga del texto plano (5.9.0, fase 9.2 del plan).
+ *
+ * Durante las alfas y betas, config.json conservó su copia en claro para poder
+ * volver a la 5.8. Desde la 5.9.0 se borra, y sólo cuando es seguro:
+ *
+ *   - la credencial se lee bien del llavero de esta máquina → se borra su copia;
+ *   - no está en el llavero porque el usuario la borró en Settings → Credentials
+ *     (la migración ya se hizo) → también se borra: es una clave que no quiso;
+ *   - está en el llavero pero no se puede descifrar (otra máquina, otro usuario
+ *     de Windows) → se CONSERVA en config.json y se dice: es la única copia útil.
+ *
+ * Se mira en cada arranque y es idempotente: después de la primera vez no hay
+ * nada que borrar. El resto de config.json queda igual. Lo hecho se anota en
+ * `preferencias.purga_texto_plano` para que la interfaz lo cuente una vez.
+ */
+async function purgarTextoPlano(rutaConfig = path.join(homeAmox(), 'config.json')) {
+    const nada = { borradas: [], conservadas: [] };
+    if (_modo !== 'llavero' || !fs.existsSync(rutaConfig)) return nada;
+    if (!(await baseCentral.preferencia('migracion_credenciales'))) return nada;
+
+    let config;
+    try { config = JSON.parse(fs.readFileSync(rutaConfig, 'utf8')); } catch { return nada; }
+    const migradas = new Set(((await baseCentral.preferencia('migracion_credenciales')) || {}).nombres || []);
+    const borradas = [];
+    const conservadas = [];
+
+    /**
+     * ¿Se puede quitar la copia en claro de esta credencial? Si no está en el
+     * llavero y nunca se migró —una clave que se escribió en la 5.8 después de
+     * la migración, al volver a ella durante las betas—, se migra ahora, se
+     * comprueba que se lee igual, y entonces sí. Si no está porque el usuario
+     * la borró en Settings (se migró y ya no está), se borra también.
+     */
+    const sePuedeBorrar = async (nombre, tipo, valor) => {
+        if (ilegibles.has(nombre)) return false;
+        if (cache.has(nombre) || migradas.has(nombre)) return true;
+        try {
+            await guardar(nombre, tipo, valor);
+            if ((await leerDeLaBase(nombre)) !== valor) return false;
+            cache.set(nombre, valor);
+            return true;
+        } catch {
+            return false;
+        }
+    };
+
+    for (const k of CLAVES_DE_IA) {
+        const v = config[k.campo];
+        if (typeof v !== 'string' || !v) continue;
+        if (await sePuedeBorrar(k.nombre, 'clave-api', v)) { config[k.campo] = ''; borradas.push(k.campo); }
+        else conservadas.push(k.campo);
+    }
+    for (const n of NUBE) {
+        const obj = config[n.campo];
+        if (!obj || typeof obj !== 'object') continue;
+        const tiene = CAMPOS_SECRETOS_NUBE.filter(f => typeof obj[f] === 'string' && obj[f]);
+        if (!tiene.length) continue;
+        const valor = JSON.stringify(Object.fromEntries(tiene.map(f => [f, obj[f]])));
+        if (await sePuedeBorrar(n.nombre, n.tipo, valor)) {
+            for (const f of tiene) delete obj[f];
+            borradas.push(...tiene.map(f => `${n.campo}.${f}`));
+        } else {
+            conservadas.push(...tiene.map(f => `${n.campo}.${f}`));
+        }
+    }
+
+    if (borradas.length) {
+        // De una vez: a un temporal y rename, para no dejar nunca medio archivo.
+        const temporal = `${rutaConfig}.${process.pid}.tmp`;
+        fs.writeFileSync(temporal, JSON.stringify(config, null, 2));
+        fs.renameSync(temporal, rutaConfig);
+        await baseCentral.guardarPreferencia('purga_texto_plano', {
+            en: new Date().toISOString(), borradas, conservadas, avisada: false,
+        });
+    } else if (conservadas.length) {
+        const antes = await baseCentral.preferencia('purga_texto_plano');
+        await baseCentral.guardarPreferencia('purga_texto_plano', {
+            ...(antes || {}), conservadas, en: antes?.en || null, borradas: antes?.borradas || [], avisada: antes?.avisada ?? true,
+        });
+    }
+    return { borradas, conservadas };
+}
+
+/** Lo que la interfaz cuenta una vez: qué se borró de config.json y qué no. */
+async function avisoDePurga() {
+    if (!disponible()) return null;
+    const p = await baseCentral.preferencia('purga_texto_plano');
+    return p || null;
+}
+
+async function marcarPurgaAvisada() {
+    const p = await baseCentral.preferencia('purga_texto_plano');
+    if (p) await baseCentral.guardarPreferencia('purga_texto_plano', { ...p, avisada: true });
 }
 
 // ── Lo que usa el resto del servidor ────────────────────────────────────────
@@ -361,7 +462,8 @@ async function aplicarCambiosDeConfig(config, cuerpo) {
         if (_modo === 'llavero') {
             if (v === '') await borrar(k.nombre);
             else await guardar(k.nombre, 'clave-api', String(v));
-            // config.json NO se toca: su copia en claro queda congelada para la 5.8
+            // En config.json no se escribe: el llavero es el único sitio (la copia
+            // en claro de la 5.8 la quita purgarTextoPlano al arrancar).
         } else {
             config[k.campo] = v;
         }
@@ -381,8 +483,7 @@ async function aplicarCambiosDeConfig(config, cuerpo) {
             }
             if (Object.keys(guardado).length) await guardar(n.nombre, n.tipo, JSON.stringify(guardado));
             else if (cache.has(n.nombre)) await borrar(n.nombre);
-            // Lo público va a config; los secretos viejos en claro se quedan
-            // donde estaban (congelados para la 5.8).
+            // Lo público va a config; los secretos, sólo al llavero.
             config[n.campo] = { ...(config[n.campo] || {}), ...publico };
         } else {
             const anterior = config[n.campo] || {};
@@ -445,6 +546,7 @@ module.exports = {
     modo, disponible, iniciar,
     guardar, obtener, enMemoria, borrar, listar, existe,
     claveDeIA, credencialNube, configParaElCliente, aplicarCambiosDeConfig,
+    purgarTextoPlano, avisoDePurga, marcarPurgaAvisada,
     sqlCrearSecreto, prepararNube,
     // sólo para pruebas
     _leerDeLaBase: leerDeLaBase,

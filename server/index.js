@@ -6183,6 +6183,14 @@ app.put('/api/preferencias/etiqueta', conCentral(async (req) => ({
 // ─── El llavero (A1) ─────────────────────────────────────────────────────────
 // Nombres, tipos y fechas; nunca valores.
 
+// La purga del texto plano (5.9.0): qué se quitó de config.json, una vez.
+app.get('/api/secretos/purga', async (_req, res) => {
+    try { res.json({ purga: await secretos.avisoDePurga() }); } catch { res.json({ purga: null }); }
+});
+app.post('/api/secretos/purga/vista', async (_req, res) => {
+    try { await secretos.marcarPurgaAvisada(); res.json({ ok: true }); } catch (err) { res.status(503).json({ error: err.message }); }
+});
+
 app.get('/api/secretos', async (_req, res) => {
     try {
         res.json({ modo: secretos.modo(), credenciales: await secretos.listar() });

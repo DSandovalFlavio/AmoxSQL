@@ -4,7 +4,7 @@
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
 import { API_BASE } from './api.js';
-import { importarRecientesUnaVez, requisitosQueFaltan, describirFaltantes } from './central.js';
+import { importarRecientesUnaVez, requisitosQueFaltan, describirFaltantes, avisoDePurgaUnaVez } from './central.js';
 import { themeClassFor, modeClassFor, migrateTheme } from './theme.js';
 import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
@@ -232,6 +232,12 @@ function App() {
   // Los recientes de la 5.8 pasan a la base de AmoxSQL. Una vez: el servidor
   // anota que ya lo hizo y las siguientes llamadas no hacen nada.
   useEffect(() => { importarRecientesUnaVez(); }, []);
+  // 5.9.0: el llavero quitó las claves en claro de config.json; se dice una vez.
+  // Con un margen: el llavero termina de arrancar un instante después que el servidor.
+  useEffect(() => {
+    const t = setTimeout(() => avisoDePurgaUnaVez().then(a => { if (a) toast[a.tipo]?.(a.texto); }), 2500);
+    return () => clearTimeout(t);
+  }, []);
 
   // Abrir Settings en una sección desde cualquier parte (la vista de
   // workspaces de la bienvenida, por ejemplo): `detail` es la pestaña.
