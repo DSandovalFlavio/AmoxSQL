@@ -20090,3 +20090,14 @@ tr:hover td {
   color: var(--text-tertiary);
 }
 .db-procedencia--cambio span { color: var(--color-warning-text); }
+
+/* ─── Credencial de nube con nombre (C4, 5.10) ────────────────────────── */
+.ncn { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+.ncn-rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 14px; }
+.ncn-campo { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--text-tertiary); }
+.ncn-campo small { color: var(--text-tertiary); opacity: 0.8; }
+.ncn-botones { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Formulario de una fuente: la segunda elección (qué archivos de la carpeta, qué formato de lago) */
+.fnt-segmento--sub { margin-top: 2px; }
+.fnt-carpeta li .fnt-enlace { text-align: left; overflow-wrap: anywhere; }

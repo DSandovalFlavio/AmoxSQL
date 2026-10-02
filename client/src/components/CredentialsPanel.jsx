@@ -2,14 +2,16 @@
  * Settings → Credentials (A1, fase 2.7 del plan de la 5.9).
  *
  * Lo que hay en el llavero: nombre, tipo, cuándo se guardó y cuándo se usó por
- * última vez. NUNCA el valor: el servidor no lo manda. Desde aquí sólo se
- * borra; las claves se escriben donde siempre (AI, Store Integrations), y las
- * credenciales con nombre para fuentes llegan con la 5.10.
+ * última vez. NUNCA el valor: el servidor no lo manda. Desde aquí se borra y,
+ * desde la 5.10 (C4), se crean las credenciales de nube con nombre que usan las
+ * fuentes en un bucket o un lago; las demás claves se escriben donde siempre
+ * (AI, Store Integrations).
  */
 import { useCallback, useEffect, useState } from 'react';
 import { LuKeyRound, LuTrash2, LuShieldCheck, LuTriangleAlert, LuLoader } from 'react-icons/lu';
 import { API_BASE } from '../api.js';
 import { useDialog } from './dialogs/DialogProvider.jsx';
+import NuevaCredencialNube from './fuentes/NuevaCredencialNube';
 
 /** Lo que es cada credencial que crea la propia aplicación. */
 const QUE_ES = {
@@ -108,7 +110,7 @@ export default function CredentialsPanel() {
                                 <div style={{ minWidth: 0 }}>
                                     <span className="stg-row-label" style={{ fontFamily: 'var(--font-mono)' }}>{c.nombre}</span>
                                     <p className="stg-row-desc">
-                                        {QUE_ES[c.nombre] || c.tipo}
+                                        {QUE_ES[c.nombre] || (c.tipo === 'nube-s3' ? 'S3 or S3-compatible — for sources' : c.tipo === 'nube-gcs' ? 'Google Cloud Storage — for sources' : c.tipo)}
                                         {' · '}saved {fecha(c.creada)}
                                         {' · '}{c.ultimo_uso ? `last used ${fecha(c.ultimo_uso)}` : 'never used'}
                                     </p>
@@ -131,6 +133,8 @@ export default function CredentialsPanel() {
                     ))}
                 </div>
             )}
+
+            {estado.modo === 'llavero' && <NuevaCredencialNube onCreada={() => cargar()} />}
 
             <p className="stg-row-desc" style={{ marginTop: 14, display: 'flex', gap: 6, alignItems: 'center' }}>
                 <LuKeyRound size={13} style={{ flex: 'none' }} />

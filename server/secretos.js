@@ -541,7 +541,61 @@ async function prepararNube(db, tipo, config) {
     return cred;
 }
 
+// ── Credenciales de nube con nombre (C4, 5.10) ──────────────────────────────
+// Hasta la 5.9 había una por proveedor (`nube-s3`, `nube-gcs`). Una fuente en
+// un bucket nombra la suya (`bucket-tiendas`), y dos buckets con claves
+// distintas conviven: cada una se crea en el motor como secreto TEMPORAL con
+// SCOPE en su prefijo. El valor es un JSON cifrado con todo dentro —también
+// región y endpoint, que no son secretos pero sí de esta credencial—.
+
+const PROVEEDORES_NUBE = ['s3', 'gcs'];
+const ESTILOS_URL = ['vhost', 'path'];
+
+async function guardarNube({ nombre, proveedor, accessKeyId, secretKey, region, endpoint, urlStyle }) {
+    validarNombre(nombre);
+    if (/^(ia|nube)-/.test(nombre)) throw new Error('Names starting with ia- or nube- belong to AmoxSQL. Choose another one.');
+    if (!PROVEEDORES_NUBE.includes(proveedor)) throw new Error(`Unknown cloud provider: ${proveedor}`);
+    if (!accessKeyId || !secretKey) throw new Error('A cloud credential needs a key id and a secret.');
+    const limpio = (v, max = 300) => (v === undefined || v === null ? undefined : String(v).trim().slice(0, max) || undefined);
+    const valor = {
+        proveedor,
+        accessKeyId: String(accessKeyId),
+        secretKey: String(secretKey),
+        region: limpio(region, 64),
+        endpoint: limpio(endpoint),
+        urlStyle: ESTILOS_URL.includes(urlStyle) ? urlStyle : undefined,
+    };
+    await guardar(nombre, `nube-${proveedor}`, JSON.stringify(valor));
+    return { nombre, proveedor };
+}
+
+/** La credencial de nube con nombre, descifrada; null si no está o no lo es. */
+async function credencialDeNube(nombre) {
+    const v = await obtener(nombre);
+    if (!v) return null;
+    try {
+        const c = JSON.parse(v);
+        return PROVEEDORES_NUBE.includes(c.proveedor) ? c : null;
+    } catch {
+        return null;
+    }
+}
+
+/** Las sentencias que dejan lista en el motor una credencial con nombre, limitada a `alcance`. */
+async function sqlDeCredencial(nombre, alcance) {
+    const c = await credencialDeNube(nombre);
+    if (!c) throw new Error(`The credential "${nombre}" is not on this machine. Add it in Settings → Credentials.`);
+    const id = `amox_f_${crypto.createHash('sha1').update(`${nombre}|${alcance || ''}`).digest('hex').slice(0, 12)}`;
+    return sqlCrearSecreto({
+        nombre: id, tipo: c.proveedor, alcance,
+        claves: c.proveedor === 's3'
+            ? { KEY_ID: c.accessKeyId, SECRET: c.secretKey, REGION: c.region, ENDPOINT: c.endpoint, URL_STYLE: c.urlStyle }
+            : { KEY_ID: c.accessKeyId, SECRET: c.secretKey },
+    });
+}
+
 module.exports = {
+    guardarNube, credencialDeNube, sqlDeCredencial, PROVEEDORES_NUBE,
     SENTINELA, CLAVES_DE_IA, NUBE,
     modo, disponible, iniciar,
     guardar, obtener, enMemoria, borrar, listar, existe,

@@ -97,7 +97,7 @@ function userTablesWhereClause(schemaCol = 'table_schema', nameCol = 'table_name
     // Las fuentes con nombre (C1) viven en su propio catalogo, `fuentes`, con
     // esquema `main`: sin esto se mezclarian con las tablas del proyecto. El
     // explorador las enseña aparte (/api/fuentes/columnas).
-    const fuentesClause = `${catalogCol} <> 'fuentes'`;
+    const fuentesClause = `${catalogCol} <> 'fuentes' AND ${catalogCol} NOT LIKE 'amox\\_lago\\_%' ESCAPE '\\'`;
     return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND ${chainArtifactClause} AND ${duckLakeMetaClause} AND ${fuentesClause} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
 }
 
@@ -3834,6 +3834,9 @@ app.post('/api/query', async (req, res) => {
     try {
         // Una consulta a una fuente justo al abrir el proyecto espera al catalogo.
         if (montandoFuentes && /\bfuentes\s*\./i.test(query)) await montandoFuentes;
+        // El proyecto depende de las fuentes que nombra aunque esta vez no se
+        // puedan leer (sin red, sin credencial): se anotan antes de correr.
+        anotarFuentesDelSql(query);
         const start = performance.now();
         const result = await dbManager.queryWithMetadata(limitedSql, { trackId: qid });
         const end = performance.now();
@@ -3869,7 +3872,6 @@ app.post('/api/query', async (req, res) => {
                 anotarExtensionDelProyecto(extName);
             }
         } catch { /* non-fatal bookkeeping */ }
-        anotarFuentesDelSql(query);
         await anotarMaterializacion(query);
 
         // Classify the statement so the editor can decide how to render it: a
@@ -6427,8 +6429,16 @@ function anotarFuentesDelSql(sql) {
     try {
         const nombres = fuentes.usadas(sql);
         if (!nombres.length) return;
-        const conocidas = new Set(fuentes.definiciones({ raiz: ROOT_DIR }).fuentes.map(f => f.def.nombre));
-        for (const n of nombres) if (conocidas.has(n)) manifiesto.anotarFuente(ROOT_DIR, n);
+        const porNombre = new Map(fuentes.definiciones({ raiz: ROOT_DIR }).fuentes.map(f => [f.def.nombre, f.def]));
+        for (const n of nombres) {
+            const def = porNombre.get(n);
+            if (!def) continue;
+            manifiesto.anotarFuente(ROOT_DIR, n);
+            // Lo que necesita para leerse en otra máquina (C4, 5.5): sus
+            // extensiones y el NOMBRE de su credencial.
+            for (const e of fuentes.extensionesDe(def, def.ubicacion)) manifiesto.anotarExtension(ROOT_DIR, e);
+            if (def.credencial) manifiesto.anotarCredencial(ROOT_DIR, def.credencial, `nube`);
+        }
     } catch (e) { console.warn('[Manifiesto] No se pudieron anotar las fuentes:', e.message); }
 }
 
@@ -6497,10 +6507,25 @@ app.post('/api/fuentes/probar', async (req, res) => {
         const { DuckDBInstance } = require('@duckdb/node-api');
         inst = await DuckDBInstance.create(':memory:');
         const con = await inst.connect();
-        const lectura = fuentes.sqlDeLectura(def, path.isAbsolute(ubicacion) || /^[a-z0-9]+:\/\//i.test(ubicacion) ? ubicacion : path.resolve(ROOT_DIR, ubicacion));
-        const columnas = (await (await con.run(`DESCRIBE ${lectura}`)).getRowObjectsJson())
-            .map(c => ({ nombre: c.column_name, tipo: c.column_type }));
-        const filas = await (await con.run(`${lectura} LIMIT 20`)).getRowObjectsJson();
+        const donde = path.isAbsolute(ubicacion) || /^[a-z0-9]+:\/\//i.test(ubicacion) ? ubicacion : path.resolve(ROOT_DIR, ubicacion);
+        // Un bucket o un lago: su credencial (con SCOPE) o su DuckLake, antes de leer (C4).
+        try {
+            for (const s of await fuentes.preparar(def, donde)) await con.run(s);
+        } catch (e) {
+            throw new Error(fuentes.explicarNube(e, def, donde));
+        }
+        const lectura = fuentes.sqlDeLectura(def, donde);
+        // «Probar la conexión» (5.4): lo que falla en un bucket o un lago se dice
+        // con nombre (credencial, permiso, ruta, extensión), no con el error del motor.
+        const nube = def.tipo === 'bucket' || def.tipo === 'lago';
+        let columnas, filas;
+        try {
+            columnas = (await (await con.run(`DESCRIBE ${lectura}`)).getRowObjectsJson())
+                .map(c => ({ nombre: c.column_name, tipo: c.column_type }));
+            filas = await (await con.run(`${lectura} LIMIT 20`)).getRowObjectsJson();
+        } catch (e) {
+            throw nube ? new Error(fuentes.explicarNube(e, def, donde)) : e;
+        }
         con.closeSync();
         res.json({ columnas, filas });
     } catch (err) {
@@ -6556,6 +6581,40 @@ app.get('/api/fuentes/carpeta', (req, res) => {
     }
     const todos = fuentes.archivosDeCarpeta(abs, { patron: req.query.patron || '*', subcarpetas: req.query.subcarpetas === '1' });
     res.json({ total: todos.length, archivos: todos.slice(0, 20).map(({ ruta, nombre, modificada, tamano, quieto }) => ({ ruta, nombre, modificada, tamano, quieto })) });
+});
+
+/** Una credencial de nube con nombre (C4, 5.1): sólo se escribe; nunca se devuelve su valor. */
+app.post('/api/secretos/nube', async (req, res) => {
+    try {
+        res.json(await secretos.guardarNube(req.body || {}));
+    } catch (err) {
+        res.status(400).json({ error: err.message });
+    }
+});
+
+/**
+ * Las tablas de un lago (C4, 5.3): carpetas Delta o Iceberg, catálogos DuckLake.
+ * En una instancia aparte, con la credencial (si la hay) ya preparada.
+ */
+app.post('/api/fuentes/explorar', async (req, res) => {
+    let inst = null;
+    const { ubicacion, credencial = null } = req.body || {};
+    try {
+        if (!ubicacion) throw new Error('Choose where the lake is first.');
+        const donde = path.isAbsolute(ubicacion) || /^[a-z0-9]+:\/\//i.test(ubicacion) ? ubicacion : path.resolve(ROOT_DIR, ubicacion);
+        const { DuckDBInstance } = require('@duckdb/node-api');
+        inst = await DuckDBInstance.create(':memory:');
+        const con = await inst.connect();
+        const db = { query: async (sql) => (await con.run(sql)).getRowObjectsJson() };
+        if (credencial && /^[a-z0-9]+:\/\//i.test(donde)) await con.run(await secretos.sqlDeCredencial(credencial, fuentes.alcanceDe(donde)));
+        const tablas = await fuentes.explorar(db, donde);
+        con.closeSync();
+        res.json({ tablas });
+    } catch (err) {
+        res.status(400).json({ error: fuentes.explicarNube(err, { credencial, tipo: 'lago' }, ubicacion) });
+    } finally {
+        try { inst?.closeSync(); } catch { /* ya cerrada */ }
+    }
 });
 
 app.get('/api/fuentes/sugerir-nombre', (req, res) => {

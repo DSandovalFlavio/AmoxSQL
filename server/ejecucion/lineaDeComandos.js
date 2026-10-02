@@ -124,9 +124,18 @@ async function atender(orden, { dbManager, config }) {
     // Una que aquí no tiene ubicación falla igual que una credencial: antes de empezar.
     try {
         const fuentes = require('../fuentes');
-        const usa = new Set(manifiesto.requisitos(orden.proyecto).fuentes);
-        for (const n of fuentes.usadas(JSON.stringify(cadena.nodes || []).replace(/\\"/g, '"'))) usa.add(n);
-        for (const nodo of cadena.nodes || []) if (nodo?.type === 'fuente' && nodo.config?.fuente) usa.add(String(nodo.config.fuente));
+        // Sólo las de ESTE proceso: sus nodos Source, su SQL y el de sus archivos
+        // .sql. Una fuente que el proyecto usa en otro sitio no lo detiene.
+        const usa = new Set(fuentes.usadas(JSON.stringify(cadena.nodes || []).replace(/\\"/g, '"')));
+        for (const nodo of cadena.nodes || []) {
+            if (nodo?.type === 'fuente' && nodo.config?.fuente) usa.add(String(nodo.config.fuente));
+            if (nodo?.type === 'sql_file' && nodo.config?.filePath) {
+                try {
+                    const sql = fs.readFileSync(path.resolve(orden.proyecto, nodo.config.filePath), 'utf8');
+                    for (const n of fuentes.usadas(sql)) usa.add(n);
+                } catch { /* el nodo dirá que no encuentra su archivo */ }
+            }
+        }
         if (usa.size) {
             const { fuentes: lista } = await fuentes.listar({ raiz: orden.proyecto });
             const porNombre = new Map(lista.map(f => [f.nombre, f]));

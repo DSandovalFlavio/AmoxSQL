@@ -328,6 +328,7 @@ class DatabaseManager {
                 `SELECT count(*) AS n FROM information_schema.tables
                  WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
                    AND table_catalog <> 'fuentes'
+                   AND table_catalog NOT LIKE 'amox\\_lago\\_%' ESCAPE '\\'
                    AND table_schema NOT LIKE 'amoxsql%'
                    AND table_schema NOT LIKE 'fts\\_%' ESCAPE '\\'`,
                 'meta'
