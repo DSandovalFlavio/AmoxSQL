@@ -120,6 +120,28 @@ async function atender(orden, { dbManager, config }) {
         });
     }
 
+    // ── las fuentes con nombre (C1): las del manifiesto y las que nombra el proceso.
+    // Una que aquí no tiene ubicación falla igual que una credencial: antes de empezar.
+    try {
+        const fuentes = require('../fuentes');
+        const usa = new Set(manifiesto.requisitos(orden.proyecto).fuentes);
+        for (const n of fuentes.usadas(JSON.stringify(cadena.nodes || []).replace(/\\"/g, '"'))) usa.add(n);
+        for (const nodo of cadena.nodes || []) if (nodo?.type === 'fuente' && nodo.config?.fuente) usa.add(String(nodo.config.fuente));
+        if (usa.size) {
+            const { fuentes: lista } = await fuentes.listar({ raiz: orden.proyecto });
+            const porNombre = new Map(lista.map(f => [f.nombre, f]));
+            const sinUbicar = [...usa].filter(n => porNombre.has(n) && ['sin_ubicar', 'no_encontrada'].includes(porNombre.get(n).estado));
+            if (sinUbicar.length) {
+                return terminar(CODIGO.credencial, {
+                    mensaje: `Source${sinUbicar.length > 1 ? 's' : ''} not found on this machine: ${sinUbicar.join(', ')}. Set where ${sinUbicar.length > 1 ? 'they are' : 'it is'} in the Sources panel.`,
+                    faltan: sinUbicar,
+                });
+            }
+        }
+    } catch (e) {
+        anotar(`${hora()}  (the sources could not be checked: ${e.message})`);
+    }
+
     // ── correr ───────────────────────────────────────────────────────────────
     const relativo = path.relative(orden.proyecto, orden.proceso);
     const chainFile = relativo.startsWith('..') || path.isAbsolute(relativo) ? orden.proceso : relativo;

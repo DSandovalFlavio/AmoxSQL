@@ -31,6 +31,19 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onCreateSqlFile, onOpenFile, sql
         return () => { cancelled = true; };
     }, []);
 
+    // Named sources (C1) for the Source node.
+    const [fuentes, setFuentes] = useState([]);
+    const esFuente = node?.data?.nodeType === 'fuente';
+    useEffect(() => {
+        if (!esFuente) return;
+        let cancelled = false;
+        fetch(`${API_BASE}/api/fuentes`)
+            .then(r => r.json())
+            .then(data => { if (!cancelled) setFuentes(Array.isArray(data?.fuentes) ? data.fuentes : []); })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [esFuente]);
+
     // Project data files for import autocomplete.
     useEffect(() => {
         let cancelled = false;
@@ -158,6 +171,10 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onCreateSqlFile, onOpenFile, sql
 
                 {node.data.nodeType === 'table_ref' && (
                     <TableRefConfig config={config} onChange={updateConfig} tableOptions={tableOptions} />
+                )}
+
+                {node.data.nodeType === 'fuente' && (
+                    <FuenteConfig config={config} onChange={updateConfig} fuentes={fuentes} />
                 )}
 
                 {node.data.nodeType === 'merge_tables' && (
@@ -742,6 +759,40 @@ const TableRefConfig = ({ config, onChange, tableOptions = [] }) => (
         </p>
     </div>
 );
+
+const ESTADO_FUENTE = {
+    encontrada: null,
+    remota: null,
+    sin_ubicar: 'no location on this machine',
+    no_encontrada: 'file not found here',
+    no_es_archivo: 'not a file',
+};
+
+const FuenteConfig = ({ config, onChange, fuentes = [] }) => {
+    const elegida = fuentes.find(f => f.nombre === config.fuente);
+    const aviso = elegida ? ESTADO_FUENTE[elegida.estado] : null;
+    return (
+        <div className="chain-config-section">
+            <label>Source</label>
+            <Combobox
+                value={config.fuente || ''}
+                onChange={(v) => onChange('fuente', v)}
+                options={fuentes.map(f => ({ value: f.nombre, hint: ESTADO_FUENTE[f.estado] || f.origen }))}
+                placeholder="Pick a source…"
+            />
+            {elegida?.descripcion && <p className="chain-config-hint">{elegida.descripcion}</p>}
+            {aviso && <p className="chain-config-hint chain-config-warning">This source has {aviso}. Set it in the Sources panel before running.</p>}
+            {!fuentes.length && (
+                <p className="chain-config-hint">
+                    This project has no sources yet. Create them in the Sources section of the database explorer.
+                </p>
+            )}
+            <p className="chain-config-hint">
+                Downstream nodes read <code>fuentes."{config.fuente || 'name'}"</code> straight from its file; nothing is copied.
+            </p>
+        </div>
+    );
+};
 
 const MergeTablesConfig = ({ config, onChange }) => (
     <div className="chain-config-section">
@@ -1576,6 +1627,8 @@ const generateSqlPreview = (nodeType, config) => {
             return c.query || null;
         case 'table_ref':
             return c.tableName ? `SELECT * FROM "${c.tableName}"` : null;
+        case 'fuente':
+            return c.fuente ? `SELECT * FROM fuentes."${c.fuente}"` : null;
         case 'import_file': {
             if (!c.sourcePath) return null;
             const tbl = c.tableName || 'imported_data';

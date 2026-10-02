@@ -15,6 +15,7 @@ const secretos         = require('./secretos');
 const manifiesto       = require('./manifiesto');
 const contextoDeEjecucion = require('./ejecucion/ContextoDeEjecucion');
 const workspaces       = require('./workspaces');
+const fuentes          = require('./fuentes');
 const lineaDeComandos  = require('./ejecucion/lineaDeComandos');
 // La apertura de la base de AmoxSQL y del llavero (ver startServer).
 let arranque = Promise.resolve();
@@ -74,7 +75,11 @@ function userTablesWhereClause(schemaCol = 'table_schema', nameCol = 'table_name
     // in its own DuckDB catalog — not the user's logical lakehouse tables.
     const catalogCol = schemaCol.replace(/table_schema$/, 'table_catalog');
     const duckLakeMetaClause = `${catalogCol} NOT LIKE '\\_\\_ducklake\\_metadata\\_%' ESCAPE '\\'`;
-    return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND ${chainArtifactClause} AND ${duckLakeMetaClause} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
+    // Las fuentes con nombre (C1) viven en su propio catalogo, `fuentes`, con
+    // esquema `main`: sin esto se mezclarian con las tablas del proyecto. El
+    // explorador las enseña aparte (/api/fuentes/columnas).
+    const fuentesClause = `${catalogCol} <> 'fuentes'`;
+    return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND ${chainArtifactClause} AND ${duckLakeMetaClause} AND ${fuentesClause} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
 }
 
 app.use(cors());
@@ -140,6 +145,9 @@ app.post('/api/project/open', async (req, res) => {
             .then(() => workspaces.registrar(ROOT_DIR, { abrir: true }))
             .then(() => workspaces.refrescarPolitica(ROOT_DIR))
             .catch(() => {});
+        // Las fuentes del proyecto (C1): ya, sin esperar al registro. Lo que se
+        // consulte de `fuentes.` mientras tanto espera a que termine.
+        remontarFuentes();
         // El vigilante mira UNA raiz: al cambiar de proyecto hay que rearmarlo,
         // o seguiria avisando de los archivos del proyecto anterior.
         rearmarVigilante();
@@ -586,6 +594,7 @@ app.post('/api/db/connect', async (req, res) => {
         // conexion 'main' y DuckDB serializa sus sentencias, asi que lanzarlas
         // antes solo movia la espera a lo siguiente de la cola.
         dbManager.warmExtensions();
+        remontarFuentes();
     } catch (err) {
         console.error("DB Connection Failed:", err);
         res.status(500).json({ error: 'Failed to connect to database', details: err.message });
@@ -2259,9 +2268,13 @@ async function buildTableContext(contextTables = null) {
         const tables = await dbManager.systemQuery(query, { lane: 'meta' });
         const selected = tables.slice(0, 30);
         if (selected.length === 0) {
-            _tableContextCache = [];
+            // Un proyecto sin tablas puede tener fuentes: tambien cuentan.
+            const soloFuentes = contextTables ? [] : await columnasDeFuentes()
+                .then(lista => lista.map(f => ({ name: f.nombre, schema: 'fuentes', ref: `fuentes."${f.nombre}"`, descripcion: f.descripcion, columns: f.columnas.map(c => ({ name: c.nombre, type: c.tipo })) })))
+                .catch(() => []);
+            _tableContextCache = soloFuentes;
             _tableContextCacheTime = now;
-            return [];
+            return soloFuentes;
         }
 
         // Single pass instead of DESCRIBE + COUNT(*) per table (up to 60 queries
@@ -2314,6 +2327,16 @@ async function buildTableContext(contextTables = null) {
                 rows: (rowsVal !== undefined && rowsVal !== null) ? rowsVal : '?',
             };
         });
+
+        // Las fuentes con nombre (C1) van detras de las tablas, con su forma de
+        // citarlas: fuentes."nombre". Sin contar filas: contarlas leeria el archivo.
+        if (!contextTables) {
+            try {
+                for (const f of await columnasDeFuentes()) {
+                    tableContexts.push({ name: f.nombre, schema: 'fuentes', ref: `fuentes."${f.nombre}"`, descripcion: f.descripcion, columns: f.columnas.map(c => ({ name: c.nombre, type: c.tipo })) });
+                }
+            } catch { /* sin fuentes, el contexto sigue */ }
+        }
 
         _tableContextCache = tableContexts;
         _tableContextCacheTime = now;
@@ -3756,6 +3779,8 @@ app.post('/api/query', async (req, res) => {
     });
 
     try {
+        // Una consulta a una fuente justo al abrir el proyecto espera al catalogo.
+        if (montandoFuentes && /\bfuentes\s*\./i.test(query)) await montandoFuentes;
         const start = performance.now();
         const result = await dbManager.queryWithMetadata(limitedSql, { trackId: qid });
         const end = performance.now();
@@ -3791,6 +3816,7 @@ app.post('/api/query', async (req, res) => {
                 anotarExtensionDelProyecto(extName);
             }
         } catch { /* non-fatal bookkeeping */ }
+        anotarFuentesDelSql(query);
 
         // Classify the statement so the editor can decide how to render it: a
         // tabular result gets the table, a DML/DDL side-effect gets a summary
@@ -3899,7 +3925,7 @@ app.post('/api/cuaderno/celda', async (req, res) => {
                 SELECT name, tipo FROM (
                     SELECT table_name AS name, 'tabla' AS tipo, temporary FROM duckdb_tables()
                     UNION ALL
-                    SELECT view_name, 'vista', temporary FROM duckdb_views() WHERE NOT internal
+                    SELECT view_name, 'vista', temporary FROM duckdb_views() WHERE NOT internal AND database_name <> 'fuentes'
                 ) WHERE NOT temporary AND lower(name) = lower('${String(vista).replace(/'/g, "''")}')
                 LIMIT 1
             `);
@@ -6134,14 +6160,18 @@ app.put('/api/proyectos/:id', conCentral(async (req) => workspaces.actualizarPro
 app.put('/api/proyectos-enlace', conCentral(async (req) => {
     const r = await workspaces.enlazarRuta(req.body?.ruta, req.body?.workspaceId || null);
     if (PROYECTO_ABIERTO) await workspaces.refrescarPolitica(ROOT_DIR);
+    remontarFuentes();
     return r;
 }));
 
 // Exportar e importar un workspace (B6): un .amoxworkspace sin credenciales.
 app.get('/api/workspaces/:id/exportar', conCentral(async (req) => workspaces.exportar(req.params.id)));
 app.post('/api/workspaces-importar/analizar', conCentral(async (req) => workspaces.analizarImportacion(req.body?.contenido)));
-app.post('/api/workspaces-importar', conCentral(async (req) =>
-    workspaces.importar(req.body?.contenido, req.body?.opciones || {})));
+app.post('/api/workspaces-importar', conCentral(async (req) => {
+    const r = await workspaces.importar(req.body?.contenido, req.body?.opciones || {});
+    remontarFuentes();
+    return r;
+}));
 
 // El enlace de la carpeta abierta: qué es, y cambiarlo.
 app.get('/api/project/workspace', conCentral(async () => {
@@ -6153,6 +6183,7 @@ app.put('/api/project/workspace', conCentral(async (req) => {
     const { workspaceId = null, noPreguntar } = req.body || {};
     const r = await workspaces.enlazar(ROOT_DIR, workspaceId, { noPreguntar });
     await workspaces.refrescarPolitica(ROOT_DIR);
+    remontarFuentes();
     return r;
 }));
 
@@ -6220,10 +6251,173 @@ function anotarCredencialesDeCadena(definicion) {
     if (!PROYECTO_ABIERTO) return;
     try { manifiesto.anotarDesdeCadena(ROOT_DIR, definicion); }
     catch (e) { console.warn('[Manifiesto] No se pudieron anotar las credenciales:', e.message); }
+    // Y las fuentes con nombre que usa: por sus nodos Source y por su SQL.
+    for (const n of definicion?.nodes || []) {
+        if (n?.type === 'fuente' && n.config?.fuente) anotarFuentesDelSql(`fuentes."${n.config.fuente}"`);
+        else if (n?.config) anotarFuentesDelSql(JSON.stringify(n.config).replace(/\\"/g, '"'));
+    }
 }
 
+// ─── Las fuentes con nombre (C1, 5.10) ──────────────────────────────────────
+// Cada fuente es una vista del catálogo en memoria `fuentes` (server/fuentes.js).
+// Montarlo lee los archivos para saber sus columnas, así que va por el carril
+// 'meta' —no hace esperar a las consultas del usuario— y nunca dos a la vez:
+// si se pide mientras corre uno, se repite al terminar con lo último.
+
+let montandoFuentes = null;
+let fuentesOtraVez = false;
+let ultimoMontaje = { informe: [], esquemaHomonimo: false, en: null };
+
+function remontarFuentes() {
+    if (montandoFuentes) { fuentesOtraVez = true; return montandoFuentes; }
+    montandoFuentes = (async () => {
+        do {
+            fuentesOtraVez = false;
+            try {
+                await baseCentral.abrir().catch(() => {});
+                const raiz = PROYECTO_ABIERTO ? ROOT_DIR : null;
+                const meta = dbManager.lane('meta');
+                const informe = await fuentes.montar(meta, { raiz });
+                ultimoMontaje = { informe, esquemaHomonimo: raiz ? await fuentes.hayEsquemaHomonimo(meta) : false, en: new Date().toISOString() };
+                invalidateTableContextCache();
+            } catch (e) {
+                console.warn('[Fuentes] No se pudo montar el catálogo:', e?.message || e);
+            }
+        } while (fuentesOtraVez);
+    })().finally(() => { montandoFuentes = null; });
+    return montandoFuentes;
+}
+dbManager.alIniciar(() => { remontarFuentes(); });
+
+function anotarFuentesDelSql(sql) {
+    if (!PROYECTO_ABIERTO) return;
+    try {
+        const nombres = fuentes.usadas(sql);
+        if (!nombres.length) return;
+        const conocidas = new Set(fuentes.definiciones({ raiz: ROOT_DIR }).fuentes.map(f => f.def.nombre));
+        for (const n of nombres) if (conocidas.has(n)) manifiesto.anotarFuente(ROOT_DIR, n);
+    } catch (e) { console.warn('[Manifiesto] No se pudieron anotar las fuentes:', e.message); }
+}
+
+/** Dónde vive lo que se pide: en el proyecto abierto, o en un workspace. */
+function destinoDeFuente(req) {
+    const b = { ...(req.query || {}), ...(req.body || {}) };
+    if (b.workspaceId) return { workspaceId: String(b.workspaceId) };
+    if (!PROYECTO_ABIERTO) throw new Error('Open a project or choose a workspace first.');
+    return { raiz: ROOT_DIR };
+}
+
+app.get('/api/fuentes', conCentral(async (req) => {
+    if (req.query.workspaceId) return fuentes.listar({ workspaceId: String(req.query.workspaceId) });
+    if (!PROYECTO_ABIERTO) return { workspaceId: null, fuentes: [], invalidas: [] };
+    if (montandoFuentes) await montandoFuentes;
+    const r = await fuentes.listar({ raiz: ROOT_DIR });
+    const porNombre = new Map(ultimoMontaje.informe.map(i => [i.nombre, i]));
+    return {
+        ...r,
+        fuentes: r.fuentes.map(f => ({ ...f, error: porNombre.get(f.nombre)?.error || null })),
+        esquemaHomonimo: ultimoMontaje.esquemaHomonimo,
+    };
+}));
+
+app.post('/api/fuentes', conCentral(async (req) => {
+    const destino = destinoDeFuente(req);
+    const { anterior = null } = req.body || {};
+    let { definicion, ubicacionAqui } = req.body || {};
+    // Un archivo DENTRO del proyecto, en una fuente del proyecto: la ruta va en
+    // la definición, relativa, y vale igual en todas las máquinas. Sin registrar.
+    if (destino.raiz && ubicacionAqui && path.isAbsolute(ubicacionAqui)) {
+        const rel = path.relative(destino.raiz, ubicacionAqui);
+        if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
+            definicion = { ...definicion, ubicacion: rel.split(path.sep).join('/') };
+            ubicacionAqui = null;
+        }
+    }
+    const def = await fuentes.guardar(destino, definicion, { anterior });
+    if (ubicacionAqui !== undefined) await fuentes.ubicar(destino, def.nombre, ubicacionAqui || null);
+    await remontarFuentes();
+    return { fuente: def };
+}));
+
+app.delete('/api/fuentes/:nombre', conCentral(async (req) => {
+    await fuentes.borrar(destinoDeFuente(req), req.params.nombre);
+    await remontarFuentes();
+    return { ok: true };
+}));
+
+app.put('/api/fuentes/:nombre/ubicacion', conCentral(async (req) => {
+    const ubicacion = await fuentes.ubicar(destinoDeFuente(req), req.params.nombre, req.body?.ubicacion || null);
+    await remontarFuentes();
+    return { ubicacion };
+}));
+
+/**
+ * Probar una definición sin guardarla: las primeras filas y las columnas. Va en
+ * una instancia aparte, en memoria, para no dejar nada en la sesión.
+ */
+app.post('/api/fuentes/probar', async (req, res) => {
+    let inst = null;
+    try {
+        const def = fuentes.normalizarDefinicion(req.body?.definicion);
+        const ubicacion = req.body?.ubicacion || def.ubicacion;
+        if (!ubicacion) throw new Error('Choose where the file is first.');
+        const { DuckDBInstance } = require('@duckdb/node-api');
+        inst = await DuckDBInstance.create(':memory:');
+        const con = await inst.connect();
+        const lectura = fuentes.sqlDeLectura(def, path.isAbsolute(ubicacion) || /^[a-z0-9]+:\/\//i.test(ubicacion) ? ubicacion : path.resolve(ROOT_DIR, ubicacion));
+        const columnas = (await (await con.run(`DESCRIBE ${lectura}`)).getRowObjectsJson())
+            .map(c => ({ nombre: c.column_name, tipo: c.column_type }));
+        const filas = await (await con.run(`${lectura} LIMIT 20`)).getRowObjectsJson();
+        con.closeSync();
+        res.json({ columnas, filas });
+    } catch (err) {
+        res.status(400).json({ error: String(err?.message || err).split('\n')[0] });
+    } finally {
+        try { inst?.closeSync(); } catch { /* ya cerrada */ }
+    }
+});
+
+/**
+ * Las fuentes del catálogo con sus columnas, tal como las ve el motor ahora.
+ * Una fuente sin ubicar o ilegible tiene una sola columna, `aviso`: se marca.
+ */
+async function columnasDeFuentes() {
+    if (montandoFuentes) await montandoFuentes;
+    const filas = await dbManager.systemQuery(
+        `SELECT v.view_name AS nombre, v.comment AS descripcion, c.column_name, c.data_type
+         FROM duckdb_views() v
+         LEFT JOIN information_schema.columns c
+                ON c.table_catalog = v.database_name AND c.table_schema = v.schema_name AND c.table_name = v.view_name
+         WHERE v.database_name = 'fuentes' AND NOT v.internal
+         ORDER BY v.view_name, c.ordinal_position`,
+        { lane: 'meta' }
+    );
+    const porNombre = new Map();
+    for (const f of filas) {
+        if (!porNombre.has(f.nombre)) porNombre.set(f.nombre, { nombre: f.nombre, descripcion: f.descripcion || null, columnas: [] });
+        if (f.column_name) porNombre.get(f.nombre).columnas.push({ nombre: f.column_name, tipo: f.data_type });
+    }
+    const estados = new Map(ultimoMontaje.informe.map(i => [i.nombre, i.estado]));
+    return [...porNombre.values()].map(f => {
+        const estado = estados.get(f.nombre) || 'lista';
+        return { ...f, estado, columnas: estado === 'lista' ? f.columnas : [] };
+    });
+}
+
+app.get('/api/fuentes/columnas', async (_req, res) => {
+    try {
+        res.json({ fuentes: await columnasDeFuentes() });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/fuentes/sugerir-nombre', (req, res) => {
+    res.json({ nombre: fuentes.sugerirNombre(path.basename(String(req.query.de || ''))), formato: fuentes.formatoDe(req.query.de) });
+});
+
 app.get('/api/project/requisitos', async (_req, res) => {
-    if (!PROYECTO_ABIERTO) return res.json({ requiere: { credenciales: [], extensiones: [] }, faltan: { credenciales: [], extensiones: [] }, completo: true });
+    if (!PROYECTO_ABIERTO) return res.json({ requiere: { credenciales: [], extensiones: [], fuentes: [] }, faltan: { credenciales: [], extensiones: [], fuentes: [] }, completo: true });
     try {
         res.json(await manifiesto.comprobar(ROOT_DIR, dbManager, aiManager.getConfig()));
     } catch (err) {

@@ -23,6 +23,7 @@ SOURCES
 - bucket_read      config: { uri (s3://… or gs://…), tableName, format: csv|parquet|json, provider: s3|gcs }   // cloud object storage; creds in Settings
 - gsheet_read      config: { spreadsheetId, sheet (tab name), tableName }   // Google Sheet; service account in Settings
 - table_ref        config: { tableName }   // reference an existing table/view
+- fuente           config: { fuente }      // a named source by its name (lowercase-with-hyphens); read in place as fuentes."name"
 SQL
 - sql_inline       config: { query }        // raw DuckDB SQL
 - sql_file         config: { filePath }      // path to a .sql file in the project
@@ -58,7 +59,7 @@ CONTROL
 `.trim();
 
 const NODE_TYPES = [
-    'import_file', 'import_folder', 'http_fetch', 'bucket_read', 'gsheet_read', 'table_ref', 'sql_inline', 'sql_file',
+    'import_file', 'import_folder', 'http_fetch', 'bucket_read', 'gsheet_read', 'table_ref', 'fuente', 'sql_inline', 'sql_file',
     'filter', 'select_columns', 'add_column', 'group_aggregate', 'join_tables', 'merge_tables',
     'sort', 'deduplicate', 'type_cast', 'window_functions', 'pivot', 'unpivot', 'clean', 'date_ops', 'flatten', 'ai_enrich',
     'sample', 'rename_table', 'create_table', 'export_file', 'chart', 'report', 'assert', 'schema_validation',

@@ -21,6 +21,7 @@ const FORMA_POR_TIPO = {
     bucket_read: 'almacen',
     gsheet_read: 'almacen',
     table_ref: 'almacen',
+    fuente: 'almacen',
     export_file: 'salida',       // salida
     assert: 'decision',          // decisión / control
     checkpoint: 'hito',

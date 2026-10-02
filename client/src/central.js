@@ -34,7 +34,11 @@ export function describirFaltantes(faltan) {
     const ext = faltan?.extensiones || [];
     if (cred.length) partes.push(`the credential${cred.length > 1 ? 's' : ''} ${cred.map(c => c.nombre).join(', ')}`);
     if (ext.length) partes.push(`the extension${ext.length > 1 ? 's' : ''} ${ext.join(', ')}`);
-    return `This project needs ${partes.join(' and ')}, which ${cred.length + ext.length > 1 ? 'are' : 'is'} missing on this machine.`;
+    // Las fuentes no «faltan» igual: existen, pero aquí no se sabe dónde están.
+    const fue = faltan?.fuentes || [];
+    const sinUbicar = fue.length ? ` Set where ${fue.length > 1 ? 'these sources are' : 'this source is'} on this machine: ${fue.map(f => f.nombre).join(', ')} (Sources panel).` : '';
+    if (!partes.length) return sinUbicar.trim();
+    return `This project needs ${partes.join(' and ')}, which ${cred.length + ext.length > 1 ? 'are' : 'is'} missing on this machine.${sinUbicar}`;
 }
 
 /**

@@ -28,6 +28,7 @@ function requisitos(raiz) {
     return {
         credenciales: Array.isArray(r.credenciales) ? r.credenciales.filter(c => c && c.nombre) : [],
         extensiones: Array.isArray(r.extensiones) ? r.extensiones.filter(e => typeof e === 'string') : [],
+        fuentes: Array.isArray(r.fuentes) ? r.fuentes.filter(f => typeof f === 'string') : [],
     };
 }
 
@@ -55,6 +56,19 @@ function anotarCredencial(raiz, nombre, tipo) {
     const credenciales = [...r.credenciales, { nombre: n, tipo: String(tipo || 'secreto') }]
         .sort((a, b) => a.nombre.localeCompare(b.nombre));
     guardar(raiz, { credenciales });
+    return true;
+}
+
+/**
+ * Una fuente con nombre (C1) que el proyecto usa: en otra máquina hay que
+ * ubicarla. Devuelve true si la anotó (era nueva).
+ */
+function anotarFuente(raiz, nombre) {
+    const n = String(nombre || '').trim();
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(n)) return false;
+    const r = requisitos(raiz);
+    if (r.fuentes.includes(n)) return false;
+    guardar(raiz, { fuentes: [...r.fuentes, n].sort() });
     return true;
 }
 
@@ -101,13 +115,29 @@ async function comprobar(raiz, db, config) {
     } catch { instaladas = null; }   // sin motor no se puede saber: no se acusa a nadie
     const faltanExtensiones = instaladas ? requiere.extensiones.filter(e => !instaladas.has(e)) : [];
 
+    // Las fuentes que usa y que aquí no se sabe dónde están (o ya no existen).
+    const faltanFuentes = [];
+    if (requiere.fuentes.length) {
+        try {
+            const fuentes = require('./fuentes');
+            const { fuentes: lista } = await fuentes.listar({ raiz });
+            const porNombre = new Map(lista.map(f => [f.nombre, f]));
+            for (const n of requiere.fuentes) {
+                const f = porNombre.get(n);
+                if (!f) faltanFuentes.push({ nombre: n, motivo: 'sin_definicion' });
+                else if (f.estado === 'sin_ubicar') faltanFuentes.push({ nombre: n, motivo: 'sin_ubicar' });
+                else if (f.estado === 'no_encontrada') faltanFuentes.push({ nombre: n, motivo: 'no_encontrada', ubicacion: f.ubicacionAqui });
+            }
+        } catch { /* sin base de AmoxSQL no se puede saber: no se acusa a nadie */ }
+    }
+
     return {
         requiere,
-        faltan: { credenciales: faltanCredenciales, extensiones: faltanExtensiones },
-        completo: !faltanCredenciales.length && !faltanExtensiones.length,
+        faltan: { credenciales: faltanCredenciales, extensiones: faltanExtensiones, fuentes: faltanFuentes },
+        completo: !faltanCredenciales.length && !faltanExtensiones.length && !faltanFuentes.length,
     };
 }
 
 module.exports = {
-    requisitos, anotarExtension, anotarCredencial, credencialesDeCadena, anotarDesdeCadena, comprobar,
+    requisitos, anotarExtension, anotarCredencial, anotarFuente, credencialesDeCadena, anotarDesdeCadena, comprobar,
 };

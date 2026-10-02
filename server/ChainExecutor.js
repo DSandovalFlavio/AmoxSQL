@@ -355,6 +355,7 @@ class ChainExecutor extends EventEmitter {
         }
         switch (node.type) {
             case 'table_ref':     return c.tableName ? { table: c.tableName } : null;
+            case 'fuente':        return c.fuente ? { schema: 'fuentes', table: c.fuente } : null;
             case 'import_file':
             case 'import_folder': return { table: c.tableName || 'imported_data' };
             case 'http_fetch':    return { table: c.tableName || 'fetched_data' };
@@ -433,6 +434,11 @@ class ChainExecutor extends EventEmitter {
         // For table_ref, the output is the referenced table (carry the resolved schema)
         if (node.type === 'table_ref') {
             return { schema: resultSummary?.schema || null, table: resultSummary?.table || node.config?.tableName || null };
+        }
+        // A named source (C1) is a view of the `fuentes` catalog: downstream
+        // nodes read it in place, nothing is materialized.
+        if (node.type === 'fuente') {
+            return { schema: 'fuentes', table: resultSummary?.table || node.config?.fuente || null };
         }
 
         // Assert, checkpoint, chart and report are pass-through: none of them
@@ -680,6 +686,7 @@ class ChainExecutor extends EventEmitter {
                 return `-- SQL file: ${config.filePath || '?'} (not found at export time)`;
             }
             case 'table_ref':
+            case 'fuente':
                 return null;
             case 'import_file': {
                 const tbl = config.tableName || 'imported_data';
@@ -1053,6 +1060,14 @@ class ChainExecutor extends EventEmitter {
                 return r;
             }
 
+            // A named source has no upstream either: it is fuentes."name".
+            if (node.type === 'fuente') {
+                const c = this.applyVars(node.config || {}, vars);
+                const r = c.fuente ? { kind: 'table', ref: `"fuentes"."${c.fuente}"` } : { kind: 'none' };
+                resolved.set(id, r);
+                return r;
+            }
+
             // table_ref has no upstream to walk.
             if (node.type === 'table_ref') {
                 const c = this.applyVars(node.config || {}, vars);
@@ -1165,6 +1180,19 @@ class ChainExecutor extends EventEmitter {
                 const detected = this.detectResultType(sql);
                 resultType = detected.resultType;
                 resultSummary = { ...detected.details, rowCount: Array.isArray(result) ? result.length : 0 };
+                break;
+            }
+
+            case 'fuente': {
+                const nombre = String(config.fuente || '').trim();
+                if (!nombre) throw new Error('Source node has no source selected');
+                if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(nombre)) throw new Error(`"${nombre}" is not a source name`);
+                // Counting reads the file: if the source has no location on this
+                // machine, or its file is gone, it fails here with its own message.
+                const countResult = await dbManager.query(`SELECT COUNT(*) AS cnt FROM "fuentes"."${nombre}"`);
+                sql = `-- Source: fuentes."${nombre}"`;
+                resultType = 'table_referenced';
+                resultSummary = { table: nombre, schema: 'fuentes', rowCount: countResult[0]?.cnt || 0 };
                 break;
             }
 

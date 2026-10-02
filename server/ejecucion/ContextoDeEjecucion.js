@@ -37,7 +37,7 @@ const LEEN_LA_BASE = new Set([
 
 // Pasos que sólo leen archivos, la red, o lo que les llega del paso anterior.
 const SOLO_ARCHIVOS = new Set([
-    'import_file', 'import_folder', 'bucket_read', 'gsheet_read', 'http_fetch', 'export_file',
+    'import_file', 'import_folder', 'bucket_read', 'gsheet_read', 'http_fetch', 'export_file', 'fuente',
     'checkpoint', 'join_tables', 'merge_tables', 'filter', 'group_aggregate', 'select_columns',
     'deduplicate', 'add_column', 'sort', 'sample', 'pivot', 'unpivot', 'type_cast',
     'window_functions', 'clean', 'date_ops', 'flatten', 'schema_validation', 'notification',
@@ -258,6 +258,12 @@ async function abrirContexto(modo, { dbManager, proyecto, chainFile, fuera = fal
         try { await ctx.query(`SET file_search_path = '${String(proyecto).replace(/'/g, "''")}'`); } catch { /* no es crítico */ }
     }
     await cargarExtensiones(ctx, dbManager);
+    // Las fuentes con nombre (C1): la instancia aislada no ve el catálogo de la
+    // interfaz, así que monta el suyo. Si falla, el paso que lea una fuente lo dirá.
+    if (proyecto) {
+        try { await require('../fuentes').montar(ctx, { raiz: proyecto }); }
+        catch (e) { console.warn('[Fuentes] Contexto aislado sin catálogo:', e?.message || e); }
+    }
     return ctx;
 }
 

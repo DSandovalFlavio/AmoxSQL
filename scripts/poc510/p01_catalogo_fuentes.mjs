@@ -139,6 +139,13 @@ async function intenta(c, sql) {
     r = await intenta(c, `CREATE VIEW fuentes."falta" AS SELECT error('La fuente «falta» no tiene ubicación en esta máquina')::VARCHAR AS aviso`);
     r = r.ok ? await intenta(c, `SELECT * FROM fuentes."falta"`) : r;
     anota('una vista con error() se crea y explica al consultarla', !r.ok && /no tiene ubicaci/.test(r.error), r.error);
+    // Pero con el error en la COLUMNA, count(*) la descarta sin evaluarla y
+    // devuelve 1: hallado en la fase 1. El error va en el WHERE.
+    r = await intenta(c, `SELECT count(*)::INT AS n FROM fuentes."falta"`);
+    anota('con error() en la columna, count(*) devuelve 1 en vez de fallar (no sirve)', r.ok && r.filas[0].n === 1, r.error);
+    await c.run(`CREATE OR REPLACE VIEW fuentes."falta" AS SELECT NULL::VARCHAR AS aviso WHERE error('La fuente «falta» no tiene ubicación en esta máquina') IS NULL`);
+    r = await intenta(c, `SELECT count(*)::INT AS n FROM fuentes."falta"`);
+    anota('con error() en el WHERE, también count(*) falla con el mensaje', !r.ok && /no tiene ubicaci/.test(r.error), r.error);
     // Si el archivo desaparece DESPUES, la vista sigue y la consulta dice que falta
     const b = path.join(dir, 'b.csv');
     fs.writeFileSync(b, 'x,y\n1,2\n');

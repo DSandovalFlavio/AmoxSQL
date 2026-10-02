@@ -237,7 +237,27 @@ function createTools(context) {
                         }
                     }
 
-                    return { tables: tablesWithCounts };
+                    // Named sources: views in the `fuentes` catalog, read from
+                    // their file each time (rows are not counted for that reason).
+                    let sources = [];
+                    try {
+                        sources = (await db.systemQuery(`
+                            SELECT v.view_name AS name, v.comment AS description,
+                                   (SELECT COUNT(*) FROM information_schema.columns c
+                                    WHERE c.table_catalog = 'fuentes' AND c.table_name = v.view_name) AS column_count
+                            FROM duckdb_views() v
+                            WHERE v.database_name = 'fuentes' AND NOT v.internal
+                            ORDER BY v.view_name
+                        `)).map(s => ({
+                            ref: `fuentes."${s.name}"`,
+                            description: s.description || undefined,
+                            columns: s.column_count,
+                        }));
+                    } catch { /* no sources catalog in this session */ }
+
+                    return sources.length
+                        ? { tables: tablesWithCounts, sources, note: 'Sources are read from their files: query them as fuentes."name" (quoted, the name has hyphens).' }
+                        : { tables: tablesWithCounts };
                 } catch (err) {
                     return { error: err?.message || String(err) };
                 }
@@ -251,11 +271,13 @@ function createTools(context) {
             }),
             execute: async ({ table_name }) => {
                 try {
-                    // Support the documented "schema.table" form → "schema"."table"
+                    // Support the documented "schema.table" form → "schema"."table".
+                    // Parts may come quoted already (fuentes."weekly-sales").
+                    const sinComillas = (s) => s.trim().replace(/^"(.*)"$/, '$1').replace(/"/g, '""');
                     const dot = table_name.indexOf('.');
                     const ref = dot > 0
-                        ? `"${table_name.slice(0, dot)}"."${table_name.slice(dot + 1)}"`
-                        : `"${table_name}"`;
+                        ? `"${sinComillas(table_name.slice(0, dot))}"."${sinComillas(table_name.slice(dot + 1))}"`
+                        : `"${sinComillas(table_name)}"`;
                     const columns = await db.systemQuery(`DESCRIBE ${ref}`);
                     const sample = await db.systemQuery(`SELECT * FROM ${ref} LIMIT 5`);
 

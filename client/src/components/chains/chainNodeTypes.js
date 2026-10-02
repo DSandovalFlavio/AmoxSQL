@@ -9,7 +9,7 @@ import {
     LuArrowUpDown, LuDices, LuFlipHorizontal2, LuPencilLine, LuShuffle,
     LuTableProperties, LuArrowLeftRight, LuGalleryVerticalEnd, LuRows3,
     LuGlobe, LuWandSparkles, LuLayoutList, LuBell, LuRadar, LuCalendarClock, LuBraces,
-    LuCloud, LuSheet, LuSparkles, LuChartBar, LuPresentation
+    LuCloud, LuSheet, LuSparkles, LuChartBar, LuPresentation, LuInbox
 } from 'react-icons/lu';
 
 export const NODE_TYPES = {
@@ -82,6 +82,16 @@ export const NODE_TYPES = {
             accent: 'oklch(0.65 0.15 85)',
         },
         defaultConfig: { resumeLabel: '' },
+    },
+    fuente: {
+        id: 'fuente',
+        label: 'Source',
+        description: 'Read a named source (a file set up once in the Sources panel)',
+        icon: LuInbox,
+        color: {
+            accent: 'oklch(0.66 0.14 165)',
+        },
+        defaultConfig: { fuente: '' },
     },
     table_ref: {
         id: 'table_ref',
@@ -383,7 +393,7 @@ export const NODE_CATEGORIES = [
     {
         id: 'sources',
         label: 'Data Sources',
-        types: ['import_file', 'import_folder', 'table_ref', 'http_fetch', 'bucket_read', 'gsheet_read'],
+        types: ['fuente', 'import_file', 'import_folder', 'table_ref', 'http_fetch', 'bucket_read', 'gsheet_read'],
     },
     {
         id: 'sql',

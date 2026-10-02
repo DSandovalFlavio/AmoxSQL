@@ -59,7 +59,7 @@ Los parámetros son las mismas variables `${nombre}` que defines en **Variables*
 | **0** | Terminó bien |
 | **1** | El proceso falló (o se quedó en un checkpoint, que pide a alguien que lo reanude) |
 | **2** | Los argumentos no son válidos |
-| **3** | Falta una credencial en esta máquina. Añádela en **Settings → Credentials** |
+| **3** | Falta una credencial en esta máquina (añádela en **Settings → Credentials**), o una fuente con nombre no tiene ubicación aquí (ubícala en la sección **Sources** del explorador de base) |
 | **4** | AmoxSQL estaba abierto y no contestó en 30 segundos |
 | **5** | No existe la carpeta del proyecto o el archivo del proceso |
 
