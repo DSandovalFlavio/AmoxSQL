@@ -340,6 +340,8 @@ class DatabaseManager {
 
     async connect(dbPath, rootDir, options = {}) {
         console.log(`[DB Manager] Request to attach: ${dbPath}`);
+        // Una sesion nueva olvida lo que estuviera prestado (dbt): no se recupera.
+        this.prestada = null;
 
         // 0. Resolve Path
         let fullPath = ':memory:';
@@ -394,6 +396,7 @@ class DatabaseManager {
             await this.query(attachSql);
 
             this.attachedPath = fullPath;
+            this._readOnly = !!options.readOnly;
             this.isDuckLake = isDuckLake;
 
             // `USE` is per-connection: replicate it on every lane so unqualified
@@ -718,6 +721,47 @@ class DatabaseManager {
 
     getCurrentPath() {
         return this.attachedPath || ':memory:';
+    }
+
+    /**
+     * Soltar la base para que otro proceso la escriba (dbt, fase 2b de la 5.10)
+     * sin tirar el motor: sólo DETACH. Las extensiones, el catálogo `fuentes` y
+     * las vistas temporales siguen vivos; lo que lea la base falla hasta que se
+     * recupere. Devuelve lo prestado, o null si no había base.
+     */
+    async prestar(quien) {
+        if (!this.attachedPath || this.prestada) return this.prestada || null;
+        const prestada = {
+            quien, desde: new Date().toISOString(),
+            ruta: this.attachedPath, isDuckLake: this.isDuckLake, readOnly: !!this._readOnly,
+        };
+        await this.close();
+        this.prestada = prestada;
+        console.log(`[DB Manager] Base prestada a ${quien}: ${prestada.ruta}`);
+        return prestada;
+    }
+
+    /**
+     * Volver a adjuntar lo prestado. NO pasa por connect(): connect empieza una
+     * sesión limpia y reiniciaría el motor (adiós vistas temporales). Aquí se
+     * repite sólo el ATTACH y el USE de cada carril.
+     */
+    async recuperar() {
+        const p = this.prestada;
+        if (!p) return;
+        try {
+            await this._ensureLane('main');
+            await this.connections.main.run(this._buildAttachSql(p.ruta, p.isDuckLake, { readOnly: p.readOnly }));
+            this.attachedPath = p.ruta;
+            this.isDuckLake = p.isDuckLake;
+            for (const lane of LANES) {
+                await this._ensureLane(lane);
+                await this.connections[lane].run(`USE ${this.alias}`);
+            }
+            console.log(`[DB Manager] Base recuperada: ${p.ruta}`);
+        } finally {
+            this.prestada = null;
+        }
     }
 
     /**

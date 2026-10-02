@@ -1060,7 +1060,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                 </div>
                                 <div className="dbt-output">
                                     {execOutput.map((line, i) => (
-                                        <div key={i} className={`dbt-output-line ${line.type === 'stderr' ? 'dbt-output-line--err' : ''} ${line.type === 'error' ? 'dbt-output-line--fatal' : ''}`}>
+                                        <div key={i} className={`dbt-output-line ${line.type === 'stderr' ? 'dbt-output-line--err' : ''} ${line.type === 'error' ? 'dbt-output-line--fatal' : ''} ${line.type === 'amox' ? 'dbt-output-line--amox' : ''}`}>
                                             {line.text}
                                         </div>
                                     ))}

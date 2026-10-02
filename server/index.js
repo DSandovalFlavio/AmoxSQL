@@ -16,6 +16,23 @@ const manifiesto       = require('./manifiesto');
 const contextoDeEjecucion = require('./ejecucion/ContextoDeEjecucion');
 const workspaces       = require('./workspaces');
 const fuentes          = require('./fuentes');
+const dbtConvivir      = require('./dbtConvivir');
+
+/**
+ * Mientras dbt tiene la base del proyecto (fase 2b), lo que la lea no puede
+ * correr: se dice por qué en vez de dejar que el motor diga «schema user_db
+ * does not exist». Devuelve true si ya respondió.
+ */
+function baseOcupadaPorDbt(res) {
+    const p = dbManager.prestada;
+    if (!p) return false;
+    const hora = new Date(p.desde).toLocaleTimeString();
+    res.status(409).json({
+        error: `dbt is using ${path.basename(p.ruta)} (since ${hora}). AmoxSQL released it so dbt can write; queries run again as soon as dbt finishes.`,
+        ocupadaPor: p.quien,
+    });
+    return true;
+}
 const lineaDeComandos  = require('./ejecucion/lineaDeComandos');
 // La apertura de la base de AmoxSQL y del llavero (ver startServer).
 let arranque = Promise.resolve();
@@ -3793,6 +3810,11 @@ app.post('/api/query', async (req, res) => {
         activeQueries.delete(qid);
     });
 
+    // Mientras dbt tiene la base, se dice; lo que sólo lee fuentes o memoria corre.
+    if (dbManager.prestada && !/^\s*(SELECT|WITH|FROM|DESCRIBE|SUMMARIZE|PRAGMA)\b[\s\S]*\bfuentes\s*\./i.test(query) && baseOcupadaPorDbt(res)) {
+        activeQueries.delete(qid);
+        return;
+    }
     try {
         // Una consulta a una fuente justo al abrir el proyecto espera al catalogo.
         if (montandoFuentes && /\bfuentes\s*\./i.test(query)) await montandoFuentes;
@@ -3891,6 +3913,7 @@ app.post('/api/query', async (req, res) => {
 app.post('/api/cuaderno/celda', async (req, res) => {
     const { preparacion, lector, vista, deja, limit, queryId, aceptarTapado } = req.body;
     if (!lector) return res.status(400).json({ error: 'The reader query is missing' });
+    if (baseOcupadaPorDbt(res)) return;
 
     /**
      * Cambiar de tipo: relevar lo temporal que estorbe, y SOLO si estorba.
@@ -5581,36 +5604,62 @@ app.post('/api/dbt/execute', (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    const enviar = (o) => { try { res.write(`data: ${JSON.stringify(o)}\n\n`); } catch { /* el cliente se fue */ } };
 
-    const child = exec(finalCmd, { cwd: ROOT_DIR, timeout: 300000, maxBuffer: 1024 * 1024 * 10 });
-
-    child.stdout.on('data', (data) => {
-        const lines = data.toString().split('\n');
-        for (const line of lines) {
-            if (line.trim()) res.write(`data: ${JSON.stringify({ type: 'stdout', text: line })}\n\n`);
+    (async () => {
+        // dbt sin bloqueos (fase 2b): si va a abrir la base que tiene AmoxSQL,
+        // se suelta antes y se recupera al terminar, pase lo que pase.
+        let prestamo = { aviso: null, despues: async () => {} };
+        try {
+            prestamo = await dbtConvivir.antesDeDbt(dbManager, ROOT_DIR, command);
+        } catch (e) {
+            enviar({ type: 'amox', text: `AmoxSQL could not release the database for dbt: ${e.message}` });
         }
-    });
+        if (prestamo.aviso) enviar({ type: 'amox', text: prestamo.aviso });
+        try {
+            const v = (await dbManager.systemQuery('SELECT version() AS v', { lane: 'meta' }))?.[0]?.v;
+            const aviso = await dbtConvivir.avisoDeVersion(ROOT_DIR, command, { condaEnv, condaPath, versionAmox: v });
+            if (aviso) enviar({ type: 'amox', text: aviso });
+        } catch { /* sólo es un aviso */ }
 
-    child.stderr.on('data', (data) => {
-        const lines = data.toString().split('\n');
-        for (const line of lines) {
-            if (line.trim()) res.write(`data: ${JSON.stringify({ type: 'stderr', text: line })}\n\n`);
-        }
-    });
+        const lineas = [];
+        let terminado = false;
+        const terminar = async (codigo, error) => {
+            if (terminado) return;
+            terminado = true;
+            try { await prestamo.despues(); } catch (e) { enviar({ type: 'amox', text: `AmoxSQL could not reattach the database: ${e.message}. Open it again from the title bar.` }); }
+            if (prestamo.aviso) enviar({ type: 'amox', text: 'AmoxSQL has the database again.' });
+            if (error) enviar({ type: 'error', text: error });
+            if (dbtConvivir.noArranco(codigo, lineas)) {
+                enviar({ type: 'amox', text: "dbt did not start: its environment fails before running any project code (see the error above). Fix dbt's environment — for example, check that its Python version is supported by dbt — and try again." });
+            }
+            enviar({ type: 'exit', code: codigo });
+            try { res.end(); } catch { /* ya cerrado */ }
+        };
 
-    child.on('close', (code) => {
-        res.write(`data: ${JSON.stringify({ type: 'exit', code })}\n\n`);
-        res.end();
-    });
+        const child = exec(finalCmd, { cwd: ROOT_DIR, timeout: 300000, maxBuffer: 1024 * 1024 * 10 });
+        const salida = (tipo) => (data) => {
+            for (const line of data.toString().split('\n')) {
+                if (!line.trim()) continue;
+                if (lineas.length < 400) lineas.push(line);
+                enviar({ type: tipo, text: line });
+            }
+        };
+        child.stdout.on('data', salida('stdout'));
+        child.stderr.on('data', salida('stderr'));
+        child.on('close', (code) => { terminar(code); });
+        child.on('error', (err) => { terminar(1, err.message); });
+        req.on('close', () => {
+            try { child.kill(); } catch (e) { /* already dead */ }
+            // Cancelado: la base vuelve igual (close llega cuando el proceso muere).
+        });
+    })();
+});
 
-    child.on('error', (err) => {
-        res.write(`data: ${JSON.stringify({ type: 'error', text: err.message })}\n\n`);
-        res.end();
-    });
-
-    req.on('close', () => {
-        try { child.kill(); } catch (e) { /* already dead */ }
-    });
+/** ¿Tiene dbt ahora la base del proyecto? Para el aviso de la interfaz. */
+app.get('/api/dbt/base', (_req, res) => {
+    const p = dbManager.prestada;
+    res.json(p ? { prestada: true, quien: p.quien, desde: p.desde, archivo: path.basename(p.ruta) } : { prestada: false });
 });
 
 /* ============================================================

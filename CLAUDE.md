@@ -113,6 +113,7 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `workspaces.js` — Workspaces (B1), the user's word for them (B8), linking folders, the workspaces view summary, `.amoxworkspace` export/import
 - `excel.js` — **The one place that composes an Excel read** (5.10, C2): sources, the import dialog and Data Flow all go through it. Always `empty_as_varchar`, never `ignore_errors`; an open range `A4:E` becomes `A4:E1048576` + `stop_at_empty`; fill-down; sheet union with `_hoja`; a file that is not a workbook is recognized by its signature (`.xls`/encrypted, damaged, CSV in disguise). Sheet names come from `xlsxMeta.js` (reads the ZIP directly, ZIP64 included); the third-party workbook parser was removed
 - `fuentes.js` — **Named sources** (5.10, C1): definitions, per-machine locations, and the in-memory catalog `fuentes`
+- `dbtConvivir.js` — **dbt without locks** (5.10, I1): reads from `profiles.yml` which files a dbt command will open; if one is AmoxSQL's database, `dbManager.prestar()` detaches it (engine, temp views, sources and extensions survive) and `recuperar()` re-attaches it when dbt ends, however it ends. Meanwhile `/api/query` answers 409 saying why
 - `ejecucion/` — Data Flow runs: isolated contexts (memory / work database / project), the central run history, and the command line (`AmoxSQL.exe run …`, see `ordenes.js`)
 
 ### Utilities
