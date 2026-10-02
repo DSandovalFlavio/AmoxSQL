@@ -90,3 +90,11 @@ export async function elegirCarpeta() {
     if (typeof r === 'string') return r;
     return !r.canceled && r.filePaths?.[0] ? r.filePaths[0] : null;
 }
+
+/** Las credenciales de nube con nombre (C4): sólo nombres y tipos, nunca valores. */
+export const credencialesDeNube = () =>
+    pedir('GET', '/api/secretos').then(d => (d.credenciales || [])
+        .filter(c => /^nube-(s3|gcs)$/.test(c.tipo) && !/^nube-(s3|gcs)$/.test(c.nombre)));
+
+/** Las tablas de un lago (C4, 5.3): [{ ruta, formato, nombre }]. */
+export const explorarLago = (ubicacion, credencial) => pedir('POST', '/api/fuentes/explorar', { ubicacion, credencial });

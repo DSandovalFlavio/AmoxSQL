@@ -18,7 +18,7 @@ import {
 } from './api';
 import LecturaExcel from '../excel/LecturaExcel';
 import { lecturaRecordada } from '../excel/api';
-import { archivosDeLaCarpeta, elegirCarpeta } from './api';
+import { archivosDeLaCarpeta, elegirCarpeta, credencialesDeNube, explorarLago } from './api';
 
 const FORMATOS = { xlsx: 'Excel', csv: 'CSV', parquet: 'Parquet', json: 'JSON' };
 
@@ -31,7 +31,16 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
     );
     const [ruta, setRuta] = useState(fuente?.ubicacionAqui || '');
     // C3: un archivo, o una carpeta donde llega (el más reciente, o todos unidos).
-    const [tipo, setTipo] = useState(fuente?.tipo === 'carpeta' ? 'carpeta' : 'archivo');
+    const [tipo, setTipo] = useState(['carpeta', 'bucket', 'lago'].includes(fuente?.tipo) ? fuente.tipo : 'archivo');
+    // C4: un bucket (archivos en la nube) o un lago (una tabla Delta, Iceberg o DuckLake).
+    const [formatoBucket, setFormatoBucket] = useState(fuente?.tipo === 'bucket' ? (fuente.formato || 'parquet') : 'parquet');
+    const [formatoLago, setFormatoLago] = useState(fuente?.tipo === 'lago' ? fuente.formato : 'delta');
+    const [patronBucket, setPatronBucket] = useState(fuente?.tipo === 'bucket' ? (fuente.patron || '') : '');
+    const [hive, setHive] = useState(!!fuente?.hive);
+    const [tabla, setTabla] = useState(fuente?.tabla || '');
+    const [credencial, setCredencial] = useState(fuente?.credencial || '');
+    const [credenciales, setCredenciales] = useState([]);
+    const [explorados, setExplorados] = useState(null);
     const [criterio, setCriterio] = useState(fuente?.criterio === 'todos' ? 'todos' : 'reciente');
     const [patron, setPatron] = useState(fuente?.patron || '*.xlsx');
     const [subcarpetas, setSubcarpetas] = useState(!!fuente?.subcarpetas);
@@ -54,7 +63,17 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
     const [ocupado, setOcupado] = useState(false);
 
     const esCarpeta = tipo === 'carpeta';
-    const formato = esCarpeta ? (formatoDe(patron) || fuente?.formato) : (fuente?.formato || formatoDe(ruta));
+    const esNube = tipo === 'bucket' || tipo === 'lago';
+    const remota = /^[a-z][a-z0-9+.-]+:\/\//i.test(ruta.trim());
+    const formato = tipo === 'bucket' ? formatoBucket
+        : tipo === 'lago' ? formatoLago
+        : esCarpeta ? (formatoDe(patron) || fuente?.formato) : (fuente?.formato || formatoDe(ruta));
+
+    // Las credenciales de nube con nombre (para elegir la de un bucket o un lago).
+    useEffect(() => {
+        if (!esNube) return;
+        credencialesDeNube().then(setCredenciales).catch(() => setCredenciales([]));
+    }, [esNube]);
     // El archivo sobre el que se eligen hoja y rango: el mismo, o el más reciente de la carpeta.
     const muestra = esCarpeta ? (carpeta?.archivos?.find(a => a.quieto)?.ruta || '') : ruta;
 
@@ -108,6 +127,11 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
     const definicion = useMemo(() => {
         const d = { nombre: nombre.trim(), descripcion: descripcion.trim() || null, tipo };
         if (esCarpeta) Object.assign(d, { patron: patron.trim() || '*', criterio, subcarpetas: subcarpetas || undefined, formato: formato || undefined });
+        if (tipo === 'bucket') Object.assign(d, { formato: formatoBucket, patron: patronBucket.trim() || undefined, hive: hive || undefined });
+        if (tipo === 'lago') Object.assign(d, { formato: formatoLago, tabla: formatoLago === 'ducklake' ? tabla.trim() : undefined });
+        if (esNube && credencial) d.credencial = credencial;
+        // Una dirección en la nube es la misma en todas las máquinas: va en la definición.
+        if (esNube && remota) d.ubicacion = ruta.trim();
         if (formato === 'xlsx') {
             d.excel = { ...excelOpc };
             if (unir && elegidas.length > 1) d.excel.hojas = elegidas;
@@ -117,17 +141,24 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
         // Al editar una fuente cuya ruta va en la definición, se conserva.
         if (editando && fuente.como !== 'local' && fuente.ubicacion && ruta === fuente.ubicacionAqui) d.ubicacion = fuente.ubicacion;
         return d;
-    }, [nombre, descripcion, tipo, esCarpeta, patron, criterio, subcarpetas, formato, excelOpc, elegidas, unir, encabezado, delimitador, editando, fuente, ruta]);
+    }, [nombre, descripcion, tipo, esCarpeta, esNube, remota, patron, criterio, subcarpetas, formato, formatoBucket, formatoLago, patronBucket, hive, tabla, credencial, excelOpc, elegidas, unir, encabezado, delimitador, editando, fuente, ruta]);
 
     // Lo que cambia la lectura invalida la vista previa (la de CSV, Parquet y
     // JSON; la de Excel se rehace sola dentro de LecturaExcel).
-    useEffect(() => { setVista(null); }, [ruta, tipo, patron, criterio, subcarpetas, encabezado, delimitador]);
+    useEffect(() => { setVista(null); }, [ruta, tipo, patron, criterio, subcarpetas, encabezado, delimitador, formatoBucket, formatoLago, patronBucket, hive, tabla, credencial]);
 
     const nombreValido = NOMBRE_VALIDO.test(nombre.trim());
-    const listo = nombreValido && !!ruta.trim() && !ocupado;
+    const listo = nombreValido && !!ruta.trim() && !ocupado && !(tipo === 'lago' && formatoLago === 'ducklake' && !tabla.trim());
+
+    const explorar = async () => {
+        setOcupado(true); setError(null); setExplorados(null);
+        try { setExplorados((await explorarLago(ruta.trim(), credencial || null)).tablas || []); }
+        catch (e) { setError(e.message); }
+        finally { setOcupado(false); }
+    };
 
     const elegir = async () => {
-        const r = esCarpeta ? await elegirCarpeta() : await elegirArchivo();
+        const r = (esCarpeta || tipo === 'bucket' || (tipo === 'lago' && formatoLago !== 'ducklake')) ? await elegirCarpeta() : await elegirArchivo();
         if (r) setRuta(r);
     };
 
@@ -145,7 +176,8 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
                 workspaceId: destino === 'workspace' ? workspaceId : undefined,
                 definicion,
                 anterior: editando ? fuente.nombre : null,
-                ubicacionAqui: ruta.trim() !== (fuente?.ubicacionAqui || '') || !editando ? ruta.trim() : undefined,
+                ubicacionAqui: esNube && remota ? undefined
+                    : (ruta.trim() !== (fuente?.ubicacionAqui || '') || !editando ? ruta.trim() : undefined),
             });
             avisarCambio();
             onClose?.(guardada);
@@ -192,38 +224,125 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
                     <div className="fnt-campo">
                         <span className="fnt-etiqueta">What it reads</span>
                         <div className="fnt-segmento" role="radiogroup" aria-label="What the source reads">
-                            {[['archivo', 'reciente', 'One file'], ['carpeta', 'reciente', 'Newest file in a folder'], ['carpeta', 'todos', 'All files in a folder']].map(([t, c, texto]) => {
-                                const on = tipo === t && (t === 'archivo' || criterio === c);
-                                return (
-                                    <button key={texto} type="button" role="radio" aria-checked={on}
-                                        className={`fnt-segmento-op${on ? ' fnt-segmento-op--on' : ''}`}
-                                        onClick={() => { if (t !== tipo) setRuta(''); setTipo(t); setCriterio(c); }}>{texto}</button>
-                                );
-                            })}
+                            {[['archivo', 'One file'], ['carpeta', 'A folder'], ['bucket', 'Cloud bucket'], ['lago', 'Data lake']].map(([t, texto]) => (
+                                <button key={t} type="button" role="radio" aria-checked={tipo === t}
+                                    className={`fnt-segmento-op${tipo === t ? ' fnt-segmento-op--on' : ''}`}
+                                    onClick={() => { if (t !== tipo) { setRuta(''); setExplorados(null); } setTipo(t); }}>{texto}</button>
+                            ))}
                         </div>
+                        {esCarpeta && (
+                            <div className="fnt-segmento fnt-segmento--sub" role="radiogroup" aria-label="Which files of the folder">
+                                {[['reciente', 'The newest file'], ['todos', 'All files, combined']].map(([c, texto]) => (
+                                    <button key={c} type="button" role="radio" aria-checked={criterio === c}
+                                        className={`fnt-segmento-op${criterio === c ? ' fnt-segmento-op--on' : ''}`}
+                                        onClick={() => setCriterio(c)}>{texto}</button>
+                                ))}
+                            </div>
+                        )}
+                        {tipo === 'lago' && (
+                            <div className="fnt-segmento fnt-segmento--sub" role="radiogroup" aria-label="Lake format">
+                                {[['delta', 'Delta'], ['iceberg', 'Iceberg'], ['ducklake', 'DuckLake']].map(([f, texto]) => (
+                                    <button key={f} type="button" role="radio" aria-checked={formatoLago === f}
+                                        className={`fnt-segmento-op${formatoLago === f ? ' fnt-segmento-op--on' : ''}`}
+                                        onClick={() => setFormatoLago(f)}>{texto}</button>
+                                ))}
+                            </div>
+                        )}
                         <span className="fnt-nota">
-                            {!esCarpeta && 'A file that stays put, or that is replaced in place.'}
+                            {tipo === 'archivo' && 'A file that stays put, or that is replaced in place.'}
                             {esCarpeta && criterio === 'reciente' && 'For a file that arrives with a new name each time (Sales Week 39.xlsx, Sales Week 40.xlsx…): the source is always the newest one, once it has finished arriving.'}
                             {esCarpeta && criterio === 'todos' && 'Every matching file, combined by column name, with an _archivo column that says where each row came from.'}
+                            {tipo === 'bucket' && 'Parquet, CSV or JSON files in a bucket (or a folder with the same shape), read together. Hive partitions (year=2026/) become columns.'}
+                            {tipo === 'lago' && formatoLago !== 'ducklake' && `A ${formatoLago === 'delta' ? 'Delta' : 'Iceberg'} table: point at its folder. «Explore» finds the tables of a lake.`}
+                            {tipo === 'lago' && formatoLago === 'ducklake' && 'A table of a DuckLake lake, opened read-only: point at its catalog (.ducklake, or sqlite:… for a shared one).'}
                         </span>
                     </div>
 
                     <label className="fnt-campo">
-                        <span className="fnt-etiqueta">{esCarpeta ? 'Folder' : 'File'}</span>
+                        <span className="fnt-etiqueta">{{ archivo: 'File', carpeta: 'Folder', bucket: 'Bucket or folder', lago: formatoLago === 'ducklake' ? 'Catalog' : 'Table' }[tipo]}</span>
                         <div className="fnt-archivo">
                             <input className="wsx-input fnt-mono" value={ruta} onChange={e => setRuta(e.target.value)}
-                                placeholder={esCarpeta ? 'C:\\Data\\incoming' : 'C:\\Data\\incoming\\weekly-sales.xlsx'} spellCheck={false} />
-                            {(esCarpeta ? window.electronAPI?.selectFolder : window.electronAPI?.openFileDialog) && (
+                                placeholder={{
+                                    archivo: 'C:\\Data\\incoming\\weekly-sales.xlsx',
+                                    carpeta: 'C:\\Data\\incoming',
+                                    bucket: 's3://my-bucket/sales/',
+                                    lago: formatoLago === 'ducklake' ? 'C:\\Lake\\stores.ducklake' : 's3://my-bucket/lake/customers',
+                                }[tipo]} spellCheck={false} />
+                            {(esCarpeta || esNube ? window.electronAPI?.selectFolder : window.electronAPI?.openFileDialog) && (
                                 <button type="button" className="ww-btn-skip fnt-btn" onClick={elegir}><LuFolderOpen size={14} /> Choose…</button>
+                            )}
+                            {tipo === 'lago' && formatoLago !== 'ducklake' && (
+                                <button type="button" className="ww-btn-skip fnt-btn" onClick={explorar} disabled={!ruta.trim() || ocupado}>Explore</button>
                             )}
                         </div>
                         <span className="fnt-nota">
-                            {destino === 'workspace' || !enProyecto
-                                ? `Where the ${esCarpeta ? 'folder' : 'file'} is on this machine. Other machines set their own location.`
-                                : `A ${esCarpeta ? 'folder' : 'file'} inside the project is saved relative to it and works on every machine.`}
+                            {esNube && remota ? 'The same address on every machine: it is saved with the source.'
+                                : destino === 'workspace' || !enProyecto
+                                ? `Where the ${({ archivo: 'file', carpeta: 'folder', bucket: 'folder', lago: formatoLago === 'ducklake' ? 'catalog' : 'table' })[tipo]} is on this machine. Other machines set their own location.`
+                                : `A ${({ archivo: 'file', carpeta: 'folder', bucket: 'folder', lago: formatoLago === 'ducklake' ? 'catalog' : 'table' })[tipo]} inside the project is saved relative to it and works on every machine.`}
                             {formato && <> · {FORMATOS[formato]}</>}
                         </span>
                     </label>
+
+                    {explorados && (
+                        <div className="fnt-carpeta">
+                            {!explorados.length ? <span className="fnt-nota">No Delta or Iceberg table found there.</span> : (
+                                <>
+                                    <span className="fnt-nota">{explorados.length} table{explorados.length === 1 ? '' : 's'} found. Pick one:</span>
+                                    <ul>
+                                        {explorados.map(t => (
+                                            <li key={t.ruta}>
+                                                <button type="button" className="fnt-enlace fnt-mono" onClick={() => {
+                                                    setRuta(t.ruta); setFormatoLago(t.formato); setExplorados(null);
+                                                    if (!nombreTocado) setNombre(t.nombre);
+                                                }}>{t.ruta}</button>
+                                                <small>{t.formato}</small>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {tipo === 'bucket' && (
+                        <div className="fnt-fila">
+                            <label className="fnt-campo">
+                                <span className="fnt-etiqueta">Format</span>
+                                <select className="wsx-input wsx-input--corto" value={formatoBucket} onChange={e => setFormatoBucket(e.target.value)}>
+                                    <option value="parquet">Parquet</option>
+                                    <option value="csv">CSV</option>
+                                    <option value="json">JSON</option>
+                                </select>
+                            </label>
+                            <label className="fnt-campo fnt-crece">
+                                <span className="fnt-etiqueta">Path pattern <small>(optional)</small></span>
+                                <input className="wsx-input fnt-mono" value={patronBucket} spellCheck={false}
+                                    onChange={e => setPatronBucket(e.target.value)} placeholder={`**/*.${formatoBucket}`} />
+                            </label>
+                            <label className="wsx-check fnt-check-fila">
+                                <input type="checkbox" checked={hive} onChange={e => setHive(e.target.checked)} />
+                                Hive partitions (year=2026/)
+                            </label>
+                        </div>
+                    )}
+                    {tipo === 'lago' && formatoLago === 'ducklake' && (
+                        <label className="fnt-campo">
+                            <span className="fnt-etiqueta">Table</span>
+                            <input className="wsx-input wsx-input--corto fnt-mono" value={tabla} spellCheck={false}
+                                onChange={e => setTabla(e.target.value)} placeholder="sales" />
+                        </label>
+                    )}
+                    {esNube && (
+                        <label className="fnt-campo">
+                            <span className="fnt-etiqueta">Credential</span>
+                            <select className="wsx-input" value={credencial} onChange={e => setCredencial(e.target.value)}>
+                                <option value="">None (public, or on this machine)</option>
+                                {credenciales.map(c => <option key={c.nombre} value={c.nombre}>{c.nombre} · {c.tipo === 'nube-gcs' ? 'GCS' : 'S3'}</option>)}
+                            </select>
+                            <span className="fnt-nota">Projects only record its name. Add one in Settings → Credentials.</span>
+                        </label>
+                    )}
 
                     {esCarpeta && (
                         <div className="fnt-fila">
@@ -356,7 +475,7 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
                     {formato === 'xlsx' ? <span style={{ marginRight: 'auto' }} /> : (
                         <button className="ww-btn-skip fnt-btn" type="button" style={{ marginRight: 'auto' }}
                             onClick={previsualizar} disabled={!ruta.trim() || ocupado}>
-                            <LuPlay size={13} /> Preview
+                            <LuPlay size={13} /> {esNube ? 'Test connection' : 'Preview'}
                         </button>
                     )}
                     <button className="ww-btn-skip" type="button" onClick={() => onClose?.(null)}>Cancel</button>

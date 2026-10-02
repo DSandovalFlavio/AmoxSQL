@@ -36,7 +36,9 @@ const excel = require('./excel');
 const CATALOGO = 'fuentes';
 const NOMBRE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_NOMBRE = 64;
-const TIPOS = ['archivo', 'carpeta'];
+const TIPOS = ['archivo', 'carpeta', 'bucket', 'lago'];
+// C4: los formatos de un lago (una tabla, no un archivo).
+const LAGOS = ['delta', 'iceberg', 'ducklake'];
 const FORMATOS = {
     csv: /\.(csv|tsv|txt)(\.gz)?$/i,
     parquet: /\.parquet$/i,
@@ -84,7 +86,9 @@ function normalizarDefinicion(d) {
     if (!TIPOS.includes(tipo)) throw new Error(`Unknown source type: ${tipo}`);
     const ubicacion = texto(x.ubicacion, 2000) || null;
     let formato = x.formato || null;
-    if (formato && !FORMATOS[formato]) throw new Error(`Unknown format: ${formato}`);
+    if (tipo === 'lago') {
+        if (!LAGOS.includes(formato)) throw new Error(`A lake source is Delta, Iceberg or DuckLake (got: ${formato || 'nothing'}).`);
+    } else if (formato && !FORMATOS[formato]) throw new Error(`Unknown format: ${formato}`);
     const def = { nombre, tipo, descripcion: texto(x.descripcion, 1000) || null, formato, ubicacion };
     if (tipo === 'carpeta') {
         // C3: una carpeta donde «llega» el archivo. El patrón es sólo el nombre
@@ -96,6 +100,20 @@ function normalizarDefinicion(d) {
         if (x.subcarpetas === true) def.subcarpetas = true;
         if (!def.formato) def.formato = formatoDe(patron);
     }
+    if (tipo === 'bucket') {
+        // C4: archivos en la nube (o en una carpeta con la misma forma), con
+        // patrón de ruta (`**/*.parquet`) y particiones hive (`anio=2026/`).
+        def.patron = texto(x.patron, 300) || null;
+        if (x.hive === true) def.hive = true;
+        if (!def.formato) def.formato = formatoDe(def.patron || def.ubicacion || '') || 'parquet';
+    }
+    if (tipo === 'lago' && formato === 'ducklake') {
+        const tabla = texto(x.tabla, 200);
+        if (!tabla) throw new Error('A DuckLake source needs the table to read (for example: sales or main.sales).');
+        if (!/^[A-Za-z_][\w$]*(\.[A-Za-z_][\w$]*)?$/.test(tabla)) throw new Error(`Not a table name: ${tabla}`);
+        def.tabla = tabla;
+    }
+    if (texto(x.credencial, 64)) def.credencial = texto(x.credencial, 64);
     if (x.excel && typeof x.excel === 'object') {
         // Hoja (o varias, unidas con _hoja), rango, encabezado, rellenar y
         // limpiar nombres: las mismas opciones que el diálogo de importar (C2).
@@ -339,6 +357,12 @@ function elegidos(def, dir) {
 
 /** Lo que se sabe sin abrir el archivo: si está, cuánto ocupa, cuándo cambió. */
 function estadoDe(def, ubicacion) {
+    if (def.tipo === 'bucket' || def.tipo === 'lago') {
+        if (!ubicacion) return { estado: 'sin_ubicar' };
+        if (REMOTA.test(ubicacion)) return { estado: 'remota' };
+        const base = ubicacion.split(/[*?]/)[0];
+        return fs.existsSync(base) ? { estado: 'encontrada' } : { estado: 'no_encontrada' };
+    }
     if (def.tipo !== 'carpeta') return estadoDelArchivo(ubicacion);
     if (!ubicacion) return { estado: 'sin_ubicar' };
     if (REMOTA.test(ubicacion)) return { estado: 'remota' };
@@ -388,7 +412,142 @@ const paraMotor = (u) => (REMOTA.test(u) ? u : u.split(path.sep).join('/'));
  */
 function sqlDeLectura(def, ubicacion) {
     if (def.tipo === 'carpeta') return sqlDeCarpeta(def, ubicacion);
+    if (def.tipo === 'bucket') return sqlDeBucket(def, ubicacion);
+    if (def.tipo === 'lago') return sqlDeLago(def, ubicacion);
     return sqlDeArchivo(def, ubicacion);
+}
+
+// ── Lagos y buckets (C4) ────────────────────────────────────────────────────
+
+/** `s3://cubo/ventas/` + `**\/*.parquet` → la ruta con patrón que lee el motor. */
+function rutaDeBucket(def, ubicacion) {
+    const u = paraMotor(ubicacion);
+    if (/[*?]/.test(u) || /\.(parquet|csv|tsv|json|jsonl|ndjson)(\.gz)?$/i.test(u)) return u;
+    const patron = def.patron || (def.formato === 'csv' ? '**/*.csv' : def.formato === 'json' ? '**/*.json' : '**/*.parquet');
+    return `${u.replace(/\/+$/, '')}/${patron.replace(/^\/+/, '')}`;
+}
+
+function sqlDeBucket(def, ubicacion) {
+    const ruta = lit(rutaDeBucket(def, ubicacion));
+    const op = ['union_by_name = true'];
+    if (def.hive) op.push('hive_partitioning = true');
+    if (def.formato === 'csv') return `SELECT * FROM read_csv(${ruta}, ${op.join(', ')})`;
+    if (def.formato === 'json') return `SELECT * FROM read_json_auto(${ruta}, ${op.join(', ')})`;
+    return `SELECT * FROM read_parquet(${ruta}, ${op.join(', ')})`;
+}
+
+/** El alias con que se adjunta un DuckLake de una fuente (sólo lectura). */
+const aliasDeLago = (nombre) => `amox_lago_${String(nombre).replace(/[^a-z0-9]/g, '_')}`;
+
+function sqlDeLago(def, ubicacion) {
+    const u = lit(paraMotor(ubicacion));
+    if (def.formato === 'delta') return `SELECT * FROM delta_scan(${u})`;
+    if (def.formato === 'iceberg') return `SELECT * FROM iceberg_scan(${u}, allow_moved_paths = true)`;
+    const [a, b] = String(def.tabla).split('.');
+    return `SELECT * FROM ${aliasDeLago(def.nombre)}.${b ? `${ident(a)}.${ident(b)}` : ident(a)}`;
+}
+
+/** El prefijo al que se limita el secreto: hasta antes del primer comodín. */
+function alcanceDe(ubicacion) {
+    const u = String(ubicacion).split(/[*?]/)[0];
+    return u.replace(/\/+$/, '');
+}
+
+/**
+ * Lo que tiene que pasar en la sesión antes de crear la vista: el secreto de su
+ * credencial (TEMPORAL, con SCOPE en su prefijo: dos buckets con claves
+ * distintas conviven) y, para un DuckLake, adjuntarlo en sólo lectura.
+ */
+async function preparar(def, ubicacion) {
+    const sentencias = [];
+    if (def.credencial && REMOTA.test(ubicacion)) {
+        const secretos = require('./secretos');
+        sentencias.push(await secretos.sqlDeCredencial(def.credencial, alcanceDe(ubicacion)));
+    }
+    if (def.tipo === 'lago' && def.formato === 'ducklake') {
+        const cat = REMOTA.test(ubicacion) || /^(sqlite|postgres|mysql):/i.test(ubicacion) ? ubicacion : paraMotor(ubicacion);
+        sentencias.push(`ATTACH IF NOT EXISTS ${lit(`ducklake:${cat}`)} AS ${aliasDeLago(def.nombre)} (READ_ONLY)`);
+    }
+    return sentencias;
+}
+
+/** Las extensiones que necesita una fuente (para el manifiesto, 5.5). */
+function extensionesDe(def, ubicacion) {
+    const e = new Set();
+    if (ubicacion && REMOTA.test(ubicacion)) e.add('httpfs');
+    if (def.tipo === 'lago') e.add(def.formato);
+    if ((def.formato || formatoDe(ubicacion || '')) === 'xlsx') e.add('excel');
+    return [...e];
+}
+
+/**
+ * Un error de nube o de lago, dicho para personas (5.4): qué falla —la
+ * credencial, el permiso, la ruta, la extensión— y qué hacer.
+ */
+function explicarNube(e, def, ubicacion) {
+    const m = String(e?.message || e).split('\n')[0];
+    let x;
+    if ((x = /Failed to download extension "?(\w+)"?/i.exec(m)) || (x = /extension "?(\w+)"? (?:is not|could not be) (?:installed|loaded)/i.exec(m))) {
+        return `It needs the ${x[1]} extension, which is downloaded the first time (this needs internet). Connect and try again.`;
+    }
+    if (/HTTP 403|AccessDenied|Forbidden/i.test(m)) {
+        return def.credencial
+            ? `The credential "${def.credencial}" has no permission to read ${ubicacion}.`
+            : `Reading ${ubicacion} needs a credential: choose one in the source (Settings → Credentials to add it).`;
+    }
+    if (/InvalidAccessKeyId|SignatureDoesNotMatch|HTTP 401|invalid.*(key|token)/i.test(m)) {
+        return `The credential "${def.credencial || '?'}" was rejected: check its key id and secret.`;
+    }
+    if (/HTTP 404|NoSuchBucket|NoSuchKey|No files found|does not exist|not found/i.test(m)) {
+        return `Nothing found at ${ubicacion}. Check the path${def.patron ? ` and the pattern (${def.patron})` : ''}.`;
+    }
+    if (/Could not (establish connection|connect to server|resolve)|timed out|Connection refused|Unable to connect/i.test(m)) {
+        return `Cannot reach ${ubicacion}: check the network${def.credencial ? ' and the endpoint of the credential' : ''}.`;
+    }
+    if (/version-hint/i.test(m)) {
+        return 'This Iceberg table has no version-hint file: point the source at its metadata file (…/metadata/vN.metadata.json).';
+    }
+    if (/is not on this machine/.test(m)) return m;
+    return m.replace(/^[A-Za-z ]+ Error: /, '');
+}
+
+/**
+ * Las tablas de un lago (5.3): las carpetas que son tablas Delta (tienen
+ * `_delta_log/`) o Iceberg (`metadata/*.metadata.json`), y los catálogos
+ * DuckLake (`*.ducklake`). En local se recorre el disco; en la nube se pregunta
+ * con `glob()` (con la credencial ya preparada en `db`).
+ */
+async function explorar(db, ubicacion, { profundidad = 4 } = {}) {
+    const tablas = new Map();
+    const anotar = (ruta, formato) => {
+        const r = String(ruta).replace(/[\\/]+$/, '');
+        if (!tablas.has(r)) tablas.set(r, { ruta: r, formato, nombre: sugerirNombre(r.split(/[\\/]/).pop()) });
+    };
+    if (REMOTA.test(ubicacion)) {
+        const q = (sql) => (db.systemQuery ? db.systemQuery(sql) : db.query(sql));
+        const base = ubicacion.replace(/\/+$/, '');
+        for (const f of await q(`SELECT file FROM glob(${lit(`${base}/**/_delta_log/*.json`)}) LIMIT 2000`)) {
+            anotar(f.file.replace(/\/_delta_log\/[^/]+$/, ''), 'delta');
+        }
+        for (const f of await q(`SELECT file FROM glob(${lit(`${base}/**/metadata/*.metadata.json`)}) LIMIT 2000`)) {
+            anotar(f.file.replace(/\/metadata\/[^/]+$/, ''), 'iceberg');
+        }
+    } else {
+        const recorrer = (d, nivel) => {
+            let entradas = [];
+            try { entradas = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+            if (entradas.some(e => e.isDirectory() && e.name === '_delta_log')) { anotar(d, 'delta'); return; }
+            if (entradas.some(e => e.isDirectory() && e.name === 'metadata')) {
+                try { if (fs.readdirSync(path.join(d, 'metadata')).some(n => /\.metadata\.json$/i.test(n))) { anotar(d, 'iceberg'); return; } } catch { /* no es */ }
+            }
+            for (const e of entradas) {
+                if (e.isFile() && /\.ducklake$/i.test(e.name)) anotar(path.join(d, e.name), 'ducklake');
+                else if (e.isDirectory() && nivel < profundidad && !esTemporal(e.name)) recorrer(path.join(d, e.name), nivel + 1);
+            }
+        };
+        recorrer(ubicacion, 0);
+    }
+    return [...tablas.values()].sort((a, b) => a.ruta.localeCompare(b.ruta));
 }
 
 /**
@@ -483,13 +642,17 @@ async function montar(db, { raiz = null, workspaceId = null } = {}) {
             await q(`CREATE OR REPLACE VIEW ${vista} AS ${sqlDeAviso(avisoSinUbicar(def.nombre))}`);
         } else {
             try {
+                for (const s of await preparar(def, r.ubicacion)) await q(s);
                 await q(`CREATE OR REPLACE VIEW ${vista} AS ${sqlDeLectura(def, r.ubicacion)}`);
             } catch (e) {
                 estado = 'error';
-                // Un Excel que no es un libro (un CSV disfrazado, un .xls) dice qué es.
-                error = def.tipo !== 'carpeta' && (def.formato || formatoDe(r.ubicacion)) === 'xlsx' && !REMOTA.test(r.ubicacion)
-                    ? excel.explicar(e, r.ubicacion).message
-                    : String(e?.message || e).split('\n')[0];
+                // Un Excel que no es un libro (un CSV disfrazado, un .xls) dice qué
+                // es; un bucket o un lago, qué falla (credencial, permiso, ruta…).
+                error = (def.tipo === 'bucket' || def.tipo === 'lago')
+                    ? explicarNube(e, def, r.ubicacion)
+                    : def.tipo !== 'carpeta' && (def.formato || formatoDe(r.ubicacion)) === 'xlsx' && !REMOTA.test(r.ubicacion)
+                        ? excel.explicar(e, r.ubicacion).message
+                        : String(e?.message || e).split('\n')[0];
                 await q(`CREATE OR REPLACE VIEW ${vista} AS ${sqlDeAviso(`The source "${def.nombre}" cannot be read: ${error}`)}`);
             }
         }
@@ -564,4 +727,5 @@ module.exports = {
     definiciones, guardar, borrar, ubicar, ubicacionesLocales, resolver, estadoDelArchivo,
     sqlDeLectura, sqlDeAviso, avisoSinUbicar, montar, listar, hayEsquemaHomonimo, usadas,
     ESTABLE_MS, esTemporal, globARegex, archivosDeCarpeta, estadoDe,
+    LAGOS, preparar, explicarNube, explorar, extensionesDe, aliasDeLago, rutaDeBucket, alcanceDe,
 };
