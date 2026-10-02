@@ -16,6 +16,8 @@ import { useEtiqueta } from '../../etiqueta';
 import {
     guardarFuente, probarFuente, hojasDeExcel, elegirArchivo, sugerirNombre, formatoDe, NOMBRE_VALIDO, avisarCambio,
 } from './api';
+import LecturaExcel from '../excel/LecturaExcel';
+import { lecturaRecordada } from '../excel/api';
 
 const FORMATOS = { xlsx: 'Excel', csv: 'CSV', parquet: 'Parquet', json: 'JSON' };
 
@@ -31,9 +33,14 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
     const [nombreTocado, setNombreTocado] = useState(editando);
     const [descripcion, setDescripcion] = useState(fuente?.descripcion || '');
     const [hojas, setHojas] = useState([]);
-    const [hoja, setHoja] = useState(fuente?.excel?.hoja || '');
-    const [rango, setRango] = useState(fuente?.excel?.rango || '');
-    const [encabezado, setEncabezado] = useState(fuente?.excel?.encabezado !== false && fuente?.csv?.encabezado !== false);
+    // Las hojas que se leen: una, o varias que se unen con la columna _hoja (2.4).
+    const [elegidas, setElegidas] = useState(fuente?.excel?.hojas || (fuente?.excel?.hoja ? [fuente.excel.hoja] : []));
+    const [unir, setUnir] = useState((fuente?.excel?.hojas || []).length > 1);
+    const [excelOpc, setExcelOpc] = useState(() => {
+        const { hoja: _h, hojas: _hs, ...resto } = fuente?.excel || {};
+        return resto;
+    });
+    const [encabezado, setEncabezado] = useState(fuente?.csv?.encabezado !== false);
     const [delimitador, setDelimitador] = useState(fuente?.csv?.delimitador || '');
     const [vista, setVista] = useState(null);       // { columnas, filas }
     const [error, setError] = useState(null);
@@ -47,27 +54,47 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
         if (!nombreTocado && ruta) setNombre(sugerirNombre(ruta));
     }, [ruta, nombreTocado]);
 
-    // Las hojas de un Excel, para elegir.
+    // Las hojas de un Excel, para elegir; y, en una fuente nueva, cómo se leyó
+    // ese archivo la última vez en el proyecto (lo recuerda el diálogo de importar).
     useEffect(() => {
         setHojas([]);
         if (formato !== 'xlsx' || !ruta) return;
         let vivo = true;
-        hojasDeExcel(ruta).then(h => { if (vivo) { setHojas(h); if (!hoja && h[0]) setHoja(h[0]); } }).catch(() => {});
+        hojasDeExcel(ruta).then(async h => {
+            if (!vivo) return;
+            setHojas(h);
+            const antes = !editando ? await lecturaRecordada(ruta).catch(() => null) : null;
+            if (!vivo) return;
+            if (antes) {
+                const previas = (antes.hojas || (antes.hoja ? [antes.hoja] : [])).filter(x => h.includes(x));
+                setElegidas(previas.length ? previas : [h[0]]);
+                setUnir(previas.length > 1);
+                const { hoja: _h, hojas: _hs, ...resto } = antes;
+                setExcelOpc(resto);
+            } else {
+                setElegidas(prev => (prev.length && prev.every(x => h.includes(x)) ? prev : [h[0]]));
+            }
+        }).catch(() => {});
         return () => { vivo = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [ruta, formato]);
 
     const definicion = useMemo(() => {
         const d = { nombre: nombre.trim(), descripcion: descripcion.trim() || null, tipo: 'archivo' };
-        if (formato === 'xlsx') d.excel = { hoja: hoja || undefined, rango: rango.trim() || undefined, encabezado };
+        if (formato === 'xlsx') {
+            d.excel = { ...excelOpc };
+            if (unir && elegidas.length > 1) d.excel.hojas = elegidas;
+            else if (elegidas[0]) d.excel.hoja = elegidas[0];
+        }
         if (formato === 'csv') d.csv = { delimitador: delimitador || undefined, encabezado };
         // Al editar una fuente cuya ruta va en la definición, se conserva.
         if (editando && fuente.como !== 'local' && fuente.ubicacion && ruta === fuente.ubicacionAqui) d.ubicacion = fuente.ubicacion;
         return d;
-    }, [nombre, descripcion, formato, hoja, rango, encabezado, delimitador, editando, fuente, ruta]);
+    }, [nombre, descripcion, formato, excelOpc, elegidas, unir, encabezado, delimitador, editando, fuente, ruta]);
 
-    // Lo que cambia la lectura invalida la vista previa.
-    useEffect(() => { setVista(null); }, [ruta, hoja, rango, encabezado, delimitador]);
+    // Lo que cambia la lectura invalida la vista previa (la de CSV, Parquet y
+    // JSON; la de Excel se rehace sola dentro de LecturaExcel).
+    useEffect(() => { setVista(null); }, [ruta, encabezado, delimitador]);
 
     const nombreValido = NOMBRE_VALIDO.test(nombre.trim());
     const listo = nombreValido && !!ruta.trim() && !ocupado;
@@ -172,29 +199,40 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
                             placeholder="Sales per store, arrives every Monday" />
                     </label>
 
-                    {formato === 'xlsx' && (
-                        <div className="fnt-fila">
-                            <label className="fnt-campo fnt-crece">
-                                <span className="fnt-etiqueta">Sheet</span>
-                                {hojas.length ? (
-                                    <select className="wsx-input" value={hoja} onChange={e => setHoja(e.target.value)}>
-                                        {hojas.map(h => <option key={h} value={h}>{h}</option>)}
-                                    </select>
-                                ) : (
-                                    <input className="wsx-input" value={hoja} onChange={e => setHoja(e.target.value)} placeholder="First sheet" />
-                                )}
-                            </label>
-                            <label className="fnt-campo">
-                                <span className="fnt-etiqueta">Range</span>
-                                <input className="wsx-input wsx-input--corto fnt-mono" value={rango} spellCheck={false}
-                                    onChange={e => setRango(e.target.value.toUpperCase())} placeholder="A4:E" />
-                            </label>
+                    {formato === 'xlsx' && hojas.length > 0 && (
+                        <div className="fnt-campo">
+                            <span className="fnt-etiqueta">Sheet</span>
+                            {!unir ? (
+                                <select className="wsx-input" value={elegidas[0] || ''} onChange={e => setElegidas([e.target.value])}>
+                                    {hojas.map(h => <option key={h} value={h}>{h}</option>)}
+                                </select>
+                            ) : (
+                                <div className="fnt-hojas">
+                                    {hojas.map(h => (
+                                        <label key={h} className="wsx-check">
+                                            <input type="checkbox" checked={elegidas.includes(h)}
+                                                onChange={() => setElegidas(prev => prev.includes(h) ? prev.filter(x => x !== h) : hojas.filter(x => x === h || prev.includes(x)))} />
+                                            {h}
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                            {hojas.length > 1 && (
+                                <label className="wsx-check">
+                                    <input type="checkbox" checked={unir} onChange={e => { setUnir(e.target.checked); if (!e.target.checked) setElegidas(prev => prev.slice(0, 1)); }} />
+                                    Combine several sheets with the same columns (one per month, say) — a <code>_hoja</code> column says where each row came from
+                                </label>
+                            )}
                         </div>
                     )}
-                    {formato === 'xlsx' && (
-                        <span className="fnt-nota fnt-nota--suelta">
-                            Leave the range empty to read the whole sheet. <code>A4:E</code> reads from row 4 down to the first empty row — the usual shape of a report with a title on top and notes below.
-                        </span>
+                    {formato === 'xlsx' && ruta && elegidas.length > 0 && (
+                        <LecturaExcel
+                            ruta={ruta}
+                            hoja={unir && elegidas.length > 1 ? null : elegidas[0]}
+                            hojas={unir && elegidas.length > 1 ? elegidas : null}
+                            opciones={excelOpc}
+                            onOpciones={setExcelOpc}
+                        />
                     )}
 
                     {formato === 'csv' && (
@@ -207,7 +245,7 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
                         </div>
                     )}
 
-                    {(formato === 'xlsx' || formato === 'csv') && (
+                    {formato === 'csv' && (
                         <label className="wsx-check fnt-check">
                             <input type="checkbox" checked={encabezado} onChange={e => setEncabezado(e.target.checked)} />
                             The first row holds the column names
@@ -236,10 +274,12 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
                 </div>
 
                 <div className="ww-actions wsx-actions">
-                    <button className="ww-btn-skip fnt-btn" type="button" style={{ marginRight: 'auto' }}
-                        onClick={previsualizar} disabled={!ruta.trim() || ocupado}>
-                        <LuPlay size={13} /> Preview
-                    </button>
+                    {formato === 'xlsx' ? <span style={{ marginRight: 'auto' }} /> : (
+                        <button className="ww-btn-skip fnt-btn" type="button" style={{ marginRight: 'auto' }}
+                            onClick={previsualizar} disabled={!ruta.trim() || ocupado}>
+                            <LuPlay size={13} /> Preview
+                        </button>
+                    )}
                     <button className="ww-btn-skip" type="button" onClick={() => onClose?.(null)}>Cancel</button>
                     <button className="ww-btn-create" type="button" onClick={guardar} disabled={!listo}>
                         <LuCheck size={14} /> {editando ? 'Save' : 'Create source'}

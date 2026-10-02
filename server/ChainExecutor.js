@@ -12,6 +12,7 @@ const chainPersistence = require('./ChainPersistence');
 const aiManager = require('./AiManager');
 const secretos = require('./secretos');
 const { detectResultType } = require('./_sqlClassify');
+const excel = require('./excel');
 
 /**
  * Node types that produce a *derived intermediate* table — plumbing between
@@ -119,6 +120,29 @@ class ChainExecutor extends EventEmitter {
         return path.resolve(projectPath, filePath).replace(/\\/g, '/');
     }
 
+    /**
+     * Cómo leer el Excel de un nodo Import File (C2). Lo que diga el nodo manda;
+     * si no dice nada más que la hoja, vale lo que el proyecto recuerda de ese
+     * archivo (lo elegido la última vez en el diálogo de importar).
+     */
+    opcionesExcel(config, projectPath, sourcePath) {
+        const delNodo = {
+            hoja: config.sheetName || undefined,
+            hojas: Array.isArray(config.excelSheets) && config.excelSheets.length > 1 ? config.excelSheets : undefined,
+            rango: config.excelRange || undefined,
+            encabezado: config.excelHeader === false ? false : undefined,
+            rellenar: Array.isArray(config.excelFillDown) ? config.excelFillDown : undefined,
+            normalizar: config.excelCleanNames === true ? true : undefined,
+        };
+        const dice = delNodo.hojas || delNodo.rango || delNodo.encabezado === false || delNodo.rellenar?.length || delNodo.normalizar;
+        if (!dice && projectPath) {
+            const r = excel.recordado(projectPath, sourcePath);
+            if (r) return excel.normalizarOpciones({ ...r, hoja: delNodo.hoja || r.hoja });
+        }
+        return excel.normalizarOpciones(delNodo);
+    }
+
+    // Escribir xlsx sigue pasando por spatial hasta la D3 (5.11); leer ya no lo necesita.
     async ensureSpatialExtension(dbManager) {
         try {
             await dbManager.query("INSTALL spatial; LOAD spatial;");
@@ -695,7 +719,9 @@ class ChainExecutor extends EventEmitter {
                 let reader;
                 if (ft === 'parquet') reader = `read_parquet('${p}')`;
                 else if (ft === 'json' || ft === 'jsonl') reader = `read_json_auto('${p}')`;
-                else if (ft === 'xlsx' || ft === 'excel') reader = `read_xlsx('${p}')`;
+                else if (ft === 'xlsx' || ft === 'excel') {
+                    return `CREATE OR REPLACE TABLE "${tbl}" AS ${excel.sqlDeLectura(p, this.opcionesExcel(config, projectPath || null, projectPath ? path.resolve(projectPath, config.sourcePath || '') : p))}`;
+                }
                 else reader = `read_csv('${p}', auto_detect=true, header=true)`;
                 return `CREATE OR REPLACE TABLE "${tbl}" AS SELECT * FROM ${reader}`;
             }
@@ -1336,9 +1362,8 @@ class ChainExecutor extends EventEmitter {
                 } else if (fileType === 'json' || fileType === 'jsonl') {
                     sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_json_auto('${sourcePath}')`;
                 } else if (fileType === 'xlsx' || fileType === 'excel') {
-                    await this.ensureSpatialExtension(dbManager);
-                    const sheetOpt = sheetName ? `, sheet='${sheetName}'` : '';
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_xlsx('${sourcePath}'${sheetOpt})`;
+                    excel.comprobarLibro(sourcePath);
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${excel.sqlDeLectura(sourcePath, this.opcionesExcel({ ...config, sheetName }, projectPath, sourcePath))}`;
                 } else {
                     sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${sourcePath}', auto_detect=true)`;
                 }

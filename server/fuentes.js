@@ -31,6 +31,7 @@ const path = require('path');
 const baseCentral = require('./central/BaseCentral');
 const scaffolder = require('./projectScaffolder');
 const { homeAmox } = require('./rutas');
+const excel = require('./excel');
 
 const CATALOGO = 'fuentes';
 const NOMBRE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -86,14 +87,9 @@ function normalizarDefinicion(d) {
     if (formato && !FORMATOS[formato]) throw new Error(`Unknown format: ${formato}`);
     const def = { nombre, tipo, descripcion: texto(x.descripcion, 1000) || null, formato, ubicacion };
     if (x.excel && typeof x.excel === 'object') {
-        const e = {};
-        if (texto(x.excel.hoja, 200)) e.hoja = texto(x.excel.hoja, 200);
-        if (texto(x.excel.rango, 40)) {
-            const r = texto(x.excel.rango, 40).toUpperCase();
-            if (!/^[A-Z]{1,3}\d+:[A-Z]{1,3}\d*$/.test(r)) throw new Error(`Not a cell range: ${r}`);
-            e.rango = r;
-        }
-        if (x.excel.encabezado === false) e.encabezado = false;
+        // Hoja (o varias, unidas con _hoja), rango, encabezado, rellenar y
+        // limpiar nombres: las mismas opciones que el diálogo de importar (C2).
+        const e = excel.normalizarOpciones(x.excel);
         if (Object.keys(e).length) def.excel = e;
     }
     if (x.csv && typeof x.csv === 'object') {
@@ -310,19 +306,12 @@ function sqlDeLectura(def, ubicacion) {
             return `SELECT * FROM read_parquet(${u})`;
         case 'json':
             return `SELECT * FROM read_json_auto(${u})`;
-        case 'xlsx': {
-            const e = def.excel || {};
-            const op = [];
-            if (e.hoja) op.push(`sheet = ${lit(e.hoja)}`);
-            if (e.rango) {
-                const abierto = /^[A-Z]+\d+:[A-Z]+$/.test(e.rango);
-                op.push(`range = ${lit(abierto ? `${e.rango}1048576` : e.rango)}`);
-                if (abierto) op.push('stop_at_empty = true');
-            }
-            op.push(`header = ${e.encabezado === false ? 'false' : 'true'}`);
-            op.push('empty_as_varchar = true');
-            return `SELECT * FROM read_xlsx(${u}, ${op.join(', ')})`;
-        }
+        case 'xlsx':
+            // Las reglas viven en server/excel.js, compartidas con la importación
+            // y con Data Flow.
+            return REMOTA.test(ubicacion)
+                ? `SELECT * FROM read_xlsx(${u}, ${excel.opcionesDeLectura(def.excel || {}).join(', ')})`
+                : excel.sqlDeLectura(ubicacion, def.excel || {});
         case 'csv':
         default: {
             const c = def.csv || {};
@@ -385,7 +374,10 @@ async function montar(db, { raiz = null, workspaceId = null } = {}) {
                 await q(`CREATE OR REPLACE VIEW ${vista} AS ${sqlDeLectura(def, r.ubicacion)}`);
             } catch (e) {
                 estado = 'error';
-                error = String(e?.message || e).split('\n')[0];
+                // Un Excel que no es un libro (un CSV disfrazado, un .xls) dice qué es.
+                error = (def.formato || formatoDe(r.ubicacion)) === 'xlsx' && !REMOTA.test(r.ubicacion)
+                    ? excel.explicar(e, r.ubicacion).message
+                    : String(e?.message || e).split('\n')[0];
                 await q(`CREATE OR REPLACE VIEW ${vista} AS ${sqlDeAviso(`The source "${def.nombre}" cannot be read: ${error}`)}`);
             }
         }

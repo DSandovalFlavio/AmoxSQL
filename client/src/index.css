@@ -19921,3 +19921,138 @@ tr:hover td {
 /* En la ficha de un workspace */
 .fnt-etq-btn { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
 .fnt-ruta { overflow-wrap: anywhere; }
+
+/* ─── El Excel tal como llega (C2, 5.10) ───────────────────────────────────
+   La hoja cruda para marcar el rango (xsr), el bloque de lectura (xle) y el
+   diálogo de importar (xim). */
+
+.xsr { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.xsr-ayuda { font-size: 11.5px; line-height: 1.45; color: var(--text-tertiary); }
+.xsr-ayuda b { color: var(--text-secondary); font-weight: 600; }
+.xsr-ayuda code { font-family: var(--font-mono); font-size: 11px; color: var(--accent-primary); }
+.xsr-estado { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-tertiary); padding: 8px 0; }
+.xsr-estado--mal { color: var(--feedback-error-text); }
+.xsr-pie { font-size: 10.5px; color: var(--text-tertiary); }
+
+.xsr-hoja {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--surface-base);
+}
+.xsr-hoja table { border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+.xsr-hoja td, .xsr-hoja th {
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0;
+  white-space: nowrap;
+}
+.xsr-hoja td {
+  padding: 3px 8px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+.xsr-hoja thead th { position: sticky; top: 0; z-index: 2; background: var(--surface-inset); }
+.xsr-hoja th.xsr-num { position: sticky; left: 0; z-index: 1; background: var(--surface-inset); }
+.xsr-hoja th.xsr-esquina { position: sticky; left: 0; top: 0; z-index: 3; background: var(--surface-inset); min-width: 34px; }
+.xsr-hoja th button {
+  display: block;
+  width: 100%;
+  min-width: 34px;
+  padding: 3px 8px;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+.xsr-hoja th button:hover { color: var(--accent-primary); background: color-mix(in oklch, var(--accent-primary) 10%, transparent); }
+.xsr-hoja th button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: -2px; }
+.xsr-letra--fin button { color: var(--accent-primary); font-weight: 700; }
+.xsr-hoja td.xsr-dentro { background: color-mix(in oklch, var(--accent-primary) 7%, transparent); color: var(--text-primary); }
+.xsr-fila--encabezado td.xsr-dentro { background: color-mix(in oklch, var(--accent-primary) 18%, transparent); font-weight: 600; }
+.xsr-fila--encabezado th.xsr-num button { color: var(--accent-primary); font-weight: 700; }
+
+.xle { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.xle-opciones { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 16px; }
+.xle-rango { flex: none; }
+.xle-relleno { display: flex; flex-direction: column; gap: 5px; }
+.xle-relleno .fnt-etiqueta { display: inline-flex; align-items: center; gap: 5px; }
+.xle-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.xle-chip {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+.xle-chip--on { border-color: var(--accent-primary); background: color-mix(in oklch, var(--accent-primary) 14%, transparent); color: var(--text-primary); }
+.xle-chip:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 1px; }
+
+.xim-card { width: 900px; }
+.xim-archivo { font-family: var(--font-mono); font-size: 11.5px; overflow-wrap: anywhere; }
+.xim-cuerpo { gap: 14px; }
+.xim-cuerpo-grid { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 16px; align-items: start; }
+.xim-hojas { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; }
+.xim-hoja { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 6px; }
+.xim-hoja button {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xim-hoja--activa { background: var(--surface-overlay); }
+.xim-hoja--activa button { color: var(--text-primary); font-weight: 600; }
+.xim-recordado { margin-top: 8px; }
+.xim-destino { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 16px; border-top: 1px solid var(--border-subtle); padding-top: 12px; }
+.xim-tabla { flex: 0 1 260px; }
+.xim-error { display: flex; flex-direction: column; gap: 10px; }
+.xim-csv { display: flex; gap: 8px; align-items: center; }
+.xim-csv .wsx-input { flex: 0 1 220px; }
+.xim-hecho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: var(--feedback-success-bg);
+  border: 1px solid var(--feedback-success-border);
+  color: var(--feedback-success-text);
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 760px) {
+  .xim-cuerpo-grid { grid-template-columns: minmax(0, 1fr); }
+  .xim-hojas { position: static; }
+}
+
+/* Formulario de una fuente: varias hojas a unir */
+.fnt-hojas { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+
+/* Panel de Data Flow: una casilla con su texto al lado */
+.chain-config-check {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.chain-config-check input { margin-top: 2px; }

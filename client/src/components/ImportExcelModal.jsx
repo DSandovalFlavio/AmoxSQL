@@ -1,257 +1,209 @@
-import { API_BASE } from '../api.js';
-import { useState, useEffect } from 'react';
+/**
+ * Importar un Excel a la base (C2, fase 2 del plan de la 5.10).
+ *
+ * El Excel que llega de un cliente no empieza en A1: lleva un título, una línea
+ * de «generado el…», los encabezados en la fila 4 y notas al pie. Aquí se ve la
+ * hoja tal como es, se marca dónde está la tabla con dos clics, y se ve al
+ * momento lo que se va a leer. Lo elegido se recuerda en el proyecto, así que la
+ * próxima vez sale ya elegido (y Data Flow lo usa).
+ *
+ * Varias hojas con la misma forma (una por mes) se unen en una tabla con la
+ * columna `_hoja`, o se importan como tablas sueltas.
+ */
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { LuSheet, LuX, LuCheck, LuTriangleAlert, LuFileText, LuLoader } from 'react-icons/lu';
+import LecturaExcel from './excel/LecturaExcel';
+import { hojasDelLibro, lecturaRecordada } from './excel/api';
+
+const nombreDeTabla = (ruta) => (ruta.split(/[/\\]/).pop() || 'datos').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'datos';
 
 const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
-    const [loading, setLoading] = useState(false);
-    const [sheets, setSheets] = useState([]);
-    const [selectedSheets, setSelectedSheets] = useState({}); // { sheetName: boolean }
-    const [mode, setMode] = useState('MERGE'); // 'MERGE' | 'INDIVIDUAL'
-    const [tableName, setTableName] = useState(''); // For MERGE mode
-    const [cleanColumns, setCleanColumns] = useState(true);
+    const [hojas, setHojas] = useState([]);
+    const [elegidas, setElegidas] = useState([]);
+    const [activa, setActiva] = useState(null);
+    const [opciones, setOpciones] = useState({});
+    const [modo, setModo] = useState('MERGE');
+    const [tabla, setTabla] = useState('');
     const [error, setError] = useState(null);
-    const [successSummary, setSuccessSummary] = useState(null);
+    const [codigo, setCodigo] = useState(null);
+    const [cargando, setCargando] = useState(false);
+    const [importando, setImportando] = useState(false);
+    const [hecho, setHecho] = useState(null);
+    const [recordado, setRecordado] = useState(false);
 
-    // Fetch Sheets on Open
     useEffect(() => {
-        if (isOpen) {
-            // Reset state on open
-            setSuccessSummary(null);
-            setError(null);
-            setLoading(false);
-            setSheets([]);
-
-            if (initialFile) {
-                fetchSheets();
-                // Default table name
-                const name = initialFile.split(/[/\\]/).pop().split('.')[0];
-                setTableName(name.replace(/[^a-zA-Z0-9]/g, '_'));
+        if (!isOpen || !initialFile) return;
+        let vivo = true;
+        setHecho(null); setError(null); setCodigo(null); setHojas([]); setElegidas([]); setActiva(null);
+        setOpciones({}); setRecordado(false); setTabla(nombreDeTabla(initialFile));
+        setCargando(true);
+        (async () => {
+            try {
+                const lista = await hojasDelLibro(initialFile);
+                if (!vivo) return;
+                setHojas(lista);
+                const antes = await lecturaRecordada(initialFile).catch(() => null);
+                if (!vivo) return;
+                if (antes) {
+                    const previas = (antes.hojas || (antes.hoja ? [antes.hoja] : [])).filter(h => lista.includes(h));
+                    setElegidas(previas.length ? previas : [lista[0]]);
+                    setActiva(previas[0] || lista[0]);
+                    const { hoja: _h, hojas: _hs, ...resto } = antes;
+                    setOpciones(resto);
+                    setRecordado(true);
+                } else {
+                    setElegidas([lista[0]]);
+                    setActiva(lista[0]);
+                }
+            } catch (e) {
+                if (vivo) { setError(e.message); setCodigo(e.codigo || null); }
+            } finally {
+                if (vivo) setCargando(false);
             }
-        }
+        })();
+        return () => { vivo = false; };
     }, [isOpen, initialFile]);
-
-    const fetchSheets = async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await fetch(`${API_BASE}/api/files/inspect-excel?path=${encodeURIComponent(initialFile)}`);
-            const data = await response.json();
-            if (response.ok) {
-                setSheets(data.sheets);
-                // Select all by default
-                const sel = {};
-                data.sheets.forEach(s => sel[s] = true);
-                setSelectedSheets(sel);
-            } else {
-                setError(data.error || "Failed to load sheets");
-            }
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSheetToggle = (sheet) => {
-        setSelectedSheets(prev => ({ ...prev, [sheet]: !prev[sheet] }));
-    };
-
-    const handleSelectAll = (select) => {
-        const sel = {};
-        sheets.forEach(s => sel[s] = select);
-        setSelectedSheets(sel);
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-
-        const sheetList = sheets.filter(s => selectedSheets[s]);
-        if (sheetList.length === 0) {
-            setError("Please select at least one sheet.");
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            const result = await onImport({
-                filePath: initialFile,
-                mode,
-                sheets: sheetList,
-                tableName: mode === 'MERGE' ? tableName : null,
-                cleanColumns
-            });
-
-            if (result && result.success) {
-                setSuccessSummary(result.summary || "Import process completed successfully.");
-            } else {
-                setError(result?.error || "Import failed without specific error.");
-            }
-        } catch (err) {
-            setError("Unexpected error: " + err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleClose = () => {
-        setSuccessSummary(null);
-        onClose();
-    };
 
     if (!isOpen) return null;
 
-    return (
-        <div className="modal-overlay" style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'var(--overlay-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    const alternar = (h) => {
+        const nuevas = elegidas.includes(h) ? elegidas.filter(x => x !== h) : hojas.filter(x => x === h || elegidas.includes(x));
+        setElegidas(nuevas);
+        if (!elegidas.includes(h)) setActiva(h);              // la que se añade se enseña
+        else if (activa === h) setActiva(nuevas[0] || null);  // la que se quita deja de enseñarse
+    };
 
-        }}>
-            <div className="modal-panel" style={{
-                backgroundColor: 'var(--surface-overlay)', padding: '24px', borderRadius: '12px', width: '500px', maxHeight: '80vh',
-                border: '1px solid var(--border-default)', boxShadow: 'var(--shadow-lg)',
-                color: 'var(--text-secondary)', fontFamily: 'inherit', display: 'flex', flexDirection: 'column'
-            }}>
-                <h3 style={{ marginTop: 0, color: 'var(--text-active)', fontSize: '16px' }}>
-                    {successSummary ? 'Import Completed' : 'Import Excel to Database'}
-                </h3>
+    const varias = elegidas.length > 1;
+    const unir = varias && modo === 'MERGE';
 
-                {!successSummary && (
-                    <div style={{ marginBottom: '15px', fontSize: '12px', color: 'var(--text-tertiary)', wordBreak: 'break-all' }}>
-                        File: {initialFile}
+    const importar = async (extra = {}) => {
+        setImportando(true); setError(null);
+        try {
+            const r = await onImport({
+                filePath: initialFile,
+                mode: varias ? modo : 'MERGE',
+                sheets: elegidas,
+                tableName: tabla.trim(),
+                opciones,
+                ...extra,
+            });
+            if (r?.success) setHecho(r.summary || 'Imported.');
+            else setError(r?.error || 'The import failed.');
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setImportando(false);
+        }
+    };
+
+    const listo = elegidas.length > 0 && (!(!varias || modo === 'MERGE') || tabla.trim()) && !importando;
+
+    return createPortal((
+        <div className="ww-backdrop">
+            <div className="ww-card xim-card" role="dialog" aria-modal="true" aria-labelledby="xim-titulo">
+                <div className="ww-header">
+                    <div className="ww-header-icon"><LuSheet size={20} /></div>
+                    <div className="ww-header-text">
+                        <h2 className="ww-title" id="xim-titulo">{hecho ? 'Import completed' : 'Import Excel'}</h2>
+                        <p className="ww-subtitle xim-archivo">{initialFile}</p>
                     </div>
-                )}
+                    <button className="ww-close-btn" type="button" onClick={onClose} title="Close"><LuX size={16} /></button>
+                </div>
 
-                {/* Success View */}
-                {successSummary ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1, minHeight: '150px' }}>
-                        <div style={{
-                            padding: '15px',
-                            backgroundColor: 'var(--feedback-success-bg)',
-                            border: '1px solid var(--feedback-success-border)',
-                            borderRadius: '4px',
-                            color: 'var(--feedback-success-text)',
-                            whiteSpace: 'pre-wrap',
-                            overflowY: 'auto',
-                            fontSize: '13px',
-                            flex: 1
-                        }}>
-                            <strong>Success!</strong>
-                            <br /><br />
-                            {successSummary}
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <button onClick={handleClose} style={{ backgroundColor: 'var(--accent-color-user)', padding: '8px 16px', borderRadius: '3px', border: 'none', color: 'var(--button-text-color)', fontWeight: 'bold', cursor: 'pointer' }}>
-                                Close
-                            </button>
-                        </div>
+                {hecho ? (
+                    <div className="wsx-cuerpo">
+                        <div className="xim-hecho"><LuCheck size={16} /><span>{hecho}</span></div>
+                        <p className="fnt-nota">How it was read is remembered in this project: next time it comes pre-selected, and Data Flow reads the file the same way.</p>
                     </div>
                 ) : (
-                    /* Import Form */
-                    <>
-                        {loading && <div style={{ padding: '20px', textAlign: 'center', color: 'var(--accent-color-user)' }}>Processing Import...</div>}
-
-                        {error && <div style={{ padding: '10px', backgroundColor: 'var(--feedback-error-bg)', color: 'var(--feedback-error-text)', borderRadius: '4px', marginBottom: '10px', fontSize: '12px', border: '1px solid var(--feedback-error-border)' }}>{error}</div>}
-
-                        {!loading && (
-                            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px', flex: 1, overflow: 'hidden' }}>
-
-                                {/* Import Mode */}
-                                <div style={{ backgroundColor: 'var(--panel-bg)', padding: '10px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '12px', fontWeight: 'bold' }}>Import Strategy</label>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                                            <input
-                                                type="radio"
-                                                name="mode"
-                                                checked={mode === 'MERGE'}
-                                                onChange={() => setMode('MERGE')}
-                                                style={{ accentColor: 'var(--accent-color-user)' }}
-                                            />
-                                            <div>
-                                                <span style={{ color: 'var(--text-active)', fontWeight: 'bold' }}>Merge Sheets (Union)</span>
-                                                <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
-                                                    Combine all selected sheets into one table. Adds 'source_duck' column.
-                                                </div>
-                                            </div>
-                                        </label>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                                            <input
-                                                type="radio"
-                                                name="mode"
-                                                checked={mode === 'INDIVIDUAL'}
-                                                onChange={() => setMode('INDIVIDUAL')}
-                                                style={{ accentColor: 'var(--accent-color-user)' }}
-                                            />
-                                            <div>
-                                                <span style={{ color: 'var(--text-active)', fontWeight: 'bold' }}>Individual Tables</span>
-                                                <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
-                                                    Create a separate table for each selected sheet.
-                                                </div>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                {/* Table Name (Only for Merge) */}
-                                {mode === 'MERGE' && (
-                                    <div>
-                                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '12px' }}>Target Table Name</label>
-                                        <input
-                                            type="text"
-                                            value={tableName}
-                                            onChange={(e) => setTableName(e.target.value)}
-                                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px', backgroundColor: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-active)', borderRadius: '3px' }}
-                                            required
-                                        />
+                    <div className="wsx-cuerpo xim-cuerpo">
+                        {cargando && <div className="xsr-estado"><LuLoader size={14} className="stg-spin" /> Opening the workbook…</div>}
+                        {error && (
+                            <div className="xim-error">
+                                <p className="wsx-error fnt-error"><LuTriangleAlert size={13} /> {error}</p>
+                                {codigo === 'csv_disfrazado' && (
+                                    <div className="xim-csv">
+                                        <input className="wsx-input fnt-mono" value={tabla} onChange={e => setTabla(e.target.value)} aria-label="Table name" />
+                                        <button type="button" className="ww-btn-create" disabled={!tabla.trim() || importando}
+                                            onClick={() => importar({ comoCsv: true })}>
+                                            <LuFileText size={14} /> Import as CSV
+                                        </button>
                                     </div>
                                 )}
-
-                                {/* Sheet Selection */}
-                                <div style={{ flex: 1, overflowY: 'auto', minHeight: '100px', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '5px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px', borderBottom: '1px solid var(--border-color)', marginBottom: '5px' }}>
-                                        <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Select Sheets to Import</span>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
-                                            <button type="button" onClick={() => handleSelectAll(true)} style={{ background: 'transparent', border: 'none', color: 'var(--accent-color-user)', cursor: 'pointer', fontSize: '11px' }}>All</button>
-                                            <button type="button" onClick={() => handleSelectAll(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '11px' }}>None</button>
-                                        </div>
-                                    </div>
-                                    {sheets.map(sheet => (
-                                        <label key={sheet} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px', cursor: 'pointer', fontSize: '12px' }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={!!selectedSheets[sheet]}
-                                                onChange={() => handleSheetToggle(sheet)}
-                                                style={{ accentColor: 'var(--accent-color-user)' }}
-                                            />
-                                            {sheet}
-                                        </label>
-                                    ))}
-                                </div>
-
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <input
-                                        type="checkbox"
-                                        id="cleanColsExcel"
-                                        checked={cleanColumns}
-                                        onChange={(e) => setCleanColumns(e.target.checked)}
-                                    />
-                                    <label htmlFor="cleanColsExcel" style={{ fontSize: '12px', cursor: 'pointer' }}>
-                                        Clean Column Names (spaces -&gt; underscores)
-                                    </label>
-                                </div>
-
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                                    <button type="button" onClick={onClose} style={{ backgroundColor: 'var(--surface-overlay)', padding: '6px 12px', borderRadius: '3px', border: '1px solid var(--border-color)', color: 'var(--text-color)', cursor: 'pointer' }}>Cancel</button>
-                                    <button type="submit" style={{ backgroundColor: 'var(--accent-color-user)', padding: '6px 12px', borderRadius: '3px', border: 'none', color: 'var(--button-text-color)', fontWeight: 'bold', cursor: 'pointer' }}>Import Config</button>
-                                </div>
-                            </form>
+                            </div>
                         )}
-                    </>
+
+                        {hojas.length > 0 && (
+                            <div className="xim-cuerpo-grid">
+                                <aside className="xim-hojas">
+                                    <span className="fnt-etiqueta">Sheets</span>
+                                    {hojas.map(h => (
+                                        <div key={h} className={`xim-hoja${activa === h ? ' xim-hoja--activa' : ''}`}>
+                                            <input type="checkbox" checked={elegidas.includes(h)} onChange={() => alternar(h)} aria-label={`Import ${h}`} />
+                                            <button type="button" onClick={() => setActiva(h)} title="Show this sheet">{h}</button>
+                                        </div>
+                                    ))}
+                                    {recordado && <span className="fnt-nota xim-recordado">Last time's choices, remembered.</span>}
+                                </aside>
+                                <div className="xim-lectura">
+                                    {activa && (
+                                        <LecturaExcel
+                                            ruta={initialFile}
+                                            hoja={unir ? null : activa}
+                                            hojas={unir ? [activa, ...elegidas.filter(h => h !== activa)] : null}
+                                            opciones={opciones}
+                                            onOpciones={setOpciones}
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {hojas.length > 0 && (
+                            <div className="xim-destino">
+                                {varias && (
+                                    <div className="fnt-segmento" role="radiogroup" aria-label="How to import the sheets">
+                                        <button type="button" role="radio" aria-checked={modo === 'MERGE'}
+                                            className={`fnt-segmento-op${modo === 'MERGE' ? ' fnt-segmento-op--on' : ''}`}
+                                            onClick={() => setModo('MERGE')}>One table, with a _hoja column</button>
+                                        <button type="button" role="radio" aria-checked={modo === 'INDIVIDUAL'}
+                                            className={`fnt-segmento-op${modo === 'INDIVIDUAL' ? ' fnt-segmento-op--on' : ''}`}
+                                            onClick={() => setModo('INDIVIDUAL')}>One table per sheet</button>
+                                    </div>
+                                )}
+                                {(!varias || modo === 'MERGE') && (
+                                    <label className="fnt-campo xim-tabla">
+                                        <span className="fnt-etiqueta">Table</span>
+                                        <input className="wsx-input fnt-mono" value={tabla} onChange={e => setTabla(e.target.value)} />
+                                    </label>
+                                )}
+                                {varias && modo === 'INDIVIDUAL' && (
+                                    <span className="fnt-nota">Each sheet becomes a table named after it, read with the same range and options.</span>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 )}
+
+                <div className="ww-actions wsx-actions">
+                    {hecho ? (
+                        <button className="ww-btn-create" type="button" onClick={onClose}>Close</button>
+                    ) : (
+                        <>
+                            <button className="ww-btn-skip" type="button" onClick={onClose}>Cancel</button>
+                            {hojas.length > 0 && (
+                                <button className="ww-btn-create" type="button" onClick={() => importar()} disabled={!listo}>
+                                    {importando ? <LuLoader size={14} className="stg-spin" /> : <LuCheck size={14} />}
+                                    Import {elegidas.length > 1 ? `${elegidas.length} sheets` : ''}
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
         </div>
-    );
+    ), document.body);
 };
 
 export default ImportExcelModal;

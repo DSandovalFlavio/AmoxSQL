@@ -72,9 +72,38 @@ def no_zip(nombre):
         f.write(firma + bytes(512 - len(firma)))
 
 
+def zip64():
+    """El libro de cliente re-empaquetado con los registros ZIP64 (los de un archivo enorme)."""
+    import zipfile
+    origen = os.path.join(AQUI, 'cliente.xlsx')
+    destino = os.path.join(AQUI, 'zip64.xlsx')
+    limite = zipfile.ZIP64_LIMIT
+    zipfile.ZIP64_LIMIT = 16          # cualquier desplazamiento ya «no cabe» en 32 bits
+    try:
+        with zipfile.ZipFile(origen) as zin, zipfile.ZipFile(destino, 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zout:
+            for item in zin.infolist():
+                zout.writestr(item, zin.read(item.filename))
+    finally:
+        zipfile.ZIP64_LIMIT = limite
+    # Como en un archivo de verdad enorme: el registro final clásico dice
+    # 0xFFFFFFFF y los valores reales sólo están en el registro ZIP64.
+    import struct
+    datos = bytearray(open(destino, 'rb').read())
+    i = datos.rfind(b'PK\x05\x06')
+    datos[i + 12:i + 20] = struct.pack('<II', 0xFFFFFFFF, 0xFFFFFFFF)
+    open(destino, 'wb').write(bytes(datos))
+
+
+def csv_disfrazado():
+    with open(os.path.join(AQUI, 'csv_disfrazado.xlsx'), 'w', encoding='utf-8') as f:
+        f.write('Product,Units\nA,3\nB,5\n')
+
+
 if __name__ == '__main__':
     cliente()
     varias_hojas()
+    zip64()
+    csv_disfrazado()
     no_zip('antiguo.xls')
     no_zip('cifrado.xlsx')
     with open(os.path.join(AQUI, 'danado.xlsx'), 'wb') as f:
