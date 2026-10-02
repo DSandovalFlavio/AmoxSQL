@@ -18,6 +18,7 @@ const workspaces       = require('./workspaces');
 const fuentes          = require('./fuentes');
 const dbtConvivir      = require('./dbtConvivir');
 const llegadas         = require('./llegadas');
+const procedencia      = require('./procedencia');
 
 /**
  * Mientras dbt tiene la base del proyecto (fase 2b), lo que la lea no puede
@@ -694,9 +695,12 @@ app.get('/api/db/schemas', async (req, res) => {
             }
         }
 
+        // De dónde salió cada tabla (C5): su procedencia y si el archivo cambió.
+        let origenes = {};
+        try { origenes = await procedencia.deLasTablas(dbManager.lane('meta')); } catch { /* sin procedencias */ }
         const result = Object.values(schemaMap).map(s => ({
             schema: s.schema,
-            tables: Object.values(s.tables),
+            tables: Object.values(s.tables).map(t => (origenes[`${s.schema}.${t.name}`] ? { ...t, procedencia: origenes[`${s.schema}.${t.name}`] } : t)),
         }));
 
         res.json(result);
@@ -1051,6 +1055,8 @@ app.post('/api/db/import', async (req, res) => {
         } else {
             await dbManager.systemQuery(`CREATE OR REPLACE TABLE ${target} AS SELECT * FROM '${fullSourcePath}'`);
         }
+        // De dónde salió (C5): el archivo, su tamaño y su fecha, en el comentario de la tabla.
+        await procedencia.anotar(dbManager, target, { origen: 'importar', archivos: procedencia.expandir(fullSourcePath) });
 
         // Force flush of WAL file to avoid locks
         await dbManager.checkpoint();
@@ -1348,6 +1354,7 @@ app.post('/api/db/import-excel', async (req, res) => {
         if (req.body.comoCsv) {
             if (!tableName) return res.status(400).json({ error: 'Table name required' });
             await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${String(tableName).replace(/"/g, '""')}" AS SELECT * FROM read_csv('${ruta.split(path.sep).join('/').replace(/'/g, "''")}', auto_detect = true)`);
+            await procedencia.anotar(dbManager, `"${String(tableName).replace(/"/g, '""')}"`, { origen: 'importar', archivos: [ruta] });
             await dbManager.checkpoint();
             return res.json({ success: true, summary: `Read as CSV into "${tableName}"` });
         }
@@ -1359,6 +1366,9 @@ app.post('/api/db/import-excel', async (req, res) => {
             const sql = excel.sqlDeLectura(ruta, { ...opciones, hojas: sheets });
             try { await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${String(tableName).replace(/"/g, '""')}" AS ${sql}`); }
             catch (e) { throw excel.explicar(e, ruta); }
+            await procedencia.anotar(dbManager, `"${String(tableName).replace(/"/g, '""')}"`, {
+                origen: 'importar', archivos: [ruta], hoja: sheets.length === 1 ? sheets[0] : null, hojas: sheets, rango: opciones.rango || null,
+            });
             summary.push(sheets.length > 1
                 ? `Merged ${sheets.length} sheets into "${tableName}" (the _hoja column says which sheet each row came from)`
                 : `Created table "${tableName}" from sheet "${sheets[0]}"`);
@@ -1367,6 +1377,7 @@ app.post('/api/db/import-excel', async (req, res) => {
                 const nombre = sheet.replace(/[^a-zA-Z0-9_]/g, '_');
                 try { await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${nombre}" AS ${excel.sqlDeLectura(ruta, { ...opciones, hoja: sheet })}`); }
                 catch (e) { throw excel.explicar(e, ruta); }
+                await procedencia.anotar(dbManager, `"${nombre}"`, { origen: 'importar', archivos: [ruta], hoja: sheet, rango: opciones.rango || null });
                 summary.push(`Created table "${nombre}" from sheet "${sheet}"`);
             }
         }
@@ -2350,14 +2361,18 @@ async function buildTableContext(contextTables = null) {
             if (!sizeMap.has(key)) sizeMap.set(key, r.estimated_size);
         }
 
+        let origenes = {};
+        try { origenes = await procedencia.deLasTablas(dbManager.lane('meta')); } catch { /* sin procedencias */ }
         const tableContexts = selected.map(t => {
             const key = `${t.table_schema}.${t.table_name}`;
             const rowsVal = sizeMap.get(key);
+            const o = origenes[key];
             return {
                 name: t.table_name,
                 schema: t.table_schema,
                 columns: colMap.get(key) || [],
                 rows: (rowsVal !== undefined && rowsVal !== null) ? rowsVal : '?',
+                ...(o ? { procedencia: `${o.resumen}${o.cambiados.length ? ' (the file changed since)' : ''}` } : {}),
             };
         });
 
@@ -3855,6 +3870,7 @@ app.post('/api/query', async (req, res) => {
             }
         } catch { /* non-fatal bookkeeping */ }
         anotarFuentesDelSql(query);
+        await anotarMaterializacion(query);
 
         // Classify the statement so the editor can decide how to render it: a
         // tabular result gets the table, a DML/DDL side-effect gets a summary
@@ -6380,6 +6396,31 @@ app.get('/api/fuentes/llegadas', (req, res) => {
     const latido = setInterval(() => res.write(': latido\n\n'), 30000);
     req.on('close', () => { clearInterval(latido); oyentesDeLlegadas.delete(enviar); });
 });
+
+/**
+ * `CREATE TABLE x AS … fuentes."y" …` desde el editor: la tabla x guarda que
+ * viene de la fuente y, y de qué archivo era entonces (C5, 4.1). Sólo si lee
+ * UNA fuente: con varias, o mezclada con tablas, no hay un origen que contar.
+ */
+const CREA_TABLA = /^\s*CREATE\s+(?:OR\s+REPLACE\s+)?(?:TEMP(?:ORARY)?\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?((?:"[^"]+"|[A-Za-z_][\w$]*)(?:\.(?:"[^"]+"|[A-Za-z_][\w$]*))?)\s+AS\b/i;
+async function anotarMaterializacion(sql) {
+    if (!PROYECTO_ABIERTO) return;
+    try {
+        const m = CREA_TABLA.exec(String(sql || ''));
+        if (!m) return;
+        const usadas = fuentes.usadas(sql);
+        if (usadas.length !== 1) return;
+        const f = (await fuentes.listar({ raiz: ROOT_DIR })).fuentes.find(x => x.nombre === usadas[0]);
+        if (!f) return;
+        const archivos = f.tipo === 'carpeta'
+            ? (f.actual && f.ubicacionAqui ? [path.join(f.ubicacionAqui, f.actual.nombre)] : [])
+            : (f.ubicacionAqui && !/^[a-z][a-z0-9+.-]+:\/\//i.test(f.ubicacionAqui) ? [f.ubicacionAqui] : []);
+        await procedencia.anotar(dbManager, m[1], {
+            origen: 'fuente', fuente: f.nombre, archivos,
+            hoja: f.excel?.hoja || null, hojas: f.excel?.hojas || null, rango: f.excel?.rango || null,
+        });
+    } catch (e) { console.warn('[Procedencia] Materialización sin anotar:', e.message); }
+}
 
 function anotarFuentesDelSql(sql) {
     if (!PROYECTO_ABIERTO) return;
