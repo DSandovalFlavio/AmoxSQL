@@ -33,8 +33,9 @@ Nodos de arranque: no tienen entrada, producen una tabla.
 
 | Nodo | Qué hace |
 |---|---|
-| **Import File** | Carga un archivo local (CSV, TSV, Parquet, JSON, Excel) en una tabla; los tipos se detectan solos |
-| **Import Folder** | Carga y apila todos los archivos que coinciden con un patrón (p. ej. `*.csv`) de una carpeta en una sola tabla, unidos por nombre de columna |
+| **Source** | Lee una [fuente con nombre](../data/sources.md) (`fuentes."nombre"`) donde está, sin copiarla. Cada máquina dice dónde está su archivo; el proceso es el mismo en todas |
+| **Import File** | Carga un archivo local (CSV, TSV, Parquet, JSON, Excel) en una tabla; los tipos se detectan solos. Para Excel: hoja, rango (`A4:E`), rellenar hacia abajo, limpiar nombres y unir hojas; si no se dice nada, usa cómo se importó ese archivo la última vez en el proyecto |
+| **Import Folder** | Carga y apila todos los archivos que coinciden con un patrón (p. ej. `*.csv`) de una carpeta en una sola tabla, unidos por nombre de columna, con la columna `_archivo` |
 | **Table Source** | Referencia una tabla o vista existente como origen, sin copiar nada |
 | **HTTP Fetch** | Lee un archivo (CSV, JSON, Parquet) directamente desde una URL pública |
 | **Cloud Bucket** | Lee CSV/Parquet/JSON de un bucket S3 o GCS (credenciales en Ajustes); admite patrones glob |
@@ -97,6 +98,7 @@ Para lo que los nodos visuales no cubren.
 |---|---|
 | **Create Table** | Materializa el resultado como una tabla persistente en la base de datos |
 | **Export File** | Escribe el resultado a un archivo (CSV/Parquet/Excel/JSON), local o en la nube, opcionalmente particionado |
+| **Publish** | Publica un Parquet que otros proyectos leen por su nombre: lo escribe aparte y lo cambia de una vez (nadie lee medio archivo), con su esquema y su fecha dentro, y lo registra como [fuente](../data/sources.md). Un cambio de esquema que rompe a quien lo lee lo detiene |
 
 ### Quality & Control (calidad y control)
 

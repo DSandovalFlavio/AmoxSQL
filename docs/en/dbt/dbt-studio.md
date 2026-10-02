@@ -51,6 +51,8 @@ If you just want to run raw SQL against DuckDB, use the [SQL editor](../editor/s
 3. The final command shows below (prefixed with `conda run -n <env>` if an environment is selected). **Copy** it to the clipboard or hit **Execute**.
 4. Output streams live in the **Output** panel, with an **exit-code** badge when it finishes (green if 0, red otherwise).
 
+**No locks (since 5.10).** dbt writes to the `.duckdb` database from its own process, and it could not while AmoxSQL had it open. Now, if the command is going to open the database you have attached — AmoxSQL reads it from your `profiles.yml` —, AmoxSQL releases it and re-attaches it when dbt ends, also if it fails or you cancel it. Your notebook views, sources and extensions are still there. While dbt has it, a query to the database says why it doesn't run; queries that only read sources do run. AmoxSQL's notices show in the **Output** panel, in another color. If dbt cannot start because its environment fails, that is said too.
+
 ### 6. Lineage
 1. Open the **Lineage** section (or the **Open in tab** button to see it full-screen).
 2. The graph is built from the project's `manifest.json`; if it doesn't exist, run `dbt compile` first.

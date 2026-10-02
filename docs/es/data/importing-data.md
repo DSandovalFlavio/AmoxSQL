@@ -34,14 +34,15 @@ Como alternativa, DuckDB puede **leer los archivos directamente** sin crear una 
 2. Elige el **tipo de archivo** (CSV, Parquet o JSON): se importan todos los que coincidan con ese patrón (por ejemplo, `*.csv`).
 3. Los archivos se combinan en una sola tabla.
 
-### Importar Excel (.xlsx / .xls)
-El Excel usa un diálogo propio que primero **inspecciona las hojas**:
+### Importar Excel (.xlsx)
+El Excel de un cliente rara vez empieza en A1: lleva un título, una línea de «generado el…», los encabezados en la fila 4 y notas al pie. El diálogo de Excel enseña la hoja **tal como es**, con letras y números de fila:
 1. Clic derecho sobre el `.xlsx` → **Importar a la base…**.
-2. Marca las **hojas** que quieres importar.
-3. Elige la **estrategia**:
-   - **Fusionar hojas (Merge)** — combina las hojas seleccionadas en una tabla (con una columna que marca la hoja de origen).
-   - **Tablas individuales** — una tabla por hoja.
-4. Opcional: **Limpiar nombres de columna**. Pulsa importar.
+2. Marca las **hojas** que quieres importar; clic en el nombre de una para verla.
+3. **Clic en el número de la fila** donde están los nombres de columna (y, si hace falta, en la **letra** de la última columna). `A4:E` lee desde la fila 4 hasta la primera fila vacía. Debajo ves al momento lo que se va a leer, con sus tipos.
+4. Opcional: **rellenar hacia abajo** las columnas con celdas combinadas, **limpiar los nombres** de columna.
+5. Con varias hojas: **una tabla con columna `_hoja`** (para hojas con la misma forma, una por mes) o **una tabla por hoja**. Pulsa importar.
+
+Lo elegido **se recuerda en el proyecto**: la próxima vez sale ya marcado, y el nodo Import File de Data Flow lee ese archivo igual. Lo que no es un libro dice qué es: un `.xls` antiguo o un libro con contraseña (guárdalo como `.xlsx`), uno dañado, o un **CSV con extensión `.xlsx`**, que se ofrece importar como CSV. La tabla recuerda de qué archivo, hoja y rango salió (ver [Fuentes de datos](sources.md)).
 
 ### Consulta directa (sin importar)
 Desde el menú contextual del archivo, **Consulta directa** abre una pestaña SQL con la lectura ya escrita (`SELECT * FROM '<ruta>'` o `read_xlsx(...)`) más comentarios con las columnas. Para CSV/Parquet/JSON se ejecuta al instante; para Excel te deja lanzarla tú.
@@ -59,14 +60,18 @@ Desde el menú contextual del archivo, **Consulta directa** abre una pestaña SQ
 ### Diálogo de Excel
 | Opción | Qué hace | Default |
 |---|---|---|
-| Selección de hojas | Qué hojas importar | Todas |
-| Estrategia | Fusionar (una tabla) · Individual (una por hoja) | Fusionar |
-| Nombre de tabla (Fusionar) | Nombre de la tabla combinada | Derivado del archivo |
-| Limpiar nombres de columna | Normaliza los nombres | Activado |
+| Selección de hojas | Qué hojas importar | La primera (o las de la última vez) |
+| Rango | Desde la fila de encabezados hasta la última columna; sin fila final, hasta la primera fila vacía | Hoja entera |
+| La primera fila tiene los nombres | Si la primera fila del rango son los nombres de columna | Activado |
+| Limpiar nombres de columna | Minúsculas y sin espacios | Desactivado |
+| Rellenar hacia abajo | Columnas cuyas celdas vacías toman el valor de arriba (celdas combinadas) | Ninguna |
+| Estrategia (varias hojas) | Una tabla con `_hoja` · Una tabla por hoja | Una tabla |
+| Nombre de tabla | Nombre de la tabla | Derivado del archivo |
 
 ## Tips y gemas
 
-- **Fusionar añade el origen:** al fusionar hojas de Excel se agrega una columna que identifica de qué hoja vino cada fila.
+- **Fusionar añade el origen:** al unir hojas de Excel se agrega la columna `_hoja` con la hoja de cada fila (hasta la 5.9 se llamaba `source_duck`; las tablas ya importadas no cambian).
+- **Un archivo que usas en varios proyectos** conviene definirlo como [fuente](sources.md): se lee por su nombre y no se copia.
 - **Un patrón, muchos archivos:** importar una carpeta usa un glob (`*.csv`), ideal para lotes de exportaciones diarias.
 - **Los tipos vienen del motor:** DuckDB infiere los tipos al leer, así que no tienes que declararlos.
 - **¿Solo mirar?** No importes: usa Consulta directa o Vista rápida desde el explorador de archivos.
