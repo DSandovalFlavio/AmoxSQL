@@ -9,7 +9,7 @@ import {
     LuArrowUpDown, LuDices, LuFlipHorizontal2, LuPencilLine, LuShuffle,
     LuTableProperties, LuArrowLeftRight, LuGalleryVerticalEnd, LuRows3,
     LuGlobe, LuWandSparkles, LuLayoutList, LuBell, LuRadar, LuCalendarClock, LuBraces,
-    LuCloud, LuSheet, LuSparkles, LuChartBar, LuPresentation, LuInbox
+    LuCloud, LuSheet, LuSparkles, LuChartBar, LuPresentation, LuInbox, LuSend
 } from 'react-icons/lu';
 
 export const NODE_TYPES = {
@@ -62,6 +62,16 @@ export const NODE_TYPES = {
             accent: 'oklch(0.65 0.15 50)',
         },
         defaultConfig: { query: '', format: 'csv', outputPath: '' },
+    },
+    publicar: {
+        id: 'publicar',
+        label: 'Publish',
+        description: 'Publish a file other projects read by name, with its schema inside',
+        icon: LuSend,
+        color: {
+            accent: 'oklch(0.66 0.14 165)',
+        },
+        defaultConfig: { fuente: '', carpeta: '', formato: 'parquet', esquemaRoto: 'detener' },
     },
     create_table: {
         id: 'create_table',
@@ -428,7 +438,7 @@ export const NODE_CATEGORIES = [
     {
         id: 'output',
         label: 'Output',
-        types: ['create_table', 'export_file', 'chart', 'report'],
+        types: ['publicar', 'create_table', 'export_file', 'chart', 'report'],
     },
     {
         id: 'quality_control',

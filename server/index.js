@@ -5721,6 +5721,8 @@ app.post('/api/chains/run', async (req, res) => {
             startNodeId,
             variables: variables || undefined,
         });
+        // Un nodo Publish deja (o pone al día) una fuente: que se vea ya (C6).
+        if ((chainDefinition.nodes || []).some(n => n?.type === 'publicar')) await remontarFuentes();
 
         res.json(result);
     } catch (err) {
@@ -6505,7 +6507,7 @@ app.post('/api/fuentes/probar', async (req, res) => {
         const ubicacion = req.body?.ubicacion || def.ubicacion;
         if (!ubicacion) throw new Error('Choose where the file is first.');
         const { DuckDBInstance } = require('@duckdb/node-api');
-        inst = await DuckDBInstance.create(':memory:');
+        inst = await require('./motor').crearInstancia(':memory:');
         const con = await inst.connect();
         const donde = path.isAbsolute(ubicacion) || /^[a-z0-9]+:\/\//i.test(ubicacion) ? ubicacion : path.resolve(ROOT_DIR, ubicacion);
         // Un bucket o un lago: su credencial (con SCOPE) o su DuckLake, antes de leer (C4).
@@ -6603,7 +6605,7 @@ app.post('/api/fuentes/explorar', async (req, res) => {
         if (!ubicacion) throw new Error('Choose where the lake is first.');
         const donde = path.isAbsolute(ubicacion) || /^[a-z0-9]+:\/\//i.test(ubicacion) ? ubicacion : path.resolve(ROOT_DIR, ubicacion);
         const { DuckDBInstance } = require('@duckdb/node-api');
-        inst = await DuckDBInstance.create(':memory:');
+        inst = await require('./motor').crearInstancia(':memory:');
         const con = await inst.connect();
         const db = { query: async (sql) => (await con.run(sql)).getRowObjectsJson() };
         if (credencial && /^[a-z0-9]+:\/\//i.test(donde)) await con.run(await secretos.sqlDeCredencial(credencial, fuentes.alcanceDe(donde)));
@@ -6616,6 +6618,25 @@ app.post('/api/fuentes/explorar', async (req, res) => {
         try { inst?.closeSync(); } catch { /* ya cerrada */ }
     }
 });
+
+/**
+ * Lo que lleva dentro el archivo de una fuente publicada (6.5): cuándo se
+ * publicó, qué proceso, de qué workspace, cuántas filas y su esquema. Se lee
+ * del propio archivo, así que vale en cualquier máquina.
+ */
+app.get('/api/fuentes/:nombre/publicacion', conCentral(async (req) => {
+    const destino = req.query.workspaceId ? { workspaceId: String(req.query.workspaceId) } : (PROYECTO_ABIERTO ? { raiz: ROOT_DIR } : null);
+    if (!destino) throw new Error('Open a project or choose a workspace first.');
+    const f = (await fuentes.listar(destino)).fuentes.find(x => x.nombre === req.params.nombre);
+    if (!f) throw new Error('That source does not exist.');
+    if (!f.ubicacionAqui) return { publicacion: null, motivo: 'sin_ubicar' };
+    const { leerPublicacion } = require('./publicar');
+    try {
+        return { publicacion: await leerPublicacion(dbManager.lane('meta'), f.ubicacionAqui) };
+    } catch (e) {
+        return { publicacion: null, motivo: String(e.message).split('\n')[0] };
+    }
+}));
 
 app.get('/api/fuentes/sugerir-nombre', (req, res) => {
     res.json({ nombre: fuentes.sugerirNombre(path.basename(String(req.query.de || ''))), formato: fuentes.formatoDe(req.query.de) });

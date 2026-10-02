@@ -24,6 +24,7 @@
 const fs = require('fs');
 const path = require('path');
 const { DuckDBInstance } = require('@duckdb/node-api');
+const { crearInstancia } = require('../motor');
 
 const BASES = ['auto', 'memoria', 'trabajo', 'proyecto'];
 
@@ -37,7 +38,7 @@ const LEEN_LA_BASE = new Set([
 
 // Pasos que sólo leen archivos, la red, o lo que les llega del paso anterior.
 const SOLO_ARCHIVOS = new Set([
-    'import_file', 'import_folder', 'bucket_read', 'gsheet_read', 'http_fetch', 'export_file', 'fuente',
+    'import_file', 'import_folder', 'bucket_read', 'gsheet_read', 'http_fetch', 'export_file', 'fuente', 'publicar',
     'checkpoint', 'join_tables', 'merge_tables', 'filter', 'group_aggregate', 'select_columns',
     'deduplicate', 'add_column', 'sort', 'sample', 'pivot', 'unpivot', 'type_cast',
     'window_functions', 'clean', 'date_ops', 'flatten', 'schema_validation', 'notification',
@@ -101,7 +102,7 @@ function instanciaDeTrabajo(ruta) {
             try { fs.writeFileSync(ignorar, '# Bases de trabajo de Data Flow: se regeneran al ejecutar.\n*\n'); } catch { /* no es grave */ }
         }
         const p = (async () => {
-            const instancia = await DuckDBInstance.create(ruta);
+            const instancia = await crearInstancia(ruta);
             return { instancia, conexion: await instancia.connect(), cola: { turno: Promise.resolve() } };
         })();
         p.catch(() => trabajos.delete(k));
@@ -239,10 +240,10 @@ async function abrirContexto(modo, { dbManager, proyecto, chainFile, fuera = fal
     let ctx;
     if (modo === 'proyecto') {
         const ruta = baseDelProyecto(proyecto);
-        const instancia = await DuckDBInstance.create(ruta);
+        const instancia = await crearInstancia(ruta);
         ctx = new ContextoAislado({ modo, ruta, instancia, conexion: await instancia.connect(), propia: true });
     } else if (modo === 'memoria') {
-        const instancia = await DuckDBInstance.create(':memory:');
+        const instancia = await crearInstancia(':memory:');
         ctx = new ContextoAislado({ modo, ruta: null, instancia, conexion: await instancia.connect(), propia: true });
     } else if (modo === 'trabajo') {
         if (!proyecto) throw new Error('Una base de trabajo necesita un proyecto abierto.');

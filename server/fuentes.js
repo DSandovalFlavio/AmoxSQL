@@ -114,6 +114,13 @@ function normalizarDefinicion(d) {
         def.tabla = tabla;
     }
     if (texto(x.credencial, 64)) def.credencial = texto(x.credencial, 64);
+    // C6: una fuente que publica un proceso dice quién la publica; y cualquiera
+    // puede pedir que se avise si su archivo tiene más de N días (6.5).
+    if (x.publicada && typeof x.publicada === 'object') {
+        def.publicada = { proceso: texto(x.publicada.proceso, 300) || null, proyecto: texto(x.publicada.proyecto, 300) || null };
+    }
+    const dias = Number(x.frescuraDias);
+    if (Number.isFinite(dias) && dias > 0) def.frescuraDias = Math.min(Math.round(dias), 3650);
     if (x.excel && typeof x.excel === 'object') {
         // Hoja (o varias, unidas con _hoja), rango, encabezado, rellenar y
         // limpiar nombres: las mismas opciones que el diálogo de importar (C2).
@@ -357,6 +364,16 @@ function elegidos(def, dir) {
 
 /** Lo que se sabe sin abrir el archivo: si está, cuánto ocupa, cuándo cambió. */
 function estadoDe(def, ubicacion) {
+    const e = estadoBase(def, ubicacion);
+    // 6.5: «avisar si tiene más de N días». Se sigue leyendo; sólo se avisa.
+    if (def.frescuraDias && e.modificada) {
+        const dias = (Date.now() - new Date(e.modificada).getTime()) / 86400000;
+        if (dias > def.frescuraDias) return { ...e, vieja: true, edadDias: Math.floor(dias) };
+    }
+    return e;
+}
+
+function estadoBase(def, ubicacion) {
     if (def.tipo === 'bucket' || def.tipo === 'lago') {
         if (!ubicacion) return { estado: 'sin_ubicar' };
         if (REMOTA.test(ubicacion)) return { estado: 'remota' };
@@ -720,7 +737,35 @@ function usadas(sql) {
     return [...nombres];
 }
 
+/**
+ * Registra (o pone al día) la fuente que deja un nodo Publish (6.4): en el
+ * workspace del proyecto —o en el proyecto si no tiene—, con su ubicación en
+ * esta máquina. Un archivo publicado dentro del proyecto va relativo; uno en
+ * un bucket, con su URL en la definición.
+ */
+async function registrarPublicada({ raiz, workspaceId = null, enProyecto = false }, def, ruta) {
+    const destino = workspaceId && !enProyecto ? { workspaceId } : { raiz };
+    const previa = definiciones(destino.raiz ? { raiz: destino.raiz } : { workspaceId }).fuentes
+        .find(f => f.def.nombre === def.nombre && f.origen === (destino.raiz ? 'proyecto' : 'workspace'));
+    const nueva = { ...(previa?.def || {}), ...def, tipo: 'archivo' };
+    let ubicacionAqui = null;
+    if (REMOTA.test(ruta)) {
+        nueva.ubicacion = ruta;
+    } else if (destino.raiz) {
+        const rel = path.relative(destino.raiz, ruta);
+        if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) nueva.ubicacion = rel.split(path.sep).join('/');
+        else { delete nueva.ubicacion; ubicacionAqui = ruta; }
+    } else {
+        delete nueva.ubicacion;
+        ubicacionAqui = ruta;
+    }
+    const guardada = await guardar(destino, nueva);
+    if (ubicacionAqui && baseCentral.estaAbierta()) await ubicar(destino, guardada.nombre, ubicacionAqui);
+    return { fuente: guardada, en: destino.raiz ? 'proyecto' : 'workspace' };
+}
+
 module.exports = {
+    registrarPublicada,
     CATALOGO, TIPOS, FORMATOS,
     validarNombre, sugerirNombre, formatoDe, normalizarDefinicion,
     carpetaDelWorkspace, carpetaDelProyecto, idDelProyecto, workspaceDelProyecto,

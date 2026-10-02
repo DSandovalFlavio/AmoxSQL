@@ -34,6 +34,13 @@ export function validateNode(node, edges = []) {
             break;
         }
 
+        case 'publicar': {
+            if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(config.fuente || '')) errors.push('Name the source it publishes: lowercase letters, digits and hyphens');
+            if (!config.carpeta?.trim()) errors.push('Choose the folder (or bucket) to publish to');
+            if (!hasUpstream && !config.query?.trim()) errors.push('No upstream node connected — nothing to publish');
+            break;
+        }
+
         case 'export_file': {
             if (!config.outputPath?.trim()) errors.push('Output file path is required');
             if (!config.format) errors.push('Output format is required (csv, parquet, xlsx, json)');

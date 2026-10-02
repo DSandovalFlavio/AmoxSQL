@@ -346,6 +346,23 @@ export const NODE_DOCS = {
         examples: ['Save the final model as analytics_summary.'],
         tips: ['Re-running replaces the table, so chains stay idempotent.'],
     },
+    publicar: {
+        summary: 'Publish a file that other projects read by name.',
+        whatItDoes: 'Writes the upstream data to a Parquet file in a folder or bucket and registers it as a named source of the workspace, so any other project reads it as fuentes."name". The file is written aside and swapped in at the end — nobody ever reads half a file — and it carries its schema, date and process inside.',
+        io: { in: 'One upstream node.', out: 'The same data, passed through; the file and the source as a side effect.' },
+        options: [
+            { name: 'Source name', desc: 'The name others will use: clean-sales.' },
+            { name: 'Folder', desc: 'A local or synced folder, or a bucket (s3://…, with a named credential).' },
+            { name: 'Format', desc: 'Parquet keeps the schema guarantee. CSV is allowed, without it.' },
+            { name: 'If the schema changes', desc: 'Stop (default): a removed column or a changed type is not published and the previous file stays. Warn: publish and say so.' },
+            { name: 'Register in', desc: 'The workspace (every project sees it) or only this project.' },
+        ],
+        examples: ['Every Monday, clean the stores report and publish weekly-sales-clean for the dashboards project.'],
+        tips: [
+            'Adding columns is fine; removing or retyping one breaks whoever reads it, so it stops by default.',
+            'On the command line, a broken schema ends the run with exit code 1 and the log says why.',
+        ],
+    },
     export_file: {
         summary: 'Write the result to a file — local or cloud, optionally partitioned.',
         whatItDoes: 'Exports the upstream output as CSV/Parquet/Excel/JSON to a local path or an S3/GCS bucket. Can write a partitioned directory.',

@@ -113,13 +113,14 @@ export default function FuentesExplorador({ onSelectQuery, refresco, busqueda = 
                                     }}
                                     onClick={() => setAbiertas(a => ({ ...a, [f.nombre]: !a[f.nombre] }))}
                                     onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setMenu({ x: e.clientX, y: e.clientY, fuente: f }); }}
-                                    title={`${ref(f.nombre)}${f.descripcion ? ` — ${f.descripcion}` : ''}${f.ubicacionAqui ? `\n${f.ubicacionAqui}` : ''}${f.actual ? `\nNow reading: ${f.actual.nombre}${f.leidos > 1 ? ` and ${f.leidos - 1} more` : ''}` : ''}\nDrag to the editor or right click for options`}
+                                    title={`${ref(f.nombre)}${f.descripcion ? ` — ${f.descripcion}` : ''}${f.ubicacionAqui ? `\n${f.ubicacionAqui}` : ''}${f.actual ? `\nNow reading: ${f.actual.nombre}${f.leidos > 1 ? ` and ${f.leidos - 1} more` : ''}` : ''}${f.publicada ? `\nPublished by ${f.publicada.proceso || 'a process'}${f.publicada.proyecto ? ` (${f.publicada.proyecto})` : ''}` : ''}${f.vieja ? `\n${f.edadDias} days old (expected fresher than ${f.frescuraDias})` : ''}\nDrag to the editor or right click for options`}
                                 >
                                     <div className="db-chevron">{expandida ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}</div>
                                     <LuInbox size={14} className="fnt-icono" />
                                     <span className="db-table-name">{f.nombre}</span>
                                     {f.origen === 'workspace' && <span className="fnt-origen" title={`From ${workspaceNombre || `the ${e.s}`}`}>{workspaceNombre ? workspaceNombre.slice(0, 1).toUpperCase() : 'W'}</span>}
                                     {problema && <LuTriangleAlert size={12} className="fnt-problema" title={problema} />}
+                                    {!problema && f.vieja && <LuTriangleAlert size={12} className="fnt-problema" title={`${f.edadDias} days old: older than the ${f.frescuraDias} days expected`} />}
                                     <span className="db-copy-btn" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(ref(f.nombre)); }} title="Copy reference">
                                         <LuClipboard size={12} />
                                     </span>

@@ -88,7 +88,14 @@ function credencialesDeCadena(definicion) {
             for (const x of Object.values(v)) mirar(x);
         }
     };
-    for (const nodo of (definicion?.nodes || [])) mirar(nodo?.config);
+    for (const nodo of (definicion?.nodes || [])) {
+        // Un Publish a un bucket nombra su credencial (C6): ésa es la que hace falta.
+        if (nodo?.type === 'publicar') {
+            if (nodo.config?.credencial) hace.set(String(nodo.config.credencial), 'nube');
+            continue;
+        }
+        mirar(nodo?.config);
+    }
     return [...hace].map(([nombre, tipo]) => ({ nombre, tipo }));
 }
 
