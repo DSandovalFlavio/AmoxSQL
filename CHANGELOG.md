@@ -5,6 +5,35 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.10.0-beta.1] — 2026-10-02
+
+Primera beta de la 5.10.0: **publicar un archivo**. Con ella está todo lo de
+la familia C; desde aquí, sólo arreglos. Prerelease.
+
+### Publicar un archivo
+
+- **El nodo Publish de Data Flow** deja un archivo que otros proyectos leen por
+  su nombre: escribe un Parquet en una carpeta (o un bucket) y lo registra como
+  fuente del workspace —o del proyecto—, marcada como publicada por ese proceso.
+- **Nadie lee nunca medio archivo**: se escribe aparte y se cambia de una vez al
+  final; si otro programa tiene el archivo abierto, se reintenta unos segundos y,
+  si sigue, se dice quién lo tiene —cuando Office lo deja saber— y el archivo
+  publicado queda como estaba.
+- **Lleva dentro su esquema, su fecha y de dónde viene** (fuente, proceso,
+  workspace, filas): quien lo usa en otra máquina lo sabe sin nada más.
+- **Un cambio que rompe a quien ya lo lee no se publica**: una columna que
+  desaparece o cambia de tipo detiene la publicación y deja el anterior intacto
+  (se puede bajar a aviso). Añadir columnas se permite. Por la línea de comandos
+  sale con 1 y el registro dice por qué.
+- **Frescura**: una fuente puede avisar si su archivo tiene más de N días.
+- CSV también se puede publicar, sin la garantía de esquema.
+
+### Arreglado
+
+- Leer un archivo que acababa de reemplazarse —un Parquet que se vuelve a
+  publicar, un archivo que llega con el mismo nombre— podía fallar con «No magic
+  bytes» o «Footer length»: el motor servía trozos del archivo anterior. Ya no.
+
 ## [5.10.0-alpha.3] — 2026-10-02
 
 Tercera prueba de la 5.10.0: **lagos y buckets**. Prerelease.
