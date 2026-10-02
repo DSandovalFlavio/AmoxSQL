@@ -8,7 +8,7 @@ import {
     LuRefreshCw, LuEllipsisVertical, LuHistory, LuTable,
     LuHash, LuType, LuCalendar, LuSquareCheck, LuCode,
     LuClipboard, LuInfo, LuSearch, LuChevronRight, LuChevronDown, LuEye, LuShieldCheck,
-    LuWorkflow, LuArrowLeft, LuDatabase, LuFolder
+    LuWorkflow, LuArrowLeft, LuDatabase, LuFolder, LuFileInput, LuTriangleAlert
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import FuentesExplorador from './fuentes/FuentesExplorador';
@@ -198,7 +198,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     }}
                     onClick={() => toggleExpand(schema, table.name)}
                     className="db-table-row"
-                    title={`${dName} — Drag to editor or right click for operations`}
+                    title={`${dName}${table.procedencia ? `\nLoaded ${table.procedencia.resumen}` : ''}${table.procedencia?.cambiados?.length ? `\n${table.procedencia.cambiados.join(', ')} changed after it was loaded` : ''}\nDrag to editor or right click for operations`}
                     onContextMenu={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -210,6 +210,10 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     </div>
                     <TableIcon size={14} style={{ color: 'var(--accent-primary)' }} />
                     <span className="db-table-name">{table.name}</span>
+                    {/* De dónde salió (C5): cargada desde un archivo; aviso si el archivo cambió */}
+                    {table.procedencia && (table.procedencia.cambiados?.length
+                        ? <LuTriangleAlert size={12} className="db-procedencia-aviso" aria-label="The source file changed after loading" />
+                        : <LuFileInput size={12} className="db-procedencia-icono" aria-label="Loaded from a file" />)}
                     <span
                         className="db-copy-btn"
                         onClick={(e) => handleCopy(e, dName)}
@@ -220,6 +224,14 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                 </div>
 
                 {/* Columns Node */}
+                {isExpanded && table.procedencia && (
+                    <div className={`db-procedencia${table.procedencia.cambiados?.length ? ' db-procedencia--cambio' : ''}`}>
+                        Loaded {table.procedencia.resumen}
+                        {table.procedencia.cambiados?.length > 0 && (
+                            <span> · {table.procedencia.cambiados.join(', ')} changed after it was loaded: import it again to see the new data.</span>
+                        )}
+                    </div>
+                )}
                 {isExpanded && table.columns && (
                     <div className="db-columns tree-reveal">
                         {table.columns.map((col, idx) => {

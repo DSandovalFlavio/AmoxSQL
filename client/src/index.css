@@ -20079,3 +20079,14 @@ tr:hover td {
 .fnt-carpeta li small { flex: none; font-variant-numeric: tabular-nums; }
 .fnt-carpeta-actual { color: var(--text-primary) !important; font-weight: 600; }
 .fnt-actual { display: block; margin-top: 2px; color: var(--text-tertiary); font-size: 11px; }
+
+/* ─── De dónde salió cada tabla (C5, 5.10) ────────────────────────────── */
+.db-procedencia-icono { flex-shrink: 0; color: var(--text-tertiary); }
+.db-procedencia-aviso { flex-shrink: 0; color: var(--color-warning); }
+.db-procedencia {
+  padding: 2px 8px 4px 34px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+}
+.db-procedencia--cambio span { color: var(--color-warning-text); }

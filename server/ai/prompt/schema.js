@@ -17,7 +17,9 @@ function formatTableSchemas(tables) {
         // A named source is a view in the `fuentes` catalog, read from its file
         // every time: it is referenced as fuentes."name" (the name has hyphens).
         if (t.ref) return `SOURCE ${t.ref}${t.descripcion ? ` — ${t.descripcion}` : ''}\n${cols}`;
-        return `TABLE "${t.name}"${rowInfo}\n${cols}`;
+        // Where the data came from (loaded from a file), when AmoxSQL knows it.
+        const origen = t.procedencia ? `\n  -- loaded ${t.procedencia}` : '';
+        return `TABLE "${t.name}"${rowInfo}${origen}\n${cols}`;
     }).join('\n\n');
     if (overflow) {
         return result + `\n\n_(${tables.length - TABLE_DISPLAY_LIMIT} more tables not shown — call \`list_tables\` for the full list)_`;

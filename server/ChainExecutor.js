@@ -13,6 +13,15 @@ const aiManager = require('./AiManager');
 const secretos = require('./secretos');
 const { detectResultType } = require('./_sqlClassify');
 const excel = require('./excel');
+const procedencia = require('./procedencia');
+
+/**
+ * Una carga de carpeta (C5, 4.2): cada fila sabe de qué archivo vino, en la
+ * columna `_archivo` (el nombre, sin la carpeta). El motor da la ruta entera
+ * en `filename`; se recorta y se quita la original.
+ */
+const conArchivo = (lector) =>
+    `SELECT * EXCLUDE (filename), regexp_extract(filename, '[^/\\\\]+$') AS _archivo FROM ${lector}`;
 
 /**
  * Node types that produce a *derived intermediate* table — plumbing between
@@ -731,10 +740,10 @@ class ChainExecutor extends EventEmitter {
                 const pattern = config.filePattern || '*.csv';
                 const ext = pattern.replace('*.', '').toLowerCase();
                 let reader;
-                if (ext === 'parquet') reader = `read_parquet('${fp}/${pattern}', union_by_name=true)`;
-                else if (ext === 'json' || ext === 'jsonl') reader = `read_json_auto('${fp}/${pattern}', union_by_name=true)`;
-                else reader = `read_csv('${fp}/${pattern}', auto_detect=true, header=true, union_by_name=true)`;
-                return `CREATE OR REPLACE TABLE "${tbl}" AS SELECT * FROM ${reader}`;
+                if (ext === 'parquet') reader = `read_parquet('${fp}/${pattern}', union_by_name=true, filename=true)`;
+                else if (ext === 'json' || ext === 'jsonl') reader = `read_json_auto('${fp}/${pattern}', union_by_name=true, filename=true)`;
+                else reader = `read_csv('${fp}/${pattern}', auto_detect=true, header=true, union_by_name=true, filename=true)`;
+                return `CREATE OR REPLACE TABLE "${tbl}" AS ${conArchivo(reader)}`;
             }
             case 'http_fetch': {
                 const tbl = config.tableName || 'fetched_data';
@@ -1369,6 +1378,12 @@ class ChainExecutor extends EventEmitter {
                 }
 
                 await dbManager.query(sql);
+                {
+                    const o = (fileType === 'xlsx' || fileType === 'excel') ? this.opcionesExcel({ ...config, sheetName }, projectPath, sourcePath) : {};
+                    await procedencia.anotar(dbManager, `"${tableName}"`, {
+                        origen: 'data_flow', archivos: [sourcePath], hoja: o.hoja || null, hojas: o.hojas || null, rango: o.rango || null,
+                    });
+                }
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
                 const rowCount = countResult[0]?.cnt || 0;
                 resultType = 'table_created';
@@ -1386,14 +1401,18 @@ class ChainExecutor extends EventEmitter {
                 if (!fs.existsSync(folderPath)) throw new Error(`Import Folder: folder not found — ${config.folderPath}`);
 
                 if (ext === 'parquet') {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_parquet('${folderPath}/${pattern}', union_by_name=true)`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${conArchivo(`read_parquet('${folderPath}/${pattern}', union_by_name=true, filename=true)`)}`;
                 } else if (ext === 'json' || ext === 'jsonl') {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_json_auto('${folderPath}/${pattern}', union_by_name=true)`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${conArchivo(`read_json_auto('${folderPath}/${pattern}', union_by_name=true, filename=true)`)}`;
                 } else {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${folderPath}/${pattern}', auto_detect=true, header=true, union_by_name=true)`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${conArchivo(`read_csv('${folderPath}/${pattern}', auto_detect=true, header=true, union_by_name=true, filename=true)`)}`;
                 }
 
                 await dbManager.query(sql);
+                // De dónde salió (C5): los archivos de la carpeta, con su fecha.
+                await procedencia.anotar(dbManager, `"${tableName}"`, {
+                    origen: 'data_flow', archivos: procedencia.expandir(path.join(folderPath, pattern)),
+                });
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
                 const rowCount = countResult[0]?.cnt || 0;
                 resultType = 'table_created';
