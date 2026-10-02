@@ -66,7 +66,15 @@ export default function FuentesDelWorkspace({ workspace, avisar }) {
                             return (
                                 <tr key={f.nombre}>
                                     <td><b className="wsv-mono">{f.nombre}</b>{f.descripcion && <small>{f.descripcion}</small>}</td>
-                                    <td><small className="wsv-mono fnt-ruta">{f.ubicacionAqui || '—'}</small></td>
+                                    <td>
+                                        <small className="wsv-mono fnt-ruta">{f.ubicacionAqui || '—'}</small>
+                                        {f.actual && (
+                                            <small className="fnt-actual">
+                                                {f.criterio === 'todos' ? `${f.leidos} files combined, newest ` : 'Reading '}
+                                                <span className="wsv-mono">{f.actual.nombre}</span> · {new Date(f.actual.modificada).toLocaleString()}
+                                            </small>
+                                        )}
+                                    </td>
                                     <td>
                                         {problema
                                             ? <span className="wsv-chip wsv-chip--warn">{problema.toLowerCase()}</span>

@@ -17,6 +17,7 @@ const contextoDeEjecucion = require('./ejecucion/ContextoDeEjecucion');
 const workspaces       = require('./workspaces');
 const fuentes          = require('./fuentes');
 const dbtConvivir      = require('./dbtConvivir');
+const llegadas         = require('./llegadas');
 
 /**
  * Mientras dbt tiene la base del proyecto (fase 2b), lo que la lea no puede
@@ -6342,6 +6343,11 @@ function remontarFuentes() {
                 const informe = await fuentes.montar(meta, { raiz });
                 ultimoMontaje = { informe, esquemaHomonimo: raiz ? await fuentes.hayEsquemaHomonimo(meta) : false, en: new Date().toISOString() };
                 invalidateTableContextCache();
+                // C3: vigilar las carpetas de las fuentes de tipo carpeta.
+                llegadas.vigilar(
+                    informe.filter(i => i.carpeta).map(i => ({ fuente: i.nombre, ...i.carpeta })),
+                    alLlegarUnArchivo
+                );
             } catch (e) {
                 console.warn('[Fuentes] No se pudo montar el catálogo:', e?.message || e);
             }
@@ -6350,6 +6356,30 @@ function remontarFuentes() {
     return montandoFuentes;
 }
 dbManager.alIniciar(() => { remontarFuentes(); });
+
+// ── El archivo que acaba de llegar (C3) ─────────────────────────────────────
+// Quien escucha (la interfaz) recibe un aviso por llegada; la vista ya está
+// rehecha cuando el aviso sale.
+const oyentesDeLlegadas = new Set();
+function alLlegarUnArchivo(llegada) {
+    remontarFuentes().then(() => {
+        const aviso = { tipo: 'llegada', fuentes: llegada.fuentes, archivo: llegada.archivo, modificada: llegada.modificada, tamano: llegada.tamano };
+        console.log(`[Fuentes] Llegó ${llegada.archivo} (${llegada.fuentes.join(', ')})`);
+        for (const f of oyentesDeLlegadas) { try { f(aviso); } catch { /* un oyente roto no tumba a los demás */ } }
+    });
+}
+
+app.get('/api/fuentes/llegadas', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+    const enviar = (o) => res.write(`data: ${JSON.stringify(o)}\n\n`);
+    enviar({ tipo: 'hola' });
+    oyentesDeLlegadas.add(enviar);
+    const latido = setInterval(() => res.write(': latido\n\n'), 30000);
+    req.on('close', () => { clearInterval(latido); oyentesDeLlegadas.delete(enviar); });
+});
 
 function anotarFuentesDelSql(sql) {
     if (!PROYECTO_ABIERTO) return;
@@ -6472,6 +6502,19 @@ app.get('/api/fuentes/columnas', async (_req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+/** Lo que hay ahora en una carpeta con un patrón (el formulario de una fuente de tipo carpeta). */
+app.get('/api/fuentes/carpeta', (req, res) => {
+    const dir = String(req.query.dir || '');
+    const abs = path.isAbsolute(dir) ? dir : path.resolve(ROOT_DIR, dir);
+    try {
+        if (!fs.statSync(abs).isDirectory()) return res.status(400).json({ error: 'That is not a folder.' });
+    } catch {
+        return res.status(404).json({ error: 'That folder is not there.' });
+    }
+    const todos = fuentes.archivosDeCarpeta(abs, { patron: req.query.patron || '*', subcarpetas: req.query.subcarpetas === '1' });
+    res.json({ total: todos.length, archivos: todos.slice(0, 20).map(({ ruta, nombre, modificada, tamano, quieto }) => ({ ruta, nombre, modificada, tamano, quieto })) });
 });
 
 app.get('/api/fuentes/sugerir-nombre', (req, res) => {

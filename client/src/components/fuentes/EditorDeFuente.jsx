@@ -18,6 +18,7 @@ import {
 } from './api';
 import LecturaExcel from '../excel/LecturaExcel';
 import { lecturaRecordada } from '../excel/api';
+import { archivosDeLaCarpeta, elegirCarpeta } from './api';
 
 const FORMATOS = { xlsx: 'Excel', csv: 'CSV', parquet: 'Parquet', json: 'JSON' };
 
@@ -29,6 +30,12 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
         editando ? (fuente.origen === 'workspace' ? 'workspace' : 'proyecto') : (enProyecto ? 'proyecto' : 'workspace')
     );
     const [ruta, setRuta] = useState(fuente?.ubicacionAqui || '');
+    // C3: un archivo, o una carpeta donde llega (el más reciente, o todos unidos).
+    const [tipo, setTipo] = useState(fuente?.tipo === 'carpeta' ? 'carpeta' : 'archivo');
+    const [criterio, setCriterio] = useState(fuente?.criterio === 'todos' ? 'todos' : 'reciente');
+    const [patron, setPatron] = useState(fuente?.patron || '*.xlsx');
+    const [subcarpetas, setSubcarpetas] = useState(!!fuente?.subcarpetas);
+    const [carpeta, setCarpeta] = useState(null);   // { archivos: [...] } de lo que hay ahora
     const [nombre, setNombre] = useState(fuente?.nombre || '');
     const [nombreTocado, setNombreTocado] = useState(editando);
     const [descripcion, setDescripcion] = useState(fuente?.descripcion || '');
@@ -46,24 +53,43 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
     const [error, setError] = useState(null);
     const [ocupado, setOcupado] = useState(false);
 
-    const formato = fuente?.formato || formatoDe(ruta);
+    const esCarpeta = tipo === 'carpeta';
+    const formato = esCarpeta ? (formatoDe(patron) || fuente?.formato) : (fuente?.formato || formatoDe(ruta));
+    // El archivo sobre el que se eligen hoja y rango: el mismo, o el más reciente de la carpeta.
+    const muestra = esCarpeta ? (carpeta?.archivos?.find(a => a.quieto)?.ruta || '') : ruta;
+
+    // Lo que hay ahora en la carpeta, con este patrón.
+    useEffect(() => {
+        setCarpeta(null);
+        if (!esCarpeta || !ruta.trim()) return;
+        let vivo = true;
+        const t = setTimeout(() => {
+            archivosDeLaCarpeta(ruta.trim(), patron, subcarpetas)
+                .then(r => { if (vivo) setCarpeta(r); })
+                .catch(err => { if (vivo) setCarpeta({ error: err.message, archivos: [] }); });
+        }, 250);
+        return () => { vivo = false; clearTimeout(t); };
+    }, [esCarpeta, ruta, patron, subcarpetas]);
     const puedeElegirDestino = !editando && enProyecto && !!workspaceId;
 
     // El nombre sale del archivo hasta que el usuario lo escribe.
     useEffect(() => {
-        if (!nombreTocado && ruta) setNombre(sugerirNombre(ruta));
-    }, [ruta, nombreTocado]);
+        if (nombreTocado || !ruta) return;
+        // Una carpeta se nombra por su patrón si dice algo («ventas*.xlsx» → ventas), si no por ella.
+        const delPatron = patron.replace(/\.[^.]*$/, '').replace(/[*?]/g, ' ').trim();
+        setNombre(sugerirNombre(esCarpeta ? (delPatron || ruta) : ruta));
+    }, [ruta, nombreTocado, esCarpeta, patron]);
 
     // Las hojas de un Excel, para elegir; y, en una fuente nueva, cómo se leyó
     // ese archivo la última vez en el proyecto (lo recuerda el diálogo de importar).
     useEffect(() => {
         setHojas([]);
-        if (formato !== 'xlsx' || !ruta) return;
+        if (formato !== 'xlsx' || !muestra) return;
         let vivo = true;
-        hojasDeExcel(ruta).then(async h => {
+        hojasDeExcel(muestra).then(async h => {
             if (!vivo) return;
             setHojas(h);
-            const antes = !editando ? await lecturaRecordada(ruta).catch(() => null) : null;
+            const antes = !editando ? await lecturaRecordada(muestra).catch(() => null) : null;
             if (!vivo) return;
             if (antes) {
                 const previas = (antes.hojas || (antes.hoja ? [antes.hoja] : [])).filter(x => h.includes(x));
@@ -77,10 +103,11 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
         }).catch(() => {});
         return () => { vivo = false; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [ruta, formato]);
+    }, [muestra, formato]);
 
     const definicion = useMemo(() => {
-        const d = { nombre: nombre.trim(), descripcion: descripcion.trim() || null, tipo: 'archivo' };
+        const d = { nombre: nombre.trim(), descripcion: descripcion.trim() || null, tipo };
+        if (esCarpeta) Object.assign(d, { patron: patron.trim() || '*', criterio, subcarpetas: subcarpetas || undefined, formato: formato || undefined });
         if (formato === 'xlsx') {
             d.excel = { ...excelOpc };
             if (unir && elegidas.length > 1) d.excel.hojas = elegidas;
@@ -90,17 +117,17 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
         // Al editar una fuente cuya ruta va en la definición, se conserva.
         if (editando && fuente.como !== 'local' && fuente.ubicacion && ruta === fuente.ubicacionAqui) d.ubicacion = fuente.ubicacion;
         return d;
-    }, [nombre, descripcion, formato, excelOpc, elegidas, unir, encabezado, delimitador, editando, fuente, ruta]);
+    }, [nombre, descripcion, tipo, esCarpeta, patron, criterio, subcarpetas, formato, excelOpc, elegidas, unir, encabezado, delimitador, editando, fuente, ruta]);
 
     // Lo que cambia la lectura invalida la vista previa (la de CSV, Parquet y
     // JSON; la de Excel se rehace sola dentro de LecturaExcel).
-    useEffect(() => { setVista(null); }, [ruta, encabezado, delimitador]);
+    useEffect(() => { setVista(null); }, [ruta, tipo, patron, criterio, subcarpetas, encabezado, delimitador]);
 
     const nombreValido = NOMBRE_VALIDO.test(nombre.trim());
     const listo = nombreValido && !!ruta.trim() && !ocupado;
 
     const elegir = async () => {
-        const r = await elegirArchivo();
+        const r = esCarpeta ? await elegirCarpeta() : await elegirArchivo();
         if (r) setRuta(r);
     };
 
@@ -162,22 +189,74 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
                         </div>
                     )}
 
+                    <div className="fnt-campo">
+                        <span className="fnt-etiqueta">What it reads</span>
+                        <div className="fnt-segmento" role="radiogroup" aria-label="What the source reads">
+                            {[['archivo', 'reciente', 'One file'], ['carpeta', 'reciente', 'Newest file in a folder'], ['carpeta', 'todos', 'All files in a folder']].map(([t, c, texto]) => {
+                                const on = tipo === t && (t === 'archivo' || criterio === c);
+                                return (
+                                    <button key={texto} type="button" role="radio" aria-checked={on}
+                                        className={`fnt-segmento-op${on ? ' fnt-segmento-op--on' : ''}`}
+                                        onClick={() => { if (t !== tipo) setRuta(''); setTipo(t); setCriterio(c); }}>{texto}</button>
+                                );
+                            })}
+                        </div>
+                        <span className="fnt-nota">
+                            {!esCarpeta && 'A file that stays put, or that is replaced in place.'}
+                            {esCarpeta && criterio === 'reciente' && 'For a file that arrives with a new name each time (Sales Week 39.xlsx, Sales Week 40.xlsx…): the source is always the newest one, once it has finished arriving.'}
+                            {esCarpeta && criterio === 'todos' && 'Every matching file, combined by column name, with an _archivo column that says where each row came from.'}
+                        </span>
+                    </div>
+
                     <label className="fnt-campo">
-                        <span className="fnt-etiqueta">File</span>
+                        <span className="fnt-etiqueta">{esCarpeta ? 'Folder' : 'File'}</span>
                         <div className="fnt-archivo">
                             <input className="wsx-input fnt-mono" value={ruta} onChange={e => setRuta(e.target.value)}
-                                placeholder="C:\Data\incoming\weekly-sales.xlsx" spellCheck={false} />
-                            {window.electronAPI?.openFileDialog && (
+                                placeholder={esCarpeta ? 'C:\\Data\\incoming' : 'C:\\Data\\incoming\\weekly-sales.xlsx'} spellCheck={false} />
+                            {(esCarpeta ? window.electronAPI?.selectFolder : window.electronAPI?.openFileDialog) && (
                                 <button type="button" className="ww-btn-skip fnt-btn" onClick={elegir}><LuFolderOpen size={14} /> Choose…</button>
                             )}
                         </div>
                         <span className="fnt-nota">
                             {destino === 'workspace' || !enProyecto
-                                ? 'Where the file is on this machine. Other machines set their own location.'
-                                : 'A file inside the project is saved relative to it and works on every machine.'}
+                                ? `Where the ${esCarpeta ? 'folder' : 'file'} is on this machine. Other machines set their own location.`
+                                : `A ${esCarpeta ? 'folder' : 'file'} inside the project is saved relative to it and works on every machine.`}
                             {formato && <> · {FORMATOS[formato]}</>}
                         </span>
                     </label>
+
+                    {esCarpeta && (
+                        <div className="fnt-fila">
+                            <label className="fnt-campo">
+                                <span className="fnt-etiqueta">File name pattern</span>
+                                <input className="wsx-input wsx-input--corto fnt-mono" value={patron} spellCheck={false}
+                                    onChange={e => setPatron(e.target.value)} placeholder="sales*.xlsx" />
+                            </label>
+                            <label className="wsx-check fnt-check-fila">
+                                <input type="checkbox" checked={subcarpetas} onChange={e => setSubcarpetas(e.target.checked)} />
+                                Look in subfolders too
+                            </label>
+                        </div>
+                    )}
+                    {esCarpeta && carpeta && (
+                        <div className="fnt-carpeta">
+                            {carpeta.error ? <span className="fnt-nota fnt-nota--mal">{carpeta.error}</span>
+                                : !carpeta.archivos.length ? <span className="fnt-nota">No file in this folder matches <code>{patron || '*'}</code> yet.</span>
+                                : (
+                                    <>
+                                        <span className="fnt-nota">{carpeta.total} matching file{carpeta.total === 1 ? '' : 's'}{criterio === 'reciente' ? '; the source reads the newest:' : ', combined:'}</span>
+                                        <ul>
+                                            {carpeta.archivos.slice(0, 6).map((a, k) => (
+                                                <li key={a.ruta} className={k === 0 && criterio === 'reciente' && a.quieto ? 'fnt-carpeta-actual' : ''}>
+                                                    <span className="fnt-mono">{a.nombre}</span>
+                                                    <small>{a.quieto ? new Date(a.modificada).toLocaleString() : 'still arriving'}</small>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </>
+                                )}
+                        </div>
+                    )}
 
                     <div className="fnt-fila">
                         <label className="fnt-campo fnt-crece">
@@ -225,9 +304,9 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
                             )}
                         </div>
                     )}
-                    {formato === 'xlsx' && ruta && elegidas.length > 0 && (
+                    {formato === 'xlsx' && muestra && elegidas.length > 0 && (
                         <LecturaExcel
-                            ruta={ruta}
+                            ruta={muestra}
                             hoja={unir && elegidas.length > 1 ? null : elegidas[0]}
                             hojas={unir && elegidas.length > 1 ? elegidas : null}
                             opciones={excelOpc}

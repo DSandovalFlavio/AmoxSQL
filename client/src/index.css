@@ -20062,3 +20062,20 @@ tr:hover td {
   cursor: pointer;
 }
 .chain-config-check input { margin-top: 2px; }
+
+/* ─── Fuentes de tipo carpeta (C3, 5.10) ──────────────────────────────── */
+.fnt-check-fila { align-self: flex-end; padding-bottom: 7px; }
+.fnt-carpeta {
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  padding: 8px 10px;
+  background: var(--surface-inset);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fnt-carpeta ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.fnt-carpeta li { display: flex; justify-content: space-between; gap: 12px; font-size: 11.5px; color: var(--text-tertiary); }
+.fnt-carpeta li small { flex: none; font-variant-numeric: tabular-nums; }
+.fnt-carpeta-actual { color: var(--text-primary) !important; font-weight: 600; }
+.fnt-actual { display: block; margin-top: 2px; color: var(--text-tertiary); font-size: 11px; }

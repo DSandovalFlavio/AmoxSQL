@@ -59,6 +59,10 @@ export const TEXTO_ESTADO = {
     sin_ubicar: 'No location on this machine',
     no_encontrada: 'File not found here',
     no_es_archivo: 'The location is not a file',
+    // Fuentes de tipo carpeta (C3)
+    no_es_carpeta: 'The location is not a folder',
+    vacia: 'No matching file in the folder yet',
+    llegando: 'A file is still arriving',
 };
 
 /** Elegir un archivo con el diálogo nativo (fuera de Electron, null). */
@@ -72,4 +76,17 @@ export async function elegirArchivo() {
         ],
     });
     return r && !r.canceled && r.filePaths?.[0] ? r.filePaths[0] : null;
+}
+
+/** Lo que hay ahora en una carpeta con un patrón: { total, archivos: [{ ruta, nombre, modificada, quieto }] }. */
+export const archivosDeLaCarpeta = (dir, patron, subcarpetas) =>
+    pedir('GET', `/api/fuentes/carpeta?${new URLSearchParams({ dir, patron: patron || '*', subcarpetas: subcarpetas ? '1' : '' })}`);
+
+/** Elegir una carpeta con el diálogo nativo (fuera de Electron, null). */
+export async function elegirCarpeta() {
+    if (!window.electronAPI?.selectFolder) return null;
+    const r = await window.electronAPI.selectFolder();
+    if (!r) return null;
+    if (typeof r === 'string') return r;
+    return !r.canceled && r.filePaths?.[0] ? r.filePaths[0] : null;
 }
