@@ -1190,30 +1190,57 @@ app.post('/api/db/extensions/forget', (req, res) => {
 
 
 /* --- Excel Import APIs --- */
-const xlsx = require('xlsx');
 const xlsxMeta = require('./xlsxMeta');
+const excel = require('./excel');
+
+/** La ruta de un archivo que llega del cliente: absoluta, o relativa al proyecto. */
+const rutaDelProyecto = (r) => (path.isAbsolute(String(r)) ? String(r) : path.join(ROOT_DIR, String(r)));
+
+/** Responder un error de Excel: 422 con su código si es de los que se explican. */
+function errorDeExcel(res, err) {
+    if (err instanceof excel.ErrorDeExcel) return res.status(err.codigo === 'no_existe' ? 404 : 422).json({ error: err.message, codigo: err.codigo });
+    return res.status(500).json({ error: String(err?.message || err).split('\n')[0] });
+}
 
 app.get('/api/files/inspect-excel', async (req, res) => {
     const filePath = req.query.path;
     if (!filePath) return res.status(400).json({ error: 'Path is required' });
-
-    let fullPath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
-
-    if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File not found' });
-
     try {
-        // Fast path: read sheet names from the zip central directory instead of
-        // parsing the whole workbook with SheetJS (which inflates every entry).
-        // See docs/dev/auditoria_metadata_archivos.md.
-        const cached = xlsxMeta.getCached(fullPath);
-        if (cached && cached.sheets) return res.json({ sheets: cached.sheets });
-
-        const { sheets } = xlsxMeta.getSheetNames(fullPath);
-        xlsxMeta.setCached(fullPath, { sheets });
-        res.json({ sheets });
+        // Las hojas salen del directorio central del ZIP (xlsxMeta); lo que no
+        // es un libro se reconoce por su firma y dice qué es (C2).
+        res.json({ sheets: excel.hojas(rutaDelProyecto(filePath)) });
     } catch (err) {
-        res.status(500).json({ error: 'Failed to read Excel file', details: err.message });
+        errorDeExcel(res, err);
     }
+});
+
+// ─── El Excel tal como llega (C2, 5.10) ─────────────────────────────────────
+
+/** Las primeras filas de una hoja, como texto, con letras y números de fila. */
+app.get('/api/excel/vista', async (req, res) => {
+    try {
+        const ruta = rutaDelProyecto(req.query.path || '');
+        res.json(await excel.vistaCruda(dbManager.lane('meta'), ruta, { hoja: req.query.hoja || null }));
+    } catch (err) {
+        errorDeExcel(res, err);
+    }
+});
+
+/** Leer con unas opciones, sin guardar nada: columnas con su tipo y unas filas. */
+app.post('/api/excel/probar', async (req, res) => {
+    try {
+        const ruta = rutaDelProyecto(req.body?.path || '');
+        const opciones = excel.normalizarOpciones(req.body?.opciones);
+        res.json(await excel.probar(dbManager.lane('meta'), ruta, opciones));
+    } catch (err) {
+        errorDeExcel(res, err);
+    }
+});
+
+/** Cómo se leyó este archivo la última vez en este proyecto (2.5). */
+app.get('/api/excel/recordado', (req, res) => {
+    if (!PROYECTO_ABIERTO) return res.json({ opciones: null });
+    res.json({ opciones: excel.recordado(ROOT_DIR, rutaDelProyecto(req.query.path || '')) });
 });
 
 /**
@@ -1252,8 +1279,8 @@ app.get('/api/files/inspect-columns', async (req, res) => {
                 });
             }
 
-            // Sheet names via the zip central directory — not a full SheetJS parse.
-            const { sheets } = xlsxMeta.getSheetNames(fullPath);
+            // Sheet names via the zip central directory (no full workbook parse).
+            const sheets = excel.hojas(fullPath);
 
             // DESCRIBE every sheet once (bind is early-stopping, ~ms per sheet).
             // The target sheet is included here — no separate/duplicate describe.
@@ -1261,7 +1288,7 @@ app.get('/api/files/inspect-columns', async (req, res) => {
             for (const s of sheets) {
                 try {
                     const desc = await meta.systemQuery(
-                        `DESCRIBE SELECT * FROM read_xlsx('${fullPath}', sheet='${s}')`
+                        `DESCRIBE ${excel.sqlDeLectura(fullPath, { hoja: s })}`
                     );
                     sheetsWithColumns[s] = desc.map(c => ({ name: c.column_name, type: c.column_type || c.data_type }));
                 } catch (e) {
@@ -1273,7 +1300,7 @@ app.get('/api/files/inspect-columns', async (req, res) => {
             const targetSheet = sheet || sheets[0];
             const columns = sheetsWithColumns[targetSheet] || [];
 
-            xlsxMeta.setCached(fullPath, { sheets, sheetsWithColumns });
+            xlsxMeta.setCached(fullPath, { ...(xlsxMeta.getCached(fullPath) || {}), sheets, sheetsWithColumns });
             res.json({ sheets, columns, sheetsWithColumns });
         } else {
             // CSV, Parquet, JSON — DuckDB DESCRIBE (sniffer samples; already cheap)
@@ -1288,65 +1315,53 @@ app.get('/api/files/inspect-columns', async (req, res) => {
 });
 
 app.post('/api/db/import-excel', async (req, res) => {
-    const { filePath, mode, sheets, tableName, cleanColumns, tableMapping } = req.body;
-    // mode: 'MERGE' | 'INDIVIDUAL'
-
-    if (!filePath || !sheets || sheets.length === 0) {
+    // mode: 'MERGE' (una tabla, columna _hoja) | 'INDIVIDUAL' (una tabla por hoja).
+    // Las opciones de lectura (rango, encabezado, rellenar, limpiar nombres) son
+    // las mismas para todas las hojas elegidas: es lo normal en un libro con una
+    // hoja por mes. Ya no hace falta cargar ninguna extensión aparte (prueba 0.2).
+    const { filePath, mode, sheets, tableName } = req.body || {};
+    if (!filePath || (!req.body?.comoCsv && (!Array.isArray(sheets) || sheets.length === 0))) {
         return res.status(400).json({ error: 'File path and sheets are required' });
     }
-
-    let fullPath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
-    fullPath = fullPath.replace(/\\/g, '/'); // DuckDB prefers forward slashes
-
     try {
-        // Ensure spatial extension is loaded for read_xlsx
-        // We try to install/load it. This might fail if no internet or restricted, 
-        // but it's required for the user's requested feature.
-        try {
-            await dbManager.systemQuery("INSTALL spatial; LOAD spatial;");
-        } catch (e) {
-            console.warn("Spatial extension load warning:", e.message);
-            // Proceed anyway, maybe it's already there or built-in
+        const ruta = rutaDelProyecto(filePath);
+        // Un CSV con extensión .xlsx (pasa: 2 de 25 en el disco del autor). El
+        // diálogo lo reconoce y ofrece leerlo como lo que es.
+        if (req.body.comoCsv) {
+            if (!tableName) return res.status(400).json({ error: 'Table name required' });
+            await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${String(tableName).replace(/"/g, '""')}" AS SELECT * FROM read_csv('${ruta.split(path.sep).join('/').replace(/'/g, "''")}', auto_detect = true)`);
+            await dbManager.checkpoint();
+            return res.json({ success: true, summary: `Read as CSV into "${tableName}"` });
         }
-
+        excel.comprobarLibro(ruta);
+        const opciones = excel.normalizarOpciones({ ...(req.body.opciones || {}), normalizar: req.body.opciones?.normalizar ?? req.body.cleanColumns });
         const summary = [];
-
         if (mode === 'MERGE') {
             if (!tableName) return res.status(400).json({ error: 'Table name required for MERGE mode' });
-
-            // Construct UNION ALL query
-            // We need to know columns to be safe, but read_xlsx w/ union_by_name might handle it.
-            // DuckDB Syntax: SELECT * FROM read_xlsx('file', sheet='A') UNION ALL BY NAME SELECT * FROM read_xlsx('file', sheet='B')
-
-            const queries = sheets.map(sheet => {
-                return `SELECT *, '${sheet}' as source_duck FROM read_xlsx('${fullPath}', sheet='${sheet}')`;
-            });
-
-            const unionQuery = queries.join(' UNION ALL BY NAME ');
-
-            await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${tableName}" AS ${unionQuery}`);
-            summary.push(`Merged ${sheets.length} sheets into "${tableName}"`);
-
+            const sql = excel.sqlDeLectura(ruta, { ...opciones, hojas: sheets });
+            try { await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${String(tableName).replace(/"/g, '""')}" AS ${sql}`); }
+            catch (e) { throw excel.explicar(e, ruta); }
+            summary.push(sheets.length > 1
+                ? `Merged ${sheets.length} sheets into "${tableName}" (the _hoja column says which sheet each row came from)`
+                : `Created table "${tableName}" from sheet "${sheets[0]}"`);
         } else {
-            // INDIVIDUAL
             for (const sheet of sheets) {
-                // Determine table name: User might have provided mapping or use sheet name
-                // Sanitize sheet name for table name
-                const safeTableName = sheet.replace(/[^a-zA-Z0-9_]/g, '_');
-
-                await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${safeTableName}" AS SELECT * FROM read_xlsx('${fullPath}', sheet='${sheet}')`);
-                summary.push(`Created table "${safeTableName}" from sheet "${sheet}"`);
+                const nombre = sheet.replace(/[^a-zA-Z0-9_]/g, '_');
+                try { await dbManager.systemQuery(`CREATE OR REPLACE TABLE "${nombre}" AS ${excel.sqlDeLectura(ruta, { ...opciones, hoja: sheet })}`); }
+                catch (e) { throw excel.explicar(e, ruta); }
+                summary.push(`Created table "${nombre}" from sheet "${sheet}"`);
             }
         }
-
-        // Checkpoint
         await dbManager.checkpoint();
-
+        // La próxima vez sale ya elegido, y Data Flow lo usa (2.5).
+        if (PROYECTO_ABIERTO) {
+            try { excel.recordar(ROOT_DIR, ruta, { ...opciones, hojas: sheets.length > 1 ? sheets : undefined, hoja: sheets.length === 1 ? sheets[0] : undefined }); }
+            catch (e) { console.warn('[Excel] No se pudo recordar la lectura:', e.message); }
+        }
         res.json({ success: true, summary: summary.join('\n') });
-
     } catch (err) {
-        console.error("Excel Import Error:", err);
-        res.status(500).json({ error: err.message });
+        console.error('Excel Import Error:', err?.message || err);
+        errorDeExcel(res, err);
     }
 });
 
@@ -5910,7 +5925,6 @@ app.post('/api/chains/preview-node', async (req, res) => {
         // Lo que un paso materializó está en la base donde corrió la cadena.
         const db = await contextoDeEjecucion.abrirParaVer(chainDefinition, { dbManager, proyecto: ROOT_DIR, chainFile: chainFile || '' });
         try {
-            if (compiled.sql.includes('read_xlsx(')) { try { await chainExecutor.ensureSpatialExtension(db); } catch {} }
 
             const wrapped = `SELECT * FROM (${compiled.sql}) AS _amox_preview`;
             const rows = await db.query(`${wrapped} LIMIT ${limit}`);
@@ -5958,7 +5972,6 @@ app.post('/api/chains/schema/infer', async (req, res) => {
                     chainFile: chainFile || '', projectPath: ROOT_DIR,
                 });
                 if (!compiled.sql) continue;
-                if (compiled.sql.includes('read_xlsx(')) { try { await chainExecutor.ensureSpatialExtension(db); } catch {} }
                 try {
                     const result = await db.query(`DESCRIBE ${compiled.sql}`);
                     for (const r of (result || [])) {

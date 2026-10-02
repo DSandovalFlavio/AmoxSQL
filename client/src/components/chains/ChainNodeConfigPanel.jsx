@@ -459,6 +459,47 @@ const ImportFileConfig = ({ config, onChange, onChangeMulti, fileOptions = [] })
                         placeholder="Sheet1"
                         className="chain-config-input"
                     />
+                    <label>Range <span className="chain-config-optional">(optional)</span></label>
+                    <input
+                        type="text"
+                        value={config.excelRange || ''}
+                        onChange={(e) => onChange('excelRange', e.target.value.toUpperCase())}
+                        placeholder="A4:E"
+                        className="chain-config-input chain-config-input-sm"
+                        spellCheck={false}
+                    />
+                    <p className="chain-config-hint">
+                        <code>A4:E</code> reads from row 4 down to the first empty row: the shape of a report with a title on top and notes below.
+                    </p>
+                    <label className="chain-config-check">
+                        <input type="checkbox" checked={config.excelHeader !== false}
+                            onChange={(e) => onChange('excelHeader', e.target.checked ? undefined : false)} />
+                        The first row of the range holds the column names
+                    </label>
+                    <label className="chain-config-check">
+                        <input type="checkbox" checked={!!config.excelCleanNames}
+                            onChange={(e) => onChange('excelCleanNames', e.target.checked || undefined)} />
+                        Clean column names (lowercase, no spaces)
+                    </label>
+                    <label>Fill down <span className="chain-config-optional">(columns, comma-separated)</span></label>
+                    <input
+                        type="text"
+                        value={(config.excelFillDown || []).join(', ')}
+                        onChange={(e) => onChange('excelFillDown', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                        placeholder="Store, Region"
+                        className="chain-config-input"
+                    />
+                    <label>Combine sheets <span className="chain-config-optional">(names, comma-separated)</span></label>
+                    <input
+                        type="text"
+                        value={(config.excelSheets || []).join(', ')}
+                        onChange={(e) => onChange('excelSheets', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                        placeholder="January, February, March"
+                        className="chain-config-input"
+                    />
+                    <p className="chain-config-hint">
+                        Two or more sheets with the same columns become one table, with a <code>_hoja</code> column. Left empty, these options use how the file was last imported in this project.
+                    </p>
                 </>
             )}
         </div>
