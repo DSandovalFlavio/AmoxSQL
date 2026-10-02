@@ -12639,6 +12639,12 @@ tr:hover td {
   color: var(--feedback-warning-text);
 }
 
+/* Lo que dice AmoxSQL entre la salida de dbt (soltar y recuperar la base, 5.10) */
+.dbt-output-line--amox {
+  color: var(--accent-primary);
+  font-style: italic;
+}
+
 .dbt-output-line--fatal {
   color: var(--feedback-error-text);
 }
