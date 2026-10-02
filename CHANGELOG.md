@@ -5,6 +5,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.10.0-alpha.3] — 2026-10-02
+
+Tercera prueba de la 5.10.0: **lagos y buckets**. Prerelease.
+
+- **Una fuente puede estar en la nube**: archivos Parquet, CSV o JSON en un
+  bucket (S3 o compatible, Google Cloud Storage), con patrón de ruta y
+  particiones *hive* (`anio=2026/`), que pasan a ser columnas.
+- **O ser una tabla de un lago**: Delta, Iceberg o DuckLake. Un DuckLake se abre
+  en sólo lectura.
+- **Credenciales de nube con nombre**, en Settings → Credentials: cifradas con
+  el llavero del sistema, y cada una sólo abre la carpeta de su fuente, así que
+  dos buckets con claves distintas conviven. Los proyectos sólo anotan su nombre.
+- **Explorar un lago** encuentra sus tablas; **probar la conexión** dice qué
+  falla —la credencial, el permiso, la ruta, la red, una extensión que hay que
+  descargar la primera vez—.
+- Una dirección en la nube es la misma en todas las máquinas: se guarda con la
+  fuente.
+- La línea de comandos sólo se detiene por las fuentes que usa ese proceso.
+
 ## [5.10.0-alpha.2] — 2026-10-02
 
 Segunda prueba de la 5.10.0: **el archivo que acaba de llegar** y **de dónde
