@@ -49,6 +49,7 @@ import NotificationNode from './nodes/NotificationNode';
 import ChartNode from './nodes/ChartNode';
 import ReportNode from './nodes/ReportNode';
 import FuenteNode from './nodes/FuenteNode';
+import PublicarNode from './nodes/PublicarNode';
 import { NODE_TYPES } from './chainNodeTypes';
 import { hasCycle, generateNodeId, generateEdgeId, resolveThemeColor } from './chainUtils';
 
@@ -61,6 +62,7 @@ const nodeTypes = {
     checkpoint: CheckpointNode,
     table_ref: TableRefNode,
     fuente: FuenteNode,
+    publicar: PublicarNode,
     merge_tables: MergeTablesNode,
     assert: AssertNode,
     join_tables: JoinTablesNode,

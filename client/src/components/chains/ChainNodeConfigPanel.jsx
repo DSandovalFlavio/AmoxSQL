@@ -157,6 +157,10 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onCreateSqlFile, onOpenFile, sql
                     <ExportFileConfig config={config} onChange={updateConfig} />
                 )}
 
+                {node.data.nodeType === 'publicar' && (
+                    <PublicarConfig config={config} onChange={updateConfig} />
+                )}
+
                 {node.data.nodeType === 'chart' && (
                     <ChartNodeConfig config={config} onChange={updateConfig} />
                 )}
@@ -830,6 +834,59 @@ const FuenteConfig = ({ config, onChange, fuentes = [] }) => {
             )}
             <p className="chain-config-hint">
                 Downstream nodes read <code>fuentes."{config.fuente || 'name'}"</code> straight from its file; nothing is copied.
+            </p>
+        </div>
+    );
+};
+
+const PublicarConfig = ({ config, onChange }) => {
+    const elegirCarpeta = async () => {
+        const r = await window.electronAPI?.selectFolder?.();
+        const ruta = typeof r === 'string' ? r : (r && !r.canceled && r.filePaths?.[0]);
+        if (ruta) onChange('carpeta', ruta);
+    };
+    const enLaNube = /^[a-z][a-z0-9+.-]+:\/\//i.test(config.carpeta || '');
+    return (
+        <div className="chain-config-section">
+            <label>Source name</label>
+            <input type="text" className="chain-config-input" value={config.fuente || ''} spellCheck={false}
+                onChange={(e) => onChange('fuente', e.target.value.toLowerCase())} placeholder="clean-sales" />
+            <p className="chain-config-hint">Others read it as <code>fuentes."{config.fuente || 'name'}"</code>.</p>
+            <label>Folder or bucket</label>
+            <div className="chain-config-input-with-btn">
+                <input type="text" className="chain-config-input" value={config.carpeta || ''} spellCheck={false}
+                    onChange={(e) => onChange('carpeta', e.target.value)} placeholder="C:\\Shared\\published or s3://bucket/published" />
+                {window.electronAPI?.selectFolder && (
+                    <button className="chain-config-browse-btn" onClick={elegirCarpeta} title="Choose a folder"><LuFolderOpen size={13} /></button>
+                )}
+            </div>
+            {enLaNube && (
+                <>
+                    <label>Credential <span className="chain-config-optional">(name)</span></label>
+                    <input type="text" className="chain-config-input" value={config.credencial || ''} spellCheck={false}
+                        onChange={(e) => onChange('credencial', e.target.value)} placeholder="bucket-stores" />
+                </>
+            )}
+            <label>Format</label>
+            <select className="chain-config-select" value={config.formato || 'parquet'} onChange={(e) => onChange('formato', e.target.value)}>
+                <option value="parquet">Parquet (keeps its schema and date inside)</option>
+                <option value="csv">CSV (no schema guarantee)</option>
+            </select>
+            <label>If the schema changes</label>
+            <select className="chain-config-select" value={config.esquemaRoto || 'detener'} onChange={(e) => onChange('esquemaRoto', e.target.value)}>
+                <option value="detener">Stop: keep the previous file</option>
+                <option value="avisar">Publish and warn</option>
+            </select>
+            <label>Register the source in</label>
+            <select className="chain-config-select" value={config.registrarEn || 'workspace'} onChange={(e) => onChange('registrarEn', e.target.value)}>
+                <option value="workspace">Its group of projects (if the project has one)</option>
+                <option value="proyecto">Only this project</option>
+            </select>
+            <label>Warn readers after <span className="chain-config-optional">(days, optional)</span></label>
+            <input type="number" min="1" className="chain-config-input chain-config-input-sm" value={config.frescuraDias || ''}
+                onChange={(e) => onChange('frescuraDias', e.target.value ? Number(e.target.value) : undefined)} placeholder="7" />
+            <p className="chain-config-hint">
+                Written aside and swapped in at the end: nobody ever reads half a file. A removed column or a changed type stops the publish by default.
             </p>
         </div>
     );

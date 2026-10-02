@@ -14,6 +14,7 @@ const secretos = require('./secretos');
 const { detectResultType } = require('./_sqlClassify');
 const excel = require('./excel');
 const procedencia = require('./procedencia');
+const { publicar } = require('./publicar');
 
 /**
  * Una carga de carpeta (C5, 4.2): cada fila sabe de qué archivo vino, en la
@@ -477,7 +478,7 @@ class ChainExecutor extends EventEmitter {
         // Assert, checkpoint, chart and report are pass-through: none of them
         // create a new table, so downstream nodes should still see whatever
         // was upstream of them.
-        if (node.type === 'assert' || node.type === 'checkpoint' || node.type === 'chart' || node.type === 'report') {
+        if (node.type === 'assert' || node.type === 'checkpoint' || node.type === 'chart' || node.type === 'report' || node.type === 'publicar') {
             if (resultSummary.table) return { table: resultSummary.table };
             return upstreamOutputs[0] || null;
         }
@@ -721,6 +722,15 @@ class ChainExecutor extends EventEmitter {
             case 'table_ref':
             case 'fuente':
                 return null;
+            case 'publicar': {
+                // El SQL equivalente es la escritura; el renombrado, la
+                // comprobación de esquema y el registro los hace AmoxSQL.
+                const q = config.query || src0 || '(SELECT NULL)';
+                const formato = config.formato === 'csv' ? 'csv' : 'parquet';
+                const archivo = String(config.archivo || '').trim() || `${config.fuente || 'published'}.${formato}`;
+                const destino = `${String(config.carpeta || '').replace(/[\\/]+$/, '').replace(/\\/g, '/')}/${archivo}`;
+                return `-- Publish ${config.fuente || '?'} (written to a temp file and renamed by AmoxSQL)\nCOPY (${q}) TO '${destino}' (FORMAT ${formato === 'csv' ? 'CSV, HEADER' : 'PARQUET'})`;
+            }
             case 'import_file': {
                 const tbl = config.tableName || 'imported_data';
                 const p = (config.sourcePath || '').replace(/\\/g, '/');
@@ -1471,6 +1481,59 @@ class ChainExecutor extends EventEmitter {
                 const sizeKb = stat ? (stat.size / 1024).toFixed(1) : '?';
                 resultType = 'file_exported';
                 resultSummary = { path: config.outputPath, format, size: isCloud ? 'cloud' : `${sizeKb} KB` };
+                break;
+            }
+
+            case 'publicar': {
+                // C6: escribe aparte y renombra, con su esquema dentro, y deja la
+                // fuente registrada para que otros proyectos la lean por nombre.
+                const nombre = String(config.fuente || '').trim();
+                if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(nombre)) throw new Error('Publish node: the source name uses lowercase letters, digits and hyphens (for example: clean-sales)');
+                if (!config.carpeta) throw new Error('Publish node: choose the folder (or bucket) to publish to');
+                let query = config.query || '';
+                if (!query && upstreamOutputs.length > 0) query = this.outputToQuery(upstreamOutputs[0]);
+                if (!query) throw new Error('Publish node has no upstream node connected.');
+                const formato = config.formato === 'csv' ? 'csv' : 'parquet';
+                const archivo = String(config.archivo || '').trim() || `${nombre}.${formato}`;
+                const remoto = /^(s3|gs|gcs|r2|az|azure|abfss|https?):\/\//i.test(config.carpeta);
+                const destino = remoto
+                    ? `${String(config.carpeta).replace(/\/+$/, '')}/${archivo}`
+                    : path.join(this.resolvePath(projectPath, config.carpeta), archivo);
+                if (remoto && config.credencial) {
+                    const fuentes = require('./fuentes');
+                    await dbManager.query(await secretos.sqlDeCredencial(config.credencial, fuentes.alcanceDe(destino)));
+                }
+                let pj = {};
+                try { pj = JSON.parse(fs.readFileSync(path.join(projectPath, '.amoxsql', 'project.json'), 'utf8')); } catch { /* sin manifiesto */ }
+                const proceso = chainFile || null;
+                const r = await publicar(dbManager, {
+                    consulta: query, destino, formato,
+                    esquemaRoto: config.esquemaRoto === 'avisar' ? 'avisar' : 'detener',
+                    metadatos: { fuente: nombre, proceso, proyecto: path.basename(projectPath), workspace: pj.workspace?.nombre || null },
+                });
+                // 6.4: quien la usa la ve por su nombre.
+                let registro = null;
+                try {
+                    const fuentes = require('./fuentes');
+                    registro = await fuentes.registrarPublicada(
+                        { raiz: projectPath, workspaceId: pj.workspace?.id || null, enProyecto: config.registrarEn === 'proyecto' },
+                        {
+                            nombre, formato, descripcion: config.descripcion || undefined,
+                            publicada: { proceso, proyecto: path.basename(projectPath) },
+                            frescuraDias: config.frescuraDias || undefined,
+                            credencial: remoto && config.credencial ? config.credencial : undefined,
+                        },
+                        destino
+                    );
+                } catch (e) {
+                    r.avisos.push(`Published, but the source could not be registered: ${e.message}`);
+                }
+                sql = `-- Publish ${nombre}: ${destino}`;
+                resultType = 'file_exported';
+                resultSummary = {
+                    path: destino, format: formato, rowCount: r.filas, source: nombre,
+                    registeredIn: registro?.en || null, warnings: r.avisos, retries: r.reintentos,
+                };
                 break;
             }
 

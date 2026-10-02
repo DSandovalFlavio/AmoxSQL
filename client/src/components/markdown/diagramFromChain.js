@@ -23,6 +23,7 @@ const FORMA_POR_TIPO = {
     table_ref: 'almacen',
     fuente: 'almacen',
     export_file: 'salida',       // salida
+    publicar: 'salida',
     assert: 'decision',          // decisión / control
     checkpoint: 'hito',
 };

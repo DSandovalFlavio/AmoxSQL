@@ -78,7 +78,9 @@ export default function FuentesDelWorkspace({ workspace, avisar }) {
                                     <td>
                                         {problema
                                             ? <span className="wsv-chip wsv-chip--warn">{problema.toLowerCase()}</span>
-                                            : <span className="wsv-chip">{f.estado === 'remota' ? 'remote' : 'found'}</span>}
+                                            : f.vieja
+                                                ? <span className="wsv-chip wsv-chip--warn" title={`Expected fresher than ${f.frescuraDias} days`}>{f.edadDias} days old</span>
+                                                : <span className="wsv-chip">{f.publicada ? 'published' : f.estado === 'remota' ? 'remote' : 'found'}</span>}
                                     </td>
                                     <td className="wsv-td-acciones">
                                         <button className="wsv-btn" type="button" onClick={() => ubicar(f)} title="Set where the file is on this machine"><LuFolderOpen size={13} />Locate</button>

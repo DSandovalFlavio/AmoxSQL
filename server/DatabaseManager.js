@@ -1,4 +1,5 @@
 const { DuckDBInstance } = require('@duckdb/node-api');
+const { crearInstancia } = require('./motor');
 const path = require('path');
 const fs = require('fs');
 
@@ -76,7 +77,7 @@ class DatabaseManager {
         console.log("[DB Manager] _initSystem (Neo) called.");
         try {
             // New API: explicit create; every lane connects to the SAME instance
-            this.instance = await DuckDBInstance.create(':memory:');
+            this.instance = await crearInstancia(':memory:');
             for (const lane of LANES) {
                 this.connections[lane] = await this.instance.connect();
             }
