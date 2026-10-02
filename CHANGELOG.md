@@ -5,6 +5,38 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.10.0-alpha.2] — 2026-10-02
+
+Segunda prueba de la 5.10.0: **el archivo que acaba de llegar** y **de dónde
+salió cada dato**. Prerelease.
+
+### El archivo que acaba de llegar
+
+- **Una fuente puede ser una carpeta**: para el archivo que llega con un nombre
+  nuevo cada vez (*Ventas Semana 39.xlsx*, *Ventas Semana 40.xlsx*…), la fuente
+  lee siempre el más reciente —o todos unidos, con una columna `_archivo`—. Un
+  patrón de nombre (`ventas*.xlsx`) y, si se pide, las subcarpetas.
+- **Sólo cuenta lo que terminó de llegar**: un archivo cuenta cuando lleva unos
+  segundos sin cambiar —una carpeta sincronizada lo escribe en varias pasadas—, y
+  nunca los temporales de Office (`~$…`) ni las descargas a medias.
+- **Con la aplicación abierta, se entera sola**: al llegar un archivo, la fuente
+  ya lo lee y un aviso lo dice. Sin ella abierta, un proceso de Data Flow o de la
+  línea de comandos elige el más reciente al empezar.
+- El formulario de una fuente enseña lo que hay ahora en la carpeta y cuál se va
+  a leer; el explorador y la ficha del workspace dicen qué archivo se lee.
+
+### De dónde salió cada dato
+
+- **Cada tabla cargada desde un archivo lo recuerda**: qué archivo (o archivos),
+  con qué hoja y rango, cuándo se leyó y cuántas filas tenía. Vale para importar
+  un archivo o un Excel, para Import File e Import Folder de Data Flow, y para
+  `CREATE TABLE … AS SELECT … FROM fuentes."x"`. Se guarda en el comentario de la
+  propia tabla: viaja con la base.
+- El explorador lo dice en una línea, y **avisa si el archivo cambió —o ya no
+  está— después de cargarlo**. El asistente lo recibe con el esquema.
+- **Import Folder** añade la columna `_archivo`: cada fila sabe de qué archivo
+  vino.
+
 ## [5.10.0-alpha.1] — 2026-10-02
 
 Primera prueba de la 5.10.0, **los datos donde están** (plan en
