@@ -123,8 +123,7 @@ encabezado y rango (`read_xlsx(…, sheet, range, header)`). Y las hojas **ya** 
 un lector propio del ZIP (`xlsxMeta.js`); la librería sólo queda como respaldo cuando ese
 lector falla. Se quita el respaldo: un archivo que el lector propio no entiende (`.xls`
 antiguo, cifrado, dañado) recibe un error claro en vez de pasar a una librería con fallos
-conocidos. Una dependencia menos, ninguna nueva. **Pendiente del visto bueno del autor**,
-por la regla de dependencias (ver §7).
+conocidos. Una dependencia menos, ninguna nueva. **Aprobado por el autor** (2026-10-01).
 
 **Dec-12 · Lo que se publica guarda su esquema y su fecha dentro del archivo.**
 Quien consume un archivo publicado (C6) puede estar en otra máquina y no ver la base
@@ -282,6 +281,8 @@ arreglos.**
 
 ## 7. Decisiones que necesitan al autor
 
+> **Decididas por el autor el 2026-10-01: las seis como se recomiendan.** La librería `xlsx` se retira; un `.xls` antiguo, cifrado o dañado recibe un error claro («guárdalo como .xlsx»).
+
 1. **Retirar `xlsx` 0.18.5** (Dec-11). Las hojas ya se listan con un lector propio; la
    librería sólo es el respaldo. Recomendado: sí. Es quitar una dependencia, no añadir.
 2. **Fuentes también en proyectos sin workspace** (`.amoxsql/fuentes/`). Recomendado: sí;
@@ -308,3 +309,4 @@ arreglos.**
 | Fecha | Fase | Qué |
 |---|---|---|
 | 2026-10-01 | — | Plan escrito sobre la 5.9.0 |
+| 2026-10-01 | — | El autor aprueba las seis decisiones de §7, incluida la retirada de `xlsx` |
