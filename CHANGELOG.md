@@ -5,6 +5,68 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.10.0-alpha.1] — 2026-10-02
+
+Primera prueba de la 5.10.0, **los datos donde están** (plan en
+`docs/dev/plan_5_10_datos_donde_estan.md`). Trae las fuentes con nombre, el
+Excel tal como llega y dbt sin bloqueos. Es una prerelease: se instala aparte
+de la carpeta principal y no es la versión recomendada.
+
+> **Antes de instalarla:** sube la base de AmoxSQL (`~/.amoxsql/amoxsql.duckdb`)
+> al esquema v3. La 5.9 ya no la abre: si vuelves a ella, arranca sin tus
+> workspaces, tu historial ni tus claves guardadas. Reinstalar la 5.10 lo deja
+> todo como estaba.
+
+### Fuentes con nombre
+
+- **Un archivo se define una vez y se usa por su nombre** en todas partes —el
+  editor, los cuadernos, Data Flow, el asistente, la línea de comandos—:
+  `SELECT * FROM fuentes."ventas-semanales"`. El dato se lee del archivo cada
+  vez; nada se copia a la base del proyecto.
+- Una fuente vive en un **workspace** (la ven todos sus proyectos y viaja en el
+  `.amoxworkspace`) o en un **proyecto** (gana la del proyecto con el mismo
+  nombre).
+- **Cada máquina dice dónde está el archivo.** La definición es la misma en
+  todas; la ruta de esta máquina se guarda aparte y no viaja. Un archivo dentro
+  del proyecto va con ruta relativa y vale en cualquier máquina sin hacer nada.
+- En el explorador de base, una sección **Sources** con sus columnas; en la
+  ficha de un workspace, sus fuentes; un formulario con vista previa; y en Data
+  Flow, un nodo **Source**.
+- Una fuente sin ubicar dice qué hacer al consultarla; al abrir un proyecto en
+  otra máquina, el aviso dice cuáles faltan; la línea de comandos sale con 3
+  antes de empezar.
+
+### El Excel tal como llega
+
+- **Importar Excel, rehecho.** Ves la hoja tal como es, con letras y números de
+  fila; un clic en la fila de los encabezados marca el rango (`A4:E`, hasta la
+  primera fila vacía) y ves al momento lo que se va a leer, con sus tipos.
+- **Rellenar hacia abajo** las celdas combinadas, **limpiar nombres** de
+  columna, y **unir hojas** con la misma forma en una tabla con la columna
+  `_hoja`.
+- **Lo elegido se recuerda en el proyecto**: la próxima vez sale ya marcado, y
+  Data Flow lee ese archivo igual. Las fuentes y el nodo Import File tienen las
+  mismas opciones.
+- Una columna vacía en la primera fila ya no rompe la lectura cuando abajo llega
+  texto.
+- **Lo que no es un libro dice qué es**: un `.xls` antiguo o un libro con
+  contraseña, uno dañado, o un CSV con extensión `.xlsx` (que se importa como
+  CSV).
+- Leer un Excel ya no instala ni carga la extensión `spatial`.
+
+### dbt sin bloqueos
+
+- `dbt run` ya no choca con AmoxSQL: si dbt va a escribir en la base que tienes
+  abierta, AmoxSQL la suelta y la vuelve a adjuntar al terminar —también si dbt
+  falla o lo cancelas—, sin perder las vistas de tus cuadernos, tus fuentes ni
+  tus extensiones. Mientras tanto, una consulta dice por qué espera.
+- Si dbt no llega a arrancar porque su entorno falla, se dice.
+
+### Retirado
+
+- La dependencia que leía las hojas de un Excel: tenía fallos conocidos con
+  archivos manipulados. Las hojas se leen directamente del archivo.
+
 ## [5.9.0] — 2026-10-01
 
 **Cimientos y workspaces.** El primer tramo del camino a la 6.0 (plan en
