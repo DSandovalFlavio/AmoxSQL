@@ -114,8 +114,20 @@ como una tabla más: `SELECT * FROM fuentes."ventas-semanales"`. Así:
 - cambiar a qué archivo apunta (C3) es rehacer una vista, no tocar el SQL de nadie.
 - El nombre de una fuente se limita a minúsculas, cifras y guiones (`ventas-semanales`):
   cabe en una URL, en un nombre de archivo y entre comillas en SQL sin sorpresas.
-(Se comprueba en la prueba de concepto 0.1: resolución de `fuentes."x"` con el proyecto
-adjunto, y que el catálogo no choca con un esquema llamado igual.)
+*Confirmada por la prueba 0.1* (`scripts/poc510/p01_catalogo_fuentes.mjs`), con cuatro matices:
+- **Un esquema `fuentes` en el proyecto** no se lee en silencio: el motor da un error de
+  ambigüedad. Es lo deseable; AmoxSQL avisa al abrir un proyecto con un esquema así, y
+  `fuentes.main."x"` funciona siempre.
+- **Crear la vista lee el archivo** (para saber sus columnas): una fuente cuyo archivo no
+  está falla al crearse. Se crea entonces una vista con `error('…')` que explica qué pasa
+  al consultarla. Si el archivo se va **después**, la vista sigue y la consulta dice que
+  no está; si vuelve con otra columna, la vista la ve sin rehacerse.
+- **El coste** es leer cada archivo: ~3,5 ms por CSV (200 fuentes, 0,8 s). Las vistas se
+  crean después de abrir, sin hacer esperar.
+- Una vista **del proyecto** que lee de una fuente sólo resuelve donde exista el catálogo:
+  por eso lo crean también los contextos aislados y la línea de comandos.
+`COMMENT ON VIEW` funciona en el catálogo (la descripción de la fuente viaja con ella), y
+`DatabaseManager.close()` no lo suelta (no tiene archivo).
 
 **Dec-11 · El Excel lo lee el motor; la librería `xlsx` 0.18.5 se retira.**
 La auditoría la marcó: versión antigua, fallos conocidos con archivos manipulados, y los
@@ -126,19 +138,47 @@ lector falla. Se quita el respaldo: un archivo que el lector propio no entiende 
 antiguo, cifrado, dañado) recibe un error claro en vez de pasar a una librería con fallos
 conocidos. Una dependencia menos, ninguna nueva. **Aprobado por el autor** (2026-10-01).
 
+*Confirmada por la prueba 0.2* (`scripts/poc510/p02_excel.mjs`, muestras en
+`scripts/fixtures/excel/`). `read_xlsx` lo da la extensión `excel` y se autocarga:
+**`spatial` sobra** para leer Excel. El lector propio listó los 23 libros reales del disco
+del autor; los dos que no pudo eran **CSV con extensión `.xlsx`**. Y fija cuatro reglas:
+- **Siempre `empty_as_varchar = true`.** El motor decide el tipo de cada columna por la
+  primera fila de datos: una columna vacía ahí se toma por número y la lectura falla en
+  cuanto llega texto. **Nunca `ignore_errors`**: «arregla» eso perdiendo el texto en silencio.
+- **«Hasta el final» es `A4:E1048576` con `stop_at_empty = true`** (5 ms). El rango
+  abierto `A4:E` devuelve el millón de filas de la hoja.
+- **Una celda combinada** llega llena sólo en su primera fila: C2 ofrece «rellenar hacia
+  abajo».
+- **Lo que no es un libro se reconoce por su firma**: `PK` es un ZIP; `D0 CF 11 E0` es un
+  `.xls` antiguo o un `.xlsx` cifrado; texto es un CSV con otra extensión («¿leerlo como
+  CSV?»). Los errores del lector hoy dicen `EOCD signature not found`: se traducen.
+
 **Dec-12 · Lo que se publica guarda su esquema y su fecha dentro del archivo.**
 Quien consume un archivo publicado (C6) puede estar en otra máquina y no ver la base
 central de quien lo publicó. Así que los metadatos viajan **dentro** del Parquet:
 `COPY … TO … (FORMAT parquet, KV_METADATA {…})` con el nombre de la fuente, la fecha, el
 proceso, el workspace y el esquema; se leen con `parquet_kv_metadata()`. Sin archivos al
-lado que puedan perderse o quedar desfasados. (Prueba de concepto 0.3.)
+lado que puedan perderse o quedar desfasados.
 
-**Dec-13 · Publicar es escribir aparte y renombrar.**
+*Confirmada por la prueba 0.3* (`scripts/poc510/p03_metadatos_parquet.mjs`): los valores
+vuelven idénticos (acentos, ñ, comillas, JSON), leerlos de un Parquet de 110 MB cuesta 2 ms,
+un esquema de 400 columnas ocupa 26 KB y cabe 1 MB sin problema, y un patrón (`*.parquet`)
+dice los de cada archivo. CSV rechaza `KV_METADATA`: confirma que la garantía es sólo de
+Parquet (§7.4).
+
+**Dec-13 · Publicar es escribir aparte y renombrar, y reintentar siempre.**
 Se escribe `.<nombre>.amoxtmp` en la **misma carpeta** y se renombra al final: en el mismo
-volumen el renombrado es atómico, así que nadie lee nunca un archivo a medias. Si el
-destino está abierto por otro proceso (Windows lo bloquea), se reintenta unos segundos y,
-si sigue, falla diciendo quién lo tiene abierto, sin dejar el temporal. (Prueba 0.4,
-incluida una carpeta sincronizada de la nube.)
+volumen el renombrado es atómico, así que nadie lee nunca un archivo a medias.
+
+*Reescrita tras la prueba 0.4* (`scripts/poc510/p04_renombrar_y_extensiones.mjs`): en
+Windows **cualquier** proceso con el destino abierto impide reemplazarlo (`EPERM`), lo abra
+como lo abra —también uno que lo comparte todo, y también el propio motor leyéndolo en ese
+instante—. Así que el reintento no es para el caso raro de Excel: es el camino normal.
+Se reintenta con espera creciente durante unos segundos; el lector de ese instante ve
+siempre una versión entera. Si sigue sin poder, falla sin dejar el temporal y dice
+**quién** lo tiene sólo cuando se sabe: Office deja `~$<nombre>` junto al archivo con el
+usuario que lo abrió; si no, «otro programa tiene abierto el archivo». La prueba en una
+carpeta sincronizada queda para hacerla a mano (`--carpeta`).
 
 **Dec-14 · Un archivo que «llega» está quieto.**
 Una carpeta sincronizada escribe el archivo en varias pasadas. C3 sólo considera llegado
@@ -161,8 +201,10 @@ Cuatro preguntas que, si salen mal, cambian el diseño. Ninguna toca el producto
 | 0.4 | ¿El renombrado sobre un archivo abierto por otro proceso falla siempre igual en Windows, y qué hace una carpeta sincronizada con el temporal? ¿`delta` e `iceberg` se instalan sin red si ya se descargaron una vez? | Script + prueba a mano en la carpeta sincronizada del autor |
 | 0.5 | Para I1: ¿qué error da `dbt run` cuando AmoxSQL tiene la `.duckdb` abierta? ¿Cuánto tarda soltarla y volver a adjuntarla, y qué estado de la sesión se pierde (vistas temporales, extensiones cargadas, el catálogo `fuentes`)? ¿Un DuckLake con catálogo **SQLite** deja que AmoxSQL y dbt escriban a la vez? | Script con un proyecto dbt mínimo (`dbt-duckdb`) en un entorno temporal |
 
-**Cerrada cuando:** las cuatro tienen respuesta en la bitácora, y Dec-10 a Dec-13 se
-confirman o se reescriben.
+**Cerrada cuando:** las cinco tienen respuesta en la bitácora, y Dec-10 a Dec-13 se
+confirman o se reescriben. **Cerrada el 2026-10-01**: Dec-10, Dec-11 y Dec-12 se confirman
+con matices; Dec-13 se reescribe (reintentar es el camino normal). Los scripts quedan en
+`scripts/poc510/` y se pueden repetir con otra versión del motor.
 
 ### Fase 1 · Fuentes con nombre (C1)
 
@@ -188,18 +230,20 @@ workspace lleva la definición y no la ubicación.
 
 | # | Tarea | Detalle |
 |---|---|---|
-| 2.1 | Las hojas, sin `xlsx` | `xlsxMeta.js` ya lee el `xl/workbook.xml`: se quita el respaldo a la librería y se da un error claro para `.xls` antiguo, cifrado o dañado. Se retira la dependencia (Dec-11). Si la prueba 0.2 lo confirma, leer Excel deja de cargar `spatial` |
+| 2.1 | Las hojas, sin `xlsx` | `xlsxMeta.js` ya lee el `xl/workbook.xml`: se quita el respaldo a la librería. Lo que no es un libro se reconoce por su firma y recibe un error claro en español: `.xls` antiguo o cifrado, dañado, o CSV con extensión `.xlsx` (que se ofrece leer como CSV). Se retira la dependencia (Dec-11), y leer Excel deja de cargar `spatial` |
 | 2.2 | Ver antes de leer | `/api/excel/vista` devuelve las primeras ~30 filas **sin encabezado y como texto** (`header=false, all_varchar=true`), con la letra de cada columna, para que el usuario vea dónde empieza la tabla |
-| 2.3 | Elegir sobre la vista | En el diálogo de importar y en el asistente de fuentes: clic en la fila de encabezado, arrastrar hasta la última columna; «hasta la primera fila vacía» por defecto. Lo elegido se traduce a `range` y `header` y se ve el resultado al momento |
+| 2.3 | Elegir sobre la vista | En el diálogo de importar y en el asistente de fuentes: clic en la fila de encabezado, arrastrar hasta la última columna; «hasta la primera fila vacía» por defecto (`A4:E1048576` + `stop_at_empty`). Lo elegido se traduce a `range` y `header` y se ve el resultado al momento. Toda lectura lleva `empty_as_varchar = true`, nunca `ignore_errors` (Dec-11) |
+| 2.3b | Celdas combinadas | «Rellenar hacia abajo» las columnas que se elijan: una celda combinada llega llena sólo en su primera fila |
 | 2.4 | Unir hojas | Ya existe en el diálogo (modo *MERGE*); se lleva a las fuentes y a Data Flow. La columna con la hoja pasa a llamarse `_hoja` en lo nuevo |
 | 2.4b | Lo que el diálogo pedía y nadie usaba | `cleanColumns` (limpiar nombres de columna) y `tableMapping`: se implementan o se quitan del diálogo |
 | 2.5 | Recordarlo | En una fuente, en su definición. En un archivo suelto, en `project.json → lecturas["datos/ventas.xlsx"]`, así que la próxima vez sale ya elegido y Data Flow lo usa |
 | 2.6 | Data Flow | `import_file` con Excel gana los mismos campos (fila de encabezado, rango, unir hojas) |
 
-**Se comprueba con** `probarExcel.mjs`, sobre los archivos de `scripts/fixtures/`: hojas de
-un `.xlsx` normal, uno con hojas ocultas, un `.xls` (error claro) y uno dañado (error
-claro, nada se cae); encabezado en la fila 4 y rango hasta H; unir tres hojas; lo
-recordado vuelve a aplicarse.
+**Se comprueba con** `probarExcel.mjs`, sobre los archivos de `scripts/fixtures/excel/`: hojas
+con nombres raros (`&`, acentos, comillas), un `.xls`, uno cifrado, uno dañado y un CSV
+disfrazado (cada uno con su error claro, nada se cae); el Excel de cliente con encabezado
+en la fila 4, una columna vacía en la primera fila, una celda combinada y notas al pie;
+unir tres hojas; lo recordado vuelve a aplicarse.
 
 ### Fase 2b · dbt sin bloqueos (I1, adelantada) → **5.10.0-alpha.1**
 
@@ -208,15 +252,18 @@ problema de hoy, así que no espera a la familia I (5.12.0).
 
 | # | Tarea | Detalle |
 |---|---|---|
-| 2b.1 | Soltar y volver | Antes de ejecutar un comando de dbt que escribe (`run`, `build`, `seed`, `snapshot`), si la base que usa el `profiles.yml` es la que AmoxSQL tiene abierta, AmoxSQL la suelta (`dbManager.close`), dbt corre, y al terminar —bien o mal— se vuelve a adjuntar sola |
-| 2b.2 | Lo que se pierde, se rehace | Lo que la prueba 0.5 diga que se pierde al soltar —extensiones cargadas, el catálogo `fuentes`— se vuelve a poner al reabrir. Las vistas temporales de un cuaderno no sobreviven: la interfaz lo dice antes de soltar |
-| 2b.3 | Mientras tanto | La interfaz enseña «dbt está usando la base» y las consultas esperan o dicen por qué no pueden correr, en vez de fallar con un error del motor |
-| 2b.4 | DuckLake | Si la prueba 0.5 confirma que un catálogo SQLite admite varios escritores, un proyecto en DuckLake no necesita soltar nada; si no, recibe el mismo trato |
+| 2b.1 | Soltar y volver | Antes de ejecutar un comando de dbt que escribe (`run`, `build`, `seed`, `snapshot`), si la base que usa el `profiles.yml` es la que AmoxSQL tiene abierta, AmoxSQL la suelta con `DETACH` —lo que ya hace `dbManager.close`, sin tirar el motor—, dbt corre, y al terminar —bien o mal— se vuelve a adjuntar sola. Abrirla en sólo lectura **no** sirve: también bloquea (prueba 0.5) |
+| 2b.2 | Nada que rehacer | La prueba 0.5 dice que soltar y volver cuesta ~3 ms y que **todo sobrevive**: el catálogo `fuentes`, las vistas temporales de los cuadernos (vuelven a resolver al reabrir) y las extensiones cargadas. Sólo hay que volver a hacer `USE` en los carriles |
+| 2b.3 | Mientras tanto | La interfaz enseña «dbt está usando la base» y las consultas esperan o dicen por qué no pueden correr, en vez de fallar con `Catalog Error: … schema "user_db" does not exist` |
+| 2b.4 | DuckLake | Con catálogo **SQLite**, dos procesos escriben a la vez sin soltar nada —**si usan la misma versión del motor**—. Con catálogo en archivo DuckDB (lo que crea AmoxSQL hoy) hay un solo escritor: recibe el trato de 2b.1 |
+| 2b.5 | Las versiones | El motor de dbt suele ir por detrás del de AmoxSQL. Una base `.duckdb` se entiende en los dos sentidos (1.5 ↔ 1.4.4, probado), pero **un lago no**: el de 1.5 escribe un formato de DuckLake que 1.4.4 no abre. AmoxSQL lee la versión del motor del entorno de dbt y, si es más vieja, avisa antes de tocar un lago que dbt usa |
+| 2b.6 | dbt que no arranca | Si `dbt --version` falla, se dice tal cual y antes de intentar nada (el entorno del autor está roto así: Python 3.14 con una dependencia de dbt que aún no lo admite) |
 
 **Se comprueba con** `probarDbtSinBloqueos.mjs`, con un `dbt` falso que abre la base en
 escritura (un proceso de Node con DuckDB): con la base abierta en AmoxSQL, el comando
-termina bien, y al acabar la sesión vuelve a estar adjunta con sus extensiones y sus
-fuentes. Y a mano, con el `dbt` real del autor. **Se publica la 5.10.0-alpha.1.**
+termina bien, y al acabar la sesión vuelve a estar adjunta con sus extensiones, sus
+fuentes y sus vistas temporales. Y a mano, con un `dbt` real (el entorno del autor hay que
+repararlo antes). **Se publica la 5.10.0-alpha.1.**
 
 ### Fase 3 · El archivo que acaba de llegar (C3)
 
@@ -249,7 +296,7 @@ de una carpeta, por fila; el aviso cuando el origen cambia. **Se publica la
 | 5.2 | Los tipos | `bucket` (Parquet o CSV con patrón y particiones *hive*), `lago` en **Delta** (`delta_scan`) e **Iceberg** (`iceberg_scan` por ruta de tabla), y **DuckLake**, que ya existe en la conexión del proyecto y aquí se ofrece como fuente |
 | 5.3 | Ver sus tablas | Para un lago, explorar: las subcarpetas que son tablas (`_delta_log/`, `metadata/`), con su esquema; cada una se puede añadir como fuente con un clic |
 | 5.4 | Probar la conexión | Un botón que dice exactamente qué falla: credencial, permiso, ruta, extensión sin descargar |
-| 5.5 | Extensiones | Las que haga falta se anotan en el manifiesto (A2). La primera vez necesitan red; se dice antes de intentarlo |
+| 5.5 | Extensiones | Las que haga falta se anotan en el manifiesto (A2). La primera vez necesitan red; se dice antes de intentarlo. Ya descargadas, `delta`, `iceberg`, `ducklake`, `httpfs` y `excel` instalan y cargan sin red (prueba 0.4); una que nunca se descargó falla con `Failed to download extension`, que se traduce |
 
 **Se comprueba con** `probarLagos.mjs`, **sin red**: un lago Delta y un bucket de Parquet
 *hive* simulados en una carpeta local (las mismas funciones del motor leen `file://`), y el
@@ -260,7 +307,7 @@ a mano con el del autor, si tiene uno. **Se publica la 5.10.0-alpha.3.**
 
 | # | Tarea | Detalle |
 |---|---|---|
-| 6.1 | El nodo **Publish** | En Data Flow: elige el nombre de la fuente que crea (`ventas-limpias`), la carpeta (o bucket) y el formato (Parquet; CSV como opción sin garantía de esquema). Escribe aparte y renombra (Dec-13) |
+| 6.1 | El nodo **Publish** | En Data Flow: elige el nombre de la fuente que crea (`ventas-limpias`), la carpeta (o bucket) y el formato (Parquet; CSV como opción sin garantía de esquema). Escribe aparte y renombra con reintentos (Dec-13) |
 | 6.2 | Lo que lleva dentro | Dec-12: nombre, fecha, proceso, workspace, filas y esquema en `KV_METADATA` |
 | 6.3 | Si el esquema se rompe | Antes de renombrar, se compara con lo publicado: una columna que desaparece o cambia de tipo **detiene** la publicación (el archivo anterior queda intacto) y lo dice; añadir columnas se permite. Una opción lo convierte en aviso |
 | 6.4 | Queda registrado | La publicación crea o actualiza la fuente en el workspace —de tipo `publicada`—, así que quien la usa la ve por su nombre |
@@ -293,7 +340,8 @@ arreglos.**
 | Quien pruebe una alfa no puede volver a la 5.9 (esquema v3) | Dec-8: avisado en las notas; la base no se toca si la abre una versión más vieja |
 | Las carpetas sincronizadas escriben a trozos o dejan archivos «sólo en la nube» | Dec-14 (archivo quieto); la prueba 0.4 en la carpeta real del autor; leer un archivo «sólo en la nube» lo descarga, y si tarda se dice |
 | Un Excel de cliente raro (celdas combinadas, fechas como texto, encabezados en dos filas) | La vista previa como texto (2.2) deja ver lo que hay antes de leer; los casos raros van como archivos de muestra en `scripts/fixtures/` |
-| Renombrar sobre un archivo que otro tiene abierto | Dec-13: reintento corto y un error que nombra el problema; el temporal se limpia |
+| Renombrar sobre un archivo que otro tiene abierto | Dec-13: en Windows pasa con cualquier lector, así que reintentar es el camino normal; un error que nombra el problema (y a quién, si Office lo dice); el temporal se limpia |
+| El motor de dbt va por detrás del de AmoxSQL | 2b.5: las bases se entienden en los dos sentidos, los lagos no; se avisa antes de tocar un lago que dbt usa |
 | Las extensiones de lagos necesitan red la primera vez | Se avisa antes; el manifiesto las lista; las pruebas no dependen de la red |
 | Una fuente con el mismo nombre en el workspace y en el proyecto | Regla de B2: gana el proyecto, y la interfaz lo enseña («sobrescribe la del workspace») |
 | La IA con política «sólo esquema» y fuentes | Las fuentes son vistas del motor: el filtro de B4 actúa igual sobre sus resultados |
@@ -332,3 +380,8 @@ arreglos.**
 | 2026-10-01 | — | Plan escrito sobre la 5.9.0 |
 | 2026-10-01 | — | El autor aprueba las seis decisiones de §7, incluida la retirada de `xlsx` |
 | 2026-10-01 | — | La familia I se rehace alrededor de dbt y DuckLake y se adelanta a la 5.12.0; su I1 (dbt sin bloqueos) entra en esta versión como fase 2b, con su prueba 0.5 |
+| 2026-10-01 | 0 | **0.1** (20/20): `fuentes."x"` resuelve en la sesión del proyecto, en otro carril, sin proyecto y con base de trabajo; un esquema homónimo da error de ambigüedad (no lee lo que no es); crear la vista lee el archivo (~3,5 ms por CSV) y un archivo ausente se cubre con una vista `error()` |
+| 2026-10-01 | 0 | **0.2** (27/27): `read_xlsx` viene de `excel` y se autocarga, `spatial` sobra; tipos por la primera fila → siempre `empty_as_varchar`, nunca `ignore_errors`; «hasta el final» = rango hasta 1048576 + `stop_at_empty`; celdas combinadas llegan vacías tras la primera fila. El lector propio listó 23/23 libros reales; los otros 2 del disco eran CSV con extensión `.xlsx`. Muestras en `scripts/fixtures/excel/` (generadas con `generar.py`) |
+| 2026-10-01 | 0 | **0.3** (11/11): `KV_METADATA` y `parquet_kv_metadata()` funcionan en 1.5; valores idénticos, 2 ms sobre 110 MB, 1 MB por valor sin problema; CSV no lo admite |
+| 2026-10-01 | 0 | **0.4** (21/21): en Windows cualquier proceso con el destino abierto impide el renombrado (`EPERM`), también uno que lo comparte todo y el propio motor leyendo → Dec-13 reescrita (reintentar siempre); el temporal se limpia; las extensiones de lagos ya descargadas cargan sin red. Pendiente a mano: la carpeta sincronizada (`--carpeta`) y el `~$` de Excel |
+| 2026-10-01 | 0 | **0.5** (18/18): con la base adjunta —también en sólo lectura— dbt no escribe; `DETACH` (lo que hace `close()`) basta, cuesta ~3 ms y todo sobrevive (fuentes, vistas temporales, extensiones); 1.5 ↔ 1.4.4 se entienden con bases `.duckdb` pero **no** con lagos (formato de DuckLake); con catálogo SQLite y la misma versión, dos procesos escriben a la vez. El entorno `dbt-duckdb` del autor no arranca (Python 3.14 con una dependencia de dbt que aún no lo admite): se probó con su DuckDB 1.4.4 haciendo de dbt. **Fase 0 cerrada** |
