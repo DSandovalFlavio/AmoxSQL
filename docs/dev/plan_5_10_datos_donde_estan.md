@@ -14,7 +14,8 @@
 | 5.9.0 | A + B · cimientos y workspaces | **Publicada** el 2026-10-01 |
 | **5.10.0** | **C · los datos donde están** | **Este plan** |
 | 5.11.0 | D · procesos que corren solos | Siguiente: programación, avisos, salida a Excel |
-| … | E–J | |
+| 5.12.0 | I · el ingeniero de datos: dbt y DuckLake | Adelantada el 2026-10-01 (ver `candidatos_v6.md`) |
+| … | E, F, G, H, J | 5.13.0 a 5.17.0 |
 | 6.0.0 | K · Python y experimentos | Cierra la 6 |
 
 La tesis de la 6 —«workspaces gobernados por AmoxSQL, y procesos de archivo a archivo que
@@ -31,7 +32,7 @@ salió cada dato; y deja su resultado publicado, con nombre, para quien venga de
 
 | Hito | Versión | Qué lleva | Cómo se publica |
 |---|---|---|---|
-| C1 + C2 | **5.10.0-alpha.1** | Fuentes con nombre y el Excel que llega | *Prerelease* |
+| C1 + C2 + I1 | **5.10.0-alpha.1** | Fuentes con nombre, el Excel que llega, y dbt sin bloqueos | *Prerelease* |
 | C3 + C5 | **5.10.0-alpha.2** | El archivo que acaba de llegar, y de dónde salió cada dato | *Prerelease* |
 | C4 | **5.10.0-alpha.3** | Lagos y buckets | *Prerelease* |
 | C6 | **5.10.0-beta.1** | Publicar un archivo. Completa: desde aquí sólo arreglos | *Prerelease* |
@@ -158,6 +159,7 @@ Cuatro preguntas que, si salen mal, cambian el diseño. Ninguna toca el producto
 | 0.2 | ¿`read_xlsx` lee bien un Excel «de cliente» (título arriba, encabezados en la fila 4, notas al pie) con `range` y `header`? ¿Qué devuelve con celdas combinadas y con fechas? ¿El lector propio (`xlsxMeta.js`) saca las hojas, sin el respaldo de la librería, de los `.xlsx` que generan las herramientas habituales, y falla con elegancia con un `.xls` o uno cifrado? ¿Qué extensión da `read_xlsx` en la 1.5: hace falta `spatial`? | Tres o cuatro archivos de muestra versionados en `scripts/fixtures/` |
 | 0.3 | ¿`KV_METADATA` en `COPY … (FORMAT parquet)` y `parquet_kv_metadata()` funcionan en DuckDB 1.5? ¿Qué tamaño admiten los valores? | Script |
 | 0.4 | ¿El renombrado sobre un archivo abierto por otro proceso falla siempre igual en Windows, y qué hace una carpeta sincronizada con el temporal? ¿`delta` e `iceberg` se instalan sin red si ya se descargaron una vez? | Script + prueba a mano en la carpeta sincronizada del autor |
+| 0.5 | Para I1: ¿qué error da `dbt run` cuando AmoxSQL tiene la `.duckdb` abierta? ¿Cuánto tarda soltarla y volver a adjuntarla, y qué estado de la sesión se pierde (vistas temporales, extensiones cargadas, el catálogo `fuentes`)? ¿Un DuckLake con catálogo **SQLite** deja que AmoxSQL y dbt escriban a la vez? | Script con un proyecto dbt mínimo (`dbt-duckdb`) en un entorno temporal |
 
 **Cerrada cuando:** las cuatro tienen respuesta en la bitácora, y Dec-10 a Dec-13 se
 confirman o se reescriben.
@@ -197,7 +199,24 @@ workspace lleva la definición y no la ubicación.
 **Se comprueba con** `probarExcel.mjs`, sobre los archivos de `scripts/fixtures/`: hojas de
 un `.xlsx` normal, uno con hojas ocultas, un `.xls` (error claro) y uno dañado (error
 claro, nada se cae); encabezado en la fila 4 y rango hasta H; unir tres hojas; lo
-recordado vuelve a aplicarse. **Se publica la 5.10.0-alpha.1.**
+recordado vuelve a aplicarse.
+
+### Fase 2b · dbt sin bloqueos (I1, adelantada) → **5.10.0-alpha.1**
+
+Hoy AmoxSQL tiene abierta la base del proyecto y `dbt run` no puede escribir en ella. Es un
+problema de hoy, así que no espera a la familia I (5.12.0).
+
+| # | Tarea | Detalle |
+|---|---|---|
+| 2b.1 | Soltar y volver | Antes de ejecutar un comando de dbt que escribe (`run`, `build`, `seed`, `snapshot`), si la base que usa el `profiles.yml` es la que AmoxSQL tiene abierta, AmoxSQL la suelta (`dbManager.close`), dbt corre, y al terminar —bien o mal— se vuelve a adjuntar sola |
+| 2b.2 | Lo que se pierde, se rehace | Lo que la prueba 0.5 diga que se pierde al soltar —extensiones cargadas, el catálogo `fuentes`— se vuelve a poner al reabrir. Las vistas temporales de un cuaderno no sobreviven: la interfaz lo dice antes de soltar |
+| 2b.3 | Mientras tanto | La interfaz enseña «dbt está usando la base» y las consultas esperan o dicen por qué no pueden correr, en vez de fallar con un error del motor |
+| 2b.4 | DuckLake | Si la prueba 0.5 confirma que un catálogo SQLite admite varios escritores, un proyecto en DuckLake no necesita soltar nada; si no, recibe el mismo trato |
+
+**Se comprueba con** `probarDbtSinBloqueos.mjs`, con un `dbt` falso que abre la base en
+escritura (un proceso de Node con DuckDB): con la base abierta en AmoxSQL, el comando
+termina bien, y al acabar la sesión vuelve a estar adjunta con sus extensiones y sus
+fuentes. Y a mano, con el `dbt` real del autor. **Se publica la 5.10.0-alpha.1.**
 
 ### Fase 3 · El archivo que acaba de llegar (C3)
 
@@ -300,7 +319,9 @@ arreglos.**
 
 - Programar procesos, avisos y salida a Excel con formato: **5.11.0 (D)**.
 - Validar los datos de una fuente (reglas de calidad, rangos): **5.12.0 (E)**.
-- Catálogos Iceberg REST y tablas publicadas en una base: **I**.
+- Catálogos Iceberg REST: más adelante, junto a DuckLake en la familia I (5.12.0) o después.
+- El resto de dbt (editor, resultados en el linaje, entornos, sources desde las fuentes de
+  AmoxSQL, DuckLake de primera clase): **5.12.0 (I)**.
 - Mover a «procesados» los archivos ya leídos de una carpeta: se valora en D con la
   programación, que es cuando importa.
 
@@ -310,3 +331,4 @@ arreglos.**
 |---|---|---|
 | 2026-10-01 | — | Plan escrito sobre la 5.9.0 |
 | 2026-10-01 | — | El autor aprueba las seis decisiones de §7, incluida la retirada de `xlsx` |
+| 2026-10-01 | — | La familia I se rehace alrededor de dbt y DuckLake y se adelanta a la 5.12.0; su I1 (dbt sin bloqueos) entra en esta versión como fase 2b, con su prueba 0.5 |

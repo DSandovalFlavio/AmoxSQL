@@ -23,11 +23,11 @@ sobre las anteriores y nunca espera a una siguiente.
 | **5.9.0** | **A + B** | Cimientos y workspaces — **este plan** |
 | 5.10.0 | C | Los datos donde están |
 | 5.11.0 | D | Procesos que corren solos, con la programación |
-| 5.12.0 | E | Confianza en los números |
-| 5.13.0 | F | Entregar y recordar |
-| 5.14.0 | G | Compartir y heredar |
-| 5.15.0 | H | Operar la máquina |
-| 5.16.0 | I | Para el ingeniero de datos |
+| 5.12.0 | I | El ingeniero de datos: dbt y DuckLake (adelantada el 2026-10-01) |
+| 5.13.0 | E | Confianza en los números |
+| 5.14.0 | F | Entregar y recordar |
+| 5.15.0 | G | Compartir y heredar |
+| 5.16.0 | H | Operar la máquina |
 | 5.17.0 | J | Mejoras sueltas |
 | **6.0.0** | **K** | Python y experimentos. Cierra la 6 |
 

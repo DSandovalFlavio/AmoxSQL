@@ -94,16 +94,22 @@ Decidido después, con el plan de implementación
 versión menor, en orden alfabético, que es también el orden de sus dependencias: ninguna de
 las 46 que declaran los candidatos apunta a una familia posterior.
 
+**Con una excepción, decidida el 2026-10-01: la familia I se adelanta a la 5.12.0.** Se
+rehízo alrededor de dbt y DuckLake (ver I más abajo), y así depende sólo de C y D, que van
+antes. El bloqueo entre AmoxSQL y dbt —la aplicación tiene la base abierta y `dbt run` no
+puede escribir— es un problema de hoy, no una mejora, y su arreglo (I1) llega aún antes,
+con la 5.10.0. E, F, G y H se corren un número.
+
 | Versión | Familia |
 |---|---|
 | **5.9.0** | A + B · cimientos y workspaces — **publicada el 2026-10-01** |
 | 5.10.0 | C · los datos donde están |
 | 5.11.0 | D · procesos que corren solos |
-| 5.12.0 | E · confianza en los números |
-| 5.13.0 | F · entregar y recordar |
-| 5.14.0 | G · compartir y heredar |
-| 5.15.0 | H · operar la máquina |
-| 5.16.0 | I · para el ingeniero de datos |
+| 5.12.0 | I · el ingeniero de datos: dbt y DuckLake (adelantada) |
+| 5.13.0 | E · confianza en los números |
+| 5.14.0 | F · entregar y recordar |
+| 5.15.0 | G · compartir y heredar |
+| 5.16.0 | H · operar la máquina |
 | 5.17.0 | J · mejoras sueltas |
 | **6.0.0** | K · Python y experimentos |
 
@@ -387,7 +393,9 @@ Archivos primero. La base es una opción, no el punto de partida.
   `D:\Nube\Tiendas\entrada`. El proceso sólo dice «ventas-semanales».
 - **Qué mejora:** hoy una ruta es la ruta de esta máquina. Una fuente con nombre puede ser
   un archivo, una carpeta, un bucket o un lago, y se declara en el workspace (B2), así que
-  sirve a todos sus proyectos.
+  sirve a todos sus proyectos. Se consulta como una tabla (`fuentes."ventas-semanales"`)
+  desde el editor, los cuadernos, Data Flow, la IA y la línea de comandos, y dbt la recibe
+  como `source` (I7).
 - **Contesta:** 19, 22, 151–152
 - **Depende de:** A1, B1
 
@@ -400,9 +408,10 @@ Archivos primero. La base es una opción, no el punto de partida.
 - **Qué mejora:** hoy sólo se elige la hoja. El motor ya acepta fila de encabezado y rango;
   falta pedirlos en la interfaz, recordarlos para la próxima vez y ofrecer unir varias
   hojas.
-- **Nota:** la librería que hoy lista las hojas (`xlsx` 0.18.5) es una versión antigua con
-  fallos conocidos al abrir archivos manipulados. Si los Excel de los clientes pasan a ser
-  la entrada principal, hay que evaluarla: sustituirla o dejar que sea el motor quien lea.
+- **Nota:** la librería `xlsx` 0.18.5 es una versión antigua con fallos conocidos al
+  abrir archivos manipulados. **Decidido (2026-10-01): se retira.** Las hojas ya se listan
+  con un lector propio y el motor lee los datos; un `.xls` antiguo, cifrado o dañado recibe
+  un error claro.
 - **Contesta:** 156
 - **Depende de:** —
 
@@ -508,6 +517,11 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
   en su archivo.
 - **Qué mejora:** los parámetros `{{nombre}}` ya existen; hoy sólo se cambian dentro de la
   aplicación, de uno en uno.
+- **Por decidir en su plan:** hoy un parámetro (`${…}` en Data Flow, `{{…}}` en cuadernos y
+  decks) es texto que se pega en el SQL. Cuando llegue desde fuera —un formulario (D5), la
+  línea de comandos, un lote—, conviene pasarlo como variable de DuckDB
+  (`getvariable('region')`): con su tipo y sin forma de colar SQL. La sintaxis de siempre
+  se mantiene.
 - **Contesta:** 26, 29
 - **Depende de:** A3
 
@@ -558,7 +572,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 ### E · Confianza en los números
 
 #### E1 · Medidas del workspace consultables
-`Modificación` · **5.12** · M
+`Modificación` · **5.13** · M
 
 - **Para qué sirve:** que una medida definida se pueda **usar**, no sólo leer.
 - **Ejemplo:** escribes `SELECT venta_neta(...)` o eliges «Venta neta» en un gráfico, y
@@ -569,7 +583,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** B2
 
 #### E2 · Contrato de la fuente
-`Mejora` · **5.12** · S
+`Mejora` · **5.13** · S
 
 - **Para qué sirve:** que el proceso compruebe que el archivo trae lo que debe antes de
   usarlo.
@@ -580,7 +594,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** C1
 
 #### E3 · Reglas de calidad con historial
-`Mejora` · **5.12** · M
+`Mejora` · **5.13** · M
 
 - **Para qué sirve:** reglas —no nulos, únicos, rangos— que corren en cada ejecución y
   dejan rastro.
@@ -593,7 +607,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** —
 
 #### E4 · Columnas sensibles
-`Nueva` · **5.12** · S
+`Nueva` · **5.13** · S
 
 - **Para qué sirve:** marcar datos personales para que no se escapen.
 - **Ejemplo:** marcas «RFC» y «Teléfono» como sensibles. No se envían a la IA y en los
@@ -603,7 +617,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** B4
 
 #### E5 · Un linaje del proyecto
-`Nueva` · **5.12** · L
+`Nueva` · **5.13** · L
 
 - **Para qué sirve:** ver de dónde sale cada cosa y qué se rompe si la cambio.
 - **Ejemplo:** tocas la consulta de ventas y ves que afecta a dos gráficos, un deck y el
@@ -613,12 +627,23 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Contesta:** 34–35, 79
 - **Depende de:** —
 
+#### E6 · Bitácora de acceso a fuentes
+`Nueva` · **5.13** · S
+
+- **Para qué sirve:** saber qué fuentes externas se leyeron, cuándo y desde qué proceso.
+- **Ejemplo:** «bucket-financiera: 14 lecturas esta semana, la última del proceso de
+  cierre, el lunes a las 7:00».
+- **Qué mejora:** las fuentes con nombre (C1) dicen qué hay; esto dice qué se usó. Venía de
+  la antigua familia I.
+- **Contesta:** 62
+- **Depende de:** C1
+
 ---
 
 ### F · Entregar y recordar
 
 #### F1 · Bitácora de entregas
-`Nueva` · **5.13** · S
+`Nueva` · **5.14** · S
 
 - **Para qué sirve:** saber qué se le mandó a cada cliente, qué versión y cuándo.
 - **Ejemplo:** «Tiendas del Norte, reporte semanal v38, entregado el lunes 7:04 en la
@@ -629,7 +654,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** A5
 
 #### F2 · Ficha del proyecto
-`Nueva` · **5.13** · S
+`Nueva` · **5.14** · S
 
 - **Para qué sirve:** contactos, alcance, decisiones y notas de traspaso del proyecto, en un
   solo documento.
@@ -640,7 +665,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** —
 
 #### F3 · Instantáneas y comparar
-`Mejora` · **5.13** · M
+`Mejora` · **5.14** · M
 
 - **Para qué sirve:** guardar el resultado de cada entrega y compararlo con otro.
 - **Ejemplo:** «¿Por qué la venta de marzo cambió entre el reporte de abril y el de mayo?».
@@ -651,7 +676,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** F1
 
 #### F4 · Fecha de los datos en lo que se entrega
-`Mejora` · **5.13** · S
+`Mejora` · **5.14** · S
 
 - **Para qué sirve:** que cualquier gráfico o reporte diga de cuándo son sus datos.
 - **Ejemplo:** el pie de la lámina dice «Datos al 22 de septiembre».
@@ -661,7 +686,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** —
 
 #### F5 · Retomar
-`Mejora` · **5.13** · S
+`Mejora` · **5.14** · S
 
 - **Para qué sirve:** al abrir un proyecto, saber dónde lo dejaste.
 - **Ejemplo:** «Tenías 3 pestañas abiertas, 2 tareas pendientes y una entrega el jueves. El
@@ -686,7 +711,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 ### G · Compartir y heredar
 
 #### G1 · Biblioteca en tres niveles
-`Modificación` · **5.14** · S
+`Modificación` · **5.15** · S
 
 - **Para qué sirve:** que tus consultas, snippets y plantillas te acompañen.
 - **Ejemplo:** tu consulta favorita para limpiar fechas está en **tu** biblioteca y aparece
@@ -698,7 +723,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** B1
 
 #### G2 · Proyecto desde plantilla
-`Mejora` · **5.14** · S
+`Mejora` · **5.15** · S
 
 - **Para qué sirve:** empezar un proyecto nuevo con la estructura de uno que ya funciona.
 - **Ejemplo:** «nuevo proyecto de cierre mensual» trae sus carpetas, sus procesos y sus
@@ -708,7 +733,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** —
 
 #### G3 · Paquete de proyecto
-`Nueva` · **5.14** · M
+`Nueva` · **5.15** · M
 
 - **Para qué sirve:** pasar un proyecto entero cuando git no es opción.
 - **Ejemplo:** exportas el proyecto a un archivo, con los datos o sin ellos, y **nunca** con
@@ -718,7 +743,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** A2
 
 #### G4 · Receta de reconstrucción
-`Nueva` · **5.14** · M
+`Nueva` · **5.15** · M
 
 - **Para qué sirve:** que quien clona el proyecto pueda rehacer los datos con un gesto.
 - **Ejemplo:** «Reconstruir» corre, en orden, las cargas que dejan la base como estaba.
@@ -728,7 +753,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** —
 
 #### G5 · Comentarios anclados
-`Nueva` · **5.14** · M
+`Nueva` · **5.15** · M
 
 - **Para qué sirve:** dejar dudas o notas pegadas a una celda, un paso del proceso o una
   lámina.
@@ -744,7 +769,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 ### H · Operar la máquina
 
 #### H1 · Recursos para lo que corre de fondo
-`Mejora` · **5.15** · S
+`Mejora` · **5.16** · S
 
 - **Para qué sirve:** que un proceso programado no congele la máquina mientras trabajas.
 - **Ejemplo:** los procesos de fondo usan como mucho 2 hilos y 4 GB.
@@ -753,7 +778,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** A3
 
 #### H2 · Almacenamiento por workspace y proyecto
-`Nueva` · **5.15** · S
+`Nueva` · **5.16** · S
 
 - **Para qué sirve:** ver cuánto disco ocupa cada cosa y limpiar.
 - **Ejemplo:** «Financiera: 4,2 GB, de los que 3,8 son exports antiguos».
@@ -763,7 +788,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** B1
 
 #### H3 · Cierre de proyecto
-`Nueva` · **5.15** · S
+`Nueva` · **5.16** · S
 
 - **Para qué sirve:** terminar un proyecto limpiamente cuando acaba el contrato.
 - **Ejemplo:** se conserva el código, se borran los datos del cliente, se desactivan sus
@@ -773,7 +798,7 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 - **Depende de:** D1
 
 #### H4 · Confinar y cifrar
-`Mejora` · **5.15** · S
+`Mejora` · **5.16** · S
 
 - **Para qué sirve:** que un proyecto no escriba fuera de su carpeta, y que su base esté
   cifrada.
@@ -785,26 +810,47 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 
 ---
 
-### I · Para el ingeniero de datos
+### I · El ingeniero de datos: dbt y DuckLake
 
-Todo lo que sólo necesita quien trabaja **sobre bases**. Llega en la 5.16.0, tarde porque
-es el perfil minoritario, no porque importe menos.
+**Rehecha el 2026-10-01, con el autor.** La versión anterior proponía construir dentro de
+AmoxSQL lo que un ingeniero de datos ya tiene en dbt: cargas incrementales, dependencias,
+entornos, instantáneas, frescura, capas. El ingeniero prefiere dbt, y con razón. Así que la
+familia deja de reconstruirlo y pasa a **integrar dbt y DuckLake a fondo**.
+
+**La frontera queda decidida** (era la antigua I13):
+
+- **dbt** es para el ingeniero: transformar datos que viven en bases y lagos, con SQL
+  versionado, tests y documentación.
+- **Data Flow** es para el analista: procesos de archivo a archivo, sin escribir SQL.
+- **El puente** son las fuentes con nombre (C1), que dbt recibe como `sources` (I7), y
+  publicar un archivo (C6).
+
+Llega en la **5.12.0**, adelantada (ver *La numeración*). I1 llega antes, con la 5.10.0.
+
+Lo que había hoy, leyendo la 5.9.0: detectar el entorno de dbt, crear el proyecto y su
+`profiles.yml`, plantillas de modelo, fuente, test y macro, armar y ejecutar comandos con
+la salida en vivo, y el linaje y el autocompletado leídos del `manifest.json`. Lo que
+faltaba es lo de la tabla.
 
 | ID | Candidato | Tipo | Tamaño | Para qué sirve, con un ejemplo | Contesta |
 |---|---|---|---|---|---|
-| I1 | **Entornos** | Nueva | M | Desarrollo y producción del mismo proyecto. «Estás en PRODUCCIÓN» en rojo en la barra, y confirmación antes de escribir | 51–53, 84 |
-| I2 | ~~Tablas publicadas~~ | — | — | Absorbida por **C6 · Publicar un archivo**: el puente entre perfiles es un archivo, no una tabla | — |
-| I3 | **Carga incremental** | Mejora | S | Cargar sólo lo nuevo desde la última vez, con una marca de agua por fuente | 66 |
-| I4 | **Dependencias entre procesos** | Mejora | S | «Cuando termine la carga A, corre el reporte B» | 70 |
-| I5 | **Diff legible de procesos** | Mejora | S | Ver qué nodos se añadieron o cambiaron, sin leer JSON | 83 |
-| I6 | **Promover a proceso** | Mejora | M | Convertir un cuaderno exploratorio en un proceso programable | 57, 139 |
-| I7 | **Instantáneas del lago** | Mejora | M | Volver a como estaba una tabla ayer, donde el lago lo permite | 80–81 |
-| I8 | **Capas en el asistente** | Mejora | S | Ofrecer al crear el proyecto la convención crudo · intermedio · publicado, para que otro entienda el orden | 54 |
-| I9 | **Bitácora de acceso a fuentes** | Nueva | S | Qué fuentes externas se leyeron y cuándo: «bucket-financiera, 14 lecturas esta semana» | 62 |
-| I10 | **Reintentos por nodo** | Mejora | S | «Si la API falla, reintenta 3 veces cada 30 s». Primero hay que verificar qué hace hoy el nodo HTTP | 68 |
-| I11 | **Dónde se va el tiempo** | Mejora | S | Duración de cada paso comparada entre ejecuciones, y las consultas más lentas del proyecto | 73, 98 |
-| I12 | **Frescura de lo materializado** | Mejora | S | «Esta tabla intermedia se calculó hace 9 días; sus fuentes cambiaron ayer» | 99 |
-| I13 | **Frontera entre dbt y Data Flow** | Decisión | — | No es código: decidir y escribir qué construye cada uno cuando conviven en un proyecto | 89 |
+| I1 | **Convivir sin bloqueos** | Mejora | S | Pulsas `dbt build`: AmoxSQL suelta la base, dbt escribe y AmoxSQL la vuelve a abrir sola. Con DuckLake sobre un catálogo SQLite, los dos podrían escribir a la vez (se comprueba antes). **Llega con la 5.10.0** | 84, 89 |
+| I2 | **dbt dentro del editor** | Mejora | M | Abres `stg_ventas.sql` y ves su SQL compilado; «Preview» lo ejecuta sin materializar (`dbt show`); «Run +stg_ventas» corre el modelo y sus dependencias | 83, 89 |
+| I3 | **Resultados en el linaje** | Mejora | M | El grafo pinta cada modelo en verde o rojo con su duración y sus filas (`run_results.json`). Un test que falla lleva a las filas que lo rompen (`store_failures`). Absorbe la antigua «dónde se va el tiempo» | 73, 98 |
+| I4 | **Entornos con los targets de dbt** | Mejora | S | `dev` y `prod` del mismo proyecto; con `prod` activo, «PRODUCCIÓN» en rojo en la barra y confirmación antes de escribir | 51–53, 84 |
+| I5 | **Catálogo y documentación** | Mejora | S | Las descripciones de modelos y columnas de dbt (`catalog.json`, `manifest.json`) en el explorador de base, y para el asistente | 34, 89 |
+| I6 | **Promover a modelo dbt** | Mejora | M | Una consulta o una celda de cuaderno se convierte en `models/marts/ventas_semanales.sql`, con sus `ref()` y `source()` puestos | 57, 139 |
+| I7 | **Las fuentes de AmoxSQL como sources de dbt** | Nueva | S | «ventas-semanales» (C1) se escribe sola en `sources.yml` con su ubicación en esta máquina, y `dbt source freshness` dice si el Excel tiene más de 7 días. Absorbe la antigua «frescura de lo materializado» | 22, 99 |
+| I8 | **DuckLake de primera clase** | Mejora | M | Crear un lago desde la interfaz (catálogo local + carpeta de datos), ver sus *snapshots*, consultar «como estaba ayer» y el mantenimiento (compactar archivos, expirar versiones). Absorbe la antigua «instantáneas del lago» | 80–81, 97 |
+| I9 | **Incrementales y snapshots, explicados** | Mejora | S | Plantillas de un modelo incremental que sólo procesa lo nuevo y de un *snapshot* que guarda el historial de cambios. Absorbe la antigua «carga incremental» | 66 |
+| I10 | **Programar dbt** | Mejora | S | Con la programación de D1: «`dbt build` cada noche a las 2:00», y desde la línea de comandos `AmoxSQL.exe dbt build --project …`, con aviso (D2) si falla un test. Absorbe la antigua «dependencias entre procesos»: el orden lo pone el grafo de dbt | 70 |
+| I11 | **Capas desde el inicio** | Mejora | S | Crear un proyecto dbt trae `staging/`, `intermediate/` y `marts/`, con un ejemplo de cada una | 54 |
+
+**Qué pasó con la lista anterior:** carga incremental, dependencias, instantáneas del lago,
+tiempos, frescura, capas y entornos quedan absorbidos por dbt y DuckLake (arriba). Las
+«tablas publicadas» ya las había absorbido C6. El diff legible de procesos y los reintentos
+por nodo son de Data Flow: pasan a **J** (J9, J10). La bitácora de acceso a fuentes pasa a
+**E** (E6), junto a la confianza en los números.
 
 ---
 
@@ -823,6 +869,8 @@ Todas van en la 5.17.0.
 | J6 | **Cuaderno limpio para entregar** | Mejora | S | Marcar celdas como borrador y dejarlas fuera del export | 131 |
 | J7 | **HTML interactivo** | Mejora | M | Un informe que el cliente abre en el navegador con filtros sobre los datos incrustados | 39 |
 | J8 | **Historial por celda** | Mejora | M | Quién cambió esta celda y cuándo, leído de git y enseñado donde está la celda | 142 |
+| J9 | **Diff legible de procesos** | Mejora | S | Ver qué nodos de un `.sqlchain` se añadieron o cambiaron, sin leer JSON. Venía de la antigua I | 83 |
+| J10 | **Reintentos por nodo** | Mejora | S | «Si la API falla, reintenta 3 veces cada 30 s». Primero hay que verificar qué hace hoy el nodo HTTP. Venía de la antigua I | 68 |
 
 ---
 
@@ -876,35 +924,38 @@ Flow).
 | D6 | Destino de entrega | Mejora | 5.11 | S |
 | D7 | Panel de operación | Nueva | 5.11 | M |
 | D8 | Disparar al llegar un archivo | Mejora | 5.11 | S |
-| E1 | Medidas del workspace consultables | Modificación | 5.12 | M |
-| E2 | Contrato de la fuente | Mejora | 5.12 | S |
-| E3 | Reglas de calidad con historial | Mejora | 5.12 | M |
-| E4 | Columnas sensibles | Nueva | 5.12 | S |
-| E5 | Un linaje del proyecto | Nueva | 5.12 | L |
-| F1 | Bitácora de entregas | Nueva | 5.13 | S |
-| F2 | Ficha del proyecto | Nueva | 5.13 | S |
-| F3 | Instantáneas y comparar | Mejora | 5.13 | M |
-| F4 | Fecha de los datos en lo que se entrega | Mejora | 5.13 | S |
-| F5 | Retomar | Mejora | 5.13 | S |
+| E1 | Medidas del workspace consultables | Modificación | 5.13 | M |
+| E2 | Contrato de la fuente | Mejora | 5.13 | S |
+| E3 | Reglas de calidad con historial | Mejora | 5.13 | M |
+| E4 | Columnas sensibles | Nueva | 5.13 | S |
+| E5 | Un linaje del proyecto | Nueva | 5.13 | L |
+| E6 | Bitácora de acceso a fuentes | Nueva | 5.13 | S |
+| F1 | Bitácora de entregas | Nueva | 5.14 | S |
+| F2 | Ficha del proyecto | Nueva | 5.14 | S |
+| F3 | Instantáneas y comparar | Mejora | 5.14 | M |
+| F4 | Fecha de los datos en lo que se entrega | Mejora | 5.14 | S |
+| F5 | Retomar | Mejora | 5.14 | S |
 | F6 | Registro de tiempo | Nueva | pendiente | S |
-| G1 | Biblioteca en tres niveles | Modificación | 5.14 | S |
-| G2 | Proyecto desde plantilla | Mejora | 5.14 | S |
-| G3 | Paquete de proyecto | Nueva | 5.14 | M |
-| G4 | Receta de reconstrucción | Nueva | 5.14 | M |
-| G5 | Comentarios anclados | Nueva | 5.14 | M |
-| H1 | Recursos para lo que corre de fondo | Mejora | 5.15 | S |
-| H2 | Almacenamiento por workspace y proyecto | Nueva | 5.15 | S |
-| H3 | Cierre de proyecto | Nueva | 5.15 | S |
-| H4 | Confinar y cifrar | Mejora | 5.15 | S |
-| I1–I13 | Para el ingeniero de datos | — | 5.16 | — |
-| J1–J8 | Mejoras sueltas | — | 5.17 | — |
+| G1 | Biblioteca en tres niveles | Modificación | 5.15 | S |
+| G2 | Proyecto desde plantilla | Mejora | 5.15 | S |
+| G3 | Paquete de proyecto | Nueva | 5.15 | M |
+| G4 | Receta de reconstrucción | Nueva | 5.15 | M |
+| G5 | Comentarios anclados | Nueva | 5.15 | M |
+| H1 | Recursos para lo que corre de fondo | Mejora | 5.16 | S |
+| H2 | Almacenamiento por workspace y proyecto | Nueva | 5.16 | S |
+| H3 | Cierre de proyecto | Nueva | 5.16 | S |
+| H4 | Confinar y cifrar | Mejora | 5.16 | S |
+| I1 | Convivir sin bloqueos (dbt) | Mejora | 5.10 | S |
+| I2–I11 | El ingeniero de datos: dbt y DuckLake | — | 5.12 | — |
+| J1–J10 | Mejoras sueltas | — | 5.17 | — |
 | K | Python y experimentos; R, correo y tiempo real quedan fuera | — | 6.0 | — |
 
 ## 6. El orden que imponen las dependencias
 
 Cuatro cadenas. La **5.9.0** son los cimientos y la cadena del workspace; la de datos es la
 **5.10.0** y la de procesos, la **5.11.0**; Excel se reparte entre las dos (C2 en la 5.10.0,
-D3 en la 5.11.0). El orden fino de la 5.9.0, con sus prereleases, está en el
+D3 en la 5.11.0). La del ingeniero —dbt y DuckLake— va justo detrás, en la **5.12.0**, porque
+se apoya en las fuentes (C1) y en la programación (D1). El orden fino de la 5.9.0, con sus prereleases, está en el
 [plan](plan_v6_cimientos_y_workspaces.md). Las raíces —**A5**, **A4** y **A1**— no se ven,
 pero sin ellas nada corre solo; B7 es la otra raíz silenciosa: sin ella, *workspace*
 significaría dos cosas a la vez.
