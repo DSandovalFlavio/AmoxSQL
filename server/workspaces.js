@@ -272,6 +272,10 @@ const PERMITIDOS = [
     /^contexto\/(metrics\.yml|joins\.yml|glossary\.md)$/,
     /^contexto\/examples\/[\w.-]+\.sql$/,
     /^skills\/[\w-]+\/SKILL\.md$/,
+    // Las definiciones de sus fuentes (C1, 5.10): viajan con el workspace; la
+    // ubicación en cada máquina, no. No salen en el editor de contexto: tienen
+    // su propio panel.
+    /^fuentes\/[a-z0-9]+(?:-[a-z0-9]+)*\.json$/,
 ];
 const CANONICOS = ['RULES.md', 'contexto/metrics.yml', 'contexto/joins.yml', 'contexto/glossary.md'];
 
@@ -303,6 +307,13 @@ async function archivosDeContexto(id) {
         }
     }
     return [...vistos.values()];
+}
+
+/** Las definiciones de fuentes del workspace, como archivos (para exportar). */
+function archivosDeFuentes(id) {
+    const dir = path.join(carpetaDe(id), 'fuentes');
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir).filter(f => /^[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(f)).map(f => `fuentes/${f}`);
 }
 
 async function leerArchivo(id, ruta) {
@@ -463,6 +474,7 @@ async function exportar(id) {
     for (const a of await archivosDeContexto(id)) {
         if (a.existe) contexto[a.ruta] = (await leerArchivo(id, a.ruta)).texto;
     }
+    for (const r of archivosDeFuentes(id)) contexto[r] = (await leerArchivo(id, r)).texto;
     const credenciales = new Map();
     const extensiones = new Set();
     for (const p of await proyectosDe(id)) {

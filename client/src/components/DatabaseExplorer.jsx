@@ -11,6 +11,7 @@ import {
     LuWorkflow, LuArrowLeft, LuDatabase, LuFolder
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
+import FuentesExplorador from './fuentes/FuentesExplorador';
 
 /**
  * Builds a schema-qualified name: "schema"."table" for non-main schemas, just "table" for main.
@@ -288,7 +289,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                         <input
                             className="db-search-input"
                             type="text"
-                            placeholder="Search tables, views & columns..."
+                            placeholder="Search sources, tables, views & columns..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -297,6 +298,13 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                 </div>
 
                 <div className="db-tree">
+                    {/* Las fuentes con nombre (C1): arriba, porque son la entrada. */}
+                    <FuentesExplorador
+                        onSelectQuery={onSelectQuery}
+                        refresco={`${currentDb}|${onRefresh || ''}`}
+                        busqueda={deferredSearchQuery}
+                        getTypeMeta={getTypeMeta}
+                    />
                     {loading && <div className="db-loading">Loading...</div>}
                     {!loading && totalTables === 0 && (
                         <div className="db-empty">

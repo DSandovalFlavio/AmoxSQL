@@ -123,6 +123,27 @@ const MIGRACIONES = [
             )`,
         ],
     },
+    {
+        version: 3,
+        nombre: 'fuentes con nombre',
+        // C1 (5.10, fase 1). Dónde está cada fuente en ESTA máquina (Dec-9): la
+        // definición es texto del workspace o del proyecto, y viaja; la ruta
+        // local no viaja, porque en la máquina de al lado es otra. `ambito` es
+        // `w:<id del workspace>` o `p:<id del proyecto>`: el id y no la ruta,
+        // para que mover la carpeta no pierda la ubicación.
+        //
+        // Una base con este esquema no la abre la 5.9 (Dec-8): lo dicen las
+        // notas de la 5.10.0-alpha.1.
+        sql: [
+            `CREATE TABLE fuentes_locales (
+                ambito      VARCHAR NOT NULL,
+                nombre      VARCHAR NOT NULL,
+                ubicacion   VARCHAR NOT NULL,
+                actualizada TIMESTAMP NOT NULL DEFAULT current_timestamp,
+                PRIMARY KEY (ambito, nombre)
+            )`,
+        ],
+    },
 ];
 
 module.exports = { MIGRACIONES };

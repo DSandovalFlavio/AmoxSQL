@@ -59,7 +59,7 @@ Parameters are the same `${name}` variables you define in the flow's **Variables
 | **0** | Finished well |
 | **1** | The process failed (or stopped at a checkpoint, which needs someone to resume it) |
 | **2** | The arguments aren't valid |
-| **3** | A credential is missing on this machine. Add it in **Settings → Credentials** |
+| **3** | A credential is missing on this machine (add it in **Settings → Credentials**), or a named source has no location here (set it in the **Sources** section of the database explorer) |
 | **4** | AmoxSQL was open and didn't answer within 30 seconds |
 | **5** | The project folder or the process file doesn't exist |
 

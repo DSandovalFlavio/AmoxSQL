@@ -84,11 +84,21 @@ class DatabaseManager {
             this.isDuckLake = false;
             console.log("[DB Manager] System DB initialized (Neo Client, lanes: " + LANES.join(', ') + ").");
 
+            // Lo que vive en memoria de la instancia (el catalogo de fuentes) se
+            // pierde con ella: quien lo monta lo vuelve a montar. Sin esperar,
+            // y despues de que termine el arranque.
+            if (this._alIniciar) setImmediate(() => { try { this._alIniciar(); } catch { /* lo reporta quien lo registro */ } });
+
             // Las extensiones NO se recargan aqui: las arranca connect() cuando ya
             // ha terminado con la conexion. Ver warmExtensions().
         } catch (e) {
             console.error("[DB Manager] FATAL: Could not init system DB", e);
         }
+    }
+
+    /** Se llama cada vez que el motor se monta de nuevo (una instancia nueva). */
+    alIniciar(fn) {
+        this._alIniciar = typeof fn === 'function' ? fn : null;
     }
 
     // ─── Extension activation memory ───────────────────────────────────────
@@ -317,6 +327,7 @@ class DatabaseManager {
             const rows = await this._rawQuery(
                 `SELECT count(*) AS n FROM information_schema.tables
                  WHERE table_schema NOT IN ('information_schema', 'pg_catalog')
+                   AND table_catalog <> 'fuentes'
                    AND table_schema NOT LIKE 'amoxsql%'
                    AND table_schema NOT LIKE 'fts\\_%' ESCAPE '\\'`,
                 'meta'

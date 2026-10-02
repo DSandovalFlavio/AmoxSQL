@@ -256,7 +256,7 @@ try {
     const falsaDb = { systemQuery: async () => [{ extension_name: 'json' }, { extension_name: 'httpfs' }] };
     const c = await manifiesto.comprobar(PROYECTO, falsaDb, aiManager.getConfig());
     comprobar('dice qué falta en esta máquina',
-        JSON.stringify(c.faltan) === JSON.stringify({ credenciales: [{ nombre: 'nube-gcs', tipo: 'gcs' }], extensiones: ['iceberg'] }), JSON.stringify(c.faltan));
+        JSON.stringify(c.faltan) === JSON.stringify({ credenciales: [{ nombre: 'nube-gcs', tipo: 'gcs' }], extensiones: ['iceberg'], fuentes: [] }), JSON.stringify(c.faltan));
     comprobar('y lo que sí hay no lo reclama', !c.faltan.credenciales.some(x => x.nombre === 'nube-s3'));
     const sinProyecto = await get('/api/project/requisitos');
     comprobar('sin proyecto abierto no escribe ni reclama nada', sinProyecto.completo === true);

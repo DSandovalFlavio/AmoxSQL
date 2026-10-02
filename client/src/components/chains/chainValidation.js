@@ -77,6 +77,11 @@ export function validateNode(node, edges = []) {
             break;
         }
 
+        case 'fuente': {
+            if (!config.fuente?.trim()) errors.push('Choose a source');
+            break;
+        }
+
         case 'create_table': {
             if (!config.tableName?.trim()) errors.push('Target table name is required');
             if (!config.query?.trim() && !hasUpstream) {

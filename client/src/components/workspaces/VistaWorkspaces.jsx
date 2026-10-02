@@ -20,6 +20,7 @@ import { useEtiqueta } from '../../etiqueta';
 import { iniciales, archivarWorkspace } from './api';
 import { resumenPolitica } from './WorkspacesPanel';
 import ContextoWorkspace from './ContextoWorkspace';
+import FuentesDelWorkspace from '../fuentes/FuentesDelWorkspace';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, {
@@ -328,6 +329,8 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
                         </tbody>
                     </table>
                 </div>
+
+                <FuentesDelWorkspace key={actual.id} workspace={actual} avisar={avisar} />
 
                 <div className="wsv-etq"><LuCalendarClock size={12} />Recent runs</div>
                 <Ejecuciones lista={runs} />

@@ -48,6 +48,7 @@ import SchemaValidationNode from './nodes/SchemaValidationNode';
 import NotificationNode from './nodes/NotificationNode';
 import ChartNode from './nodes/ChartNode';
 import ReportNode from './nodes/ReportNode';
+import FuenteNode from './nodes/FuenteNode';
 import { NODE_TYPES } from './chainNodeTypes';
 import { hasCycle, generateNodeId, generateEdgeId, resolveThemeColor } from './chainUtils';
 
@@ -59,6 +60,7 @@ const nodeTypes = {
     export_file: ExportFileNode,
     checkpoint: CheckpointNode,
     table_ref: TableRefNode,
+    fuente: FuenteNode,
     merge_tables: MergeTablesNode,
     assert: AssertNode,
     join_tables: JoinTablesNode,

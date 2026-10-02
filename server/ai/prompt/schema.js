@@ -14,6 +14,9 @@ function formatTableSchemas(tables) {
             ? t.columns.map(c => `  ${c.name} ${c.type}`).join('\n')
             : '  (schema unknown)';
         const rowInfo = t.rows !== undefined ? ` — ${t.rows} rows` : '';
+        // A named source is a view in the `fuentes` catalog, read from its file
+        // every time: it is referenced as fuentes."name" (the name has hyphens).
+        if (t.ref) return `SOURCE ${t.ref}${t.descripcion ? ` — ${t.descripcion}` : ''}\n${cols}`;
         return `TABLE "${t.name}"${rowInfo}\n${cols}`;
     }).join('\n\n');
     if (overflow) {
@@ -51,7 +54,7 @@ function formatTableSchemasCompact(tables) {
     if (!tables || tables.length === 0) return 'No tables.';
     return tables.map(t => {
         const cols = t.columns ? t.columns.map(c => c.name).join(', ') : '?';
-        return `"${t.name}": ${cols}`;
+        return `${t.ref || `"${t.name}"`}: ${cols}`;
     }).join('\n');
 }
 

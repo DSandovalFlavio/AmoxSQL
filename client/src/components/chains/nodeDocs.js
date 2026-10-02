@@ -39,6 +39,19 @@ export const NODE_DOCS = {
         examples: ['Combine data/2025-01.csv … 2025-12.csv into one table.'],
         tips: ['Files are unioned by column name, so slightly different column orders are fine.'],
     },
+    fuente: {
+        summary: 'Read a named source: a file you set up once and use by name.',
+        whatItDoes: 'Points at fuentes."name" — a source defined in the Sources section (shared by a group of projects, or only this one). The file is read where it is, every run; nothing is copied into the database.',
+        io: { in: 'None — starting node.', out: 'The rows of the source, as they are in its file right now.' },
+        options: [
+            { name: 'Source', desc: 'Pick one of the sources this project can see.' },
+        ],
+        examples: ['Start a weekly process from weekly-sales, wherever that file lives on each machine.'],
+        tips: [
+            'Each machine says where the file is; the process is the same everywhere.',
+            'On the command line, a source with no location on this machine stops the run before it starts (exit code 3).',
+        ],
+    },
     table_ref: {
         summary: 'Reference a table or view that already exists in the database.',
         whatItDoes: 'Points at an existing table/view and passes it downstream — no copy is made. Use it as the entry point when the data is already loaded.',
