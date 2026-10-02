@@ -33,8 +33,9 @@ Starting nodes: no input, they produce a table.
 
 | Node | What it does |
 |---|---|
-| **Import File** | Loads a local file (CSV, TSV, Parquet, JSON, Excel) into a table; types are auto-detected |
-| **Import Folder** | Loads and stacks every file matching a pattern (e.g. `*.csv`) from a folder into one table, unioned by column name |
+| **Source** | Reads a [named source](../data/sources.md) (`fuentes."name"`) in place, without copying it. Each machine says where its file is; the process is the same everywhere |
+| **Import File** | Loads a local file (CSV, TSV, Parquet, JSON, Excel) into a table; types are auto-detected. For Excel: sheet, range (`A4:E`), fill down, clean names and combine sheets; when left empty, it reads the file the way it was last imported in the project |
+| **Import Folder** | Loads and stacks every file matching a pattern (e.g. `*.csv`) from a folder into one table, unioned by column name, with an `_archivo` column |
 | **Table Source** | References an existing table or view as a source, with no copy |
 | **HTTP Fetch** | Reads a file (CSV, JSON, Parquet) directly from a public URL |
 | **Cloud Bucket** | Reads CSV/Parquet/JSON from an S3 or GCS bucket (credentials in Settings); supports glob patterns |
@@ -97,6 +98,7 @@ For what the visual nodes don't cover.
 |---|---|
 | **Create Table** | Materializes the result as a persistent table in the database |
 | **Export File** | Writes the result to a file (CSV/Parquet/Excel/JSON), local or cloud, optionally partitioned |
+| **Publish** | Publishes a Parquet other projects read by name: written aside and swapped in at once (nobody reads half a file), with its schema and date inside, and registered as a [source](../data/sources.md). A schema change that breaks its readers stops it |
 
 ### Quality & Control
 

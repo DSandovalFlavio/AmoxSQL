@@ -57,6 +57,7 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 | Database explorer | [es](es/data/database-explorer.md) | [en](en/data/database-explorer.md) | 🟢 |
 | ER diagram | [es](es/data/er-diagram.md) | [en](en/data/er-diagram.md) | 🟢 |
 | Importing data | [es](es/data/importing-data.md) | [en](en/data/importing-data.md) | 🟢 |
+| Data sources | [es](es/data/sources.md) | [en](en/data/sources.md) | 🟢 |
 | Exporting data | [es](es/data/exporting-data.md) | [en](en/data/exporting-data.md) | 🟢 |
 | Google Sheets | [es](es/data/google-sheets.md) | [en](en/data/google-sheets.md) | 🟢 |
 | DuckDB extensions | [es](es/data/duckdb-extensions.md) | [en](en/data/duckdb-extensions.md) | 🟢 |

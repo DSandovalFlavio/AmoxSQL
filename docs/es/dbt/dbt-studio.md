@@ -51,6 +51,8 @@ Si solo quieres ejecutar SQL directo sobre DuckDB, usa el [Editor SQL](../editor
 3. El comando final se muestra abajo (con `conda run -n <env>` delante si hay un entorno seleccionado). **Copia** al portapapeles o pulsa **Execute**.
 4. La salida se transmite en vivo en el panel **Output**, con una insignia de **código de salida** al terminar (verde si es 0, rojo si no).
 
+**Sin bloqueos (desde la 5.10).** dbt escribe en la base `.duckdb` desde su propio proceso, y antes no podía si AmoxSQL la tenía abierta. Ahora, si el comando va a abrir la base que tienes adjunta —AmoxSQL lo lee en tu `profiles.yml`—, AmoxSQL la suelta y la vuelve a adjuntar al terminar dbt, también si falla o lo cancelas. Tus vistas de cuaderno, fuentes y extensiones siguen ahí. Mientras dbt la tiene, una consulta a la base dice por qué no corre; las que sólo leen fuentes sí corren. Los avisos de AmoxSQL salen en el panel **Output**, en otro color. Si dbt no llega a arrancar porque su entorno falla, también se dice.
+
 ### 6. Lineage (linaje)
 1. Abre la sección **Lineage** (o el botón **Open in tab** para verla a pantalla completa).
 2. El grafo se construye desde el `manifest.json` del proyecto; si no existe, ejecuta `dbt compile` primero.

@@ -34,14 +34,15 @@ As an alternative, DuckDB can **read files directly** without creating a table: 
 2. Choose the **file type** (CSV, Parquet, or JSON): all matching that pattern are imported (e.g. `*.csv`).
 3. The files are combined into a single table.
 
-### Import Excel (.xlsx / .xls)
-Excel uses its own dialog that first **inspects the sheets**:
+### Import Excel (.xlsx)
+A client's Excel rarely starts at A1: it has a title, a "generated on…" line, the headers in row 4 and notes below. The Excel dialog shows the sheet **as it is**, with letters and row numbers:
 1. Right-click the `.xlsx` → **Import to Database…**.
-2. Check the **sheets** you want to import.
-3. Choose the **strategy**:
-   - **Merge Sheets** — combines the selected sheets into one table (with a column tagging the source sheet).
-   - **Individual Tables** — one table per sheet.
-4. Optional: **Clean Column Names**. Click import.
+2. Check the **sheets** to import; click a sheet's name to see it.
+3. **Click the row number** where the column names are (and, if needed, the **letter** of the last column). `A4:E` reads from row 4 down to the first empty row. Below, you see right away what will be read, with its types.
+4. Optional: **fill down** columns with merged cells, **clean column names**.
+5. With several sheets: **one table with a `_hoja` column** (for sheets of the same shape, one per month) or **one table per sheet**. Click import.
+
+Your choices are **remembered in the project**: next time they come pre-selected, and Data Flow's Import File node reads that file the same way. What is not a workbook says what it is: an old `.xls` or a password-protected file (save it as `.xlsx`), a damaged one, or a **CSV with an `.xlsx` extension**, which you can import as CSV. The table remembers which file, sheet and range it came from (see [Data sources](sources.md)).
 
 ### Direct Query (no import)
 From the file's context menu, **Direct Query** opens a SQL tab with the read already written (`SELECT * FROM '<path>'` or `read_xlsx(...)`) plus column comments. For CSV/Parquet/JSON it runs immediately; for Excel it lets you run it yourself.
@@ -59,14 +60,18 @@ From the file's context menu, **Direct Query** opens a SQL tab with the read alr
 ### Excel dialog
 | Option | What it does | Default |
 |---|---|---|
-| Sheet selection | Which sheets to import | All |
-| Strategy | Merge (one table) · Individual (one per sheet) | Merge |
-| Table name (Merge) | Name of the combined table | Derived from file |
-| Clean Column Names | Normalizes the names | On |
+| Sheet selection | Which sheets to import | The first one (or last time's) |
+| Range | From the header row to the last column; with no end row, down to the first empty row | Whole sheet |
+| The first row holds the column names | Whether the range's first row is the column names | On |
+| Clean column names | Lowercase, no spaces | Off |
+| Fill down | Columns whose empty cells take the value above (merged cells) | None |
+| Strategy (several sheets) | One table with `_hoja` · One table per sheet | One table |
+| Table name | Name of the table | Derived from file |
 
 ## Tips & gems
 
-- **Merge tags the source:** merging Excel sheets adds a column identifying which sheet each row came from.
+- **Merge tags the source:** combining Excel sheets adds a `_hoja` column with each row's sheet (until 5.9 it was called `source_duck`; tables already imported don't change).
+- **A file you use in several projects** is better defined as a [source](sources.md): it is read by name and not copied.
 - **One pattern, many files:** importing a folder uses a glob (`*.csv`), ideal for batches of daily exports.
 - **Types come from the engine:** DuckDB infers types on read, so you don't declare them.
 - **Just looking?** Don't import: use Direct Query or Quick Preview from the file explorer.
