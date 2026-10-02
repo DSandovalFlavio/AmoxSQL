@@ -36,7 +36,7 @@ const excel = require('./excel');
 const CATALOGO = 'fuentes';
 const NOMBRE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAX_NOMBRE = 64;
-const TIPOS = ['archivo'];
+const TIPOS = ['archivo', 'carpeta'];
 const FORMATOS = {
     csv: /\.(csv|tsv|txt)(\.gz)?$/i,
     parquet: /\.parquet$/i,
@@ -86,6 +86,16 @@ function normalizarDefinicion(d) {
     let formato = x.formato || null;
     if (formato && !FORMATOS[formato]) throw new Error(`Unknown format: ${formato}`);
     const def = { nombre, tipo, descripcion: texto(x.descripcion, 1000) || null, formato, ubicacion };
+    if (tipo === 'carpeta') {
+        // C3: una carpeta donde «llega» el archivo. El patrón es sólo el nombre
+        // (sin carpetas): `ventas*.xlsx`. Por defecto, el más reciente.
+        const patron = texto(x.patron, 200) || '*';
+        if (/[\\/]/.test(patron)) throw new Error('The pattern is a file name, without folders (for example: sales*.xlsx).');
+        def.patron = patron;
+        def.criterio = x.criterio === 'todos' ? 'todos' : 'reciente';
+        if (x.subcarpetas === true) def.subcarpetas = true;
+        if (!def.formato) def.formato = formatoDe(patron);
+    }
     if (x.excel && typeof x.excel === 'object') {
         // Hoja (o varias, unidas con _hoja), rango, encabezado, rellenar y
         // limpiar nombres: las mismas opciones que el diálogo de importar (C2).
@@ -272,6 +282,84 @@ function resolver(item, locales) {
     return { ubicacion: null, como: null };
 }
 
+// ── Carpetas: el archivo que acaba de llegar (C3) ───────────────────────────
+// Una carpeta sincronizada escribe un archivo en varias pasadas (Dec-14): sólo
+// cuenta como llegado el que lleva unos segundos sin cambiar de tamaño ni de
+// fecha, y nunca los temporales de Office (`~$…`) ni los del sincronizador.
+
+const ESTABLE_MS = 3000;
+const MAX_ARCHIVOS = 5000;
+const MAX_UNIDOS = 500;
+const TEMPORAL = /^[~.]|\.(tmp|temp|part|partial|crdownload|download|swp|lock)$/i;
+
+const esTemporal = (nombre) => TEMPORAL.test(String(nombre));
+
+/** `ventas*.xlsx` → expresión que casa el nombre entero, sin distinguir mayúsculas. */
+function globARegex(patron) {
+    const r = String(patron || '*').split('').map(c => (c === '*' ? '.*' : c === '?' ? '.' : c.replace(/[.+^${}()|[\]\\]/g, '\\$&'))).join('');
+    return new RegExp(`^${r}$`, 'i');
+}
+
+/**
+ * Los archivos de la carpeta que casan con el patrón, del más reciente al más
+ * viejo, cada uno con `quieto` (lleva ESTABLE_MS sin cambiar). Las subcarpetas,
+ * sólo si se pide, y hasta tres niveles.
+ */
+function archivosDeCarpeta(dir, { patron = '*', subcarpetas = false } = {}, ahora = Date.now()) {
+    const re = globARegex(patron);
+    const lista = [];
+    const recorrer = (d, nivel) => {
+        let entradas = [];
+        try { entradas = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+        for (const e of entradas) {
+            if (lista.length >= MAX_ARCHIVOS) return;
+            if (esTemporal(e.name)) continue;
+            const abs = path.join(d, e.name);
+            if (e.isDirectory()) { if (subcarpetas && nivel < 3) recorrer(abs, nivel + 1); continue; }
+            if (!re.test(e.name)) continue;
+            let st;
+            try { st = fs.statSync(abs); } catch { continue; }
+            lista.push({
+                ruta: abs, nombre: path.relative(dir, abs).split(path.sep).join('/'), tamano: st.size,
+                modificada: st.mtime.toISOString(), mtimeMs: st.mtimeMs,
+                quieto: st.size > 0 && ahora - st.mtimeMs >= ESTABLE_MS,
+            });
+        }
+    };
+    recorrer(dir, 0);
+    return lista.sort((a, b) => b.mtimeMs - a.mtimeMs);
+}
+
+/** Los que se leen: el más reciente ya quieto, o todos los quietos. */
+function elegidos(def, dir) {
+    const todos = archivosDeCarpeta(dir, def);
+    const quietos = todos.filter(a => a.quieto);
+    return { todos, leidos: def.criterio === 'todos' ? quietos.slice(0, MAX_UNIDOS) : quietos.slice(0, 1) };
+}
+
+/** Lo que se sabe sin abrir el archivo: si está, cuánto ocupa, cuándo cambió. */
+function estadoDe(def, ubicacion) {
+    if (def.tipo !== 'carpeta') return estadoDelArchivo(ubicacion);
+    if (!ubicacion) return { estado: 'sin_ubicar' };
+    if (REMOTA.test(ubicacion)) return { estado: 'remota' };
+    try {
+        if (!fs.statSync(ubicacion).isDirectory()) return { estado: 'no_es_carpeta' };
+    } catch {
+        return { estado: 'no_encontrada' };
+    }
+    const { todos, leidos } = elegidos(def, ubicacion);
+    if (!leidos.length) return { estado: todos.length ? 'llegando' : 'vacia', archivos: todos.length };
+    const actual = leidos[0];
+    return {
+        estado: 'encontrada',
+        archivos: todos.length,
+        actual: { nombre: actual.nombre, tamano: actual.tamano, modificada: actual.modificada },
+        modificada: actual.modificada,
+        anteriores: todos.filter(a => a.ruta !== actual.ruta).slice(0, 5).map(a => ({ nombre: a.nombre, modificada: a.modificada })),
+        leidos: def.criterio === 'todos' ? leidos.length : 1,
+    };
+}
+
 /** Lo que se sabe sin abrir el archivo: si está, cuánto ocupa, cuándo cambió. */
 function estadoDelArchivo(ubicacion) {
     if (!ubicacion) return { estado: 'sin_ubicar' };
@@ -299,6 +387,30 @@ const paraMotor = (u) => (REMOTA.test(u) ? u : u.split(path.sep).join('/'));
  * final de la hoja con `stop_at_empty`.
  */
 function sqlDeLectura(def, ubicacion) {
+    if (def.tipo === 'carpeta') return sqlDeCarpeta(def, ubicacion);
+    return sqlDeArchivo(def, ubicacion);
+}
+
+/**
+ * Una carpeta: el más reciente se lee como un archivo; todos, unidos por nombre
+ * de columna con `_archivo` (el nombre de cada uno). La lista va escrita en la
+ * vista: cuando llega otro, el vigilante la rehace; una ejecución de Data Flow
+ * o de la línea de comandos la rehace al empezar (3.4).
+ */
+function sqlDeCarpeta(def, dir) {
+    const { todos, leidos } = elegidos(def, dir);
+    if (!leidos.length) {
+        throw new Error(todos.length
+            ? `the file in ${dir} is still arriving (it changed in the last seconds)`
+            : `no file in ${dir} matches ${def.patron || '*'}`);
+    }
+    if (def.criterio !== 'todos') return sqlDeArchivo(def, leidos[0].ruta);
+    return leidos
+        .map(a => `SELECT *, ${lit(a.nombre)} AS _archivo FROM (${sqlDeArchivo(def, a.ruta)})`)
+        .join('\nUNION ALL BY NAME\n');
+}
+
+function sqlDeArchivo(def, ubicacion) {
     const u = lit(paraMotor(ubicacion));
     const formato = def.formato || formatoDe(ubicacion);
     switch (formato) {
@@ -375,7 +487,7 @@ async function montar(db, { raiz = null, workspaceId = null } = {}) {
             } catch (e) {
                 estado = 'error';
                 // Un Excel que no es un libro (un CSV disfrazado, un .xls) dice qué es.
-                error = (def.formato || formatoDe(r.ubicacion)) === 'xlsx' && !REMOTA.test(r.ubicacion)
+                error = def.tipo !== 'carpeta' && (def.formato || formatoDe(r.ubicacion)) === 'xlsx' && !REMOTA.test(r.ubicacion)
                     ? excel.explicar(e, r.ubicacion).message
                     : String(e?.message || e).split('\n')[0];
                 await q(`CREATE OR REPLACE VIEW ${vista} AS ${sqlDeAviso(`The source "${def.nombre}" cannot be read: ${error}`)}`);
@@ -384,7 +496,12 @@ async function montar(db, { raiz = null, workspaceId = null } = {}) {
         if (def.descripcion) {
             try { await q(`COMMENT ON VIEW ${vista} IS ${lit(def.descripcion)}`); } catch { /* sólo es la descripción */ }
         }
-        informe.push({ nombre: def.nombre, estado, error, ubicacion: r.ubicacion, como: r.como });
+        informe.push({
+            nombre: def.nombre, estado, error, ubicacion: r.ubicacion, como: r.como,
+            ...(def.tipo === 'carpeta' && r.ubicacion && !REMOTA.test(r.ubicacion)
+                ? { carpeta: { dir: r.ubicacion, patron: def.patron, subcarpetas: !!def.subcarpetas, criterio: def.criterio } }
+                : {}),
+        });
     }
     return informe;
 }
@@ -406,7 +523,7 @@ async function listar({ raiz = null, workspaceId = null } = {}) {
                 sobrescribe: item.sobrescribe || null,
                 ubicacionAqui: r.ubicacion,
                 como: r.como,
-                ...estadoDelArchivo(r.ubicacion),
+                ...estadoDe(item.def, r.ubicacion),
             };
         }),
         invalidas: invalidas.map(x => ({ nombre: x.nombre, origen: x.origen, error: x.error })),
@@ -446,4 +563,5 @@ module.exports = {
     carpetaDelWorkspace, carpetaDelProyecto, idDelProyecto, workspaceDelProyecto,
     definiciones, guardar, borrar, ubicar, ubicacionesLocales, resolver, estadoDelArchivo,
     sqlDeLectura, sqlDeAviso, avisoSinUbicar, montar, listar, hayEsquemaHomonimo, usadas,
+    ESTABLE_MS, esTemporal, globARegex, archivosDeCarpeta, estadoDe,
 };
