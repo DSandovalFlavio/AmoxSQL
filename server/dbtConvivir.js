@@ -157,7 +157,12 @@ const menor = (a, b) => {
     return false;
 };
 
-/** Si el perfil usa un DuckLake y el motor de dbt es más viejo que el de AmoxSQL, lo dice. */
+/**
+ * Si el perfil usa un DuckLake y el motor de dbt no es el de AmoxSQL, lo dice:
+ * el lago lo deja con el formato de quien lo escribió, y el otro puede no
+ * entenderlo (comprobado: dbt con un motor más nuevo crea un lago que AmoxSQL
+ * no abre, p07).
+ */
 async function avisoDeVersion(raiz, comando, { condaEnv, condaPath, versionAmox }) {
     const { accion, profilesDir, target } = leerComando(comando);
     if (!abreLaBase(accion) || !versionAmox) return null;
@@ -168,8 +173,14 @@ async function avisoDeVersion(raiz, comando, { condaEnv, condaPath, versionAmox 
     if (!/ducklake:/i.test(perfilTexto)) return null;
     const v = await versionDelMotorDeDbt({ condaEnv, condaPath });
     const amox = String(versionAmox).replace(/^v/, '');
-    if (!v || !menor(v, amox)) return null;
-    return `dbt runs DuckDB ${v} and AmoxSQL ${amox}. A DuckLake lake written by the newer one may not open in the older one: update the DuckDB package of dbt's environment.`;
+    if (!v) return null;
+    if (menor(v, amox)) {
+        return `dbt runs DuckDB ${v} and AmoxSQL ${amox}. A DuckLake lake written by the newer one may not open in the older one: update the DuckDB package of dbt's environment.`;
+    }
+    if (menor(amox, v)) {
+        return `dbt runs DuckDB ${v} and AmoxSQL ${amox}. A DuckLake lake written by dbt may not open in AmoxSQL: use DuckDB ${amox} in dbt's environment, or update AmoxSQL.`;
+    }
+    return null;
 }
 
 module.exports = {
