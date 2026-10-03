@@ -52,6 +52,12 @@ For an Excel, the form shows the sheet as it is, with letters and row numbers: *
 ### In the cloud and in a lake
 For a private bucket, create a **named cloud credential** in **Settings → Credentials → New cloud credential** (S3 or S3-compatible, or Google Cloud Storage) and pick it in the source. It is encrypted with the system keychain and only opens its source's folder, so two buckets with different keys live side by side. Projects only record its **name**.
 
+- A **public** bucket or a file on an `https://` address needs no credential.
+- In the path pattern, prefer `**/*.parquet` to `*/*.parquet`: `**` asks the bucket for the whole list at once, `*/` asks folder by folder. On a public bucket with 134 files in partitions the difference was a quarter of a second against 18 seconds.
+- A filter on a *hive* partition column (`WHERE year = 2026`) only reads the files of that partition.
+- An **Iceberg** table written through a catalog has no `version-hint.text`: pointing at its folder reads the newest version in `metadata/`. To read an exact version, point at its `….metadata.json`.
+- A **DuckLake** with its catalog in SQLite, PostgreSQL or MySQL goes with its prefix: `sqlite:/data/lake.sqlite` (it can be relative to the project), `postgres:dbname=lake`. A lake written by a newer version of the engine than AmoxSQL's does not open, and the source says so.
+
 ### Locate it on another machine
 When you open a project that uses a source with no location on this machine, a notice says so. In the explorer the source shows a warning: right click → **Set location on this machine…**. Querying it without a location gives a message that says what to do.
 

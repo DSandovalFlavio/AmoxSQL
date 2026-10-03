@@ -154,6 +154,34 @@ try {
     comprobar('una extensión sin descargar', /needs the iceberg extension.*internet/.test(fuentes.explicarNube(new Error('IO Error: Failed to download extension "iceberg" at URL …'), def, 's3://x')));
     comprobar('un permiso que falta', /has no permission/.test(fuentes.explicarNube(new Error('HTTP Error: HTTP GET error … (HTTP 403 Forbidden)'), { ...def, credencial: 'cubo-a' }, 's3://x')));
     comprobar('un Iceberg sin version-hint', /metadata file/.test(fuentes.explicarNube(new Error('Invalid Configuration Error: … no version-hint could be found …'), def, '/x')));
+    const lago = { tipo: 'lago', formato: 'ducklake', credencial: null };
+    comprobar('un DuckLake de un motor más nuevo: actualizar AmoxSQL', /newer.*Update AmoxSQL/.test(fuentes.explicarNube(new Error('Invalid Input Error: DuckLake catalog version mismatch: catalog version is 1.0, but the extension requires version 0.4'), lago, '/x')));
+    comprobar('uno de un motor más viejo: no lo migra', /older.*does not migrate/.test(fuentes.explicarNube(new Error('DuckLake catalog version mismatch: catalog version is 0.3, but the extension requires version 0.4. Use AUTOMATIC_MIGRATION'), lago, '/x')));
+
+    console.log('\nIceberg sin version-hint (lo que dejan los catálogos)');
+    const ice = path.join(TMP, 'iceberg', 'ventas');
+    const meta = path.join(ice, 'metadata');
+    fs.mkdirSync(meta, { recursive: true });
+    for (const n of ['00001-a.metadata.json', '00010-b.metadata.json', '00002-c.metadata.json', 'snap-1.avro']) fs.writeFileSync(path.join(meta, n), '{}');
+    const defIce = { tipo: 'lago', formato: 'iceberg' };
+    comprobar('apunta a la versión más alta (10, no 2: por número, no por texto)', (await fuentes.ubicacionEfectiva({}, defIce, ice)) === path.join(meta, '00010-b.metadata.json'));
+    comprobar('y la lee sin allow_moved_paths', !/allow_moved_paths/.test(fuentes.sqlDeLectura(defIce, path.join(meta, '00010-b.metadata.json'))));
+    fs.writeFileSync(path.join(meta, 'version-hint.text'), '10');
+    comprobar('con version-hint, la carpeta se queda como está', (await fuentes.ubicacionEfectiva({}, defIce, ice)) === ice);
+    comprobar('un archivo de metadatos elegido a mano no se toca', (await fuentes.ubicacionEfectiva({}, defIce, path.join(meta, '00001-a.metadata.json'))) === path.join(meta, '00001-a.metadata.json'));
+    comprobar('las demás fuentes, tampoco', (await fuentes.ubicacionEfectiva({}, { tipo: 'lago', formato: 'delta' }, ice)) === ice);
+
+    console.log('\nun DuckLake con catálogo SQLite o PostgreSQL');
+    const lagoCat = (ubicacion, origen = 'proyecto') => fuentes.resolver({ def: { nombre: 'l', tipo: 'lago', formato: 'ducklake', ubicacion }, origen, raiz: P, ambito: null }, new Map());
+    const absoluta = path.join(TMP, 'lago', 'catalogo.sqlite');
+    let res = lagoCat(`sqlite:${fwd(absoluta)}`);
+    comprobar('sqlite: con ruta completa vale tal cual (no se pega a la carpeta del proyecto)', res.como === 'definicion' && res.ubicacion === `sqlite:${absoluta}`, JSON.stringify(res));
+    res = lagoCat('sqlite:lago/catalogo.sqlite');
+    comprobar('sqlite: con ruta relativa, relativa al proyecto', res.como === 'relativa' && res.ubicacion === `sqlite:${path.join(P, 'lago', 'catalogo.sqlite')}`, JSON.stringify(res));
+    res = lagoCat('postgres:dbname=lago host=localhost', 'workspace');
+    comprobar('postgres: es una conexión, no una ruta', res.como === 'definicion' && res.ubicacion === 'postgres:dbname=lago host=localhost', JSON.stringify(res));
+    const sentencias = await fuentes.preparar({ nombre: 'l', tipo: 'lago', formato: 'ducklake' }, `sqlite:${absoluta}`);
+    comprobar('y se adjunta con el prefijo del catálogo', sentencias.some(x => x.includes(`'ducklake:sqlite:${fwd(absoluta)}'`)), sentencias.join(' | '));
 } catch (x) {
     fallos++;
     console.log('  FALLA inesperado:', x.stack || x.message);
