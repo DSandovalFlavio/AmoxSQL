@@ -49,8 +49,8 @@ The same occurrence never runs twice, whoever triggers it (the open app or the W
 ## Tips & gems
 
 - **Name the output with dates:** `close_{fecha:AAAA-MM}.xlsx` in a [destination](../data/sources.md) keeps every month's file.
-- **Notifications:**
-  - With AmoxSQL open, clicking one opens the run.
+- **Notifications:** one line per run («Monthly close · 3 files read, 1 saved · 4 s»), or the step where it failed and why.
+  - With AmoxSQL open, clicking one opens **the run's details**: how it went, when and how it was launched, its parameters, the files it left (with **Open** and **Show in folder**), and each step with its rows and time. **Run again** repeats it with the same values; a scheduled run is repeated with the date it was due.
   - If it ran with AmoxSQL closed, the run is in the history when you open it.
 - **Pause everything before a holiday:** pause each schedule, or the Windows task keeps waking AmoxSQL but nothing runs while the general pause lasts.
 - **From the command line:** `AmoxSQL.exe tick` runs what's due right now; it's what the Windows task calls.
