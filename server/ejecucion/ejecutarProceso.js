@@ -12,8 +12,9 @@ const { historialCentral, historialDeReserva, historialMudo } = require('./histo
 
 async function ejecutarProceso({
     dbManager, chainDef, proyecto, chainFile = '',
-    mode = 'full', startNodeId = null, variables,
+    mode = 'full', startNodeId = null, variables, deFuera = {}, fechaReferencia = null,
     origen = 'interfaz', workspaceId: workspaceIdDado = null, oyente = null,
+    programacionId = null, prevista = null,
 }) {
     let workspaceId = workspaceIdDado;
     const base = resolverBase(chainDef);
@@ -31,13 +32,13 @@ async function ejecutarProceso({
     // el historial.
     const fuera = origen !== 'interfaz';
     const historial = baseCentral.estaAbierta()
-        ? historialCentral(baseCentral, { proyecto, workspaceId, origen, parametros: variables })
+        ? historialCentral(baseCentral, { proyecto, workspaceId, origen, parametros: { ...(variables || {}), ...(deFuera || {}) }, programacionId, prevista })
         : (fuera ? historialMudo() : await historialDeReserva(dbManager));
 
     const ctx = await abrirContexto(base.resuelta, { dbManager, proyecto, chainFile, fuera });
     try {
         const r = await chainExecutor.run(ctx, chainDef, proyecto, {
-            mode, startNodeId, chainFile, variables, historial, oyente,
+            mode, startNodeId, chainFile, variables, deFuera, fechaReferencia, historial, oyente,
         });
         return { ...r, base: base.resuelta, rutaBase: ctx.ruta || null };
     } finally {

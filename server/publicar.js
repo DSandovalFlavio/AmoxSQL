@@ -193,4 +193,4 @@ async function leerPublicacion(db, ruta) {
     return meta;
 }
 
-module.exports = { ErrorDePublicacion, publicar, leerPublicacion, roturas, quienLoTiene, ESPERAS_MS };
+module.exports = { ErrorDePublicacion, publicar, leerPublicacion, roturas, quienLoTiene, renombrarConReintentos, ESPERAS_MS };

@@ -1216,6 +1216,7 @@ app.post('/api/db/extensions/forget', (req, res) => {
 /* --- Excel Import APIs --- */
 const xlsxMeta = require('./xlsxMeta');
 const excel = require('./excel');
+const parametros = require('./parametros');
 
 /** La ruta de un archivo que llega del cliente: absoluta, o relativa al proyecto. */
 const rutaDelProyecto = (r) => (path.isAbsolute(String(r)) ? String(r) : path.join(ROOT_DIR, String(r)));
@@ -1258,6 +1259,17 @@ app.post('/api/excel/probar', async (req, res) => {
         res.json(await excel.probar(dbManager.lane('meta'), ruta, opciones));
     } catch (err) {
         errorDeExcel(res, err);
+    }
+});
+
+/** Lo que hay en una plantilla de Excel (5.11, D3): hojas, y tablas con sus columnas. */
+app.get('/api/excel/plantilla', (req, res) => {
+    try {
+        const ruta = rutaDelProyecto(req.query.path || '');
+        if (!fs.existsSync(ruta)) return res.status(404).json({ error: `The template does not exist: ${req.query.path}` });
+        res.json(require('./xlsxPlantilla').describirPlantilla(ruta));
+    } catch (err) {
+        res.status(400).json({ error: `The template could not be read as a workbook: ${err.message}. Save it as .xlsx in Excel.` });
     }
 });
 
@@ -4294,24 +4306,17 @@ app.post('/api/export-data', async (req, res) => {
         else if (format === 'parquet') copyFormat = "PARQUET";
         else if (format === 'xlsx') {
             try {
-                // Real .xlsx via the excel extension. It must be explicitly loaded:
-                // unlike read_xlsx (which autoloads), the COPY TO xlsx function does not.
-                // Writing FORMAT CSV into a .xlsx used to produce a file Excel couldn't open.
-                try { await dbManager.query('INSTALL excel; LOAD excel;'); } catch (e) {
-                    console.warn('[export-data] excel extension load warning:', e.message);
-                }
-                await dbManager.query(`COPY (${cleanQuery}) TO '${fullPath}' WITH (FORMAT xlsx, HEADER true)`);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM (${cleanQuery}) t`);
-                const rowCount = countResult[0]?.cnt || 0;
-                return res.json({ success: true, path: filename, rowCount });
+                // 5.11 (D3): the workbook is written by AmoxSQL, formatted from
+                // the column types (dates, decimals, bold fixed header, filter,
+                // widths). On the user's connection — the query may read a
+                // notebook's temp views — and out of the query history.
+                const { escribirLibro } = require('./xlsxEscribir');
+                const usuario = { query: (sql) => dbManager.systemQuery(sql) };
+                const nombre = path.basename(fullPath).replace(/\.xlsx$/i, '');
+                const r = await escribirLibro(usuario, fullPath, [{ nombre, consulta: cleanQuery }]);
+                return res.json({ success: true, path: filename, rowCount: r.hojas[0].filas });
             } catch (xlsxErr) {
-                // Excel caps a worksheet at 1,048,576 rows; surface a clear, actionable message.
-                const overLimit = /row limit/i.test(xlsxErr.message);
-                return res.status(500).json({
-                    error: overLimit
-                        ? 'Excel limita una hoja a 1,048,576 filas y el resultado la supera. Exporta a CSV o Parquet.'
-                        : `Excel export failed: ${xlsxErr.message}. Try CSV or Parquet instead.`,
-                });
+                return res.status(500).json({ error: `Excel export failed: ${xlsxErr.message}` });
             }
         }
 
@@ -5701,7 +5706,7 @@ app.post('/api/chains/base', (req, res) => {
 
 // Run a chain
 app.post('/api/chains/run', async (req, res) => {
-    const { chainDefinition, chainFile, mode, startNodeId, variables } = req.body;
+    const { chainDefinition, chainFile, mode, startNodeId, variables, deFuera } = req.body;
     if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition is required' });
 
     try {
@@ -5720,15 +5725,66 @@ app.post('/api/chains/run', async (req, res) => {
             mode: mode || 'full',
             startNodeId,
             variables: variables || undefined,
+            // 5.11 (D4/D5): valores que no escribió el autor (el formulario).
+            deFuera: deFuera || {},
+            origen: deFuera && Object.keys(deFuera).length ? 'formulario' : 'interfaz',
         });
         // Un nodo Publish deja (o pone al día) una fuente: que se vea ya (C6).
         if ((chainDefinition.nodes || []).some(n => n?.type === 'publicar')) await remontarFuentes();
 
         res.json(result);
     } catch (err) {
+        if (err instanceof parametros.ErrorDeParametro) return res.status(400).json({ error: err.message, parametro: err.nombre });
         console.error('[Chains] Run error:', err);
         res.status(500).json({ error: err.message });
     }
+});
+
+/**
+ * Correr un proceso una vez por cada juego de valores (5.11, D4): «Run for
+ * each…». Una ejecución detrás de otra; sigue aunque una falle. Se cuenta por
+ * SSE: inicio y fin de cada una, y el resumen.
+ */
+app.post('/api/chains/lote', async (req, res) => {
+    const { chainDefinition, chainFile, variables, lote } = req.body || {};
+    if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition is required' });
+    if (!Array.isArray(lote) || !lote.length) return res.status(400).json({ error: 'Give at least one set of values.' });
+    if (lote.length > 500) return res.status(400).json({ error: 'At most 500 runs at once.' });
+    const cadena = { ...chainDefinition, variables: { ...(chainDefinition.variables || {}), ...(variables || {}) } };
+    try {
+        for (const p of lote) parametros.resolver(cadena, p);
+    } catch (err) {
+        if (err instanceof parametros.ErrorDeParametro) return res.status(400).json({ error: err.message, parametro: err.nombre });
+        throw err;
+    }
+    const validation = chainExecutor.validate(cadena, ROOT_DIR);
+    if (!validation.valid) return res.status(400).json({ error: 'Validation failed', details: validation.errors });
+    anotarCredencialesDeCadena(cadena);
+
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+    const enviar = (d) => { try { res.write(`data: ${JSON.stringify(d)}\n\n`); } catch { /* se fue */ } };
+    let cortado = false;
+    // El cliente se fue (cerró la pestaña o pulsó Stop). `req` cierra en cuanto
+    // se lee el cuerpo; quien dice que ya no hay nadie es la respuesta.
+    res.on('close', () => { if (!res.writableEnded) cortado = true; });
+    let bien = 0;
+    for (let i = 0; i < lote.length; i++) {
+        if (cortado) break;
+        enviar({ tipo: 'inicio', i, total: lote.length, parametros: lote[i] });
+        try {
+            const r = await ejecutarProceso({
+                dbManager, chainDef: cadena, proyecto: ROOT_DIR, chainFile: chainFile || '',
+                variables: cadena.variables, deFuera: lote[i], origen: 'lote',
+            });
+            if (r.status === 'completed') bien++;
+            enviar({ tipo: 'fin', i, estado: r.status, runId: r.runId || null, error: r.error || null });
+        } catch (err) {
+            enviar({ tipo: 'fin', i, estado: 'failed', error: err.message });
+        }
+    }
+    if ((cadena.nodes || []).some(n => n?.type === 'publicar')) await remontarFuentes().catch(() => {});
+    enviar({ tipo: 'resumen', bien, total: lote.length, cortado });
+    res.end();
 });
 
 // Get run status (for polling)
@@ -5736,6 +5792,17 @@ app.get('/api/chains/run/:runId/status', async (req, res) => {
     try {
         const { run, nodeRuns } = await historialDeProcesos.leer({ base: baseCentral, dbManager, runId: req.params.runId });
         res.json({ run, nodeRuns });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lo que dejó una ejecución, para quien no miró el proceso (5.11, D5/D2).
+app.get('/api/chains/run/:runId/resumen', async (req, res) => {
+    try {
+        const r = await require('./ejecucion/resumen').resumir({ base: baseCentral, dbManager, runId: req.params.runId, proyecto: ROOT_DIR });
+        if (!r) return res.status(404).json({ error: 'That run is not in the history.' });
+        res.json(r);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -6496,6 +6563,118 @@ app.put('/api/fuentes/:nombre/ubicacion', conCentral(async (req) => {
     return { ubicacion };
 }));
 
+// ── Lo programado (5.11, D1) ─────────────────────────────────────────────────
+// Las programaciones son de esta máquina (Dec-15). Ver server/programacion/.
+const programaciones = require('./programacion/programaciones');
+const programador = require('./programacion/programador');
+const reglasDeProgramacion = require('./programacion/reglas');
+const calendarioDeTrabajo = require('./programacion/calendario');
+
+const rutaDeProceso = (proceso, proyecto) => (path.isAbsolute(String(proceso)) ? String(proceso) : path.resolve(proyecto, String(proceso)));
+const tras = async (r) => { programador.anunciarProxima(); return r; };
+
+app.get('/api/programaciones', conCentral(async (req) => {
+    let lista = await programaciones.listar();
+    if (req.query.proceso && PROYECTO_ABIERTO) {
+        const abs = rutaDeProceso(req.query.proceso, ROOT_DIR);
+        lista = lista.filter(p => path.resolve(p.proceso) === path.resolve(abs));
+    }
+    return {
+        programaciones: lista,
+        pausaGeneral: await programaciones.pausaGeneral(),
+        sistema: { activo: (await baseCentral.preferencia('programador_sistema')) === true, soportado: process.platform === 'win32' },
+        alAbrir: programador.alAbrir(),
+    };
+}));
+
+app.post('/api/programaciones', conCentral(async (req) => {
+    const b = req.body || {};
+    const proyecto = b.proyecto || (PROYECTO_ABIERTO ? ROOT_DIR : null);
+    if (!proyecto) throw new Error('Open the project of the process first.');
+    return tras({ programacion: await programaciones.crear({ ...b, proyecto, proceso: rutaDeProceso(b.proceso, proyecto) }) });
+}));
+
+app.put('/api/programaciones/pausa', conCentral(async (req) => tras({ pausaGeneral: await programaciones.pausaGeneral(req.body?.hasta || null) })));
+
+app.put('/api/programaciones/sistema', conCentral(async (req) => {
+    await baseCentral.guardarPreferencia('programador_sistema', req.body?.activo === true);
+    return tras({ activo: req.body?.activo === true, soportado: process.platform === 'win32' });
+}));
+
+app.post('/api/programaciones/vista-previa', conCentral(async (req) => {
+    const { regla, workspaceId = null } = req.body || {};
+    try {
+        const ws = workspaceId || (PROYECTO_ABIERTO ? programaciones.workspaceDe(ROOT_DIR) : null);
+        const cal = calendarioDeTrabajo.leer(ws);
+        return {
+            descripcion: reglasDeProgramacion.describir(regla),
+            proximas: reglasDeProgramacion.proximas(regla, new Date(), cal, 5).map(d => d.toISOString()),
+            calendarioPropio: cal.propio,
+        };
+    } catch (e) {
+        return { error: e.message, proximas: [] };
+    }
+}));
+
+app.put('/api/programaciones/:id', conCentral(async (req) => tras({ programacion: await programaciones.actualizar(req.params.id, req.body || {}) })));
+app.delete('/api/programaciones/:id', conCentral(async (req) => { await programaciones.borrar(req.params.id); return tras({ ok: true }); }));
+app.post('/api/programaciones/:id/pausar', conCentral(async (req) => tras({ programacion: await programaciones.pausar(req.params.id, { hasta: req.body?.hasta || undefined, reanudar: !!req.body?.reanudar }) })));
+
+// «Run now»: una ocurrencia a mano, que queda en su historial como las demás.
+app.post('/api/programaciones/:id/correr', conCentral(async (req) => {
+    const prog = await programaciones.leer(req.params.id);
+    if (!prog) throw new Error('That schedule does not exist.');
+    return programador.correrOcurrencia(prog, new Date().toISOString(), { origen: 'programada' });
+}));
+
+app.get('/api/calendario', conCentral(async (req) => {
+    const ws = req.query.workspaceId || (PROYECTO_ABIERTO ? programaciones.workspaceDe(ROOT_DIR) : null);
+    return { workspaceId: ws, calendario: calendarioDeTrabajo.leer(ws) };
+}));
+app.put('/api/calendario', conCentral(async (req) => {
+    const ws = req.body?.workspaceId;
+    if (!ws) throw new Error('The calendar belongs to a group of projects: choose one.');
+    const cal = calendarioDeTrabajo.guardar(ws, req.body?.calendario || {});
+    return tras({ workspaceId: ws, calendario: cal });
+}));
+
+// ── Destinos de entrega (5.11, D6) ──────────────────────────────────────────
+// Las mismas dos mitades que una fuente: la definición viaja, la carpeta de
+// esta máquina va a la base de AmoxSQL. Ver server/destinos.js.
+const destinosDeEntrega = require('./destinos');
+
+app.get('/api/destinos', conCentral(async (req) => {
+    if (req.query.workspaceId) return { destinos: await destinosDeEntrega.listar({ workspaceId: String(req.query.workspaceId) }) };
+    if (!PROYECTO_ABIERTO) return { destinos: [] };
+    return { destinos: await destinosDeEntrega.listar({ raiz: ROOT_DIR }) };
+}));
+
+app.post('/api/destinos', conCentral(async (req) => {
+    const donde = destinoDeFuente(req);
+    let { definicion, ubicacionAqui } = req.body || {};
+    // Una carpeta dentro del proyecto, en un destino del proyecto: relativa y en
+    // la definición, como las fuentes.
+    if (donde.raiz && ubicacionAqui && path.isAbsolute(ubicacionAqui)) {
+        const rel = path.relative(donde.raiz, ubicacionAqui);
+        if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
+            definicion = { ...definicion, ubicacion: rel.split(path.sep).join('/') };
+            ubicacionAqui = null;
+        }
+    }
+    const def = await destinosDeEntrega.guardar(donde, definicion);
+    if (ubicacionAqui !== undefined) await destinosDeEntrega.ubicar(donde, def.nombre, ubicacionAqui || null);
+    return { destino: def };
+}));
+
+app.delete('/api/destinos/:nombre', conCentral(async (req) => {
+    await destinosDeEntrega.borrar(destinoDeFuente(req), req.params.nombre);
+    return { ok: true };
+}));
+
+app.put('/api/destinos/:nombre/ubicacion', conCentral(async (req) => {
+    return { ubicacion: await destinosDeEntrega.ubicar(destinoDeFuente(req), req.params.nombre, req.body?.ubicacion || null) };
+}));
+
 /**
  * Probar una definición sin guardarla: las primeras filas y las columnas. Va en
  * una instancia aparte, en memoria, para no dejar nada en la sesión.
@@ -6767,5 +6946,18 @@ async function atenderOrden(orden) {
     return lineaDeComandos.atender(orden, { dbManager, config: aiManager.getConfig() });
 }
 
-module.exports = { startServer, atenderOrden };
+/**
+ * Lo programado (5.11, D1): con qué corre, a quién avisa (D2) y, con la
+ * aplicación abierta, el reloj de cada minuto. Lo llama el trabajador del
+ * servidor tras arrancar; las pruebas lo llaman a mano.
+ */
+function arrancarProgramador({ reloj = true, avisar, proximaCambio, cadaMs } = {}) {
+    const programador = require('./programacion/programador');
+    programador.configurar({ dbManager, avisar, proximaCambio });
+    if (reloj && !programador.relojEnMarcha()) programador.arrancar({ cadaMs });
+    // La primera vez, la tarea del sistema se pone al día con lo que haya.
+    Promise.resolve(arranque).then(() => programador.anunciarProxima()).catch(() => {});
+}
+
+module.exports = { startServer, atenderOrden, arrancarProgramador };
 // Trigger restart for Excel Import features

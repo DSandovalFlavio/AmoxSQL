@@ -49,6 +49,10 @@ if ((process.env.AMOXSQL_HOME || '').trim()) {
 // AmoxSQL ya está abierto, la orden se le entrega y este arranque sólo espera
 // el resultado; si no, este arranque la corre sin ventana (Dec-1).
 const ordenes = require('../server/ejecucion/ordenes');
+// Lo programado (5.11): la tarea del sistema (opcional) y los avisos.
+const programadorSistema = require('./programador');
+// Los avisos del sistema en Windows se agrupan por este id (el del instalador).
+if (process.platform === 'win32') app.setAppUserModelId('com.amoxsql.ide');
 const ordenInicial = ordenes.leerArgumentos(process.argv, { desde: app.isPackaged ? 1 : 2 });
 
 // El texto para la consola. Con --informe (lo pasa amoxsql.cmd) va SÓLO a ese
@@ -145,6 +149,8 @@ async function ordenTerminada(id, codigo) {
 let codigoDeSalida = 0;
 async function salir(codigo) {
     quitting = true;
+    // Que se vean los avisos de lo que corrió antes de salir (un tick sin ventana).
+    await programadorSistema.esperarAvisos();
     await shutdownServer();
     if (serverProcess) { serverProcess.kill(); serverProcess = null; }
     app.exit(codigo);
@@ -232,6 +238,16 @@ ipcMain.handle('export:pdf', async (_event, { html, landscape = false } = {}) =>
 
 // IPC Handler: Reveal a file in the OS file manager (Explorer/Finder) —
 // used by the tab context menu's "Reveal in Explorer".
+// Abrir con su programa un archivo que dejó un proceso (5.11, D5: el formulario).
+// Sólo documentos que existen: nunca un ejecutable ni un acceso directo.
+const ABRIBLES = /\.(xlsx|xlsm|xls|csv|tsv|txt|json|pdf|docx|pptx|html|md|parquet)$/i;
+ipcMain.handle('shell:openPath', async (_event, itemPath) => {
+    if (typeof itemPath !== 'string' || !itemPath) return 'No file';
+    const ruta = path.resolve(itemPath);
+    if (!ABRIBLES.test(ruta) || !fs.existsSync(ruta) || !fs.statSync(ruta).isFile()) return 'That file cannot be opened from here';
+    return shell.openPath(ruta);
+});
+
 ipcMain.handle('shell:showItemInFolder', (_event, itemPath) => {
     if (typeof itemPath === 'string' && itemPath) {
         shell.showItemInFolder(path.resolve(itemPath));
@@ -627,6 +643,16 @@ const initApp = () => {
             responderSecreto(serverProcess, msg);
             return;
         }
+        if (msg.type === 'aviso') {
+            programadorSistema.avisar(msg, mainWindow);
+            return;
+        }
+        if (msg.type === 'programador') {
+            programadorSistema.aplicar(msg.proxima, msg.activo).then((r) => {
+                if (r?.error) console.warn('[Programador] La tarea del sistema:', r.error);
+            });
+            return;
+        }
         if (msg.type === 'ready') {
             serverReady = true;
             startupReported = true;
@@ -680,7 +706,9 @@ const initApp = () => {
         );
     });
 
-    serverProcess.postMessage({ type: 'start', port: SERVER_PORT });
+    // El reloj de lo programado, sólo con ventana: un arranque sin ventana
+    // corre su orden (run o tick) y sale.
+    serverProcess.postMessage({ type: 'start', port: SERVER_PORT, reloj: !headless || quedarse });
 };
 
 // ─── Second-instance handler ──────────────────────────────────────────────────
@@ -696,7 +724,10 @@ app.on('second-instance', (_event, _argv, _cwd, datos) => {
     // la ventana y este proceso se queda.
     if (headless && !mainWindow) {
         quedarse = true;
-        if (serverReady) createWindow();
+        if (serverReady) {
+            createWindow();
+            serverProcess?.postMessage({ type: 'reloj' });
+        }
         return;
     }
     if (mainWindow) {

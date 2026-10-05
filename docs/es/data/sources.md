@@ -73,6 +73,19 @@ El nodo **Publish** de Data Flow escribe un Parquet en una carpeta (o un bucket)
 - **Frescura:** una fuente puede avisar si su archivo tiene más de N días.
 - CSV también se puede publicar, sin la garantía de esquema.
 
+### Destinos: adónde entregan los procesos
+Un **destino** es la dirección contraria: una carpeta con nombre donde los procesos dejan lo que producen. Por ejemplo, `entrega-cliente` es `G:\Clientes\Norte\Reportes` en esta máquina y otra carpeta en la de al lado. Vive en **Destinations**, debajo de Sources, en el explorador de base y en la ficha de un workspace.
+
+- **Dos mitades, como una fuente.** El nombre, la descripción y una **subcarpeta por fecha** opcional (`{fecha:AAAA}/{fecha:MM}`) viajan con el workspace o el proyecto. La carpeta es de esta máquina: en otra, el destino la pide la primera vez. Una carpeta dentro del proyecto va relativa y vale en todas.
+- **En un proceso.** En **Excel**, **Export File** y **Publish**, elígelo en **Deliver to**. El nodo entonces sólo da el **nombre del archivo**, donde valen `{fecha}`, `{fecha:AAAA-MM}`, `{hora}` y los `${parámetros}`: `cierre_{fecha:AAAA-MM}_${tienda}.xlsx`.
+- **La fecha es la de la ejecución.** Una ejecución programada usa la fecha que tocaba: el cierre de septiembre que corre el 2 de octubre lleva la fecha de septiembre.
+- **Lo que falla, se dice.** Se para con un mensaje claro en estos casos:
+  - un destino sin carpeta en esta máquina;
+  - una carpeta que no se alcanza (una unidad desconectada);
+  - un nombre de archivo con carpetas dentro.
+
+  Nunca crea por su cuenta la carpeta del destino; sólo crea dentro de ella las subcarpetas por fecha.
+
 ## Notas y gotchas
 
 - Si la base del proyecto tiene un esquema llamado `fuentes`, `fuentes."x"` es ambiguo y el motor lo dice; usa `fuentes.main."x"`. El explorador avisa.

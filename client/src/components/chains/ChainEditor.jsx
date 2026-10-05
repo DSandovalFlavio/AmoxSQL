@@ -25,6 +25,9 @@ import NodeTypePicker from './NodeTypePicker';
 import NodeDocView from './NodeDocView';
 import ChainHistoryPanel from './ChainHistoryPanel';
 import ChainVariablesPanel from './ChainVariablesPanel';
+import ChainLote from './ChainLote';
+import ChainFormulario from './ChainFormulario';
+import ChainProgramar from './ChainProgramar';
 import { NODE_TYPES } from './chainNodeTypes';
 import {
     hasCycle,
@@ -100,6 +103,10 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         name: initialChain.name || 'New Chain',
         description: initialChain.description || '',
         variables: initialChain.variables || {},
+        // 5.11 (D4): el tipo de cada parámetro; sin tocar si no viene.
+        parametros: initialChain.parametros,
+        // 5.11 (D5): 'formulario' = se abre como formulario, para quien no edita.
+        vista: initialChain.vista,
         // Sin tocar si no viene: una cadena de la 5.8 se guarda igual que llegó.
         config: initialChain.config,
     });
@@ -139,6 +146,10 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const [logCollapsed, setLogCollapsed] = useState(true);
     const [previewTable, setPreviewTable] = useState(null);
     const [showVariables, setShowVariables] = useState(false);
+    const [showLote, setShowLote] = useState(false);
+    const [showProgramar, setShowProgramar] = useState(false);
+    // 5.11 (D5): el proceso como formulario. Abre así si el proceso lo pide.
+    const [comoFormulario, setComoFormulario] = useState(initialChain.vista === 'formulario');
     const [aiLoading, setAiLoading] = useState(false);
     const [showTemplateGallery, setShowTemplateGallery] = useState(() => initialNodes.length === 0);
     const [showGuide, setShowGuide] = useState(false);
@@ -203,6 +214,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 target: e.target,
             })),
             variables: chainMeta.variables,
+            ...(chainMeta.parametros?.length ? { parametros: chainMeta.parametros } : {}),
+            ...(chainMeta.vista ? { vista: chainMeta.vista } : {}),
         };
         return chainDef;
     }, [nodes, edges, chainMeta]);
@@ -809,7 +822,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     if (!ok) return;
                 }
 
-                setChainMeta(m => ({ name: chain.name, description: chain.description, variables: chain.variables, config: chain.config ?? m.config }));
+                setChainMeta(m => ({ name: chain.name, description: chain.description, variables: chain.variables, parametros: chain.parametros, config: chain.config ?? m.config }));
                 setNodes(chain.nodes.map(n => ({
                     id: n.id,
                     type: n.type,
@@ -1086,6 +1099,26 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         setConfigPopoverNodeId(newNode.id);
     }, [nodes, setNodes]);
 
+    const dialogoProgramar = showProgramar && (
+        <ChainProgramar chainDefinition={serialize()} filePath={filePath} onClose={() => setShowProgramar(false)} />
+    );
+
+    if (comoFormulario) {
+        return (
+            <>
+                <ChainFormulario
+                    chainDefinition={serialize()}
+                    filePath={filePath}
+                    siempreFormulario={chainMeta.vista === 'formulario'}
+                    onSiempreFormulario={(si) => setChainMeta(m => ({ ...m, vista: si ? 'formulario' : undefined }))}
+                    onEditar={() => setComoFormulario(false)}
+                    onProgramar={() => setShowProgramar(true)}
+                />
+                {dialogoProgramar}
+            </>
+        );
+    }
+
     return (
         <div className="chain-editor" ref={reactFlowWrapper}>
             <div className="chain-editor-body">
@@ -1174,6 +1207,9 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     panelOpen={panelOpen}
                     onTogglePanel={togglePanel}
                     onToggleVariables={() => setShowVariables(true)}
+                    onRunForEach={() => setShowLote(true)}
+                    onOpenAsForm={() => setComoFormulario(true)}
+                    onSchedule={() => setShowProgramar(true)}
                     onExportSql={handleExportSql}
                     onExportYaml={handleExportYaml}
                     onImportYaml={handleImportYaml}
@@ -1222,8 +1258,19 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 {showVariables && (
                     <ChainVariablesPanel
                         variables={chainMeta.variables}
-                        onChange={(vars) => setChainMeta(m => ({ ...m, variables: vars }))}
+                        parametros={chainMeta.parametros}
+                        onChange={({ variables: vars, parametros: defs }) => setChainMeta(m => ({ ...m, variables: vars, parametros: defs }))}
                         onClose={() => setShowVariables(false)}
+                    />
+                )}
+
+                {dialogoProgramar}
+
+                {showLote && (
+                    <ChainLote
+                        chainDefinition={serialize()}
+                        chainFile={filePath}
+                        onClose={() => setShowLote(false)}
                     />
                 )}
             </div>

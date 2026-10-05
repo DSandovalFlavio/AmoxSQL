@@ -21,6 +21,8 @@ import { iniciales, archivarWorkspace } from './api';
 import { resumenPolitica } from './WorkspacesPanel';
 import ContextoWorkspace from './ContextoWorkspace';
 import FuentesDelWorkspace from '../fuentes/FuentesDelWorkspace';
+import DestinosDeEntrega from '../fuentes/DestinosDeEntrega';
+import CalendarioDelWorkspace from './CalendarioDelWorkspace';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, {
@@ -331,6 +333,8 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
                 </div>
 
                 <FuentesDelWorkspace key={actual.id} workspace={actual} avisar={avisar} />
+                <DestinosDeEntrega key={`d-${actual.id}`} variante="tabla" workspace={actual} avisar={avisar} />
+                <CalendarioDelWorkspace key={`c-${actual.id}`} workspace={actual} avisar={avisar} />
 
                 <div className="wsv-etq"><LuCalendarClock size={12} />Recent runs</div>
                 <Ejecuciones lista={runs} />
