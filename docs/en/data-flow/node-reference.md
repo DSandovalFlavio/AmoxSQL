@@ -97,7 +97,8 @@ For what the visual nodes don't cover.
 | Node | What it does |
 |---|---|
 | **Create Table** | Materializes the result as a persistent table in the database |
-| **Export File** | Writes the result to a file (CSV/Parquet/Excel/JSON), local or cloud, optionally partitioned |
+| **Export File** | Writes the result to a file (CSV/Parquet/Excel/JSON), local or cloud, optionally partitioned. A local Excel comes out formatted |
+| **Excel** | A formatted workbook with one sheet per connected node, or the client's template filled in: its tables grow, and charts, formulas and formatting stay. See [Excel output](excel-output.md) |
 | **Publish** | Publishes a Parquet other projects read by name: written aside and swapped in at once (nobody reads half a file), with its schema and date inside, and registered as a [source](../data/sources.md). A schema change that breaks its readers stops it |
 
 ### Quality & Control

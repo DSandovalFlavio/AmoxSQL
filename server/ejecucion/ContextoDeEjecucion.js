@@ -38,7 +38,7 @@ const LEEN_LA_BASE = new Set([
 
 // Pasos que sólo leen archivos, la red, o lo que les llega del paso anterior.
 const SOLO_ARCHIVOS = new Set([
-    'import_file', 'import_folder', 'bucket_read', 'gsheet_read', 'http_fetch', 'export_file', 'fuente', 'publicar',
+    'import_file', 'import_folder', 'bucket_read', 'gsheet_read', 'http_fetch', 'export_file', 'fuente', 'publicar', 'excel',
     'checkpoint', 'join_tables', 'merge_tables', 'filter', 'group_aggregate', 'select_columns',
     'deduplicate', 'add_column', 'sort', 'sample', 'pivot', 'unpivot', 'type_cast',
     'window_functions', 'clean', 'date_ops', 'flatten', 'schema_validation', 'notification',

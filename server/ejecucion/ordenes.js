@@ -5,7 +5,15 @@
  * a quién entregar la orden y espera el resultado— y el servidor, que la
  * atiende. Por eso no carga nada pesado: sólo fs, path y dónde está el home.
  *
- *     AmoxSQL.exe run <proceso.sqlchain> --project <ruta> [--param nombre=valor]…
+ *     AmoxSQL.exe run <proceso.sqlchain> --project <ruta> [--param nombre=valor]… [--batch <lote.csv>]
+ *
+ * `--batch` (5.11, D4): una ejecución por fila de un CSV (o de una lista JSON);
+ * la primera línea nombra los parámetros. Los `--param` valen para todas.
+ *
+ *     AmoxSQL.exe tick
+ *
+ * (5.11, D1) Corre las programaciones que tocan y se pone al día. La lanza la
+ * tarea del sistema; con AmoxSQL abierto, se le entrega como cualquier orden.
  */
 const fs = require('fs');
 const path = require('path');
@@ -14,7 +22,7 @@ const { homeAmox } = require('../rutas');
 
 const CODIGO = { ok: 0, fallo: 1, argumentos: 2, credencial: 3, sinRespuesta: 4, noExiste: 5 };
 
-const USO = 'Usage: AmoxSQL run <process.sqlchain> --project <folder> [--param name=value]...';
+const USO = 'Usage: AmoxSQL run <process.sqlchain> --project <folder> [--param name=value]... [--batch <runs.csv>]';
 
 const carpeta = (nombre) => {
     const c = path.join(homeAmox(), nombre);
@@ -37,9 +45,19 @@ function leerArgumentos(argv, { desde = 1, cwd = process.cwd() } = {}) {
     // Chromium y Electron añaden interruptores propios (--allow-file-access-…);
     // la orden es la primera palabra que no es uno de ellos.
     const primera = a.findIndex(x => !String(x).startsWith('--'));
-    if (primera < 0 || a[primera] !== 'run') return null;
+    if (primera < 0) return null;
+    if (a[primera] === 'tick') {
+        const r = { orden: 'tick', proceso: null, proyecto: null, parametros: {}, informe: null };
+        const i = a.findIndex(x => x === '--informe' || String(x).startsWith('--informe='));
+        if (i >= 0) {
+            const v = a[i].includes('=') ? a[i].slice(a[i].indexOf('=') + 1) : a[i + 1];
+            if (v) r.informe = path.resolve(cwd, v);
+        }
+        return r;
+    }
+    if (a[primera] !== 'run') return null;
 
-    const r = { orden: 'run', proceso: null, proyecto: null, parametros: {}, informe: null };
+    const r = { orden: 'run', proceso: null, proyecto: null, parametros: {}, informe: null, lote: null };
     const error = (texto) => ({ ...r, error: `${texto}\n${USO}` });
     const valorDe = (i, nombre) => {
         const x = a[i];
@@ -62,6 +80,10 @@ function leerArgumentos(argv, { desde = 1, cwd = process.cwd() } = {}) {
             if (igual < 1) return error(`--param "${v.valor}" is not name=value.`);
             r.parametros[v.valor.slice(0, igual).trim()] = v.valor.slice(igual + 1);
             i += v.salto;
+        } else if (x === '--batch' || x.startsWith('--batch=')) {
+            const v = valorDe(i, '--batch');
+            if (v.falta) return error('--batch needs a .csv or .json file: one run per row.');
+            r.lote = v.valor; i += v.salto;
         } else if (x === '--informe' || x.startsWith('--informe=')) {
             // Lo pasa amoxsql.cmd: un archivo donde dejar el texto para la consola.
             const v = valorDe(i, '--informe');
@@ -82,6 +104,7 @@ function leerArgumentos(argv, { desde = 1, cwd = process.cwd() } = {}) {
     // Rutas absolutas AQUÍ, con el cwd de quien lanzó la orden: si se entrega a
     // la aplicación abierta, ella está en otra carpeta.
     r.proyecto = path.resolve(cwd, r.proyecto);
+    if (r.lote) r.lote = path.resolve(cwd, r.lote);
     if (path.isAbsolute(r.proceso)) {
         r.proceso = path.resolve(r.proceso);
     } else {
@@ -93,10 +116,12 @@ function leerArgumentos(argv, { desde = 1, cwd = process.cwd() } = {}) {
 
 /** Lo que se sabe sin arrancar nada: que existan la carpeta y el archivo. */
 function comprobarQueExiste(r) {
+    if (r.orden === 'tick') return null;
     if (!fs.existsSync(r.proyecto) || !fs.statSync(r.proyecto).isDirectory()) {
         return `The project folder does not exist: ${r.proyecto}`;
     }
     if (!fs.existsSync(r.proceso)) return `The process does not exist: ${r.proceso}`;
+    if (r.lote && !fs.existsSync(r.lote)) return `The batch file does not exist: ${r.lote}`;
     return null;
 }
 
@@ -115,10 +140,33 @@ function leerJson(ruta) {
 
 /** Lo que se lee en la consola, a partir del resultado. */
 function textoDelResultado(r) {
+    if (r.orden === 'tick') {
+        // Las horas, en la de esta máquina: es lo que se lee en la consola.
+        const local = (iso) => {
+            if (!iso) return '';
+            const d = new Date(iso);
+            const dos = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())} ${dos(d.getHours())}:${dos(d.getMinutes())}`;
+        };
+        const c = r.corridas || [];
+        const l = [r.pausado ? `AmoxSQL: schedules are paused until ${local(r.pausado)}` : `AmoxSQL: ${c.length ? `${c.length} scheduled process${c.length === 1 ? '' : 'es'} ran` : 'nothing was due'}`];
+        for (const x of c) l.push(`  ${x.estado === 'ok' ? 'ok  ' : 'FAIL'} ${x.nombre} (due ${local(x.prevista)})${x.perdidas ? `, ${x.perdidas} missed before it` : ''}${x.error ? ` — ${x.error}` : ''}`);
+        for (const x of r.saltadas || []) l.push(`  skip ${x.nombre}: ${x.motivo}`);
+        if (r.proxima) l.push(`  Next: ${local(r.proxima)}`);
+        return l.join('\n') + '\n';
+    }
     const nombre = path.basename(r.proceso || '') || 'process';
     const donde = r.entregada ? ' (run by the open AmoxSQL)' : '';
     const l = [r.codigo === 0 ? `AmoxSQL: ${nombre} finished${donde}` : `AmoxSQL: ${nombre} failed (exit code ${r.codigo})${donde}`];
     if (r.mensaje) l.push(`  ${r.mensaje}`);
+    if (Array.isArray(r.lote)) {
+        const bien = r.lote.filter(x => x.codigo === 0).length;
+        l.push(`  ${bien} of ${r.lote.length} runs finished`);
+        for (const x of r.lote) {
+            const ps = Object.entries(x.parametros || {}).map(([k, v]) => `${k}=${v}`).join(', ');
+            l.push(`  ${x.codigo === 0 ? 'ok  ' : 'FAIL'} ${ps}${x.mensaje ? ` — ${x.mensaje}` : ''}`);
+        }
+    }
     for (const p of r.pasos || []) {
         l.push(`  ${p.estado === 'ok' ? 'ok  ' : 'FAIL'} ${p.nodo}${p.filas != null ? ` (${p.filas} rows)` : ''}${p.error ? ` — ${p.error}` : ''}`);
     }

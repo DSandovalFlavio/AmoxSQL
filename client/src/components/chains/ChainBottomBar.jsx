@@ -22,7 +22,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
     LuPlay, LuSquare, LuPlus, LuLayoutDashboard, LuMaximize, LuPanelRight,
-    LuEllipsis, LuVariable, LuFileCode2, LuFileDown, LuFileUp, LuTerminal,
+    LuEllipsis, LuVariable, LuRepeat, LuClipboardList, LuCalendarClock, LuFileCode2, LuFileDown, LuFileUp, LuTerminal,
     LuHistory, LuSparkles, LuLoader, LuTrash2, LuCircleAlert, LuSave,
     LuChevronUp, LuPencil, LuInfo, LuMemoryStick, LuHardDrive, LuDatabase, LuCheck,
 } from 'react-icons/lu';
@@ -59,7 +59,7 @@ const ChainBottomBar = ({
     onAddSource, onAutoLayout, onFitView, zoom = 1, base = null, onChangeBase,
     panelOpen, onTogglePanel,
     isDirty, onSave, onRename, onShowGuide,
-    onToggleVariables, onExportSql, onExportYaml, onImportYaml, onToggleLogs, onToggleHistory,
+    onToggleVariables, onRunForEach, onOpenAsForm, onSchedule, onExportSql, onExportYaml, onImportYaml, onToggleLogs, onToggleHistory,
     onGenerate, aiLoading, hasNodes,
 }) => {
     // Un solo estado para los dos menús: así no pueden quedar los dos abiertos
@@ -224,7 +224,10 @@ const ChainBottomBar = ({
 
                 {menu === 'more' && (
                     <div className="chain-bb-menu">
-                        <button onClick={pick(onToggleVariables)}><LuVariable size={12} /><span>Variables</span></button>
+                        <button onClick={pick(onToggleVariables)}><LuVariable size={12} /><span>Parameters</span></button>
+                        {onRunForEach && <button onClick={pick(onRunForEach)}><LuRepeat size={12} /><span>Run for each…</span></button>}
+                        {onOpenAsForm && <button onClick={pick(onOpenAsForm)}><LuClipboardList size={12} /><span>Open as a form</span></button>}
+                        {onSchedule && <button onClick={pick(onSchedule)}><LuCalendarClock size={12} /><span>Schedule…</span></button>}
                         <button onClick={pick(onExportSql)}><LuFileCode2 size={12} /><span>View SQL</span></button>
                         <button onClick={pick(onExportYaml)}><LuFileDown size={12} /><span>Export</span></button>
                         <button onClick={pick(onImportYaml)}><LuFileUp size={12} /><span>Import</span></button>

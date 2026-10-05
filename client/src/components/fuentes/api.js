@@ -98,3 +98,21 @@ export const credencialesDeNube = () =>
 
 /** Las tablas de un lago (C4, 5.3): [{ ruta, formato, nombre }]. */
 export const explorarLago = (ubicacion, credencial) => pedir('POST', '/api/fuentes/explorar', { ubicacion, credencial });
+
+// ── Destinos de entrega (5.11, D6) ──────────────────────────────────────────
+// Las dos mitades de una fuente con la flecha al revés: la definición viaja con
+// el workspace o el proyecto; la carpeta de esta máquina, no.
+export const listarDestinos = (workspaceId) => pedir('GET', `/api/destinos${conWorkspace(workspaceId)}`).then(d => d.destinos || []);
+export const guardarDestino = ({ workspaceId, definicion, ubicacionAqui }) =>
+    pedir('POST', '/api/destinos', { workspaceId, definicion, ubicacionAqui });
+export const borrarDestino = (nombre, workspaceId) =>
+    pedir('DELETE', `/api/destinos/${encodeURIComponent(nombre)}${conWorkspace(workspaceId)}`);
+export const ubicarDestino = (nombre, ubicacion, workspaceId) =>
+    pedir('PUT', `/api/destinos/${encodeURIComponent(nombre)}/ubicacion`, { ubicacion, workspaceId });
+export const avisarCambioDestinos = () => window.dispatchEvent(new CustomEvent('amox_destinos_cambiaron'));
+
+export const TEXTO_ESTADO_DESTINO = {
+    listo: null,
+    sin_ubicar: 'No folder on this machine',
+    no_se_llega: 'Folder not reachable here',
+};

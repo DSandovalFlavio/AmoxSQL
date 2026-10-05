@@ -42,9 +42,18 @@ Data Flow valida el pipeline en vivo mientras lo construyes: los nodos con probl
 2. Selecciona un nodo para habilitar **From Here** (desde ese nodo hacia adelante) y **To Here** (hasta ese nodo).
 3. Los detalles de ejecución — estado por nodo, logs, historial, cancelar, exportar/compilar — están en [Ejecutar y motor](running-and-engine.md).
 
-### Auto-organizar y variables
+### Auto-organizar y parámetros
 - **Layout** reorganiza automáticamente los nodos en un diseño limpio de izquierda a derecha.
-- **Variables** abre un panel para definir valores reutilizables. Referéncialos en cualquier campo con `${nombre}` (por ejemplo, una ruta base o un año) y cámbialos en un solo lugar.
+- **Parameters** (en **⋯**) abre un panel para definir valores reutilizables. Referéncialos en cualquier campo con `${nombre}` (por ejemplo, una ruta base o un año) y cámbialos en un solo lugar.
+  - El valor de ahí es el de por defecto. La [línea de comandos](command-line.md), un lote o una programación pueden dar otro.
+  - Dale a un parámetro un **tipo** (texto, número, fecha, lista, sí/no) y un valor que llega de fuera se comprueba antes de correr. En el SQL entra con su tipo, así que nunca puede cambiar la consulta. Una fecha se compara como fecha: `WHERE fecha >= ${desde}`.
+  - «As written» conserva lo de antes: el valor se pega como texto.
+- **Open as a form** (en **⋯**) enseña el proceso como lo usará quien no escribe SQL:
+  - su nombre y su descripción, un campo por cada parámetro con tipo (un calendario, una lista, sí/no) y **Run**;
+  - al terminar, los archivos que dejó, con **Open** y **Show in folder**; si falló, el paso y por qué.
+
+  Marca **Always open this process as a form** y el proceso se abre así para cualquiera; **Edit the process** vuelve al lienzo. Ponle a cada parámetro una etiqueta en **Parameters**: es lo que enseña el formulario.
+- **Run for each…** (en **⋯**) corre el proceso una vez por cada valor de un parámetro. Los valores salen de una lista, o de los valores distintos de una columna de una fuente o tabla («cada tienda»). Pon el parámetro en el nombre del archivo de salida (`salidas/reporte_${tienda}.xlsx`) para que cada ejecución deje el suyo. Cada ejecución queda en el historial del proceso.
 
 ### Galería de plantillas
 Al abrir un chain vacío aparece la galería con plantillas de arranque:
@@ -69,7 +78,8 @@ El panel de IA del lienzo convierte una descripción en lenguaje natural en un p
 | **Cancel** | Detiene una ejecución en curso |
 | **Clear** | Limpia los resultados de la última ejecución del lienzo |
 | **Layout** | Reorganiza automáticamente los nodos |
-| **Variables** | Abre el panel de variables `${...}` |
+| **Parameters** | Abre el panel de parámetros `${...}` |
+| **Run for each…** | Corre el proceso una vez por cada valor de un parámetro |
 | **Export** | Exporta el chain como archivo YAML |
 | **SQL** | Compila el chain a un script SQL ejecutable |
 | **Import** | Importa un chain desde un archivo YAML (reemplaza el lienzo, con confirmación) |
