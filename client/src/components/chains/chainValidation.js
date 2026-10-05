@@ -52,7 +52,7 @@ export function validateNode(node, edges = []) {
 
         case 'publicar': {
             if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(config.fuente || '')) errors.push('Name the source it publishes: lowercase letters, digits and hyphens');
-            if (!config.carpeta?.trim()) errors.push('Choose the folder (or bucket) to publish to');
+            if (!config.carpeta?.trim() && !config.destino) errors.push('Choose the folder (or bucket) to publish to');
             if (!hasUpstream && !config.query?.trim()) errors.push('No upstream node connected — nothing to publish');
             break;
         }

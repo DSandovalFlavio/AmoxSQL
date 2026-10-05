@@ -20611,3 +20611,28 @@ tr:hover td {
   color: var(--button-text-color);
   filter: brightness(1.08);
 }
+
+/* ── Destinos de entrega (5.11, D6) ────────────────────────────────────── */
+.edd-panel { width: min(94vw, 560px); }
+.edd-fila { display: flex; gap: 6px; align-items: center; }
+.edd-fila .cvp-anadir { align-self: auto; flex: none; }
+.edd-fila-arbol { display: flex; align-items: center; gap: 6px; }
+.edd-fila-arbol .db-table-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.edd-acciones { display: none; gap: 2px; }
+.edd-fila-arbol:hover .edd-acciones,
+.edd-fila-arbol:focus-within .edd-acciones { display: inline-flex; }
+.edd-boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.edd-boton:hover { color: var(--accent-primary); background: var(--hover-bg); }
+.edd-boton:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 0; }

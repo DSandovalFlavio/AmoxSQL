@@ -18,6 +18,7 @@ const { publicar } = require('./publicar');
 const { escribirLibro } = require('./xlsxEscribir');
 const { rellenarPlantilla } = require('./xlsxPlantilla');
 const parametros = require('./parametros');
+const destinos = require('./destinos');
 
 /**
  * Una carga de carpeta (C5, 4.2): cada fila sabe de qué archivo vino, en la
@@ -124,6 +125,20 @@ class ChainExecutor extends EventEmitter {
             ? (Array.isArray(config.yAxisKeys) ? config.yAxisKeys : String(config.yAxisKeys).split(',').map(s => s.trim()).filter(Boolean))
             : (fallbackY ? [fallbackY] : []);
         return { xAxisKey, yAxisKeys };
+    }
+
+    /**
+     * Dónde deja su archivo un paso que escribe (Excel, Export, Publish), 5.11 D6:
+     * en un destino con nombre (`config.destino`; `outputPath` es entonces sólo
+     * el nombre del archivo), o en la ruta escrita. Las fechas del nombre
+     * (`{fecha}`, `{fecha:AAAA-MM}`, `{hora}`) son las de la ejecución, o las de
+     * la ocurrencia prevista si la lanzó una programación.
+     */
+    async rutaDeSalida(config, projectPath, ctx = {}, nombre = config.outputPath) {
+        const fecha = ctx.fechaReferencia ? new Date(ctx.fechaReferencia) : new Date();
+        if (config.destino) return destinos.rutaDeEntrega({ raiz: projectPath }, config.destino, nombre, { fecha });
+        const conFechas = destinos.ponerFechas(nombre || '', fecha);
+        return /^(s3|gs|gcs):\/\//i.test(conFechas) ? conFechas : this.resolvePath(projectPath, conFechas);
     }
 
     resolvePath(projectPath, filePath) {
@@ -1442,9 +1457,9 @@ class ChainExecutor extends EventEmitter {
             }
 
             case 'export_file': {
-                if (!config.outputPath) throw new Error('Export File node: output file path is required');
-                const isCloud = /^(s3|gs|gcs):\/\//i.test(config.outputPath);
-                const outputPath = isCloud ? config.outputPath : this.resolvePath(projectPath, config.outputPath);
+                if (!config.outputPath) throw new Error(config.destino ? 'Export File node: give the file a name' : 'Export File node: output file path is required');
+                const outputPath = await this.rutaDeSalida(config, projectPath, ctx);
+                const isCloud = /^(s3|gs|gcs):\/\//i.test(outputPath);
                 const format = config.format || 'csv';
                 const delimiter = config.delimiter || ',';
                 const compression = config.compression || '';
@@ -1483,7 +1498,7 @@ class ChainExecutor extends EventEmitter {
                     // cargar la extensión espacial.
                     const r = await escribirLibro(dbManager, outputPath, [{ nombre: path.basename(outputPath).replace(/\.xlsx$/i, ''), consulta: query, formatos: config.formatos || {} }]);
                     resultType = 'file_exported';
-                    resultSummary = { path: config.outputPath, format: 'xlsx', size: `${(r.bytes / 1024).toFixed(1)} KB`, rowCount: r.hojas[0].filas };
+                    resultSummary = { path: outputPath, format: 'xlsx', size: `${(r.bytes / 1024).toFixed(1)} KB`, rowCount: r.hojas[0].filas, destino: config.destino || null };
                     sql = `-- Excel: ${outputPath}`;
                     break;
                 } else if (format === 'xlsx' || format === 'excel') {
@@ -1499,7 +1514,7 @@ class ChainExecutor extends EventEmitter {
                 const stat = (!isCloud && fs.existsSync(outputPath)) ? fs.statSync(outputPath) : null;
                 const sizeKb = stat ? (stat.size / 1024).toFixed(1) : '?';
                 resultType = 'file_exported';
-                resultSummary = { path: config.outputPath, format, size: isCloud ? 'cloud' : `${sizeKb} KB` };
+                resultSummary = { path: outputPath, format, size: isCloud ? 'cloud' : `${sizeKb} KB`, destino: config.destino || null };
                 break;
             }
 
@@ -1508,16 +1523,18 @@ class ChainExecutor extends EventEmitter {
                 // fuente registrada para que otros proyectos la lean por nombre.
                 const nombre = String(config.fuente || '').trim();
                 if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(nombre)) throw new Error('Publish node: the source name uses lowercase letters, digits and hyphens (for example: clean-sales)');
-                if (!config.carpeta) throw new Error('Publish node: choose the folder (or bucket) to publish to');
+                if (!config.carpeta && !config.destino) throw new Error('Publish node: choose the folder (or bucket) to publish to');
                 let query = config.query || '';
                 if (!query && upstreamOutputs.length > 0) query = this.outputToQuery(upstreamOutputs[0]);
                 if (!query) throw new Error('Publish node has no upstream node connected.');
                 const formato = config.formato === 'csv' ? 'csv' : 'parquet';
                 const archivo = String(config.archivo || '').trim() || `${nombre}.${formato}`;
-                const remoto = /^(s3|gs|gcs|r2|az|azure|abfss|https?):\/\//i.test(config.carpeta);
-                const destino = remoto
-                    ? `${String(config.carpeta).replace(/\/+$/, '')}/${archivo}`
-                    : path.join(this.resolvePath(projectPath, config.carpeta), archivo);
+                const destino = config.destino
+                    ? await this.rutaDeSalida(config, projectPath, ctx, archivo)
+                    : /^(s3|gs|gcs|r2|az|azure|abfss|https?):\/\//i.test(config.carpeta)
+                        ? `${String(config.carpeta).replace(/\/+$/, '')}/${archivo}`
+                        : path.join(this.resolvePath(projectPath, config.carpeta), archivo);
+                const remoto = /^(s3|gs|gcs|r2|az|azure|abfss|https?):\/\//i.test(destino);
                 if (remoto && config.credencial) {
                     const fuentes = require('./fuentes');
                     await dbManager.query(await secretos.sqlDeCredencial(config.credencial, fuentes.alcanceDe(destino)));
@@ -1559,8 +1576,9 @@ class ChainExecutor extends EventEmitter {
             case 'excel': {
                 // 5.11 (D3): un libro con una hoja por entrada, o la plantilla
                 // del cliente rellenada. Escribe aparte y renombra (Dec-13).
-                if (!config.outputPath) throw new Error('Excel node: choose where to save the workbook');
-                const destino = this.resolvePath(projectPath, config.outputPath);
+                if (!config.outputPath) throw new Error(config.destino ? 'Excel node: give the workbook a name' : 'Excel node: choose where to save the workbook');
+                const destino = await this.rutaDeSalida(config, projectPath, ctx);
+                if (/^[a-z][a-z0-9+.-]*:\/\//i.test(destino)) throw new Error('Excel node: a workbook is written to a folder, not to a bucket');
                 if (!/\.xls[xm]$/i.test(destino)) throw new Error('Excel node: the file name must end in .xlsx (or .xlsm for a template with macros)');
                 const entradas = (ctx.entradas || []).filter(e => e.salida);
                 if (!entradas.length) throw new Error('Excel node: connect at least one node; each one becomes a sheet');
@@ -2419,7 +2437,7 @@ class ChainExecutor extends EventEmitter {
         }
     }
 
-    async _run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, deFuera = {}, historial = null, oyente = null, alCrear = null } = {}) {
+    async _run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, deFuera = {}, fechaReferencia = null, historial = null, oyente = null, alCrear = null } = {}) {
         const { nodes, edges = [], name = 'Untitled Chain' } = chainDef;
         const anotar = historial || chainPersistence.ligar(dbManager);
         // Chain-level variables (from the .sqlchain) merged with run-time overrides.
@@ -2570,7 +2588,7 @@ class ChainExecutor extends EventEmitter {
                             id: pid, etiqueta: nodeMap.get(pid)?.label || pid,
                             salida: nodeOutputs.get(pid) || this.staticOutputRef(nodeMap.get(pid), chainFile),
                         }));
-                        const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, parametros: param, fanout, entradas });
+                        const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, parametros: param, fechaReferencia, fanout, entradas });
                         const durationMs = Date.now() - startTime;
 
                         // Emit SQL executed
