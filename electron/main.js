@@ -232,6 +232,16 @@ ipcMain.handle('export:pdf', async (_event, { html, landscape = false } = {}) =>
 
 // IPC Handler: Reveal a file in the OS file manager (Explorer/Finder) —
 // used by the tab context menu's "Reveal in Explorer".
+// Abrir con su programa un archivo que dejó un proceso (5.11, D5: el formulario).
+// Sólo documentos que existen: nunca un ejecutable ni un acceso directo.
+const ABRIBLES = /\.(xlsx|xlsm|xls|csv|tsv|txt|json|pdf|docx|pptx|html|md|parquet)$/i;
+ipcMain.handle('shell:openPath', async (_event, itemPath) => {
+    if (typeof itemPath !== 'string' || !itemPath) return 'No file';
+    const ruta = path.resolve(itemPath);
+    if (!ABRIBLES.test(ruta) || !fs.existsSync(ruta) || !fs.statSync(ruta).isFile()) return 'That file cannot be opened from here';
+    return shell.openPath(ruta);
+});
+
 ipcMain.handle('shell:showItemInFolder', (_event, itemPath) => {
     if (typeof itemPath === 'string' && itemPath) {
         shell.showItemInFolder(path.resolve(itemPath));
