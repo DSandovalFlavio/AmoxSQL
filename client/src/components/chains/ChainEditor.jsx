@@ -27,6 +27,7 @@ import ChainHistoryPanel from './ChainHistoryPanel';
 import ChainVariablesPanel from './ChainVariablesPanel';
 import ChainLote from './ChainLote';
 import ChainFormulario from './ChainFormulario';
+import ChainProgramar from './ChainProgramar';
 import { NODE_TYPES } from './chainNodeTypes';
 import {
     hasCycle,
@@ -146,6 +147,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const [previewTable, setPreviewTable] = useState(null);
     const [showVariables, setShowVariables] = useState(false);
     const [showLote, setShowLote] = useState(false);
+    const [showProgramar, setShowProgramar] = useState(false);
     // 5.11 (D5): el proceso como formulario. Abre así si el proceso lo pide.
     const [comoFormulario, setComoFormulario] = useState(initialChain.vista === 'formulario');
     const [aiLoading, setAiLoading] = useState(false);
@@ -1097,15 +1099,23 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         setConfigPopoverNodeId(newNode.id);
     }, [nodes, setNodes]);
 
+    const dialogoProgramar = showProgramar && (
+        <ChainProgramar chainDefinition={serialize()} filePath={filePath} onClose={() => setShowProgramar(false)} />
+    );
+
     if (comoFormulario) {
         return (
-            <ChainFormulario
-                chainDefinition={serialize()}
-                filePath={filePath}
-                siempreFormulario={chainMeta.vista === 'formulario'}
-                onSiempreFormulario={(si) => setChainMeta(m => ({ ...m, vista: si ? 'formulario' : undefined }))}
-                onEditar={() => setComoFormulario(false)}
-            />
+            <>
+                <ChainFormulario
+                    chainDefinition={serialize()}
+                    filePath={filePath}
+                    siempreFormulario={chainMeta.vista === 'formulario'}
+                    onSiempreFormulario={(si) => setChainMeta(m => ({ ...m, vista: si ? 'formulario' : undefined }))}
+                    onEditar={() => setComoFormulario(false)}
+                    onProgramar={() => setShowProgramar(true)}
+                />
+                {dialogoProgramar}
+            </>
         );
     }
 
@@ -1199,6 +1209,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     onToggleVariables={() => setShowVariables(true)}
                     onRunForEach={() => setShowLote(true)}
                     onOpenAsForm={() => setComoFormulario(true)}
+                    onSchedule={() => setShowProgramar(true)}
                     onExportSql={handleExportSql}
                     onExportYaml={handleExportYaml}
                     onImportYaml={handleImportYaml}
@@ -1252,6 +1263,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                         onClose={() => setShowVariables(false)}
                     />
                 )}
+
+                {dialogoProgramar}
 
                 {showLote && (
                     <ChainLote

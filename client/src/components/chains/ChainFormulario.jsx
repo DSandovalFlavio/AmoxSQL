@@ -10,7 +10,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     LuCircleAlert, LuCircleCheck, LuExternalLink, LuFileSpreadsheet, LuFile, LuFolderOpen,
-    LuLoader, LuPencil, LuPlay,
+    LuLoader, LuPencil, LuPlay, LuCalendarClock,
 } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 
@@ -54,7 +54,7 @@ function Campo({ def, valor, onChange, error }) {
     );
 }
 
-const ChainFormulario = ({ chainDefinition, filePath, siempreFormulario, onSiempreFormulario, onEditar }) => {
+const ChainFormulario = ({ chainDefinition, filePath, siempreFormulario, onSiempreFormulario, onEditar, onProgramar }) => {
     const defs = useMemo(() => chainDefinition.parametros || [], [chainDefinition]);
     const [valores, setValores] = useState(() => Object.fromEntries(defs.map(d => {
         const v = chainDefinition.variables?.[d.nombre];
@@ -179,7 +179,10 @@ const ChainFormulario = ({ chainDefinition, filePath, siempreFormulario, onSiemp
                         <input type="checkbox" checked={!!siempreFormulario} onChange={e => onSiempreFormulario?.(e.target.checked)} />
                         Always open this process as a form
                     </label>
-                    <button type="button" className="cf-editar" onClick={onEditar}><LuPencil size={13} /> Edit the process</button>
+                    <span className="cf-pie-acciones">
+                        {onProgramar && <button type="button" className="cf-editar" onClick={onProgramar}><LuCalendarClock size={13} /> Schedule…</button>}
+                        <button type="button" className="cf-editar" onClick={onEditar}><LuPencil size={13} /> Edit the process</button>
+                    </span>
                 </footer>
             </div>
         </div>

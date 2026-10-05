@@ -75,7 +75,10 @@ AmoxSQL.exe run weekly.sqlchain --project "C:\Stores" --batch stores.csv
 | **4** | AmoxSQL was open and didn't answer within 30 seconds |
 | **5** | The project folder or the process file doesn't exist |
 
-### At a set time: the Windows Task Scheduler
+### At a set time
+The simplest way is **⋯ → Schedule…** in Data Flow: AmoxSQL keeps the schedule, catches up after the computer was off and, if you turn it on, wakes itself with a Windows task. See [Scheduling processes](scheduling.md). `AmoxSQL.exe tick` runs whatever is due right now: it's what that task calls.
+
+To call it from another tool instead, use the Windows Task Scheduler by hand:
 1. Open **Task Scheduler** and choose **Create Basic Task**.
 2. Give it a name (for example, *Weekly sales*) and a trigger: **Weekly**, Monday at 7:00.
 3. Under **Action**, choose **Start a program**:
@@ -83,7 +86,7 @@ AmoxSQL.exe run weekly.sqlchain --project "C:\Stores" --batch stores.csv
    - **Add arguments:** `run flows\sales.sqlchain --project "C:\Projects\Sales 2026"`
 4. Finish the wizard. The task's **History** shows the exit code of every run: `0` means it went well.
 
-The task runs as your user, so it uses your keychain credentials. Scheduling from inside the application comes in a later version.
+The task runs as your user, so it uses your keychain credentials.
 
 ## Reference: where things end up
 

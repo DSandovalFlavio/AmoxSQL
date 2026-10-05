@@ -6563,6 +6563,81 @@ app.put('/api/fuentes/:nombre/ubicacion', conCentral(async (req) => {
     return { ubicacion };
 }));
 
+// ── Lo programado (5.11, D1) ─────────────────────────────────────────────────
+// Las programaciones son de esta máquina (Dec-15). Ver server/programacion/.
+const programaciones = require('./programacion/programaciones');
+const programador = require('./programacion/programador');
+const reglasDeProgramacion = require('./programacion/reglas');
+const calendarioDeTrabajo = require('./programacion/calendario');
+
+const rutaDeProceso = (proceso, proyecto) => (path.isAbsolute(String(proceso)) ? String(proceso) : path.resolve(proyecto, String(proceso)));
+const tras = async (r) => { programador.anunciarProxima(); return r; };
+
+app.get('/api/programaciones', conCentral(async (req) => {
+    let lista = await programaciones.listar();
+    if (req.query.proceso && PROYECTO_ABIERTO) {
+        const abs = rutaDeProceso(req.query.proceso, ROOT_DIR);
+        lista = lista.filter(p => path.resolve(p.proceso) === path.resolve(abs));
+    }
+    return {
+        programaciones: lista,
+        pausaGeneral: await programaciones.pausaGeneral(),
+        sistema: { activo: (await baseCentral.preferencia('programador_sistema')) === true, soportado: process.platform === 'win32' },
+        alAbrir: programador.alAbrir(),
+    };
+}));
+
+app.post('/api/programaciones', conCentral(async (req) => {
+    const b = req.body || {};
+    const proyecto = b.proyecto || (PROYECTO_ABIERTO ? ROOT_DIR : null);
+    if (!proyecto) throw new Error('Open the project of the process first.');
+    return tras({ programacion: await programaciones.crear({ ...b, proyecto, proceso: rutaDeProceso(b.proceso, proyecto) }) });
+}));
+
+app.put('/api/programaciones/pausa', conCentral(async (req) => tras({ pausaGeneral: await programaciones.pausaGeneral(req.body?.hasta || null) })));
+
+app.put('/api/programaciones/sistema', conCentral(async (req) => {
+    await baseCentral.guardarPreferencia('programador_sistema', req.body?.activo === true);
+    return tras({ activo: req.body?.activo === true, soportado: process.platform === 'win32' });
+}));
+
+app.post('/api/programaciones/vista-previa', conCentral(async (req) => {
+    const { regla, workspaceId = null } = req.body || {};
+    try {
+        const ws = workspaceId || (PROYECTO_ABIERTO ? programaciones.workspaceDe(ROOT_DIR) : null);
+        const cal = calendarioDeTrabajo.leer(ws);
+        return {
+            descripcion: reglasDeProgramacion.describir(regla),
+            proximas: reglasDeProgramacion.proximas(regla, new Date(), cal, 5).map(d => d.toISOString()),
+            calendarioPropio: cal.propio,
+        };
+    } catch (e) {
+        return { error: e.message, proximas: [] };
+    }
+}));
+
+app.put('/api/programaciones/:id', conCentral(async (req) => tras({ programacion: await programaciones.actualizar(req.params.id, req.body || {}) })));
+app.delete('/api/programaciones/:id', conCentral(async (req) => { await programaciones.borrar(req.params.id); return tras({ ok: true }); }));
+app.post('/api/programaciones/:id/pausar', conCentral(async (req) => tras({ programacion: await programaciones.pausar(req.params.id, { hasta: req.body?.hasta || undefined, reanudar: !!req.body?.reanudar }) })));
+
+// «Run now»: una ocurrencia a mano, que queda en su historial como las demás.
+app.post('/api/programaciones/:id/correr', conCentral(async (req) => {
+    const prog = await programaciones.leer(req.params.id);
+    if (!prog) throw new Error('That schedule does not exist.');
+    return programador.correrOcurrencia(prog, new Date().toISOString(), { origen: 'programada' });
+}));
+
+app.get('/api/calendario', conCentral(async (req) => {
+    const ws = req.query.workspaceId || (PROYECTO_ABIERTO ? programaciones.workspaceDe(ROOT_DIR) : null);
+    return { workspaceId: ws, calendario: calendarioDeTrabajo.leer(ws) };
+}));
+app.put('/api/calendario', conCentral(async (req) => {
+    const ws = req.body?.workspaceId;
+    if (!ws) throw new Error('The calendar belongs to a group of projects: choose one.');
+    const cal = calendarioDeTrabajo.guardar(ws, req.body?.calendario || {});
+    return tras({ workspaceId: ws, calendario: cal });
+}));
+
 // ── Destinos de entrega (5.11, D6) ──────────────────────────────────────────
 // Las mismas dos mitades que una fuente: la definición viaja, la carpeta de
 // esta máquina va a la base de AmoxSQL. Ver server/destinos.js.
@@ -6871,5 +6946,18 @@ async function atenderOrden(orden) {
     return lineaDeComandos.atender(orden, { dbManager, config: aiManager.getConfig() });
 }
 
-module.exports = { startServer, atenderOrden };
+/**
+ * Lo programado (5.11, D1): con qué corre, a quién avisa (D2) y, con la
+ * aplicación abierta, el reloj de cada minuto. Lo llama el trabajador del
+ * servidor tras arrancar; las pruebas lo llaman a mano.
+ */
+function arrancarProgramador({ reloj = true, avisar, proximaCambio, cadaMs } = {}) {
+    const programador = require('./programacion/programador');
+    programador.configurar({ dbManager, avisar, proximaCambio });
+    if (reloj && !programador.relojEnMarcha()) programador.arrancar({ cadaMs });
+    // La primera vez, la tarea del sistema se pone al día con lo que haya.
+    Promise.resolve(arranque).then(() => programador.anunciarProxima()).catch(() => {});
+}
+
+module.exports = { startServer, atenderOrden, arrancarProgramador };
 // Trigger restart for Excel Import features

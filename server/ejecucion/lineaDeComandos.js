@@ -54,6 +54,7 @@ function lineaDeEvento(e) {
  * @returns {Promise<object>} el resultado, también escrito en su archivo
  */
 async function atender(orden, { dbManager, config }) {
+    if (orden.orden === 'tick') return atenderTick(orden, { dbManager });
     const { id } = orden;
     const inicio = Date.now();
     const registro = rutaDelRegistro(id);
@@ -206,6 +207,33 @@ async function atender(orden, { dbManager, config }) {
         lote: resultados,
         mensaje: fallidas ? `${fallidas} of ${lote.length} runs failed` : null,
     });
+}
+
+/**
+ * `AmoxSQL.exe tick` (5.11, D1): corre lo programado que toca y se pone al día.
+ * Deja su resultado como cualquier orden; el código es 1 si alguna falló.
+ */
+async function atenderTick(orden, { dbManager }) {
+    const programador = require('../programacion/programador');
+    const programaciones = require('../programacion/programaciones');
+    programador.configurar({ dbManager });
+    const inicio = Date.now();
+    let r;
+    try { r = await programador.tick(); }
+    catch (e) { r = { corridas: [], saltadas: [], error: e.message }; }
+    const proxima = await programaciones.proximaGlobal().catch(() => null);
+    const fallidas = (r.corridas || []).filter(x => x.estado !== 'ok').length;
+    const resultado = {
+        id: orden.id, orden: 'tick', codigo: r.error || fallidas ? CODIGO.fallo : CODIGO.ok,
+        estado: r.error || fallidas ? 'fallo' : 'ok', corridas: r.corridas || [], saltadas: r.saltadas || [],
+        pausado: r.pausado || null, proxima: proxima ? proxima.toISOString() : null, mensaje: r.error || null,
+        duracionMs: Date.now() - inicio, entregada: !!orden.entregada,
+    };
+    try {
+        fs.appendFileSync(rutaDelRegistro(orden.id), `${hora()}  tick: ${resultado.corridas.length} ran, ${resultado.saltadas.length} skipped${resultado.pausado ? `, paused until ${resultado.pausado}` : ''}\n`);
+    } catch { /* sin registro */ }
+    try { escribirJson(rutaDelResultado(orden.id), resultado); } catch (e) { console.error('[CLI] No se pudo escribir el resultado:', e.message); }
+    return resultado;
 }
 
 module.exports = { atender };

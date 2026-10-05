@@ -49,6 +49,10 @@ if ((process.env.AMOXSQL_HOME || '').trim()) {
 // AmoxSQL ya está abierto, la orden se le entrega y este arranque sólo espera
 // el resultado; si no, este arranque la corre sin ventana (Dec-1).
 const ordenes = require('../server/ejecucion/ordenes');
+// Lo programado (5.11): la tarea del sistema (opcional) y los avisos.
+const programadorSistema = require('./programador');
+// Los avisos del sistema en Windows se agrupan por este id (el del instalador).
+if (process.platform === 'win32') app.setAppUserModelId('com.amoxsql.ide');
 const ordenInicial = ordenes.leerArgumentos(process.argv, { desde: app.isPackaged ? 1 : 2 });
 
 // El texto para la consola. Con --informe (lo pasa amoxsql.cmd) va SÓLO a ese
@@ -145,6 +149,8 @@ async function ordenTerminada(id, codigo) {
 let codigoDeSalida = 0;
 async function salir(codigo) {
     quitting = true;
+    // Que se vean los avisos de lo que corrió antes de salir (un tick sin ventana).
+    await programadorSistema.esperarAvisos();
     await shutdownServer();
     if (serverProcess) { serverProcess.kill(); serverProcess = null; }
     app.exit(codigo);
@@ -637,6 +643,16 @@ const initApp = () => {
             responderSecreto(serverProcess, msg);
             return;
         }
+        if (msg.type === 'aviso') {
+            programadorSistema.avisar(msg, mainWindow);
+            return;
+        }
+        if (msg.type === 'programador') {
+            programadorSistema.aplicar(msg.proxima, msg.activo).then((r) => {
+                if (r?.error) console.warn('[Programador] La tarea del sistema:', r.error);
+            });
+            return;
+        }
         if (msg.type === 'ready') {
             serverReady = true;
             startupReported = true;
@@ -690,7 +706,9 @@ const initApp = () => {
         );
     });
 
-    serverProcess.postMessage({ type: 'start', port: SERVER_PORT });
+    // El reloj de lo programado, sólo con ventana: un arranque sin ventana
+    // corre su orden (run o tick) y sale.
+    serverProcess.postMessage({ type: 'start', port: SERVER_PORT, reloj: !headless || quedarse });
 };
 
 // ─── Second-instance handler ──────────────────────────────────────────────────
@@ -706,7 +724,10 @@ app.on('second-instance', (_event, _argv, _cwd, datos) => {
     // la ventana y este proceso se queda.
     if (headless && !mainWindow) {
         quedarse = true;
-        if (serverReady) createWindow();
+        if (serverReady) {
+            createWindow();
+            serverProcess?.postMessage({ type: 'reloj' });
+        }
         return;
     }
     if (mainWindow) {

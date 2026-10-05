@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     showItemInFolder: (itemPath) => ipcRenderer.invoke('shell:showItemInFolder', itemPath),
     // Abrir con su programa un documento que dejó un proceso (5.11, D5).
     openPath: (itemPath) => ipcRenderer.invoke('shell:openPath', itemPath),
+    // El clic en un aviso de una ejecución (5.11, D2): abrirla en la aplicación.
+    onAbrirEjecucion: (callback) => {
+        const handler = (_event, runId) => callback(runId);
+        ipcRenderer.on('amox:abrir-ejecucion', handler);
+        return () => ipcRenderer.removeListener('amox:abrir-ejecucion', handler);
+    },
     // Devuelve el PDF en base64, o { error }. Texto real, no una captura.
     exportPdf: (opts) => ipcRenderer.invoke('export:pdf', opts),
     // Lets main.js default export downloads (chart PNG, HTML/Word/PPT
