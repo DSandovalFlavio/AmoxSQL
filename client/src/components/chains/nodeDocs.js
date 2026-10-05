@@ -346,6 +346,26 @@ export const NODE_DOCS = {
         examples: ['Save the final model as analytics_summary.'],
         tips: ['Re-running replaces the table, so chains stay idempotent.'],
     },
+    excel: {
+        summary: 'Leave the result in Excel the way the client expects it.',
+        whatItDoes: 'Writes a workbook with one sheet per connected node, formatted from the column types: dates as dates, decimals with their places, whole numbers without separators, bold headers fixed while scrolling, filters and column widths. Or it fills the client\'s template: each input goes into a table of the template (which grows, with its calculated columns and totals) or into a sheet from a cell, and everything else in the workbook — formulas, charts, formatting, other sheets — stays as it was.',
+        io: { in: 'One or more upstream nodes (one per sheet, or per place in the template).', out: 'The same data, passed through; the workbook as a side effect.' },
+        options: [
+            { name: 'What to write', desc: 'A new workbook, or fill a template.' },
+            { name: 'Sheets', desc: 'Their order and names. Column formats: force currency, percent, text… for a column.' },
+            { name: 'Template', desc: 'An .xlsx (or .xlsm with macros). For each input: a table of the template, or a sheet and its first cell.' },
+            { name: 'Save as', desc: 'Where the workbook is left. ${parameters} work in the name.' },
+        ],
+        examples: [
+            'Monthly close: Summary, Detail and Notes in one workbook.',
+            'The client\'s report: the Sales table grows to this month\'s rows and the chart on the cover follows it.',
+        ],
+        tips: [
+            'A table in the template is the safest target: it grows and shrinks, and charts and formulas that use it follow.',
+            'From a cell, last time\'s data is cleared and a formula next to it is filled down. If the data would reach something below (a footer), the run stops and says where.',
+            'The workbook recalculates when it is opened, so formulas show this run\'s numbers.',
+        ],
+    },
     publicar: {
         summary: 'Publish a file that other projects read by name.',
         whatItDoes: 'Writes the upstream data to a Parquet file in a folder or bucket and registers it as a named source of the workspace, so any other project reads it as fuentes."name". The file is written aside and swapped in at the end — nobody ever reads half a file — and it carries its schema, date and process inside.',

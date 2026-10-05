@@ -14,6 +14,8 @@ import {
     LuFolderOpen, LuLightbulb, LuMinus, LuPlus,
 } from 'react-icons/lu';
 import Combobox from './_Combobox';
+import ExcelConfig from './ExcelConfig';
+import SelectorDeDestino from './SelectorDeDestino';
 import { API_BASE } from '../../api.js';
 
 const ChainNodeConfigPanel = ({ node, onUpdate, onCreateSqlFile, onOpenFile, sqlFiles = [], chainDefinition, chainFile }) => {
@@ -159,6 +161,10 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onCreateSqlFile, onOpenFile, sql
 
                 {node.data.nodeType === 'publicar' && (
                     <PublicarConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'excel' && (
+                    <ExcelConfig node={node} config={config} onChange={updateConfig} onChangeMulti={updateConfigMulti} chainDefinition={chainDefinition} />
                 )}
 
                 {node.data.nodeType === 'chart' && (
@@ -612,19 +618,25 @@ const ExportFileConfig = ({ config, onChange }) => {
                     </select>
                 </>
             )}
-            <label>Output File Path</label>
+            <SelectorDeDestino valor={config.destino} onChange={(v) => onChange('destino', v)} />
+            <label>{config.destino ? 'File name' : 'Output File Path'}</label>
             <div className="chain-config-input-with-btn">
                 <input
                     type="text"
                     value={config.outputPath || ''}
                     onChange={(e) => onChange('outputPath', e.target.value)}
-                    placeholder="exports/output.csv"
+                    placeholder={config.destino ? 'sales_{fecha}.csv' : 'exports/output.csv'}
                     className="chain-config-input"
                 />
-                <button className="chain-config-browse-btn" onClick={handleBrowse} title="Choose output location">
-                    <LuFolderOpen size={13} />
-                </button>
+                {!config.destino && (
+                    <button className="chain-config-browse-btn" onClick={handleBrowse} title="Choose output location">
+                        <LuFolderOpen size={13} />
+                    </button>
+                )}
             </div>
+            <p className="chain-config-hint">
+                <code>{'{fecha}'}</code>, <code>{'{fecha:AAAA-MM}'}</code> and <code>{'${parameter}'}</code> work in the name.
+            </p>
             {/^(s3|gs|gcs):\/\//i.test(config.outputPath || '') && (
                 <p className="chain-config-hint chain-config-hint-info">
                     <LuLightbulb size={12} />{' '}Cloud destination — credentials are read from Settings (S3/GCS).
@@ -852,14 +864,19 @@ const PublicarConfig = ({ config, onChange }) => {
             <input type="text" className="chain-config-input" value={config.fuente || ''} spellCheck={false}
                 onChange={(e) => onChange('fuente', e.target.value.toLowerCase())} placeholder="clean-sales" />
             <p className="chain-config-hint">Others read it as <code>fuentes."{config.fuente || 'name'}"</code>.</p>
-            <label>Folder or bucket</label>
-            <div className="chain-config-input-with-btn">
-                <input type="text" className="chain-config-input" value={config.carpeta || ''} spellCheck={false}
-                    onChange={(e) => onChange('carpeta', e.target.value)} placeholder="C:\\Shared\\published or s3://bucket/published" />
-                {window.electronAPI?.selectFolder && (
-                    <button className="chain-config-browse-btn" onClick={elegirCarpeta} title="Choose a folder"><LuFolderOpen size={13} /></button>
-                )}
-            </div>
+            <SelectorDeDestino valor={config.destino} onChange={(v) => onChange('destino', v)} textoRuta="A folder or bucket written here" />
+            {!config.destino && (
+                <>
+                    <label>Folder or bucket</label>
+                    <div className="chain-config-input-with-btn">
+                        <input type="text" className="chain-config-input" value={config.carpeta || ''} spellCheck={false}
+                            onChange={(e) => onChange('carpeta', e.target.value)} placeholder="C:\\Shared\\published or s3://bucket/published" />
+                        {window.electronAPI?.selectFolder && (
+                            <button className="chain-config-browse-btn" onClick={elegirCarpeta} title="Choose a folder"><LuFolderOpen size={13} /></button>
+                        )}
+                    </div>
+                </>
+            )}
             {enLaNube && (
                 <>
                     <label>Credential <span className="chain-config-optional">(name)</span></label>

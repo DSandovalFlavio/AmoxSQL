@@ -28,6 +28,9 @@ import WelcomeScreen from './components/WelcomeScreen';
 import WorkspaceWizard from './components/WorkspaceWizard';
 import WorkspacesHost from './components/workspaces/WorkspacesHost';
 import AvisoDeLlegadas from './components/fuentes/AvisoDeLlegadas';
+import AvisoProgramador from './components/AvisoProgramador';
+import FichaEjecucion from './components/FichaEjecucion';
+import VistaOperacion from './components/operacion/VistaOperacion';
 import AiAssistantPanel from './components/ai/AiAssistantPanel';
 import AiDivingPanel from './components/ai/AiDivingPanel';
 import ConversationList from './components/ai/ConversationList';
@@ -641,6 +644,23 @@ function App() {
     };
     window.addEventListener('amox_open_gallery_chart', handler);
     return () => window.removeEventListener('amox_open_gallery_chart', handler);
+  }, []);
+
+  // La ficha de una ejecución (5.11, D2): desde el clic en un aviso del sistema
+  // (Electron) o desde cualquier parte de la interfaz (`amox_abrir_ejecucion`).
+  const [fichaEjecucion, setFichaEjecucion] = useState(null);
+  // El panel de operación (5.11, D7): una vista aparte, encima de lo que haya.
+  const [verOperacion, setVerOperacion] = useState(false);
+  useEffect(() => {
+    const abrir = () => setVerOperacion(true);
+    window.addEventListener('amox_abrir_operacion', abrir);
+    return () => window.removeEventListener('amox_abrir_operacion', abrir);
+  }, []);
+  useEffect(() => {
+    const handler = (e) => { if (e.detail?.runId) setFichaEjecucion(e.detail.runId); };
+    window.addEventListener('amox_abrir_ejecucion', handler);
+    const quitar = window.electronAPI?.onAbrirEjecucion?.((runId) => setFichaEjecucion(runId));
+    return () => { window.removeEventListener('amox_abrir_ejecucion', handler); quitar?.(); };
   }, []);
 
   // Listen for "Open Workspace Wizard" event from SettingsModal
@@ -1357,6 +1377,8 @@ function App() {
           onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
         />
         <WorkspacesHost />
+        {verOperacion && <VistaOperacion onClose={() => setVerOperacion(false)} />}
+        {fichaEjecucion && <FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} />}
         <WelcomeScreen 
           initialPath={projectPath}
           onSelectWorkspace={handleWorkspaceSelect} 
@@ -1447,6 +1469,11 @@ function App() {
       <WorkspacesHost />
       {/* C3: «llegó el archivo» de una fuente de tipo carpeta, con el IDE abierto */}
       <AvisoDeLlegadas />
+      <AvisoProgramador />
+      {verOperacion && <VistaOperacion onClose={() => setVerOperacion(false)} />}
+      {fichaEjecucion && (
+        <FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} onAbrirProceso={(ruta) => handleFileOpen(ruta)} />
+      )}
 
       {/* Workspace Scaffolding Wizard — shown on first open of new projects */}
       {showWorkspaceWizard && (

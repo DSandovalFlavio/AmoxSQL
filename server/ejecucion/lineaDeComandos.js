@@ -13,7 +13,8 @@
  *                                   quien lo espera nunca lee medio archivo.
  *
  * Los códigos de salida (4.4):
- *   0 bien · 1 el proceso falló · 2 argumentos inválidos · 3 falta una
+ *   0 bien · 1 el proceso falló · 2 argumentos inválidos (también un parámetro
+ *   que no es de su tipo, 5.11) · 3 falta una
  *   credencial · 4 la aplicación abierta no contestó · 5 no existe el proyecto
  *   o el proceso. El 2 y el 4 los decide el proceso principal; el 5 también,
  *   pero aquí se vuelve a mirar, porque entre medias pasa tiempo.
@@ -25,6 +26,7 @@ const manifiesto = require('../manifiesto');
 const secretos = require('../secretos');
 const { ejecutarProceso } = require('./ejecutarProceso');
 const { CODIGO, rutaDelResultado, rutaDelRegistro, escribirJson } = require('./ordenes');
+const parametros = require('../parametros');
 
 const hora = () => new Date().toISOString().replace('T', ' ').slice(0, 23);
 
@@ -52,6 +54,7 @@ function lineaDeEvento(e) {
  * @returns {Promise<object>} el resultado, también escrito en su archivo
  */
 async function atender(orden, { dbManager, config }) {
+    if (orden.orden === 'tick') return atenderTick(orden, { dbManager });
     const { id } = orden;
     const inicio = Date.now();
     const registro = rutaDelRegistro(id);
@@ -151,32 +154,86 @@ async function atender(orden, { dbManager, config }) {
         anotar(`${hora()}  (the sources could not be checked: ${e.message})`);
     }
 
+    // ── los parámetros (5.11, D4): de fuera, se comprueban antes de empezar ──
+    let lote = null;
+    try {
+        if (orden.lote) lote = parametros.leerLote(orden.lote).map(f => ({ ...(orden.parametros || {}), ...f }));
+        for (const p of lote || [orden.parametros || {}]) parametros.resolver(cadena, p);
+    } catch (e) {
+        if (e instanceof parametros.ErrorDeParametro || e instanceof SyntaxError) {
+            return terminar(CODIGO.argumentos, { mensaje: `${lote ? 'In the batch: ' : ''}${e.message}` });
+        }
+        throw e;
+    }
+
     // ── correr ───────────────────────────────────────────────────────────────
     const relativo = path.relative(orden.proyecto, orden.proceso);
     const chainFile = relativo.startsWith('..') || path.isAbsolute(relativo) ? orden.proceso : relativo;
-    const variables = { ...(cadena.variables || {}), ...(orden.parametros || {}) };
-    const pasos = [];
-    const oyente = (e) => {
-        const l = lineaDeEvento(e);
-        if (l) anotar(`${hora()}${l}`);
-        if (e.type === 'node_complete') pasos.push({ nodo: e.nodeLabel || e.nodeId, estado: 'ok', ms: e.durationMs, filas: e.rowCount ?? null });
-        if (e.type === 'node_error') pasos.push({ nodo: e.nodeLabel || e.nodeId, estado: 'fallo', ms: e.durationMs, error: e.error });
+    const unaVez = async (deFuera) => {
+        const pasos = [];
+        const oyente = (e) => {
+            const l = lineaDeEvento(e);
+            if (l) anotar(`${hora()}${l}`);
+            if (e.type === 'node_complete') pasos.push({ nodo: e.nodeLabel || e.nodeId, estado: 'ok', ms: e.durationMs, filas: e.rowCount ?? null });
+            if (e.type === 'node_error') pasos.push({ nodo: e.nodeLabel || e.nodeId, estado: 'fallo', ms: e.durationMs, error: e.error });
+        };
+        try {
+            const r = await ejecutarProceso({
+                dbManager, chainDef: cadena, proyecto: orden.proyecto, chainFile,
+                variables: cadena.variables || {}, deFuera, origen: lote ? 'lote' : 'linea_de_comandos', oyente,
+            });
+            const extra = { runId: r.runId, base: r.base, pasos };
+            if (r.status === 'completed') return { codigo: CODIGO.ok, ...extra };
+            if (r.status === 'paused') return { codigo: CODIGO.fallo, ...extra, mensaje: `Paused at checkpoint "${r.pausedAtNode}": resume it from Data Flow's history` };
+            return { codigo: CODIGO.fallo, ...extra, mensaje: r.error || `The process ended as ${r.status}` };
+        } catch (e) {
+            return { codigo: CODIGO.fallo, pasos, mensaje: e.message };
+        }
     };
 
-    try {
-        const r = await ejecutarProceso({
-            dbManager, chainDef: cadena, proyecto: orden.proyecto, chainFile,
-            variables, origen: 'linea_de_comandos', oyente,
-        });
-        const extra = { runId: r.runId, base: r.base, pasos };
-        if (r.status === 'completed') return terminar(CODIGO.ok, extra);
-        if (r.status === 'paused') {
-            return terminar(CODIGO.fallo, { ...extra, mensaje: `Paused at checkpoint "${r.pausedAtNode}": resume it from Data Flow's history` });
-        }
-        return terminar(CODIGO.fallo, { ...extra, mensaje: r.error || `The process ended as ${r.status}` });
-    } catch (e) {
-        return terminar(CODIGO.fallo, { pasos, mensaje: e.message });
+    if (!lote) {
+        const { codigo, ...extra } = await unaVez(orden.parametros || {});
+        return terminar(codigo, extra);
     }
+    // Un lote: una ejecución por fila, una detrás de otra; sigue aunque una falle.
+    const resultados = [];
+    for (let k = 0; k < lote.length; k++) {
+        anotar(`${hora()}  Run ${k + 1} of ${lote.length}: ${Object.entries(lote[k]).map(([a, b]) => `${a}=${b}`).join(', ')}`);
+        const r = await unaVez(lote[k]);
+        resultados.push({ parametros: lote[k], codigo: r.codigo, runId: r.runId || null, mensaje: r.mensaje || null });
+    }
+    const fallidas = resultados.filter(x => x.codigo !== 0).length;
+    return terminar(fallidas ? CODIGO.fallo : CODIGO.ok, {
+        lote: resultados,
+        mensaje: fallidas ? `${fallidas} of ${lote.length} runs failed` : null,
+    });
+}
+
+/**
+ * `AmoxSQL.exe tick` (5.11, D1): corre lo programado que toca y se pone al día.
+ * Deja su resultado como cualquier orden; el código es 1 si alguna falló.
+ */
+async function atenderTick(orden, { dbManager }) {
+    const programador = require('../programacion/programador');
+    const programaciones = require('../programacion/programaciones');
+    programador.configurar({ dbManager });
+    const inicio = Date.now();
+    let r;
+    try { r = await programador.tick(); }
+    catch (e) { r = { corridas: [], saltadas: [], error: e.message }; }
+    const proxima = await programaciones.proximaGlobal().catch(() => null);
+    const fallidas = (r.corridas || []).filter(x => x.estado !== 'ok').length;
+    const resultado = {
+        id: orden.id, orden: 'tick', codigo: r.error || fallidas ? CODIGO.fallo : CODIGO.ok,
+        estado: r.error || fallidas ? 'fallo' : 'ok', corridas: r.corridas || [], saltadas: r.saltadas || [],
+        pausado: r.pausado || null, proxima: proxima ? proxima.toISOString() : null, mensaje: r.error || null,
+        duracionMs: Date.now() - inicio, entregada: !!orden.entregada,
+    };
+    try {
+        fs.appendFileSync(rutaDelRegistro(orden.id), `${hora()}  tick: ${resultado.corridas.length} ran, ${resultado.saltadas.length} skipped${resultado.pausado ? `, paused until ${resultado.pausado}` : ''}\n`);
+    } catch { /* sin registro */ }
+    try { escribirJson(rutaDelResultado(orden.id), resultado); } catch (e) { console.error('[CLI] No se pudo escribir el resultado:', e.message); }
+    return resultado;
 }
 
 module.exports = { atender };
