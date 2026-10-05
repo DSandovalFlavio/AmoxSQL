@@ -15,6 +15,9 @@ const { detectResultType } = require('./_sqlClassify');
 const excel = require('./excel');
 const procedencia = require('./procedencia');
 const { publicar } = require('./publicar');
+const { escribirLibro } = require('./xlsxEscribir');
+const { rellenarPlantilla } = require('./xlsxPlantilla');
+const parametros = require('./parametros');
 
 /**
  * Una carga de carpeta (C5, 4.2): cada fila sabe de qué archivo vino, en la
@@ -478,7 +481,7 @@ class ChainExecutor extends EventEmitter {
         // Assert, checkpoint, chart and report are pass-through: none of them
         // create a new table, so downstream nodes should still see whatever
         // was upstream of them.
-        if (node.type === 'assert' || node.type === 'checkpoint' || node.type === 'chart' || node.type === 'report' || node.type === 'publicar') {
+        if (node.type === 'assert' || node.type === 'checkpoint' || node.type === 'chart' || node.type === 'report' || node.type === 'publicar' || node.type === 'excel') {
             if (resultSummary.table) return { table: resultSummary.table };
             return upstreamOutputs[0] || null;
         }
@@ -722,6 +725,9 @@ class ChainExecutor extends EventEmitter {
             case 'table_ref':
             case 'fuente':
                 return null;
+            case 'excel':
+                // Un libro con formato no tiene equivalente en SQL: lo escribe AmoxSQL.
+                return `-- Excel workbook: ${(config.outputPath || '?').replace(/\\/g, '/')} (written by AmoxSQL${config.modo === 'plantilla' ? `, from the template ${config.plantilla || '?'}` : ''})`;
             case 'publicar': {
                 // El SQL equivalente es la escritura; el renombrado, la
                 // comprobación de esquema y el registro los hace AmoxSQL.
@@ -778,7 +784,7 @@ class ChainExecutor extends EventEmitter {
                     return `COPY (${q}) TO '${p}' (FORMAT PARQUET${c}${partOpt})`;
                 }
                 if (fmt === 'json') return `COPY (${q}) TO '${p}' (FORMAT JSON${partOpt})`;
-                if (fmt === 'xlsx' || fmt === 'excel') return `COPY (${q}) TO '${p}' WITH (FORMAT GDAL, DRIVER 'xlsx')`;
+                if (fmt === 'xlsx' || fmt === 'excel') return `-- Excel: ${p} (written by AmoxSQL with formatting)\nCOPY (${q}) TO '${p}' WITH (FORMAT GDAL, DRIVER 'xlsx')`;
                 const d = (config.delimiter && config.delimiter !== ',') ? `, SEPARATOR '${config.delimiter}'` : '';
                 return `COPY (${q}) TO '${p}' (FORMAT CSV, HEADER${d}${partOpt})`;
             }
@@ -1202,8 +1208,11 @@ class ChainExecutor extends EventEmitter {
         const { type } = node;
         const chainFile = ctx.chainFile || '';
         // Interpolate ${var} placeholders across all string config fields before use.
+        // With a run's parameters (5.11, D4), by context: SQL, paths and names.
         const vars = ctx.variables || {};
-        const config = Object.keys(vars).length > 0 ? this.applyVars(node.config || {}, vars) : (node.config || {});
+        const config = ctx.parametros
+            ? parametros.aplicarAConfig(node.config || {}, ctx.parametros)
+            : (Object.keys(vars).length > 0 ? this.applyVars(node.config || {}, vars) : (node.config || {}));
         let sql = '';
         let resultType = 'unknown';
         let resultSummary = {};
@@ -1212,6 +1221,8 @@ class ChainExecutor extends EventEmitter {
             case 'sql_file': {
                 const filePath = path.resolve(projectPath, config.filePath);
                 sql = fs.readFileSync(filePath, 'utf-8');
+                // 5.11 (D4): el archivo .sql también recibe los parámetros.
+                if (ctx.parametros) sql = parametros.reescribirSql(sql, ctx.parametros);
                 const result = await dbManager.query(sql);
                 const detected = this.detectResultType(sql);
                 resultType = detected.resultType;
@@ -1467,6 +1478,14 @@ class ChainExecutor extends EventEmitter {
                 } else if (format === 'parquet') {
                     const comprOpt = compression ? `, COMPRESSION ${compression.toUpperCase()}` : '';
                     sql = `COPY (${query}) TO '${outputPath}' (FORMAT PARQUET${comprOpt}${partOpt})`;
+                } else if ((format === 'xlsx' || format === 'excel') && !isCloud) {
+                    // 5.11 (D3): el libro lo escribe AmoxSQL, con formato y sin
+                    // cargar la extensión espacial.
+                    const r = await escribirLibro(dbManager, outputPath, [{ nombre: path.basename(outputPath).replace(/\.xlsx$/i, ''), consulta: query, formatos: config.formatos || {} }]);
+                    resultType = 'file_exported';
+                    resultSummary = { path: config.outputPath, format: 'xlsx', size: `${(r.bytes / 1024).toFixed(1)} KB`, rowCount: r.hojas[0].filas };
+                    sql = `-- Excel: ${outputPath}`;
+                    break;
                 } else if (format === 'xlsx' || format === 'excel') {
                     await this.ensureSpatialExtension(dbManager);
                     sql = `COPY (${query}) TO '${outputPath}' WITH (FORMAT GDAL, DRIVER 'xlsx')`;
@@ -1533,6 +1552,59 @@ class ChainExecutor extends EventEmitter {
                 resultSummary = {
                     path: destino, format: formato, rowCount: r.filas, source: nombre,
                     registeredIn: registro?.en || null, warnings: r.avisos, retries: r.reintentos,
+                };
+                break;
+            }
+
+            case 'excel': {
+                // 5.11 (D3): un libro con una hoja por entrada, o la plantilla
+                // del cliente rellenada. Escribe aparte y renombra (Dec-13).
+                if (!config.outputPath) throw new Error('Excel node: choose where to save the workbook');
+                const destino = this.resolvePath(projectPath, config.outputPath);
+                if (!/\.xls[xm]$/i.test(destino)) throw new Error('Excel node: the file name must end in .xlsx (or .xlsm for a template with macros)');
+                const entradas = (ctx.entradas || []).filter(e => e.salida);
+                if (!entradas.length) throw new Error('Excel node: connect at least one node; each one becomes a sheet');
+                const consultaDe = (id) => {
+                    const e = entradas.find(x => x.id === id);
+                    return e ? this.outputToQuery(e.salida) : null;
+                };
+                if (config.modo === 'plantilla') {
+                    if (!config.plantilla) throw new Error('Excel node: choose the template to fill');
+                    const destinos = (config.destinos || []).map(d => {
+                        const consulta = consultaDe(d.desde);
+                        if (!consulta) throw new Error(`Excel node: "${d.tabla || d.hoja}" takes its data from a node that is not connected`);
+                        return { ...d, consulta };
+                    });
+                    if (!destinos.length) throw new Error('Excel node: say where each input goes in the template');
+                    const r = await rellenarPlantilla(dbManager, this.resolvePath(projectPath, config.plantilla), destino, destinos);
+                    sql = `-- Excel template ${config.plantilla} → ${destino}`;
+                    resultType = 'file_exported';
+                    resultSummary = {
+                        path: destino, format: 'xlsx', size: `${(r.bytes / 1024).toFixed(1)} KB`,
+                        rowCount: r.regiones.reduce((s, x) => s + x.filas, 0),
+                        sheets: r.regiones.map(x => ({ name: x.tabla ? `${x.hoja} · ${x.tabla}` : x.hoja, rows: x.filas, range: x.rango })),
+                        warnings: r.avisos,
+                    };
+                    break;
+                }
+                // Un libro nuevo: las hojas en el orden que diga el nodo; las
+                // entradas que no nombra van detrás, con el nombre de su nodo.
+                const dichas = (config.hojas || []).filter(h => entradas.some(e => e.id === h.desde));
+                const resto = entradas.filter(e => !dichas.some(h => h.desde === e.id)).map(e => ({ desde: e.id }));
+                const hojas = [...dichas, ...resto].map(h => ({
+                    nombre: h.nombre || entradas.find(e => e.id === h.desde).etiqueta,
+                    consulta: consultaDe(h.desde),
+                    formatos: h.formatos || {},
+                }));
+                if (/\.xlsm$/i.test(destino)) throw new Error('Excel node: a new workbook is saved as .xlsx (.xlsm is only for a template that has macros)');
+                const r = await escribirLibro(dbManager, destino, hojas);
+                sql = `-- Excel workbook → ${destino}`;
+                resultType = 'file_exported';
+                resultSummary = {
+                    path: destino, format: 'xlsx', size: `${(r.bytes / 1024).toFixed(1)} KB`,
+                    rowCount: r.hojas.reduce((s, x) => s + x.filas, 0),
+                    sheets: r.hojas.map(x => ({ name: x.nombre, rows: x.filas, columns: x.columnas })),
+                    warnings: r.hojas.filter(x => x.recortadas).map(x => `${x.nombre}: ${x.recortadas} cell(s) longer than Excel allows were cut`),
                 };
                 break;
             }
@@ -2347,11 +2419,15 @@ class ChainExecutor extends EventEmitter {
         }
     }
 
-    async _run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, historial = null, oyente = null, alCrear = null } = {}) {
+    async _run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, deFuera = {}, historial = null, oyente = null, alCrear = null } = {}) {
         const { nodes, edges = [], name = 'Untitled Chain' } = chainDef;
         const anotar = historial || chainPersistence.ligar(dbManager);
         // Chain-level variables (from the .sqlchain) merged with run-time overrides.
-        const chainVars = { ...(chainDef.variables || {}), ...(variables || {}) };
+        const chainVars = { ...(chainDef.variables || {}), ...(variables || {}), ...(deFuera || {}) };
+        // 5.11 (D4): los valores con su tipo, y cuáles llegaron de fuera (línea de
+        // comandos, formulario, lote, programación): ésos no se pegan a ciegas.
+        const param = parametros.resolver({ ...chainDef, variables: { ...(chainDef.variables || {}), ...(variables || {}) } }, deFuera);
+        for (const s of parametros.sentenciasSet(param)) await dbManager.query(s);
 
         // Determine which nodes to execute based on mode
         let activeNodeIds;
@@ -2490,7 +2566,11 @@ class ChainExecutor extends EventEmitter {
                     const startTime = Date.now();
 
                     try {
-                        const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, fanout });
+                        const entradas = (fullParentMap.get(nodeId) || []).map(pid => ({
+                            id: pid, etiqueta: nodeMap.get(pid)?.label || pid,
+                            salida: nodeOutputs.get(pid) || this.staticOutputRef(nodeMap.get(pid), chainFile),
+                        }));
+                        const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, parametros: param, fanout, entradas });
                         const durationMs = Date.now() - startTime;
 
                         // Emit SQL executed
