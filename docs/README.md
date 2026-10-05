@@ -82,6 +82,7 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 |---|---|---|---|
 | Data Flow | [es](es/data-flow/data-flow.md) | [en](en/data-flow/data-flow.md) | 🟢 |
 | Node reference | [es](es/data-flow/node-reference.md) | [en](en/data-flow/node-reference.md) | 🟢 |
+| Excel output | [es](es/data-flow/excel-output.md) | [en](en/data-flow/excel-output.md) | 🟢 |
 | Running & engine | [es](es/data-flow/running-and-engine.md) | [en](en/data-flow/running-and-engine.md) | 🟢 |
 | Command line | [es](es/data-flow/command-line.md) | [en](en/data-flow/command-line.md) | 🟢 |
 

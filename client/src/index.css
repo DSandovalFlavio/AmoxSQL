@@ -20101,3 +20101,138 @@ tr:hover td {
 /* Formulario de una fuente: la segunda elección (qué archivos de la carpeta, qué formato de lago) */
 .fnt-segmento--sub { margin-top: 2px; }
 .fnt-carpeta li .fnt-enlace { text-align: left; overflow-wrap: anywhere; }
+
+/* ── Nodo Excel de Data Flow (5.11, D3) ─────────────────────────────────── */
+.chain-config-hint-error {
+  color: var(--color-error-text);
+  background: var(--color-error-bg);
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-top: 4px;
+}
+.xls-modo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.xls-modo button {
+  padding: 6px 8px;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.xls-modo button + button { border-left: 1px solid var(--border-default); }
+.xls-modo button.activo {
+  background: var(--accent-subtle);
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+.xls-modo button:focus-visible,
+.xls-icono:focus-visible,
+.xls-enlace:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+.xls-hojas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.xls-hoja {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: 5px;
+  background: var(--surface-inset);
+}
+.xls-hoja-fila,
+.xls-formato {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.xls-hoja-num {
+  min-width: 16px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.xls-hoja-de {
+  font-size: 10px;
+  color: var(--text-tertiary);
+  padding-left: 20px;
+}
+.xls-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.xls-icono:hover:not(:disabled) { color: var(--accent-primary); border-color: var(--accent-primary); }
+.xls-icono:disabled { opacity: 0.35; cursor: default; }
+.xls-enlace {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--accent-primary);
+  font-size: 10px;
+  cursor: pointer;
+}
+.xls-enlace:hover { text-decoration: underline; }
+.xls-formatos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0 0 20px;
+}
+.xls-formato code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+.xls-formato .chain-config-select { flex: 1.4; min-width: 0; }
+.xls-destino {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
+}
+.xls-celda {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.xls-celda label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.xls-celda .xls-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  padding-bottom: 5px;
+}
