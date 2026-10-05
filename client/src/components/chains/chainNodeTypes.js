@@ -9,7 +9,7 @@ import {
     LuArrowUpDown, LuDices, LuFlipHorizontal2, LuPencilLine, LuShuffle,
     LuTableProperties, LuArrowLeftRight, LuGalleryVerticalEnd, LuRows3,
     LuGlobe, LuWandSparkles, LuLayoutList, LuBell, LuRadar, LuCalendarClock, LuBraces,
-    LuCloud, LuSheet, LuSparkles, LuChartBar, LuPresentation, LuInbox, LuSend
+    LuCloud, LuSheet, LuSparkles, LuChartBar, LuPresentation, LuInbox, LuSend, LuFileSpreadsheet
 } from 'react-icons/lu';
 
 export const NODE_TYPES = {
@@ -62,6 +62,16 @@ export const NODE_TYPES = {
             accent: 'oklch(0.65 0.15 50)',
         },
         defaultConfig: { query: '', format: 'csv', outputPath: '' },
+    },
+    excel: {
+        id: 'excel',
+        label: 'Excel',
+        description: 'A formatted workbook (one sheet per input), or the client\'s template filled in',
+        icon: LuFileSpreadsheet,
+        color: {
+            accent: 'oklch(0.64 0.14 150)',
+        },
+        defaultConfig: { modo: 'libro', outputPath: '', hojas: [] },
     },
     publicar: {
         id: 'publicar',
@@ -438,7 +448,7 @@ export const NODE_CATEGORIES = [
     {
         id: 'output',
         label: 'Output',
-        types: ['publicar', 'create_table', 'export_file', 'chart', 'report'],
+        types: ['excel', 'publicar', 'create_table', 'export_file', 'chart', 'report'],
     },
     {
         id: 'quality_control',

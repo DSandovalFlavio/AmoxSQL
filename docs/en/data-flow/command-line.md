@@ -7,7 +7,7 @@
 ## What it is
 
 ```
-AmoxSQL.exe run <process.sqlchain> --project <folder> [--param name=value]…
+AmoxSQL.exe run <process.sqlchain> --project <folder> [--param name=value]… [--batch <runs.csv>]
 ```
 
 It is the same AmoxSQL, not a separate program: it uses your keychain credentials and your extensions. If AmoxSQL **is already open**, the command is handed to it and it runs there; if it **isn't**, it runs without a window and closes when it finishes. If you open AmoxSQL while it runs, the window opens and the run carries on.
@@ -48,9 +48,21 @@ If you add that `resources` folder to your `PATH`, `amoxsql run …` is enough.
 |---|---|
 | `<process.sqlchain>` | The process. An absolute path, or relative to the folder you launch it from or to the project's |
 | `--project <folder>` | The folder of the project it belongs to. Required |
-| `--param name=value` | Changes one of the process's variables for this run. Can be repeated |
+| `--param name=value` | Gives one of the process's parameters a value for this run. Can be repeated |
+| `--batch <runs.csv>` | Runs the process once per row of the file: the first line names the parameters, each line below is one run. A `.json` list of objects works too. `--param` values apply to every run |
 
-Parameters are the same `${name}` variables you define in the flow's **Variables**: `--param region=south` makes that run use `south` wherever the flow says `${region}`.
+Parameters are the `${name}` values you define in the flow's **Parameters**: `--param region=south` makes that run use `south` wherever the flow says `${region}`.
+
+A value given here **never changes the query**:
+- **A parameter with a type** (number, date, list, yes/no) is checked before anything runs. `--param from=05/10/2026` on a date parameter stops with exit code 2 and says it expects `2026-10-05`. In the SQL it goes in with its type.
+- **A parameter without a type** can go between quotes in the SQL (`'${region}'`), where it is always text. Where it goes in as code, it can only be a number or a single word.
+- **In a file name**, a value cannot contain folders or `..`.
+
+A batch checks every row first: if one is wrong, none runs. Then the runs go one after another, and the console says how many finished and which failed.
+
+```bat
+AmoxSQL.exe run weekly.sqlchain --project "C:\Stores" --batch stores.csv
+```
 
 ### Exit codes
 
@@ -58,7 +70,7 @@ Parameters are the same `${name}` variables you define in the flow's **Variables
 |---|---|
 | **0** | Finished well |
 | **1** | The process failed (or stopped at a checkpoint, which needs someone to resume it) |
-| **2** | The arguments aren't valid |
+| **2** | The arguments aren't valid, or a parameter's value isn't of its type |
 | **3** | A credential is missing on this machine (add it in **Settings → Credentials**), or a named source has no location here (set it in the **Sources** section of the database explorer) |
 | **4** | AmoxSQL was open and didn't answer within 30 seconds |
 | **5** | The project folder or the process file doesn't exist |

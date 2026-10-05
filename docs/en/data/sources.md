@@ -73,6 +73,19 @@ Data Flow's **Publish** node writes a Parquet to a folder (or a bucket) and **re
 - **Freshness:** a source can warn when its file is older than N days.
 - CSV can be published too, without the schema guarantee.
 
+### Destinations: where processes deliver
+A **destination** is the other direction: a folder with a name where processes leave what they produce. For example, `client-delivery` is `G:\Clients\North\Reports` on this machine and a different folder on the next one. It lives under **Destinations**, below Sources, in the database explorer and in a workspace's page.
+
+- **Two halves, like a source.** The name, the description and an optional **subfolder by date** (`{fecha:AAAA}/{fecha:MM}`) travel with the workspace or the project. The folder is this machine's: on another one, the destination asks for it the first time. A folder inside the project goes relative and works everywhere.
+- **In a process.** In **Excel**, **Export File** and **Publish**, choose it in **Deliver to**. The node then only gives the **file name**, where `{fecha}`, `{fecha:AAAA-MM}`, `{hora}` and `${parameters}` work: `close_{fecha:AAAA-MM}_${store}.xlsx`.
+- **The date is the run's.** A scheduled run uses the date it was due: September's close that runs on October 2nd keeps September's date.
+- **What fails, says so.** It stops with a clear message in these cases:
+  - a destination without a folder on this machine;
+  - a folder that can't be reached (a disconnected drive);
+  - a file name with folders in it.
+
+  It never creates the destination's folder by itself; it only creates the dated subfolders inside it.
+
 ## Notes and gotchas
 
 - If the project database has a schema called `fuentes`, `fuentes."x"` is ambiguous and the engine says so; use `fuentes.main."x"`. The explorer warns.
