@@ -26,6 +26,7 @@ const cuando = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { weekday
 
 function reglaDe(f) {
     switch (f.tipo) {
+        case 'al_llegar': return { tipo: 'al_llegar', fuente: f.fuente };
         case 'semanal': return { tipo: 'semanal', hora: f.hora, dia: Number(f.dia) };
         case 'mensual': return { tipo: 'mensual', hora: f.hora, modo: f.modo, ...(f.modo === 'dia' || f.modo === 'habil_n' ? { dia: Number(f.diaMes) } : {}) };
         case 'cada': return { tipo: 'cada', horas: Number(f.horas), desde: f.desde, hasta: f.hasta, ...(f.dias.length < 7 ? { dias: f.dias.map(Number) } : {}) };
@@ -39,8 +40,13 @@ export default function ChainProgramar({ chainDefinition, filePath, onClose }) {
     const [error, setError] = useState(null);
     const [form, setForm] = useState({
         tipo: 'mensual', hora: '07:00', dias: ['1', '2', '3', '4', '5', '6', '7'], soloHabiles: false,
-        dia: '1', modo: 'primer_habil', diaMes: '1', horas: '2', desde: '08:00', hasta: '18:00',
+        dia: '1', modo: 'primer_habil', diaMes: '1', horas: '2', desde: '08:00', hasta: '18:00', fuente: '',
     });
+    // D8: las fuentes de tipo carpeta del proyecto (las que pueden «recibir» un archivo).
+    const [carpetas, setCarpetas] = useState([]);
+    useEffect(() => {
+        pedir('GET', '/api/fuentes').then(d => setCarpetas((d.fuentes || []).filter(f => f.tipo === 'carpeta').map(f => f.nombre))).catch(() => {});
+    }, []);
     const [valores, setValores] = useState(() => Object.fromEntries(defs.map(d => [d.nombre, d.tipo === 'fecha' ? 'hoy' : String(chainDefinition.variables?.[d.nombre] ?? '')])));
     const [avisar, setAvisar] = useState('siempre');
     const [ponerse, setPonerse] = useState(true);
@@ -92,7 +98,7 @@ export default function ChainProgramar({ chainDefinition, filePath, onClose }) {
                                         <div className="cpg-prog-texto">
                                             <strong>{p.descripcion}</strong>
                                             <small>
-                                                {pausada ? (p.pausadaHasta ? `Paused until ${cuando(p.pausadaHasta)}` : 'Paused') : `Next: ${cuando(p.proxima)}`}
+                                                {pausada ? (p.pausadaHasta ? `Paused until ${cuando(p.pausadaHasta)}` : 'Paused') : p.regla?.tipo === 'al_llegar' ? 'Only while AmoxSQL is open' : `Next: ${cuando(p.proxima)}`}
                                                 {p.ultima && <> · Last: <span className={p.ultima.estado === 'ok' ? 'cpg-ok' : p.ultima.estado === 'fallo' ? 'cpg-mal' : ''}>{p.ultima.estado === 'ok' ? 'finished' : p.ultima.estado === 'fallo' ? 'failed' : p.ultima.estado}</span> {cuando(p.ultima.inicio)}</>}
                                                 {Object.keys(p.parametros || {}).length > 0 && <> · {Object.entries(p.parametros).map(([k, v]) => `${k}=${v}`).join(', ')}</>}
                                             </small>
@@ -110,8 +116,8 @@ export default function ChainProgramar({ chainDefinition, filePath, onClose }) {
 
                     <section className="cpg-nueva" aria-label="New schedule">
                         <h3 className="cpg-h">{datos?.programaciones?.length ? 'Add another' : 'When it runs'}</h3>
-                        <div className="xls-modo cpg-tipos" role="radiogroup" aria-label="How often">
-                            {[['diaria', 'Every day'], ['semanal', 'Every week'], ['mensual', 'Every month'], ['cada', 'Every few hours']].map(([v, t]) => (
+                        <div className="xls-modo cpg-tipos cpg-tipos--5" role="radiogroup" aria-label="How often">
+                            {[['diaria', 'Every day'], ['semanal', 'Every week'], ['mensual', 'Every month'], ['cada', 'Every few hours'], ['al_llegar', 'When a file arrives']].map(([v, t]) => (
                                 <button key={v} type="button" role="radio" aria-checked={form.tipo === v} className={form.tipo === v ? 'activo' : ''} onClick={() => cambiar({ tipo: v })}>{t}</button>
                             ))}
                         </div>
@@ -156,7 +162,20 @@ export default function ChainProgramar({ chainDefinition, filePath, onClose }) {
                                     <label className="lote-campo"><span>To</span><input type="time" className="cvp-input" value={form.hasta} onChange={e => cambiar({ hasta: e.target.value })} /></label>
                                 </div>
                             )}
-                            {form.tipo !== 'cada' && (
+                            {form.tipo === 'al_llegar' && (
+                                <>
+                                    <label className="lote-campo"><span>When a new file arrives in the source</span>
+                                        <select className="cvp-input" value={form.fuente} onChange={e => cambiar({ fuente: e.target.value })}>
+                                            <option value="">Choose…</option>
+                                            {carpetas.map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                    </label>
+                                    <p className="cvp-nota">
+                                        {carpetas.length ? 'It runs a minute after the last file arrives (ten files at once are one run), and only while AmoxSQL is open with this project.' : 'This project has no folder sources. Create one in the Sources panel: «a folder where it arrives every week».'}
+                                    </p>
+                                </>
+                            )}
+                            {form.tipo !== 'cada' && form.tipo !== 'al_llegar' && (
                                 <label className="lote-campo cpg-hora"><span>At</span><input type="time" className="cvp-input" value={form.hora} onChange={e => cambiar({ hora: e.target.value })} /></label>
                             )}
                         </div>
@@ -167,7 +186,7 @@ export default function ChainProgramar({ chainDefinition, filePath, onClose }) {
                                 : vista && (
                                     <>
                                         <strong>{vista.descripcion}</strong>
-                                        <ol>{(vista.proximas || []).map(d => <li key={d}>{cuando(d)}</li>)}</ol>
+                                        {vista.proximas?.length > 0 && <ol>{vista.proximas.map(d => <li key={d}>{cuando(d)}</li>)}</ol>}
                                         {!vista.calendarioPropio && /business/.test(vista.descripcion || '') && <small className="cvp-nota">Business days: Monday to Friday, no holidays. Set the holidays in the group's page.</small>}
                                     </>
                                 )}

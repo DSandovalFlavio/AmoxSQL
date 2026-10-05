@@ -470,6 +470,7 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
                         {busca && <button type="button" onClick={() => setBusca('')} aria-label="Clear search"><LuX size={12} /></button>}
                     </label>
                     <span className="wsv-sep" />
+                    <button className="wsv-btn wsv-btn--fant" type="button" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_operacion'))}><LuCalendarClock size={13} />Operations</button>
                     <button className="wsv-btn wsv-btn--fant" type="button" onClick={() => archivoRef.current?.click()}><LuUpload size={13} />Import…</button>
                     <input ref={archivoRef} type="file" accept=".amoxworkspace,.json" hidden onChange={elegirArchivo} />
                     <button className="wsv-btn wsv-btn--pri" type="button" onClick={ajustes}><LuPlus size={13} />New {e.s}</button>

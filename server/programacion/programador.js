@@ -19,6 +19,8 @@ const { ejecutarProceso } = require('../ejecucion/ejecutarProceso');
 const { resumir } = require('../ejecucion/resumen');
 
 let estado = {
+    esperaLlegadaMs: 60000,  // D8: varias llegadas seguidas son una ejecución (Dec-23)
+    esperas: new Map(),      // programación → temporizador de su llegada
     dbManager: null,
     avisar: null,            // (aviso) => void — el aviso del sistema (D2)
     proximaCambio: null,     // (iso|null, activo) => void — para la tarea del sistema
@@ -86,8 +88,32 @@ async function anunciarProxima() {
     } catch { /* sólo es un aviso */ }
 }
 
+/**
+ * D8 (Dec-23): llegó un archivo a una fuente de carpeta del proyecto abierto.
+ * Las programaciones «al llegar» de esa fuente corren cuando pasa un rato sin
+ * que llegue nada más: diez archivos que bajan juntos son una ejecución. Sólo
+ * con AmoxSQL abierto (la vigilancia de carpetas vive en la aplicación).
+ */
+async function alLlegar(fuentesLlegadas, proyecto) {
+    if (!baseCentral.estaAbierta() || !proyecto) return [];
+    if (await programaciones.pausaGeneral()) return [];
+    const lista = await programaciones.listar();
+    const tocan = lista.filter(p => p.activa && p.regla?.tipo === 'al_llegar' && (fuentesLlegadas || []).includes(p.regla.fuente)
+        && path.resolve(p.proyecto) === path.resolve(proyecto)
+        && !(p.pausadaHasta && new Date(p.pausadaHasta) > new Date()));
+    for (const prog of tocan) {
+        clearTimeout(estado.esperas.get(prog.id));
+        estado.esperas.set(prog.id, setTimeout(() => {
+            estado.esperas.delete(prog.id);
+            correrOcurrencia(prog, new Date().toISOString(), { origen: 'al_llegar' }).catch(e => console.warn('[Programador] Al llegar:', e.message));
+        }, estado.esperaLlegadaMs));
+    }
+    return tocan.map(p => p.id);
+}
+
 /** Con qué corre y a quién avisa (lo da el servidor al arrancar). */
-function configurar({ dbManager, avisar: alAvisar, proximaCambio } = {}) {
+function configurar({ dbManager, avisar: alAvisar, proximaCambio, esperaLlegadaMs } = {}) {
+    if (esperaLlegadaMs !== undefined) estado.esperaLlegadaMs = esperaLlegadaMs;
     if (dbManager) estado.dbManager = dbManager;
     if (alAvisar !== undefined) estado.avisar = alAvisar;
     if (proximaCambio !== undefined) estado.proximaCambio = proximaCambio;
@@ -116,7 +142,7 @@ function parar() {
 }
 
 module.exports = {
-    correrOcurrencia, tick, configurar, arrancar, parar, anunciarProxima,
+    correrOcurrencia, tick, configurar, arrancar, parar, anunciarProxima, alLlegar,
     relojEnMarcha: () => !!estado.reloj,
     alAbrir: () => estado.alAbrir,
     oir: (f) => { estado.oyentes.add(f); return () => estado.oyentes.delete(f); },
