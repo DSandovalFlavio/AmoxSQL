@@ -14,7 +14,7 @@ export default function CalendarioDelWorkspace({ workspace, avisar }) {
     const [nuevo, setNuevo] = useState('');
 
     useEffect(() => {
-        fetch(`${API_BASE}/api/calendario?workspaceId=${encodeURIComponent(workspace.id)}`)
+        fetch(`${API_BASE}/api/calendario?${new URLSearchParams({ workspaceId: workspace.id })}`)
             .then(r => r.json()).then(d => setCal(d.calendario || null)).catch(() => setCal(null));
     }, [workspace.id]);
 
