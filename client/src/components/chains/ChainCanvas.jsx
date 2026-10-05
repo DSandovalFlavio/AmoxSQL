@@ -50,6 +50,7 @@ import ChartNode from './nodes/ChartNode';
 import ReportNode from './nodes/ReportNode';
 import FuenteNode from './nodes/FuenteNode';
 import PublicarNode from './nodes/PublicarNode';
+import ExcelNode from './nodes/ExcelNode';
 import { NODE_TYPES } from './chainNodeTypes';
 import { hasCycle, generateNodeId, generateEdgeId, resolveThemeColor } from './chainUtils';
 
@@ -63,6 +64,7 @@ const nodeTypes = {
     table_ref: TableRefNode,
     fuente: FuenteNode,
     publicar: PublicarNode,
+    excel: ExcelNode,
     merge_tables: MergeTablesNode,
     assert: AssertNode,
     join_tables: JoinTablesNode,

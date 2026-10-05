@@ -1261,6 +1261,17 @@ app.post('/api/excel/probar', async (req, res) => {
     }
 });
 
+/** Lo que hay en una plantilla de Excel (5.11, D3): hojas, y tablas con sus columnas. */
+app.get('/api/excel/plantilla', (req, res) => {
+    try {
+        const ruta = rutaDelProyecto(req.query.path || '');
+        if (!fs.existsSync(ruta)) return res.status(404).json({ error: `The template does not exist: ${req.query.path}` });
+        res.json(require('./xlsxPlantilla').describirPlantilla(ruta));
+    } catch (err) {
+        res.status(400).json({ error: `The template could not be read as a workbook: ${err.message}. Save it as .xlsx in Excel.` });
+    }
+});
+
 /** Cómo se leyó este archivo la última vez en este proyecto (2.5). */
 app.get('/api/excel/recordado', (req, res) => {
     if (!PROYECTO_ABIERTO) return res.json({ opciones: null });
@@ -4294,24 +4305,17 @@ app.post('/api/export-data', async (req, res) => {
         else if (format === 'parquet') copyFormat = "PARQUET";
         else if (format === 'xlsx') {
             try {
-                // Real .xlsx via the excel extension. It must be explicitly loaded:
-                // unlike read_xlsx (which autoloads), the COPY TO xlsx function does not.
-                // Writing FORMAT CSV into a .xlsx used to produce a file Excel couldn't open.
-                try { await dbManager.query('INSTALL excel; LOAD excel;'); } catch (e) {
-                    console.warn('[export-data] excel extension load warning:', e.message);
-                }
-                await dbManager.query(`COPY (${cleanQuery}) TO '${fullPath}' WITH (FORMAT xlsx, HEADER true)`);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM (${cleanQuery}) t`);
-                const rowCount = countResult[0]?.cnt || 0;
-                return res.json({ success: true, path: filename, rowCount });
+                // 5.11 (D3): the workbook is written by AmoxSQL, formatted from
+                // the column types (dates, decimals, bold fixed header, filter,
+                // widths). On the user's connection — the query may read a
+                // notebook's temp views — and out of the query history.
+                const { escribirLibro } = require('./xlsxEscribir');
+                const usuario = { query: (sql) => dbManager.systemQuery(sql) };
+                const nombre = path.basename(fullPath).replace(/\.xlsx$/i, '');
+                const r = await escribirLibro(usuario, fullPath, [{ nombre, consulta: cleanQuery }]);
+                return res.json({ success: true, path: filename, rowCount: r.hojas[0].filas });
             } catch (xlsxErr) {
-                // Excel caps a worksheet at 1,048,576 rows; surface a clear, actionable message.
-                const overLimit = /row limit/i.test(xlsxErr.message);
-                return res.status(500).json({
-                    error: overLimit
-                        ? 'Excel limita una hoja a 1,048,576 filas y el resultado la supera. Exporta a CSV o Parquet.'
-                        : `Excel export failed: ${xlsxErr.message}. Try CSV or Parquet instead.`,
-                });
+                return res.status(500).json({ error: `Excel export failed: ${xlsxErr.message}` });
             }
         }
 
