@@ -46,6 +46,22 @@ const FORMATOS = {
     xlsx: /\.(xlsx|xlsm)$/i,
 };
 const REMOTA = /^(s3|gs|gcs|r2|az|azure|abfss|https?):\/\//i;
+/**
+ * Un DuckLake con su catálogo en SQLite, PostgreSQL o MySQL lleva el prefijo
+ * delante (`sqlite:/datos/catalogo.sqlite`, `postgres:dbname=lago`). Lo de
+ * PostgreSQL y MySQL es una conexión, no una ruta; lo de SQLite sí es una ruta,
+ * y puede ser relativa al proyecto (comprobado con dbt, p07: antes se pegaba
+ * entera a la carpeta del proyecto).
+ */
+const PREFIJO_DE_CATALOGO = /^(sqlite|postgres|mysql):(?!\/\/)/i;
+function conCatalogo(u, raiz) {
+    const x = PREFIJO_DE_CATALOGO.exec(String(u || ''));
+    if (!x) return null;
+    const resto = u.slice(x[0].length);
+    if (x[1].toLowerCase() !== 'sqlite') return { ubicacion: u, absoluta: true };
+    if (path.isAbsolute(resto)) return { ubicacion: `${x[0]}${path.resolve(resto)}`, absoluta: true };
+    return raiz ? { ubicacion: `${x[0]}${path.resolve(raiz, resto)}`, absoluta: false } : { ubicacion: null, absoluta: false };
+}
 
 // ── Nombres y definiciones ──────────────────────────────────────────────────
 
@@ -278,8 +294,9 @@ async function ubicar(destino, nombre, ubicacion) {
         return null;
     }
     const u = String(ubicacion).trim();
-    if (!REMOTA.test(u) && !path.isAbsolute(u)) throw new Error('The location on this machine must be a full path.');
-    const ruta = REMOTA.test(u) ? u : path.resolve(u);
+    const cat = conCatalogo(u);
+    if (!REMOTA.test(u) && !(cat ? cat.absoluta : path.isAbsolute(u))) throw new Error('The location on this machine must be a full path.');
+    const ruta = REMOTA.test(u) ? u : cat ? cat.ubicacion : path.resolve(u);
     await baseCentral.query(
         `INSERT OR REPLACE INTO fuentes_locales (ambito, nombre, ubicacion, actualizada) VALUES ($1, $2, $3, current_timestamp)`,
         [ambito, n, ruta]
@@ -298,6 +315,13 @@ async function ubicar(destino, nombre, ubicacion) {
 function resolver(item, locales) {
     const d = item.def;
     if (d.ubicacion && REMOTA.test(d.ubicacion)) return { ubicacion: d.ubicacion, como: 'definicion' };
+    const cat = conCatalogo(d.ubicacion, item.origen === 'proyecto' ? item.raiz : null);
+    if (cat?.absoluta) return { ubicacion: cat.ubicacion, como: 'definicion' };
+    if (cat?.ubicacion) return { ubicacion: cat.ubicacion, como: 'relativa' };
+    if (cat) {
+        const local = item.ambito ? locales.get(`${item.ambito}\u0000${d.nombre}`) : null;
+        return local ? { ubicacion: local.ubicacion, como: 'local', actualizada: local.actualizada } : { ubicacion: null, como: null };
+    }
     if (d.ubicacion && item.origen === 'proyecto' && !path.isAbsolute(d.ubicacion)) {
         return { ubicacion: path.resolve(item.raiz, d.ubicacion), como: 'relativa' };
     }
@@ -459,9 +483,51 @@ const aliasDeLago = (nombre) => `amox_lago_${String(nombre).replace(/[^a-z0-9]/g
 function sqlDeLago(def, ubicacion) {
     const u = lit(paraMotor(ubicacion));
     if (def.formato === 'delta') return `SELECT * FROM delta_scan(${u})`;
-    if (def.formato === 'iceberg') return `SELECT * FROM iceberg_scan(${u}, allow_moved_paths = true)`;
+    // Con un archivo de metadatos las rutas se leen tal como están escritas:
+    // `allow_moved_paths` tomaría ese archivo por la raíz de la tabla.
+    if (def.formato === 'iceberg') {
+        return /\.metadata\.json$/i.test(String(ubicacion))
+            ? `SELECT * FROM iceberg_scan(${u})`
+            : `SELECT * FROM iceberg_scan(${u}, allow_moved_paths = true)`;
+    }
     const [a, b] = String(def.tabla).split('.');
     return `SELECT * FROM ${aliasDeLago(def.nombre)}.${b ? `${ident(a)}.${ident(b)}` : ident(a)}`;
+}
+
+/**
+ * La versión de una tabla Iceberg cuando su carpeta no la dice. Los catálogos
+ * (SQL, REST, Glue…) no escriben `version-hint.text`: la versión vigente la
+ * guarda el catálogo. Sin él, la más alta de `metadata/` —`00002-….metadata.json`
+ * o `v3.metadata.json`— es la última confirmada salvo que un escritor se haya
+ * caído a mitad; quien necesite una versión exacta apunta a su archivo.
+ * Comprobado con una tabla escrita por pyiceberg (p08).
+ */
+const VERSION_ICEBERG = /(?:^|[\\/])(?:v(\d+)|(\d+)-[^\\/]*)\.metadata\.json$/i;
+const numeroDeVersion = (f) => { const m = VERSION_ICEBERG.exec(f); return m ? Number(m[1] ?? m[2]) : -1; };
+
+async function resolverIceberg(q, ubicacion) {
+    const u = String(ubicacion).replace(/[\\/]+$/, '');
+    if (/\.metadata\.json$/i.test(u)) return u;
+    if (REMOTA.test(u)) {
+        const hint = await q(`SELECT count(*)::INTEGER AS n FROM glob(${lit(`${u}/metadata/version-hint.text`)})`).catch(() => [{ n: 0 }]);
+        if (hint?.[0]?.n) return u;
+        const archivos = (await q(`SELECT file FROM glob(${lit(`${u}/metadata/*.metadata.json`)})`)).map(f => f.file);
+        const ultimo = archivos.sort((a, b) => numeroDeVersion(b) - numeroDeVersion(a))[0];
+        return ultimo || u;
+    }
+    const dir = path.join(u, 'metadata');
+    if (fs.existsSync(path.join(dir, 'version-hint.text'))) return u;
+    let archivos = [];
+    try { archivos = fs.readdirSync(dir).filter(n => /\.metadata\.json$/i.test(n)); } catch { return u; }
+    const ultimo = archivos.sort((a, b) => numeroDeVersion(b) - numeroDeVersion(a))[0];
+    return ultimo ? path.join(dir, ultimo) : u;
+}
+
+/** Dónde se lee de verdad: para Iceberg, la versión vigente (ver arriba). */
+async function ubicacionEfectiva(db, def, ubicacion) {
+    if (!(def.tipo === 'lago' && def.formato === 'iceberg')) return ubicacion;
+    const q = (sql) => (db.systemQuery ? db.systemQuery(sql) : db.query(sql));
+    return resolverIceberg(q, ubicacion);
 }
 
 /** El prefijo al que se limita el secreto: hasta antes del primer comodín. */
@@ -482,7 +548,10 @@ async function preparar(def, ubicacion) {
         sentencias.push(await secretos.sqlDeCredencial(def.credencial, alcanceDe(ubicacion)));
     }
     if (def.tipo === 'lago' && def.formato === 'ducklake') {
-        const cat = REMOTA.test(ubicacion) || /^(sqlite|postgres|mysql):/i.test(ubicacion) ? ubicacion : paraMotor(ubicacion);
+        const x = PREFIJO_DE_CATALOGO.exec(ubicacion);
+        const cat = REMOTA.test(ubicacion) ? ubicacion
+            : x ? (x[1].toLowerCase() === 'sqlite' ? `${x[0]}${paraMotor(ubicacion.slice(x[0].length))}` : ubicacion)
+                : paraMotor(ubicacion);
         sentencias.push(`ATTACH IF NOT EXISTS ${lit(`ducklake:${cat}`)} AS ${aliasDeLago(def.nombre)} (READ_ONLY)`);
     }
     return sentencias;
@@ -520,6 +589,16 @@ function explicarNube(e, def, ubicacion) {
     }
     if (/Could not (establish connection|connect to server|resolve)|timed out|Connection refused|Unable to connect/i.test(m)) {
         return `Cannot reach ${ubicacion}: check the network${def.credencial ? ' and the endpoint of the credential' : ''}.`;
+    }
+    // Un DuckLake escrito con otra versión del motor (comprobado con dbt, p07):
+    // si es más nuevo, AmoxSQL no lo entiende; si es más viejo, migrarlo lo
+    // dejaría ilegible para quien lo escribe, y la fuente lo abre sólo para leer.
+    if ((x = /catalog version (?:is )?(\d+(?:\.\d+)*),? but the extension requires version (\d+(?:\.\d+)*)/i.exec(m))) {
+        const [lago, motor] = [x[1], x[2]].map(v => v.split('.').map(Number));
+        const masNuevo = lago[0] > motor[0] || (lago[0] === motor[0] && (lago[1] || 0) > (motor[1] || 0));
+        return masNuevo
+            ? `This lake was written by a newer version of the engine (lake format ${x[1]}; AmoxSQL reads ${x[2]}). Update AmoxSQL to read it.`
+            : `This lake was written by an older version of the engine (lake format ${x[1]}; AmoxSQL reads ${x[2]}). AmoxSQL only reads it and does not migrate it: update whoever writes it (for example, the DuckDB package of dbt).`;
     }
     if (/version-hint/i.test(m)) {
         return 'This Iceberg table has no version-hint file: point the source at its metadata file (…/metadata/vN.metadata.json).';
@@ -660,7 +739,7 @@ async function montar(db, { raiz = null, workspaceId = null } = {}) {
         } else {
             try {
                 for (const s of await preparar(def, r.ubicacion)) await q(s);
-                await q(`CREATE OR REPLACE VIEW ${vista} AS ${sqlDeLectura(def, r.ubicacion)}`);
+                await q(`CREATE OR REPLACE VIEW ${vista} AS ${sqlDeLectura(def, await ubicacionEfectiva(db, def, r.ubicacion))}`);
             } catch (e) {
                 estado = 'error';
                 // Un Excel que no es un libro (un CSV disfrazado, un .xls) dice qué
@@ -772,5 +851,5 @@ module.exports = {
     definiciones, guardar, borrar, ubicar, ubicacionesLocales, resolver, estadoDelArchivo,
     sqlDeLectura, sqlDeAviso, avisoSinUbicar, montar, listar, hayEsquemaHomonimo, usadas,
     ESTABLE_MS, esTemporal, globARegex, archivosDeCarpeta, estadoDe,
-    LAGOS, preparar, explicarNube, explorar, extensionesDe, aliasDeLago, rutaDeBucket, alcanceDe,
+    LAGOS, preparar, explicarNube, explorar, extensionesDe, aliasDeLago, rutaDeBucket, alcanceDe, ubicacionEfectiva,
 };

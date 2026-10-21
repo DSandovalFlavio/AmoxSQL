@@ -48,7 +48,9 @@ function abrirDesdeOtroProceso(ruta, compartir) {
     });
 }
 
-const inst = await DuckDBInstance.create(':memory:');
+// Como abre el motor AmoxSQL (sin la caché de archivos: ver server/motor.js).
+const { crearInstancia } = require('../../server/motor.js');
+const inst = await crearInstancia(':memory:');
 const c = await inst.connect();
 const intenta = async (sql) => {
     try { const r = await c.runAndReadAll(sql); return { ok: true, filas: r.getRowObjectsJson() }; }

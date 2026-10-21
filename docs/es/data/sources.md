@@ -52,6 +52,12 @@ Si es un Excel, el formulario enseña la hoja tal como es, con letras y números
 ### En la nube y en un lago
 Para un bucket privado, crea una **credencial de nube con nombre** en **Settings → Credentials → New cloud credential** (S3 o compatible, o Google Cloud Storage) y elígela en la fuente. Se guarda cifrada con el llavero del sistema y sólo abre la carpeta de su fuente, así que dos buckets con claves distintas conviven. Los proyectos sólo anotan su **nombre**.
 
+- Un bucket **público** o un archivo en una dirección `https://` no necesitan credencial.
+- En el patrón de ruta, mejor `**/*.parquet` que `*/*.parquet`: `**` pide al bucket la lista entera de una vez, `*/` la pide carpeta por carpeta. En un bucket público con 134 archivos en particiones fue un cuarto de segundo contra 18 segundos.
+- Un filtro sobre una columna de partición *hive* (`WHERE anio = 2026`) sólo lee los archivos de esa partición.
+- Una tabla **Iceberg** escrita a través de un catálogo no tiene `version-hint.text`: apuntar a su carpeta lee la versión más reciente de `metadata/`. Para leer una versión exacta, apunta a su `….metadata.json`.
+- Un **DuckLake** con su catálogo en SQLite, PostgreSQL o MySQL va con su prefijo: `sqlite:/datos/lago.sqlite` (puede ser relativo al proyecto), `postgres:dbname=lago`. Un lago escrito por una versión del motor más nueva que la de AmoxSQL no abre, y la fuente lo dice.
+
 ### Ubicarla en otra máquina
 Al abrir un proyecto que usa una fuente que en esta máquina no está ubicada, un aviso lo dice. En el explorador, la fuente sale con un aviso: clic derecho → **Set location on this machine…**. Consultarla sin ubicar da un mensaje que dice qué hacer.
 

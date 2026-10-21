@@ -6516,7 +6516,7 @@ app.post('/api/fuentes/probar', async (req, res) => {
         } catch (e) {
             throw new Error(fuentes.explicarNube(e, def, donde));
         }
-        const lectura = fuentes.sqlDeLectura(def, donde);
+        const lectura = fuentes.sqlDeLectura(def, await fuentes.ubicacionEfectiva({ query: async (sql) => (await con.run(sql)).getRowObjectsJson() }, def, donde));
         // «Probar la conexión» (5.4): lo que falla en un bucket o un lago se dice
         // con nombre (credencial, permiso, ruta, extensión), no con el error del motor.
         const nube = def.tipo === 'bucket' || def.tipo === 'lago';
