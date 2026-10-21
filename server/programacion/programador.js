@@ -126,18 +126,29 @@ function configurar({ dbManager, avisar: alAvisar, proximaCambio, esperaLlegadaM
  */
 function arrancar({ cadaMs = 60000, ...config } = {}) {
     configurar(config);
-    if (estado.reloj) clearInterval(estado.reloj);
+    parar();
     const primera = async () => {
         for (let i = 0; i < 100 && !baseCentral.estaAbierta(); i++) await new Promise(r => setTimeout(r, 200));
         try { estado.alAbrir = { ...(await tick()), cuando: new Date().toISOString() }; } catch (e) { console.warn('[Programador] Primer tick:', e.message); }
     };
     setTimeout(primera, 3000);
-    estado.reloj = setInterval(() => { tick().catch(e => console.warn('[Programador] Tick:', e.message)); }, cadaMs);
-    if (estado.reloj.unref) estado.reloj.unref();
+    // Cada minuto, en el segundo 1 del minuto y no a los 60 s de abrir la
+    // aplicación: lo de las 7:00 corre a las 7:00:01, no a las 7:00:59
+    // (comprobado en la prueba real, p01). Se recalcula en cada vuelta, así
+    // que tampoco se va desplazando.
+    const siguiente = () => {
+        const ms = cadaMs === 60000 ? 60000 - (Date.now() % 60000) + 1000 : cadaMs;
+        estado.reloj = setTimeout(() => {
+            tick().catch(e => console.warn('[Programador] Tick:', e.message));
+            if (estado.reloj) siguiente();
+        }, ms);
+        if (estado.reloj.unref) estado.reloj.unref();
+    };
+    siguiente();
 }
 
 function parar() {
-    if (estado.reloj) clearInterval(estado.reloj);
+    if (estado.reloj) clearTimeout(estado.reloj);
     estado.reloj = null;
 }
 
