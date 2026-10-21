@@ -171,6 +171,11 @@ const ChainFormulario = ({ chainDefinition, filePath, siempreFormulario, onSiemp
                         {resumen.leidos?.length > 0 && (
                             <p className="cf-leidos">Read: {resumen.leidos.map(l => l.paso).join(', ')}.</p>
                         )}
+                        {resumen.runId && (
+                            <button type="button" className="cf-boton cf-detalle" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId: resumen.runId } }))}>
+                                Details: each step and how long it took
+                            </button>
+                        )}
                     </section>
                 )}
 

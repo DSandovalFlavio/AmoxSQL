@@ -160,6 +160,16 @@ try {
     await new Promise(r2 => setTimeout(r2, 200));
     comprobar('activar la tarea del sistema le da la próxima hora al proceso principal', proximas.some(x => x.activo && x.p), JSON.stringify(proximas));
 
+    console.log('\nla ficha de una ejecución (D2)');
+    const ficha = await get(`/api/ejecuciones/${corrida.runId}`);
+    comprobar('dice de dónde vino: la programación, su frase y la hora prevista', ficha.ejecucion?.origen === 'programada' && ficha.programacion?.descripcion === 'Every day, at 07:00' && ficha.ejecucion.prevista === corrida.prevista, JSON.stringify(ficha).slice(0, 300));
+    comprobar('sus pasos y lo que dejó', ficha.pasos?.length === 2 && ficha.pasos.every(x => x.estado === 'success') && ficha.resumen?.guardados?.[0]?.existe, JSON.stringify(ficha.pasos));
+    comprobar('y, con su proyecto abierto, cómo abrir el proceso', ficha.procesoEnProyecto === 'cierre.sqlchain', ficha.procesoEnProyecto);
+    const otra = await post(`/api/ejecuciones/${corrida.runId}/repetir`);
+    const fichaOtra = otra.runId ? await get(`/api/ejecuciones/${otra.runId}`) : {};
+    comprobar('«Run again» repite la misma ocurrencia, con su fecha', otra.estado === 'ok' && fichaOtra.ejecucion?.prevista === corrida.prevista && fichaOtra.ejecucion.parametros?.dia === '2026-10-04', JSON.stringify(fichaOtra.ejecucion || otra).slice(0, 300));
+    comprobar('una que no existe lo dice', /does not exist/.test((await get('/api/ejecuciones/no-existe')).error || ''));
+
     console.log('\nla tarea del sistema (schtasks simulado)');
     const tarea = require(path.join(RAIZ, 'electron/programador.js'));
     const llamadas = [];

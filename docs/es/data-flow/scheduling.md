@@ -49,8 +49,8 @@ La misma ocurrencia nunca corre dos veces, la lance quien la lance (la aplicaci�
 ## Trucos y joyas
 
 - **Pon fechas en el nombre de la salida:** `cierre_{fecha:AAAA-MM}.xlsx` en un [destino](../data/sources.md) guarda el archivo de cada mes.
-- **Los avisos:**
-  - Con AmoxSQL abierto, al hacer clic en uno se abre la ejecución.
+- **Los avisos:** una línea por ejecución («Cierre mensual · 3 files read, 1 saved · 4 s»), o el paso que falló y por qué.
+  - Con AmoxSQL abierto, al hacer clic en uno se abre **la ficha de la ejecución**: cómo fue, cuándo y cómo se lanzó, sus parámetros, los archivos que dejó (con **Open** y **Show in folder**) y cada paso con sus filas y su tiempo. **Run again** la repite con los mismos valores; una ejecución programada se repite con la fecha que tocaba.
   - Si corrió con AmoxSQL cerrado, la ejecución está en el historial al abrirlo.
 - **Pausar todo antes de un puente:** pausa cada programación, o la tarea de Windows sigue despertando a AmoxSQL pero no corre nada mientras dure la pausa general.
 - **Desde la línea de comandos:** `AmoxSQL.exe tick` corre lo que toca ahora mismo; es lo que llama la tarea de Windows.

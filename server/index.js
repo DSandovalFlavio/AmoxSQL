@@ -6627,6 +6627,63 @@ app.post('/api/programaciones/:id/correr', conCentral(async (req) => {
     return programador.correrOcurrencia(prog, new Date().toISOString(), { origen: 'programada' });
 }));
 
+// ── La ficha de una ejecución (5.11, D2) ─────────────────────────────────────
+// Lo que pasó en una ejecución, para quien llega desde un aviso, la bitácora o
+// el panel de operación: pasos, lo que leyó y dejó, sus parámetros y de dónde vino.
+const horaUtc = (t) => (t ? new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(String(t)) ? String(t) : `${String(t).replace(' ', 'T')}Z`).toISOString() : null);
+
+app.get('/api/ejecuciones/:id', conCentral(async (req) => {
+    const [e] = await baseCentral.query(`SELECT * FROM ejecuciones WHERE id = $1`, [req.params.id]);
+    if (!e) throw new Error('That run does not exist in the history.');
+    const { nodeRuns } = await historialDeProcesos.leer({ base: baseCentral, dbManager, runId: e.id });
+    const pasos = [...nodeRuns].sort((a, b) => String(a.started_at || '').localeCompare(String(b.started_at || ''))).map(n => {
+        let s = {};
+        try { s = JSON.parse(n.result_summary || '{}'); } catch { /* sin resumen */ }
+        return { nodo: n.node_label || n.node_id, tipo: n.node_type, estado: n.status, ms: n.duration_ms, filas: s.rowCount ?? null, error: n.error_message || null };
+    });
+    const resumen = await require('./ejecucion/resumen').resumir({ base: baseCentral, dbManager, runId: e.id, proyecto: e.proyecto }).catch(() => null);
+    let programacion = null;
+    if (e.programacion_id) {
+        const p = await programaciones.leer(e.programacion_id).catch(() => null);
+        programacion = p ? { id: p.id, nombre: p.nombre, descripcion: p.descripcion } : { id: e.programacion_id, borrada: true };
+    }
+    let parametros = {};
+    try { parametros = JSON.parse(e.parametros || '{}'); } catch { /* sin parámetros */ }
+    // Si es del proyecto abierto, la interfaz puede abrir el proceso.
+    let procesoEnProyecto = null;
+    if (PROYECTO_ABIERTO && e.proyecto && path.resolve(e.proyecto) === path.resolve(ROOT_DIR) && e.proceso) {
+        const rel = path.relative(ROOT_DIR, e.proceso);
+        if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) procesoEnProyecto = rel.split(path.sep).join('/');
+    }
+    return {
+        ejecucion: {
+            id: e.id, proceso: e.proceso, proyecto: e.proyecto, origen: e.origen, estado: e.estado,
+            inicio: e.inicio, fin: e.fin, error: e.error, parametros, prevista: horaUtc(e.prevista),
+        },
+        programacion, pasos, resumen, procesoEnProyecto,
+    };
+}));
+
+// «Run again»: el mismo proceso con los mismos valores. Una ocurrencia
+// programada se repite como tal (queda en el historial de su programación).
+app.post('/api/ejecuciones/:id/repetir', conCentral(async (req) => {
+    const [e] = await baseCentral.query(`SELECT * FROM ejecuciones WHERE id = $1`, [req.params.id]);
+    if (!e) throw new Error('That run does not exist in the history.');
+    if (e.programacion_id) {
+        const prog = await programaciones.leer(e.programacion_id);
+        if (prog) return programador.correrOcurrencia(prog, horaUtc(e.prevista) || new Date().toISOString(), { origen: 'programada' });
+    }
+    if (!e.proceso || !fs.existsSync(e.proceso)) throw new Error(`The process is no longer there: ${e.proceso}`);
+    const cadena = JSON.parse(fs.readFileSync(e.proceso, 'utf8'));
+    let parametros = {};
+    try { parametros = JSON.parse(e.parametros || '{}'); } catch { /* sin parámetros */ }
+    const r = await ejecutarProceso({
+        dbManager, chainDef: cadena, proyecto: e.proyecto, chainFile: path.relative(e.proyecto, e.proceso),
+        variables: { ...(cadena.variables || {}), ...parametros }, origen: e.origen === 'interfaz' ? 'interfaz' : 'linea_de_comandos',
+    });
+    return { runId: r.runId || null, estado: r.status === 'completed' ? 'ok' : 'fallo', error: r.error || null };
+}));
+
 app.get('/api/calendario', conCentral(async (req) => {
     const ws = req.query.workspaceId || (PROYECTO_ABIERTO ? programaciones.workspaceDe(ROOT_DIR) : null);
     return { workspaceId: ws, calendario: calendarioDeTrabajo.leer(ws) };
