@@ -1216,6 +1216,7 @@ app.post('/api/db/extensions/forget', (req, res) => {
 /* --- Excel Import APIs --- */
 const xlsxMeta = require('./xlsxMeta');
 const excel = require('./excel');
+const parametros = require('./parametros');
 
 /** La ruta de un archivo que llega del cliente: absoluta, o relativa al proyecto. */
 const rutaDelProyecto = (r) => (path.isAbsolute(String(r)) ? String(r) : path.join(ROOT_DIR, String(r)));
@@ -5705,7 +5706,7 @@ app.post('/api/chains/base', (req, res) => {
 
 // Run a chain
 app.post('/api/chains/run', async (req, res) => {
-    const { chainDefinition, chainFile, mode, startNodeId, variables } = req.body;
+    const { chainDefinition, chainFile, mode, startNodeId, variables, deFuera } = req.body;
     if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition is required' });
 
     try {
@@ -5724,15 +5725,66 @@ app.post('/api/chains/run', async (req, res) => {
             mode: mode || 'full',
             startNodeId,
             variables: variables || undefined,
+            // 5.11 (D4/D5): valores que no escribió el autor (el formulario).
+            deFuera: deFuera || {},
+            origen: deFuera && Object.keys(deFuera).length ? 'formulario' : 'interfaz',
         });
         // Un nodo Publish deja (o pone al día) una fuente: que se vea ya (C6).
         if ((chainDefinition.nodes || []).some(n => n?.type === 'publicar')) await remontarFuentes();
 
         res.json(result);
     } catch (err) {
+        if (err instanceof parametros.ErrorDeParametro) return res.status(400).json({ error: err.message, parametro: err.nombre });
         console.error('[Chains] Run error:', err);
         res.status(500).json({ error: err.message });
     }
+});
+
+/**
+ * Correr un proceso una vez por cada juego de valores (5.11, D4): «Run for
+ * each…». Una ejecución detrás de otra; sigue aunque una falle. Se cuenta por
+ * SSE: inicio y fin de cada una, y el resumen.
+ */
+app.post('/api/chains/lote', async (req, res) => {
+    const { chainDefinition, chainFile, variables, lote } = req.body || {};
+    if (!chainDefinition) return res.status(400).json({ error: 'chainDefinition is required' });
+    if (!Array.isArray(lote) || !lote.length) return res.status(400).json({ error: 'Give at least one set of values.' });
+    if (lote.length > 500) return res.status(400).json({ error: 'At most 500 runs at once.' });
+    const cadena = { ...chainDefinition, variables: { ...(chainDefinition.variables || {}), ...(variables || {}) } };
+    try {
+        for (const p of lote) parametros.resolver(cadena, p);
+    } catch (err) {
+        if (err instanceof parametros.ErrorDeParametro) return res.status(400).json({ error: err.message, parametro: err.nombre });
+        throw err;
+    }
+    const validation = chainExecutor.validate(cadena, ROOT_DIR);
+    if (!validation.valid) return res.status(400).json({ error: 'Validation failed', details: validation.errors });
+    anotarCredencialesDeCadena(cadena);
+
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
+    const enviar = (d) => { try { res.write(`data: ${JSON.stringify(d)}\n\n`); } catch { /* se fue */ } };
+    let cortado = false;
+    // El cliente se fue (cerró la pestaña o pulsó Stop). `req` cierra en cuanto
+    // se lee el cuerpo; quien dice que ya no hay nadie es la respuesta.
+    res.on('close', () => { if (!res.writableEnded) cortado = true; });
+    let bien = 0;
+    for (let i = 0; i < lote.length; i++) {
+        if (cortado) break;
+        enviar({ tipo: 'inicio', i, total: lote.length, parametros: lote[i] });
+        try {
+            const r = await ejecutarProceso({
+                dbManager, chainDef: cadena, proyecto: ROOT_DIR, chainFile: chainFile || '',
+                variables: cadena.variables, deFuera: lote[i], origen: 'lote',
+            });
+            if (r.status === 'completed') bien++;
+            enviar({ tipo: 'fin', i, estado: r.status, runId: r.runId || null, error: r.error || null });
+        } catch (err) {
+            enviar({ tipo: 'fin', i, estado: 'failed', error: err.message });
+        }
+    }
+    if ((cadena.nodes || []).some(n => n?.type === 'publicar')) await remontarFuentes().catch(() => {});
+    enviar({ tipo: 'resumen', bien, total: lote.length, cortado });
+    res.end();
 });
 
 // Get run status (for polling)
@@ -5740,6 +5792,17 @@ app.get('/api/chains/run/:runId/status', async (req, res) => {
     try {
         const { run, nodeRuns } = await historialDeProcesos.leer({ base: baseCentral, dbManager, runId: req.params.runId });
         res.json({ run, nodeRuns });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Lo que dejó una ejecución, para quien no miró el proceso (5.11, D5/D2).
+app.get('/api/chains/run/:runId/resumen', async (req, res) => {
+    try {
+        const r = await require('./ejecucion/resumen').resumir({ base: baseCentral, dbManager, runId: req.params.runId, proyecto: ROOT_DIR });
+        if (!r) return res.status(404).json({ error: 'That run is not in the history.' });
+        res.json(r);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

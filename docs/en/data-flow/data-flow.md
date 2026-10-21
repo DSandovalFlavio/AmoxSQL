@@ -42,9 +42,18 @@ Data Flow validates the pipeline live as you build it: nodes with problems are f
 2. Select a node to enable **From Here** (from that node forward) and **To Here** (up to that node).
 3. Execution details — per-node status, logs, history, cancel, export/compile — are in [Running & engine](running-and-engine.md).
 
-### Auto-layout and variables
+### Auto-layout and parameters
 - **Layout** automatically reorganizes the nodes into a clean left-to-right arrangement.
-- **Variables** opens a panel to define reusable values. Reference them in any field with `${name}` (for example, a base path or a year) and change them in one place.
+- **Parameters** (in **⋯**) opens a panel to define reusable values. Reference them in any field with `${name}` (for example, a base path or a year) and change them in one place.
+  - The value there is the default. The [command line](command-line.md), a batch or a schedule can give another one.
+  - Give a parameter a **type** (text, number, date, list, yes/no) and a value that comes from outside is checked before running. In the SQL it goes in with its type, so it can never change the query. A date compares as a date: `WHERE date >= ${from}`.
+  - "As written" keeps the old behaviour: the value is pasted as text.
+- **Open as a form** (in **⋯**) shows the process the way someone who doesn't write SQL will use it:
+  - its name and description, one field per parameter that has a type (a date picker, a list, yes/no), and **Run**;
+  - when it finishes, the files it left, with **Open** and **Show in folder**; if it failed, the step and why.
+
+  Tick **Always open this process as a form** and the process opens like that for anyone; **Edit the process** goes back to the canvas. Give each parameter a label in **Parameters**: that is what the form shows.
+- **Run for each…** (in **⋯**) runs the process once per value of a parameter. The values come from a list, or from the distinct values of a column of a source or table ("each store"). Put the parameter in the output file name (`outputs/report_${store}.xlsx`) so each run leaves its own file. Every run is in the process history.
 
 ### Template gallery
 Opening an empty chain shows the gallery of starter templates:
@@ -69,7 +78,8 @@ The canvas's AI panel turns a natural-language description into a pipeline. Type
 | **Cancel** | Stops a run in progress |
 | **Clear** | Clears the last run's results from the canvas |
 | **Layout** | Auto-reorganizes the nodes |
-| **Variables** | Opens the `${...}` variables panel |
+| **Parameters** | Opens the `${...}` parameters panel |
+| **Run for each…** | Runs the process once per value of a parameter |
 | **Export** | Exports the chain as a YAML file |
 | **SQL** | Compiles the chain to a runnable SQL script |
 | **Import** | Imports a chain from a YAML file (replaces the canvas, with confirmation) |

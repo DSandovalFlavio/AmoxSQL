@@ -17,6 +17,7 @@ const procedencia = require('./procedencia');
 const { publicar } = require('./publicar');
 const { escribirLibro } = require('./xlsxEscribir');
 const { rellenarPlantilla } = require('./xlsxPlantilla');
+const parametros = require('./parametros');
 
 /**
  * Una carga de carpeta (C5, 4.2): cada fila sabe de qué archivo vino, en la
@@ -1207,8 +1208,11 @@ class ChainExecutor extends EventEmitter {
         const { type } = node;
         const chainFile = ctx.chainFile || '';
         // Interpolate ${var} placeholders across all string config fields before use.
+        // With a run's parameters (5.11, D4), by context: SQL, paths and names.
         const vars = ctx.variables || {};
-        const config = Object.keys(vars).length > 0 ? this.applyVars(node.config || {}, vars) : (node.config || {});
+        const config = ctx.parametros
+            ? parametros.aplicarAConfig(node.config || {}, ctx.parametros)
+            : (Object.keys(vars).length > 0 ? this.applyVars(node.config || {}, vars) : (node.config || {}));
         let sql = '';
         let resultType = 'unknown';
         let resultSummary = {};
@@ -1217,6 +1221,8 @@ class ChainExecutor extends EventEmitter {
             case 'sql_file': {
                 const filePath = path.resolve(projectPath, config.filePath);
                 sql = fs.readFileSync(filePath, 'utf-8');
+                // 5.11 (D4): el archivo .sql también recibe los parámetros.
+                if (ctx.parametros) sql = parametros.reescribirSql(sql, ctx.parametros);
                 const result = await dbManager.query(sql);
                 const detected = this.detectResultType(sql);
                 resultType = detected.resultType;
@@ -2413,11 +2419,15 @@ class ChainExecutor extends EventEmitter {
         }
     }
 
-    async _run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, historial = null, oyente = null, alCrear = null } = {}) {
+    async _run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, deFuera = {}, historial = null, oyente = null, alCrear = null } = {}) {
         const { nodes, edges = [], name = 'Untitled Chain' } = chainDef;
         const anotar = historial || chainPersistence.ligar(dbManager);
         // Chain-level variables (from the .sqlchain) merged with run-time overrides.
-        const chainVars = { ...(chainDef.variables || {}), ...(variables || {}) };
+        const chainVars = { ...(chainDef.variables || {}), ...(variables || {}), ...(deFuera || {}) };
+        // 5.11 (D4): los valores con su tipo, y cuáles llegaron de fuera (línea de
+        // comandos, formulario, lote, programación): ésos no se pegan a ciegas.
+        const param = parametros.resolver({ ...chainDef, variables: { ...(chainDef.variables || {}), ...(variables || {}) } }, deFuera);
+        for (const s of parametros.sentenciasSet(param)) await dbManager.query(s);
 
         // Determine which nodes to execute based on mode
         let activeNodeIds;
@@ -2560,7 +2570,7 @@ class ChainExecutor extends EventEmitter {
                             id: pid, etiqueta: nodeMap.get(pid)?.label || pid,
                             salida: nodeOutputs.get(pid) || this.staticOutputRef(nodeMap.get(pid), chainFile),
                         }));
-                        const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, fanout, entradas });
+                        const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, parametros: param, fanout, entradas });
                         const durationMs = Date.now() - startTime;
 
                         // Emit SQL executed
