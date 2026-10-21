@@ -34,6 +34,22 @@ export function validateNode(node, edges = []) {
             break;
         }
 
+        case 'excel': {
+            const salida = String(config.outputPath || '').trim();
+            if (!salida) errors.push('Choose where to save the workbook');
+            else if (config.modo === 'plantilla' ? !/\.xls[xm]$/i.test(salida) : !/\.xlsx$/i.test(salida)) {
+                errors.push(config.modo === 'plantilla' ? 'The file name must end in .xlsx (or .xlsm if the template has macros)' : 'The file name must end in .xlsx');
+            }
+            if (!hasUpstream) errors.push('Connect at least one node: each one becomes a sheet');
+            if (config.modo === 'plantilla') {
+                if (!String(config.plantilla || '').trim()) errors.push('Choose the template to fill');
+                const conectados = new Set(inEdges.map(e => e.source));
+                const destinos = (config.destinos || []).filter(d => conectados.has(d.desde));
+                if (hasUpstream && destinos.length < conectados.size) errors.push('Say where each connected node goes in the template');
+            }
+            break;
+        }
+
         case 'publicar': {
             if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(config.fuente || '')) errors.push('Name the source it publishes: lowercase letters, digits and hyphens');
             if (!config.carpeta?.trim()) errors.push('Choose the folder (or bucket) to publish to');
@@ -47,8 +63,8 @@ export function validateNode(node, edges = []) {
             if (!config.query?.trim() && !hasUpstream) {
                 errors.push('No upstream node connected and no manual query — nothing to export');
             }
-            if (config.format === 'xlsx' || config.format === 'excel') {
-                warnings.push('Excel export requires the spatial DuckDB extension (auto-installed on first use)');
+            if ((config.format === 'xlsx' || config.format === 'excel') && /^(s3|gs|gcs):\/\//i.test(config.outputPath || '')) {
+                warnings.push('Excel to a bucket uses the spatial engine extension (downloaded the first time) and has no formatting; a local path gets a formatted workbook');
             }
             break;
         }

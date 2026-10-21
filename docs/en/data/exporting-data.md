@@ -48,7 +48,7 @@ One important nuance: export is **tied to the query**, not to what's on screen. 
 |---|---|---|---|
 | CSV | Yes | Yes | With header |
 | Parquet | Yes | Yes | Columnar, ideal for analytics |
-| Excel (.xlsx) | Yes | **No** | Real `.xlsx` via the `excel` extension |
+| Excel (.xlsx) | Yes | **No** | A formatted workbook written by AmoxSQL |
 | JSON | — | Yes | Cloud export only |
 
 ### Dialog fields
@@ -63,7 +63,7 @@ One important nuance: export is **tied to the query**, not to what's on screen. 
 ## Tips & gems
 
 - **Excel limit:** one `.xlsx` sheet holds at most 1,048,576 rows. If your result exceeds it, you'll get a clear error asking you to use CSV or Parquet.
-- **Real Excel:** the `.xlsx` is written with DuckDB's `excel` extension, so it opens correctly in spreadsheets (it's not a CSV in disguise).
+- **Excel with formatting:** AmoxSQL writes the workbook itself, with no extension. Dates are dates, decimals keep their places, and the header is bold, fixed and filtered. Each column is as wide as its content. For several sheets or the client's template, use the [Excel node](../data-flow/excel-output.md) of Data Flow.
 - **No cloud Excel:** cloud export validates the format and rejects `.xlsx` on purpose.
 - **Credentials in Settings:** set your S3/GCS keys in **Settings → Store Integrations** before exporting to the cloud.
 

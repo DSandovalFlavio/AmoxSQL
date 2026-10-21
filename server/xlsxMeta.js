@@ -198,4 +198,4 @@ function invalidate(fullPath) {
     else _cache.clear();
 }
 
-module.exports = { getSheetNames, readWorkbookXml, parseSheetNames, getCached, setCached, invalidate };
+module.exports = { getSheetNames, readWorkbookXml, parseSheetNames, getCached, setCached, invalidate, directorioCentral, decodeXmlEntities };

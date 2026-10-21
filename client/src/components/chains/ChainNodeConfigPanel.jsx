@@ -14,6 +14,7 @@ import {
     LuFolderOpen, LuLightbulb, LuMinus, LuPlus,
 } from 'react-icons/lu';
 import Combobox from './_Combobox';
+import ExcelConfig from './ExcelConfig';
 import { API_BASE } from '../../api.js';
 
 const ChainNodeConfigPanel = ({ node, onUpdate, onCreateSqlFile, onOpenFile, sqlFiles = [], chainDefinition, chainFile }) => {
@@ -159,6 +160,10 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onCreateSqlFile, onOpenFile, sql
 
                 {node.data.nodeType === 'publicar' && (
                     <PublicarConfig config={config} onChange={updateConfig} />
+                )}
+
+                {node.data.nodeType === 'excel' && (
+                    <ExcelConfig node={node} config={config} onChange={updateConfig} onChangeMulti={updateConfigMulti} chainDefinition={chainDefinition} />
                 )}
 
                 {node.data.nodeType === 'chart' && (

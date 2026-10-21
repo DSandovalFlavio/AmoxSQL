@@ -97,7 +97,8 @@ Para lo que los nodos visuales no cubren.
 | Nodo | Qué hace |
 |---|---|
 | **Create Table** | Materializa el resultado como una tabla persistente en la base de datos |
-| **Export File** | Escribe el resultado a un archivo (CSV/Parquet/Excel/JSON), local o en la nube, opcionalmente particionado |
+| **Export File** | Escribe el resultado a un archivo (CSV/Parquet/Excel/JSON), local o en la nube, opcionalmente particionado. Un Excel local sale con formato |
+| **Excel** | Un libro con formato, con una hoja por nodo conectado, o la plantilla del cliente rellenada: sus tablas crecen, y gráficos, fórmulas y formato se quedan. Ver [Salida a Excel](excel-output.md) |
 | **Publish** | Publica un Parquet que otros proyectos leen por su nombre: lo escribe aparte y lo cambia de una vez (nadie lee medio archivo), con su esquema y su fecha dentro, y lo registra como [fuente](../data/sources.md). Un cambio de esquema que rompe a quien lo lee lo detiene |
 
 ### Quality & Control (calidad y control)
