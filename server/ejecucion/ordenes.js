@@ -9,6 +9,11 @@
  *
  * `--batch` (5.11, D4): una ejecución por fila de un CSV (o de una lista JSON);
  * la primera línea nombra los parámetros. Los `--param` valen para todas.
+ *
+ *     AmoxSQL.exe tick
+ *
+ * (5.11, D1) Corre las programaciones que tocan y se pone al día. La lanza la
+ * tarea del sistema; con AmoxSQL abierto, se le entrega como cualquier orden.
  */
 const fs = require('fs');
 const path = require('path');
@@ -40,7 +45,17 @@ function leerArgumentos(argv, { desde = 1, cwd = process.cwd() } = {}) {
     // Chromium y Electron añaden interruptores propios (--allow-file-access-…);
     // la orden es la primera palabra que no es uno de ellos.
     const primera = a.findIndex(x => !String(x).startsWith('--'));
-    if (primera < 0 || a[primera] !== 'run') return null;
+    if (primera < 0) return null;
+    if (a[primera] === 'tick') {
+        const r = { orden: 'tick', proceso: null, proyecto: null, parametros: {}, informe: null };
+        const i = a.findIndex(x => x === '--informe' || String(x).startsWith('--informe='));
+        if (i >= 0) {
+            const v = a[i].includes('=') ? a[i].slice(a[i].indexOf('=') + 1) : a[i + 1];
+            if (v) r.informe = path.resolve(cwd, v);
+        }
+        return r;
+    }
+    if (a[primera] !== 'run') return null;
 
     const r = { orden: 'run', proceso: null, proyecto: null, parametros: {}, informe: null, lote: null };
     const error = (texto) => ({ ...r, error: `${texto}\n${USO}` });
@@ -101,6 +116,7 @@ function leerArgumentos(argv, { desde = 1, cwd = process.cwd() } = {}) {
 
 /** Lo que se sabe sin arrancar nada: que existan la carpeta y el archivo. */
 function comprobarQueExiste(r) {
+    if (r.orden === 'tick') return null;
     if (!fs.existsSync(r.proyecto) || !fs.statSync(r.proyecto).isDirectory()) {
         return `The project folder does not exist: ${r.proyecto}`;
     }
@@ -124,6 +140,21 @@ function leerJson(ruta) {
 
 /** Lo que se lee en la consola, a partir del resultado. */
 function textoDelResultado(r) {
+    if (r.orden === 'tick') {
+        // Las horas, en la de esta máquina: es lo que se lee en la consola.
+        const local = (iso) => {
+            if (!iso) return '';
+            const d = new Date(iso);
+            const dos = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())} ${dos(d.getHours())}:${dos(d.getMinutes())}`;
+        };
+        const c = r.corridas || [];
+        const l = [r.pausado ? `AmoxSQL: schedules are paused until ${local(r.pausado)}` : `AmoxSQL: ${c.length ? `${c.length} scheduled process${c.length === 1 ? '' : 'es'} ran` : 'nothing was due'}`];
+        for (const x of c) l.push(`  ${x.estado === 'ok' ? 'ok  ' : 'FAIL'} ${x.nombre} (due ${local(x.prevista)})${x.perdidas ? `, ${x.perdidas} missed before it` : ''}${x.error ? ` — ${x.error}` : ''}`);
+        for (const x of r.saltadas || []) l.push(`  skip ${x.nombre}: ${x.motivo}`);
+        if (r.proxima) l.push(`  Next: ${local(r.proxima)}`);
+        return l.join('\n') + '\n';
+    }
     const nombre = path.basename(r.proceso || '') || 'process';
     const donde = r.entregada ? ' (run by the open AmoxSQL)' : '';
     const l = [r.codigo === 0 ? `AmoxSQL: ${nombre} finished${donde}` : `AmoxSQL: ${nombre} failed (exit code ${r.codigo})${donde}`];

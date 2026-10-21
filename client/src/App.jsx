@@ -28,6 +28,7 @@ import WelcomeScreen from './components/WelcomeScreen';
 import WorkspaceWizard from './components/WorkspaceWizard';
 import WorkspacesHost from './components/workspaces/WorkspacesHost';
 import AvisoDeLlegadas from './components/fuentes/AvisoDeLlegadas';
+import AvisoProgramador from './components/AvisoProgramador';
 import AiAssistantPanel from './components/ai/AiAssistantPanel';
 import AiDivingPanel from './components/ai/AiDivingPanel';
 import ConversationList from './components/ai/ConversationList';
@@ -1447,6 +1448,7 @@ function App() {
       <WorkspacesHost />
       {/* C3: «llegó el archivo» de una fuente de tipo carpeta, con el IDE abierto */}
       <AvisoDeLlegadas />
+      <AvisoProgramador />
 
       {/* Workspace Scaffolding Wizard — shown on first open of new projects */}
       {showWorkspaceWizard && (

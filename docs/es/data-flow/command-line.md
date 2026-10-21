@@ -75,7 +75,10 @@ AmoxSQL.exe run semanal.sqlchain --project "C:\Tiendas" --batch tiendas.csv
 | **4** | AmoxSQL estaba abierto y no contestó en 30 segundos |
 | **5** | No existe la carpeta del proyecto o el archivo del proceso |
 
-### A una hora fija: el Programador de tareas de Windows
+### A una hora fija
+Lo más sencillo es **⋯ → Schedule…** en Data Flow: AmoxSQL guarda la programación, se pone al día tras estar apagada la computadora y, si lo activas, se despierta con una tarea de Windows. Ver [Programar procesos](scheduling.md). `AmoxSQL.exe tick` corre lo que toca ahora mismo: es lo que llama esa tarea.
+
+Para llamarlo desde otra herramienta, usa el Programador de tareas de Windows a mano:
 1. Abre el **Programador de tareas** y elige **Crear tarea básica**.
 2. Dale un nombre (por ejemplo, *Ventas semanales*) y el desencadenador: **Semanalmente**, el lunes a las 7:00.
 3. En **Acción**, elige **Iniciar un programa**:
@@ -83,7 +86,7 @@ AmoxSQL.exe run semanal.sqlchain --project "C:\Tiendas" --batch tiendas.csv
    - **Agregar argumentos:** `run flujos\ventas.sqlchain --project "C:\Proyectos\Ventas 2026"`
 4. Termina el asistente. En el **Historial** de la tarea verás el código de salida de cada vez que corrió: `0` es que fue bien.
 
-La tarea corre con tu usuario, así que usa tus credenciales del llavero. La programación desde la propia aplicación llega en una versión posterior.
+La tarea corre con tu usuario, así que usa tus credenciales del llavero.
 
 ## Referencia: dónde queda cada cosa
 
