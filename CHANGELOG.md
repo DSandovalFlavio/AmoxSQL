@@ -5,6 +5,95 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.10.0] — 2026-10-21
+
+**Los datos donde están.** El segundo tramo del camino a la 6.0 (plan en
+`docs/dev/plan_5_10_datos_donde_estan.md`): leer el dato en su sitio —un Excel
+que llega cada semana, una carpeta, un bucket, un lago— sin copiarlo, saber de
+dónde salió cada tabla, y dejar un archivo que otros leen por su nombre. Reúne
+lo que trajeron 5.10.0-alpha.1 a beta.1; el detalle de cada paso está en sus
+entradas, más abajo.
+
+> **Antes de instalarla:** la base de AmoxSQL (`~/.amoxsql/amoxsql.duckdb`)
+> sube al esquema v3. La 5.9 ya no la abre: si vuelves a ella, arranca sin tus
+> workspaces, tu historial ni tus claves guardadas. Reinstalar la 5.10 lo deja
+> todo como estaba.
+
+### Fuentes con nombre
+
+- **Un archivo se define una vez y se usa por su nombre** en todas partes —el
+  editor, los cuadernos, Data Flow, el asistente, la línea de comandos—:
+  `SELECT * FROM fuentes."ventas-semanales"`. Nada se copia a la base.
+- **Cada máquina dice dónde está el archivo**: la definición viaja con el
+  workspace o el proyecto; la ruta de esta máquina, no.
+- **Una carpeta** lee el archivo más reciente que terminó de llegar —o todos,
+  con `_archivo`—; con la aplicación abierta, se entera sola cuando llega uno.
+- **Un bucket** (S3 o compatible, Google Cloud Storage) con patrón y
+  particiones, o **una tabla de un lago** (Delta, Iceberg, DuckLake), con
+  credenciales de nube con nombre, cifradas, que sólo abren su carpeta.
+
+### El Excel tal como llega
+
+- **Importar Excel, rehecho**: la hoja tal como es, un clic en los encabezados
+  marca el rango, y ves lo que se va a leer con sus tipos. Rellenar hacia abajo,
+  limpiar nombres, unir hojas con `_hoja`. Lo elegido se recuerda en el proyecto.
+- **Lo que no es un libro dice qué es**: un `.xls` antiguo, uno con contraseña,
+  uno dañado o un CSV con extensión `.xlsx`.
+
+### De dónde salió cada dato
+
+- **Cada tabla cargada desde un archivo lo recuerda** —qué archivo, hoja y
+  rango, cuándo y cuántas filas—, en el comentario de la propia tabla. El
+  explorador avisa si el archivo cambió después; el asistente lo recibe.
+
+### Publicar un archivo
+
+- **El nodo Publish de Data Flow** deja un Parquet que otros proyectos leen por
+  su nombre. Nadie lee nunca medio archivo, lleva dentro su esquema y de dónde
+  viene, y un cambio que rompe a quien ya lo lee no se publica.
+
+### dbt sin bloqueos
+
+- `dbt run` ya no choca con AmoxSQL: si va a escribir en la base que tienes
+  abierta, AmoxSQL la suelta y la recupera al terminar —también si falla o lo
+  cancelas—, sin perder vistas, fuentes ni extensiones.
+- **Si dbt usa otra versión del motor, se dice** antes de que corra.
+
+### El motor, a DuckDB 1.5.6
+
+- Con dbt en la misma versión, AmoxSQL lee el lago DuckLake que dbt escribe, y
+  dbt escribe en él mientras AmoxSQL lo tiene abierto.
+- **DuckDB 2 ya salió**, y un entorno de dbt nuevo lo instala: las bases que ya
+  existían siguen funcionando, pero una que DuckDB 2 cree desde cero —y su lago
+  DuckLake— no abre en la 1.5. Abrirla lo dice en palabras, y el aviso de dbt
+  sale aunque el perfil no use lago. Lo recomendado: DuckDB 1.5.6 en el entorno
+  de dbt.
+- Las extensiones se descargan por versión del motor: la primera vez que uses
+  la de Excel, Iceberg o DuckLake tras actualizar hace falta red, una vez.
+
+### Arreglado (desde la beta.1)
+
+- Un Iceberg escrito por un catálogo (sin `version-hint`) se lee apuntando a su
+  carpeta.
+- Un DuckLake con catálogo `sqlite:`, `postgres:` o `mysql:` ya no se pega a la
+  carpeta del proyecto; un `sqlite:` relativo va relativo al proyecto.
+- Un lago escrito por otra versión del motor dice cuál y qué hacer.
+- Leer un archivo recién reemplazado ya no falla con «No magic bytes».
+
+### Retirado
+
+- La dependencia que leía las hojas de un Excel (tenía fallos conocidos con
+  archivos manipulados): las hojas se leen directamente del archivo.
+
+### Para volver a la 5.9
+
+La 5.9 no abre la base de AmoxSQL en el esquema v3: arrancaría sin workspaces,
+historial ni claves. Los proyectos sí: lo que añade la 5.10 —`fuentes/`,
+`lecturas` en `project.json`, los comentarios de procedencia— lo ignora sin
+romperse.
+
+---
+
 ## [5.10.0-beta.1] — 2026-10-02
 
 Primera beta de la 5.10.0: **publicar un archivo**. Con ella está todo lo de
