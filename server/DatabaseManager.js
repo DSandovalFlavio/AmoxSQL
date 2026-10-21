@@ -422,6 +422,11 @@ class DatabaseManager {
         } catch (e) {
             console.error("[DB Manager] Attach failed:", e);
             await this.reinitializeSystem();
+            // Una base escrita por un motor más nuevo (DuckDB 2 escribe el
+            // formato 69 en las bases que crea; 1.5 lee del 64 al 68).
+            if (/database file with version number \d+, but we can only read versions between/i.test(e?.message || '')) {
+                throw new Error(`${path.basename(fullPath)} was created by a newer version of the engine (DuckDB 2 or later), and this AmoxSQL cannot open it. Update AmoxSQL, or have the tool that created it save it in a compatible format (storage_compatibility_version 'v1.5.0').`);
+            }
             throw e;
         }
     }

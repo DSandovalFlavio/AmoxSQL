@@ -170,10 +170,17 @@ async function avisoDeVersion(raiz, comando, { condaEnv, condaPath, versionAmox 
     for (const c of [profilesDir ? path.resolve(raiz, profilesDir, 'profiles.yml') : null, path.join(raiz, 'profiles.yml')].filter(Boolean)) {
         if (fs.existsSync(c)) { perfilTexto = fs.readFileSync(c, 'utf8'); break; }
     }
-    if (!/ducklake:/i.test(perfilTexto)) return null;
+    const lago = /ducklake:/i.test(perfilTexto);
+    // Con un motor de otra versión mayor (DuckDB 2 frente a 1.x) el aviso vale
+    // también sin lago: una base que dbt cree desde cero queda en un formato que
+    // AmoxSQL no lee; las que ya existían conservan el suyo (comprobado, p07).
     const v = await versionDelMotorDeDbt({ condaEnv, condaPath });
     const amox = String(versionAmox).replace(/^v/, '');
     if (!v) return null;
+    if (Number(v.split('.')[0]) > Number(amox.split('.')[0])) {
+        return `dbt runs DuckDB ${v} and AmoxSQL ${amox}. Databases that already exist keep working; one that dbt creates from scratch${lago ? ', and the DuckLake lake,' : ''} will not open in AmoxSQL: use DuckDB ${amox} in dbt's environment, or update AmoxSQL.`;
+    }
+    if (!lago) return null;
     if (menor(v, amox)) {
         return `dbt runs DuckDB ${v} and AmoxSQL ${amox}. A DuckLake lake written by the newer one may not open in the older one: update the DuckDB package of dbt's environment.`;
     }

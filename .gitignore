@@ -157,3 +157,6 @@ plan/
 # Caché por proyecto del catálogo de funciones (lo genera /api/functions/refresh)
 .amox/
 client/public/vs/
+
+# Una base que creó DuckDB 2, para probar que AmoxSQL lo explica
+!scripts/fixtures/motor/*.duckdb
