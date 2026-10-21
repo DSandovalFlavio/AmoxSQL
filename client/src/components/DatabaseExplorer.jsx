@@ -12,6 +12,7 @@ import {
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import FuentesExplorador from './fuentes/FuentesExplorador';
+import DestinosDeEntrega from './fuentes/DestinosDeEntrega';
 
 /**
  * Builds a schema-qualified name: "schema"."table" for non-main schemas, just "table" for main.
@@ -317,6 +318,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                         busqueda={deferredSearchQuery}
                         getTypeMeta={getTypeMeta}
                     />
+                    {/* Y adónde se entrega (D6): las carpetas con nombre de los procesos. */}
+                    {!deferredSearchQuery && <DestinosDeEntrega variante="arbol" />}
                     {loading && <div className="db-loading">Loading...</div>}
                     {!loading && totalTables === 0 && (
                         <div className="db-empty">

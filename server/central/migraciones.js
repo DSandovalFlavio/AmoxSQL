@@ -144,6 +144,47 @@ const MIGRACIONES = [
             )`,
         ],
     },
+    {
+        version: 4,
+        nombre: 'destinos y programaciones',
+        // 5.11 (D6 y D1). Dónde está cada destino de entrega en ESTA máquina
+        // (Dec-21: las dos mitades de una fuente, con la flecha al revés), y lo
+        // programado, que es de la máquina (Dec-15): no viaja en el proceso.
+        // `ejecuciones` sabe además qué programación la lanzó y para qué hora
+        // estaba prevista —la clave que impide correr dos veces la misma
+        // ocurrencia (Dec-16)— y guarda su resumen para la bitácora y el aviso.
+        //
+        // Una base con este esquema no la abre la 5.10: lo dicen las notas de
+        // la 5.11.0-alpha.2.
+        sql: [
+            `CREATE TABLE destinos_locales (
+                ambito      VARCHAR NOT NULL,
+                nombre      VARCHAR NOT NULL,
+                ubicacion   VARCHAR NOT NULL,
+                actualizada TIMESTAMP NOT NULL DEFAULT current_timestamp,
+                PRIMARY KEY (ambito, nombre)
+            )`,
+            `CREATE TABLE programaciones (
+                id              VARCHAR PRIMARY KEY,
+                nombre          VARCHAR,
+                proceso         VARCHAR NOT NULL,
+                proyecto        VARCHAR NOT NULL,
+                workspace_id    VARCHAR,
+                regla           VARCHAR NOT NULL,
+                parametros      VARCHAR,
+                avisar          VARCHAR NOT NULL DEFAULT 'siempre',
+                ponerse_al_dia  BOOLEAN NOT NULL DEFAULT true,
+                activa          BOOLEAN NOT NULL DEFAULT true,
+                pausada_hasta   TIMESTAMP,
+                creada          TIMESTAMP NOT NULL DEFAULT current_timestamp,
+                ultima_prevista TIMESTAMP,
+                proxima         TIMESTAMP
+            )`,
+            `ALTER TABLE ejecuciones ADD COLUMN programacion_id VARCHAR`,
+            `ALTER TABLE ejecuciones ADD COLUMN prevista TIMESTAMP`,
+            `ALTER TABLE ejecuciones ADD COLUMN resumen VARCHAR`,
+        ],
+    },
 ];
 
 module.exports = { MIGRACIONES };

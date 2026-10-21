@@ -26,16 +26,17 @@ function procesoAbsoluto(proyecto, chainFile) {
     return proyecto ? path.resolve(proyecto, chainFile) : chainFile;
 }
 
-function historialCentral(base, { proyecto = null, workspaceId = null, origen = 'interfaz', parametros = null } = {}) {
+function historialCentral(base, { proyecto = null, workspaceId = null, origen = 'interfaz', parametros = null, programacionId = null, prevista = null } = {}) {
     return {
         async createRun(d) {
             const proceso = procesoAbsoluto(proyecto, d.chainFile);
             const id = await chainPersistence.createRun(base, { ...d, chainFile: proceso, proyecto: proyecto || null });
             const params = parametros && Object.keys(parametros).length ? JSON.stringify(parametros) : null;
             await base.query(
-                `INSERT INTO ejecuciones (id, proceso, proyecto, workspace_id, origen, inicio, estado, parametros)
-                 VALUES ($1, $2, $3, $4, $5, current_timestamp, 'en_curso', $6)`,
-                [id, proceso, proyecto, workspaceId, origen, params]
+                `INSERT INTO ejecuciones (id, proceso, proyecto, workspace_id, origen, inicio, estado, parametros, programacion_id, prevista)
+                 VALUES ($1, $2, $3, $4, $5, current_timestamp, 'en_curso', $6, $7, $8)`,
+                // 5.11 (D1): qué programación la lanzó y para qué hora estaba prevista.
+                [id, proceso, proyecto, workspaceId, origen, params, programacionId, prevista ? new Date(prevista).toISOString() : null]
             );
             return id;
         },

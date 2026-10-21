@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LuArrowDown, LuArrowUp, LuFolderOpen, LuPlus, LuX } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
+import SelectorDeDestino from './SelectorDeDestino';
 
 const FORMATOS = [
     { value: '', label: 'By its type' },
@@ -56,15 +57,17 @@ const ExcelConfig = ({ node, config, onChange, onChangeMulti, chainDefinition })
                 <Plantilla config={config} onChangeMulti={onChangeMulti} entradas={entradas} />
             )}
 
-            <label>Save as</label>
+            <SelectorDeDestino valor={config.destino} onChange={(v) => onChange('destino', v)} />
+            <label>{config.destino ? 'File name' : 'Save as'}</label>
             <div className="chain-config-input-with-btn">
                 <input type="text" className="chain-config-input" value={config.outputPath || ''} spellCheck={false}
-                    onChange={(e) => onChange('outputPath', e.target.value)} placeholder="outputs/monthly_close_${mes}.xlsx" />
-                {window.electronAPI?.saveFileDialog && (
+                    onChange={(e) => onChange('outputPath', e.target.value)} placeholder={config.destino ? 'monthly_close_{fecha:AAAA-MM}.xlsx' : 'outputs/monthly_close_${mes}.xlsx'} />
+                {!config.destino && window.electronAPI?.saveFileDialog && (
                     <button className="chain-config-browse-btn" onClick={guardarComo} title="Choose where to save"><LuFolderOpen size={13} /></button>
                 )}
             </div>
             <p className="chain-config-hint">
+                <code>{'{fecha}'}</code>, <code>{'{fecha:AAAA-MM}'}</code> and <code>{'${parameter}'}</code> work in the name.
                 Written aside and swapped in at the end. If someone has the file open in Excel, it waits a few seconds and then says who.
             </p>
 

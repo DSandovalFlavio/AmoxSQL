@@ -6563,6 +6563,43 @@ app.put('/api/fuentes/:nombre/ubicacion', conCentral(async (req) => {
     return { ubicacion };
 }));
 
+// ── Destinos de entrega (5.11, D6) ──────────────────────────────────────────
+// Las mismas dos mitades que una fuente: la definición viaja, la carpeta de
+// esta máquina va a la base de AmoxSQL. Ver server/destinos.js.
+const destinosDeEntrega = require('./destinos');
+
+app.get('/api/destinos', conCentral(async (req) => {
+    if (req.query.workspaceId) return { destinos: await destinosDeEntrega.listar({ workspaceId: String(req.query.workspaceId) }) };
+    if (!PROYECTO_ABIERTO) return { destinos: [] };
+    return { destinos: await destinosDeEntrega.listar({ raiz: ROOT_DIR }) };
+}));
+
+app.post('/api/destinos', conCentral(async (req) => {
+    const donde = destinoDeFuente(req);
+    let { definicion, ubicacionAqui } = req.body || {};
+    // Una carpeta dentro del proyecto, en un destino del proyecto: relativa y en
+    // la definición, como las fuentes.
+    if (donde.raiz && ubicacionAqui && path.isAbsolute(ubicacionAqui)) {
+        const rel = path.relative(donde.raiz, ubicacionAqui);
+        if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) {
+            definicion = { ...definicion, ubicacion: rel.split(path.sep).join('/') };
+            ubicacionAqui = null;
+        }
+    }
+    const def = await destinosDeEntrega.guardar(donde, definicion);
+    if (ubicacionAqui !== undefined) await destinosDeEntrega.ubicar(donde, def.nombre, ubicacionAqui || null);
+    return { destino: def };
+}));
+
+app.delete('/api/destinos/:nombre', conCentral(async (req) => {
+    await destinosDeEntrega.borrar(destinoDeFuente(req), req.params.nombre);
+    return { ok: true };
+}));
+
+app.put('/api/destinos/:nombre/ubicacion', conCentral(async (req) => {
+    return { ubicacion: await destinosDeEntrega.ubicar(destinoDeFuente(req), req.params.nombre, req.body?.ubicacion || null) };
+}));
+
 /**
  * Probar una definición sin guardarla: las primeras filas y las columnas. Va en
  * una instancia aparte, en memoria, para no dejar nada en la sesión.

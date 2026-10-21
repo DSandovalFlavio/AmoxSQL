@@ -276,6 +276,8 @@ const PERMITIDOS = [
     // ubicación en cada máquina, no. No salen en el editor de contexto: tienen
     // su propio panel.
     /^fuentes\/[a-z0-9]+(?:-[a-z0-9]+)*\.json$/,
+    // Y sus destinos de entrega (D6, 5.11): igual, la carpeta de cada máquina no.
+    /^destinos\/[a-z0-9]+(?:-[a-z0-9]+)*\.json$/,
 ];
 const CANONICOS = ['RULES.md', 'contexto/metrics.yml', 'contexto/joins.yml', 'contexto/glossary.md'];
 
@@ -309,11 +311,15 @@ async function archivosDeContexto(id) {
     return [...vistos.values()];
 }
 
-/** Las definiciones de fuentes del workspace, como archivos (para exportar). */
+/** Las definiciones de fuentes y de destinos del workspace, como archivos (para exportar). */
 function archivosDeFuentes(id) {
-    const dir = path.join(carpetaDe(id), 'fuentes');
-    if (!fs.existsSync(dir)) return [];
-    return fs.readdirSync(dir).filter(f => /^[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(f)).map(f => `fuentes/${f}`);
+    const out = [];
+    for (const sub of ['fuentes', 'destinos']) {
+        const dir = path.join(carpetaDe(id), sub);
+        if (!fs.existsSync(dir)) continue;
+        out.push(...fs.readdirSync(dir).filter(f => /^[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(f)).map(f => `${sub}/${f}`));
+    }
+    return out;
 }
 
 async function leerArchivo(id, ruta) {
