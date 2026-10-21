@@ -24,6 +24,7 @@ A schedule says **which process**, **when**, **with which parameters** and **who
    - **Every week.** On one day.
    - **Every month.** On a day of the month (day 31 becomes the last day in shorter months), on the **first** or **last business day**, or on the **Nth business day**.
    - **Every few hours.** Every 1 to 12 hours within a time window.
+   - **When a file arrives.** When a new file lands in a [folder source](../data/sources.md) («the client drops the Excel at 9:40 instead of 7:00»). It waits a minute after the last file, so ten files at once are one run. **Only while AmoxSQL is open with that project**: watching folders is something the open application does.
 3. Set the time. The dialog shows the next five dates while you write the rule.
 4. Give its **parameters** values. For a date, **The day it was due** uses the date of each run: September's close that runs on October 2nd still gets September's date.
 5. Choose **Notify me** (every time, only if it fails, never), and whether it **catches up** after the computer was off.
@@ -41,6 +42,16 @@ Each schedule shows in a sentence when it runs next and how the last run went, w
   - Untick the option and the task is removed.
 
 The same occurrence never runs twice, whoever triggers it (the open app or the Windows task). If the previous run of a schedule is still going, the next one is skipped and the message says so.
+
+## Operations: everything in one place
+
+**Operations** shows everything scheduled on this computer, from every group. Open it from the button with today's count in the title bar (red if something failed today), from the **AmoxSQL** menu, or from the workspaces view.
+
+- **Today and tomorrow.** What ran (finished, failed) and what is still due, in order.
+- **Schedules.** Grouped by group, with **Run now** and **Pause**.
+- **Log.** The recent runs of every project: all, only scheduled, or only failed. A click opens the run's details.
+- **Pause everything until a date** before a holiday. Nothing scheduled runs until then, and what was due is not caught up. **Resume now** lifts the pause.
+- The switch **Run even when AmoxSQL is closed**.
 
 ## Business days and holidays
 

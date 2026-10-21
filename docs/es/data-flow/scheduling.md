@@ -24,6 +24,7 @@ Una programación dice **qué proceso**, **cuándo**, **con qué parámetros** y
    - **Cada semana.** Un día.
    - **Cada mes.** Un día del mes (el 31 pasa a ser el último en los meses más cortos), el **primer** o el **último día hábil**, o el **N-ésimo día hábil**.
    - **Cada pocas horas.** Cada 1 a 12 horas, dentro de una franja.
+   - **Al llegar un archivo.** Cuando aparece un archivo nuevo en una [fuente de carpeta](../data/sources.md) («el cliente deja el Excel a las 9:40 en vez de a las 7:00»). Espera un minuto tras el último archivo, así que diez archivos a la vez son una ejecución. **Sólo con AmoxSQL abierto con ese proyecto**: vigilar carpetas lo hace la aplicación abierta.
 3. Pon la hora. El diálogo enseña las próximas cinco fechas mientras escribes la regla.
 4. Da valor a sus **parámetros**. En una fecha, **The day it was due** usa la de cada ejecución: el cierre de septiembre que corre el 2 de octubre sigue llevando la fecha de septiembre.
 5. Elige **Notify me** (siempre, sólo si falla, nunca) y si **se pone al día** tras estar apagada la computadora.
@@ -41,6 +42,16 @@ Cada programación dice en una frase cuándo corre la próxima vez y cómo fue l
   - Desmarca la opción y la tarea se borra.
 
 La misma ocurrencia nunca corre dos veces, la lance quien la lance (la aplicación abierta o la tarea de Windows). Si la ejecución anterior de una programación sigue corriendo, la siguiente se salta y se dice.
+
+## Operations: todo en un sitio
+
+**Operations** enseña todo lo programado en esta computadora, de todos los grupos. Se abre con el botón de la barra de título que dice cuántas tocan hoy (en rojo si alguna falló hoy), desde el menú **AmoxSQL** o desde la vista de workspaces.
+
+- **Hoy y mañana.** Lo que corrió (terminó, falló) y lo que falta, en orden.
+- **Las programaciones.** Agrupadas por grupo, con **Run now** y **Pause**.
+- **La bitácora.** Las últimas ejecuciones de todos los proyectos: todas, sólo las programadas o sólo las que fallaron. Un clic abre la ficha de la ejecución.
+- **Pausar todo hasta una fecha** antes de un puente. No corre nada programado hasta entonces, y lo que tocaba no se pone al día. **Resume now** quita la pausa.
+- El interruptor **Run even when AmoxSQL is closed**.
 
 ## Días hábiles y festivos
 

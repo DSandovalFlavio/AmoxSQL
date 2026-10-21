@@ -6453,6 +6453,8 @@ function alLlegarUnArchivo(llegada) {
         const aviso = { tipo: 'llegada', fuentes: llegada.fuentes, archivo: llegada.archivo, modificada: llegada.modificada, tamano: llegada.tamano };
         console.log(`[Fuentes] Llegó ${llegada.archivo} (${llegada.fuentes.join(', ')})`);
         for (const f of oyentesDeLlegadas) { try { f(aviso); } catch { /* un oyente roto no tumba a los demás */ } }
+        // D8: lo programado «al llegar un archivo» a estas fuentes.
+        if (PROYECTO_ABIERTO) require('./programacion/programador').alLlegar(llegada.fuentes, ROOT_DIR).catch(() => {});
     });
 }
 
@@ -6625,6 +6627,62 @@ app.post('/api/programaciones/:id/correr', conCentral(async (req) => {
     const prog = await programaciones.leer(req.params.id);
     if (!prog) throw new Error('That schedule does not exist.');
     return programador.correrOcurrencia(prog, new Date().toISOString(), { origen: 'programada' });
+}));
+
+// ── El panel de operación (5.11, D7) ─────────────────────────────────────────
+// Todo lo programado, de todos los workspaces, en un sitio: lo de hoy (lo que
+// corrió y lo que falta), lo de mañana, las programaciones y la bitácora.
+app.get('/api/operacion', conCentral(async (req) => {
+    const ahora = new Date();
+    const dia = (d, n = 0) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+    const hoy0 = dia(ahora), manana0 = dia(ahora, 1), pasado0 = dia(ahora, 2);
+    const dos = (n) => String(n).padStart(2, '0');
+    const localSql = (d) => `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())} 00:00:00`;
+    const ws = new Map((await baseCentral.query(`SELECT id, nombre, color FROM workspaces`)).map(w => [w.id, w]));
+    const pausa = await programaciones.pausaGeneral();
+    const lista = (await programaciones.listar()).map(p => ({
+        ...p, workspaceNombre: ws.get(p.workspaceId)?.nombre || null, workspaceColor: ws.get(p.workspaceId)?.color || null,
+        proyectoNombre: path.basename(p.proyecto || ''),
+    }));
+    // Lo que falta hoy y lo de mañana: las ocurrencias de cada una, salvo pausas.
+    const pendientes = [];
+    for (const p of lista) {
+        if (!p.activa || p.regla?.tipo === 'al_llegar') continue;
+        const cal = calendarioDeTrabajo.leer(p.workspaceId);
+        let occ = [];
+        try { occ = reglasDeProgramacion.ocurrencias(p.regla, ahora, new Date(pasado0.getTime() - 1), cal, 200); } catch { continue; }
+        for (const t of occ) {
+            if (p.pausadaHasta && new Date(p.pausadaHasta) > t) continue;
+            pendientes.push({ programacionId: p.id, nombre: p.nombre, workspaceNombre: p.workspaceNombre, workspaceColor: p.workspaceColor, cuando: t.toISOString(), pausadaGeneral: !!(pausa && new Date(pausa) > t), manana: t >= manana0 });
+        }
+    }
+    pendientes.sort((a, b) => a.cuando.localeCompare(b.cuando));
+    const resumenDe = (t) => { try { return t ? JSON.parse(t) : null; } catch { return null; } };
+    const fila = (e) => {
+        const p = lista.find(x => x.id === e.programacion_id);
+        const r = resumenDe(e.resumen);
+        return {
+            id: e.id, estado: e.estado, origen: e.origen, inicio: e.inicio, fin: e.fin, error: e.error,
+            nombre: p?.nombre || r?.nombre || path.basename(e.proceso || '').replace(/\.sqlchain$/i, ''),
+            proyectoNombre: path.basename(e.proyecto || ''), workspaceNombre: ws.get(e.workspace_id)?.nombre || null,
+            workspaceColor: ws.get(e.workspace_id)?.color || null, programacionId: e.programacion_id || null,
+            prevista: horaUtc(e.prevista), linea: r?.linea || null,
+        };
+    };
+    const hoyCorridas = (await baseCentral.query(
+        `SELECT * FROM ejecuciones WHERE programacion_id IS NOT NULL AND inicio >= CAST($1 AS TIMESTAMP) ORDER BY inicio`, [localSql(hoy0)]
+    )).map(fila);
+    const limite = Math.min(Number(req.query.limite) || 150, 500);
+    const bitacora = (await baseCentral.query(`SELECT * FROM ejecuciones ORDER BY inicio DESC LIMIT ${limite}`)).map(fila);
+    return {
+        ahora: ahora.toISOString(),
+        hoy: { corridas: hoyCorridas, pendientes: pendientes.filter(x => !x.manana) },
+        manana: { pendientes: pendientes.filter(x => x.manana) },
+        programaciones: lista,
+        bitacora,
+        pausaGeneral: pausa,
+        sistema: { activo: (await baseCentral.preferencia('programador_sistema')) === true, soportado: process.platform === 'win32' },
+    };
 }));
 
 // ── La ficha de una ejecución (5.11, D2) ─────────────────────────────────────

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   LuDatabase, LuBrain, LuChevronDown, LuX, LuFolder, LuClock,
-  LuSearch, LuSettings, LuKeyboard, LuRefreshCw, LuLayers,
+  LuSearch, LuSettings, LuKeyboard, LuRefreshCw, LuLayers, LuCalendarClock,
 } from 'react-icons/lu';
 import { useEnlace, pedirEnlazar } from './workspaces/WorkspacesHost';
 import PoliticaIAChip from './workspaces/PoliticaIAChip';
+import { BotonOperacion } from './operacion/VistaOperacion';
 import { useEtiqueta } from '../etiqueta';
 
 const RECENT_KEY = 'amoxsql-recent-projects';
@@ -114,6 +115,10 @@ const WindowTitleBar = ({
                 <LuKeyboard size={13} className="wtb-dropdown-item-icon" />
                 <span>Keyboard Shortcuts</span>
               </button>
+              <button className="wtb-dropdown-item" role="menuitem" onClick={runAndClose(() => window.dispatchEvent(new CustomEvent('amox_abrir_operacion')))}>
+                <LuCalendarClock size={13} className="wtb-dropdown-item-icon" />
+                <span>Operations</span>
+              </button>
               <div className="wtb-dropdown-divider" />
               <button className="wtb-dropdown-item" role="menuitem" onClick={runAndClose(() => window.location.reload())}>
                 <LuRefreshCw size={13} className="wtb-dropdown-item-icon" />
@@ -219,7 +224,8 @@ const WindowTitleBar = ({
         )}
       </div>
 
-      {/* Derecha: controles de ventana */}
+      {/* Derecha: lo programado de hoy (5.11, D7) y los controles de ventana */}
+      <BotonOperacion />
       <div className="window-controls">
         <button onClick={() => window.electronAPI?.windowControl?.minimize()} className="control-btn minimize" title="Minimizar">
           <svg width="12" height="12" viewBox="0 0 12 12">
