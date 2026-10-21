@@ -53,6 +53,8 @@ Si solo quieres ejecutar SQL directo sobre DuckDB, usa el [Editor SQL](../editor
 
 **Sin bloqueos (desde la 5.10).** dbt escribe en la base `.duckdb` desde su propio proceso, y antes no podía si AmoxSQL la tenía abierta. Ahora, si el comando va a abrir la base que tienes adjunta —AmoxSQL lo lee en tu `profiles.yml`—, AmoxSQL la suelta y la vuelve a adjuntar al terminar dbt, también si falla o lo cancelas. Tus vistas de cuaderno, fuentes y extensiones siguen ahí. Mientras dbt la tiene, una consulta a la base dice por qué no corre; las que sólo leen fuentes sí corren. Los avisos de AmoxSQL salen en el panel **Output**, en otro color. Si dbt no llega a arrancar porque su entorno falla, también se dice.
 
+**Usa la misma versión del motor en dbt.** AmoxSQL 5.10 usa DuckDB 1.5.6; el paquete de DuckDB del entorno de dbt debería ser también 1.5.6. Un lago DuckLake escrito por una versión puede no abrir en la otra, y DuckDB 2 crea las bases nuevas en un formato que la 1.5 no lee (las que ya existían siguen funcionando). Si las versiones no coinciden, AmoxSQL lo dice en el panel **Output** antes de que corra dbt, y abrir una base creada por DuckDB 2 dice qué pasó en vez de un número de formato.
+
 ### 6. Lineage (linaje)
 1. Abre la sección **Lineage** (o el botón **Open in tab** para verla a pantalla completa).
 2. El grafo se construye desde el `manifest.json` del proyecto; si no existe, ejecuta `dbt compile` primero.
