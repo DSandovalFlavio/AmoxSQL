@@ -5,6 +5,77 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.11.0] — 2026-10-21 (sin publicar)
+
+**Procesos que corren solos.** El tercer tramo del camino a la 6.0 (plan en
+`docs/dev/plan_5_11_procesos_que_corren_solos.md`): un proceso de Data Flow
+corre a su hora o cuando llega un archivo, entrega un Excel de verdad donde
+toca, y avisa. No se publica: las versiones hasta la 6.0 son etapas internas.
+
+> **La base de AmoxSQL sube al esquema v4** al abrir esta versión. La 5.10 ya no
+> la abre.
+
+### Programar un proceso
+
+- **A su hora**: cada día (o sólo los hábiles), cada semana, cada mes —un día,
+  el primer o el último día hábil, el N-ésimo hábil— o cada pocas horas dentro
+  de una franja. El diálogo enseña las próximas cinco fechas.
+- **Al llegar un archivo** a una fuente de carpeta, con un minuto de espera tras
+  el último: diez archivos que bajan juntos son una ejecución. Con AmoxSQL
+  abierto.
+- **Con AmoxSQL abierto** mira cada minuto lo que toca; **al abrirlo se pone al
+  día**: corre sólo la última ocurrencia perdida (nunca una de hace más de 7
+  días) y dice cuántas se perdieron. La misma ocurrencia nunca corre dos veces.
+- **Con AmoxSQL cerrado**, si lo pides (apagado de inicio): una sola tarea en
+  el Programador de tareas de Windows, con tu usuario y sin privilegios, que lo
+  despierta a la próxima hora. `AmoxSQL.exe tick` corre lo que toca.
+- **El calendario del grupo**: días laborables y festivos, que viajan con el
+  workspace. **Pausar todo hasta una fecha** antes de un puente.
+
+### Saber qué pasó
+
+- **Un aviso del sistema** por ejecución (siempre, sólo si falla, nunca), con
+  lo que leyó y dejó. Su clic abre **la ficha de la ejecución**: cómo fue, sus
+  parámetros, los archivos que dejó (Open, Show in folder), cada paso con sus
+  filas y su tiempo, y **Run again**.
+- **Operations**: lo de hoy y mañana, todas las programaciones por grupo y la
+  bitácora de todos los proyectos. Un botón en la barra de título dice cuántas
+  tocan hoy, en rojo si alguna falló.
+
+### Excel de verdad
+
+- **El nodo Excel** escribe un libro con varias hojas, una por consulta, con
+  formato según el tipo de cada columna (fechas, decimales, moneda, porcentaje),
+  encabezado fijo y filtro. Sin dependencias nuevas.
+- **O rellena la plantilla del cliente**: una tabla de Excel que crece o
+  encoge con su fila de totales y sus columnas calculadas, o una hoja desde una
+  celda. Gráficos, nombres definidos, formatos condicionales y validaciones
+  siguen a los datos nuevos.
+- Export File en xlsx y la exportación de resultados usan el mismo escritor.
+
+### Parámetros, lotes y formulario
+
+- **Parámetros con tipo** (texto, número, fecha, lista, sí/no). Un valor que
+  llega de fuera —línea de comandos, lote, formulario, programación— **nunca
+  cambia la consulta**. Los procesos de la 5.10 corren igual.
+- **Run for each…** y `--batch`: el mismo proceso para cada tienda, cada mes.
+- **El proceso como formulario**: un campo por parámetro y Run, sin ver SQL.
+
+### Destinos de entrega
+
+- **Una carpeta con nombre** donde los procesos dejan sus archivos, con
+  subcarpeta y nombre con fecha (`{fecha:AAAA-MM}`). La definición viaja con el
+  grupo o el proyecto; la carpeta es de cada máquina. Una unidad desconectada es
+  un error con su nombre, nunca una carpeta inventada.
+
+### Arreglado
+
+- El reloj de lo programado iba a los 60 s de abrir la aplicación: lo de las
+  7:00 podía correr a las 7:00:59. Ahora corre en el primer segundo del minuto
+  (comprobado en la prueba real).
+
+---
+
 ## [5.10.0] — 2026-10-21
 
 **Los datos donde están.** El segundo tramo del camino a la 6.0 (plan en

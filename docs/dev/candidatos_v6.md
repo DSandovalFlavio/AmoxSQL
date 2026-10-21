@@ -382,6 +382,9 @@ de ninguna carpeta.
 
 ### C · Los datos donde están
 
+> **Hecha en la 5.10.0** (fases 0–7 de `plan_5_10_datos_donde_estan.md`, con I1 como
+> fase 2b). Sin publicar: el autor decidió (2026-10-21) no publicar nada hasta la 6.0.
+
 Archivos primero. La base es una opción, no el punto de partida.
 
 #### C1 · Fuentes con nombre
@@ -469,6 +472,9 @@ Archivos primero. La base es una opción, no el punto de partida.
 ---
 
 ### D · Procesos que corren solos
+
+> **Hecha en la 5.11.0** (fases 0–8 de `plan_5_11_procesos_que_corren_solos.md`).
+> Sin publicar, como la 5.10.0. Lo que cambió al implementar está en la bitácora del plan.
 
 Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque.
 
