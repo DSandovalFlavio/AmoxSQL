@@ -853,6 +853,7 @@ faltaba es lo de la tabla.
 | I9 | **Incrementales y snapshots, explicados** | Mejora | S | Plantillas de un modelo incremental que sólo procesa lo nuevo y de un *snapshot* que guarda el historial de cambios. Absorbe la antigua «carga incremental» | 66 |
 | I10 | **Programar dbt** | Mejora | S | Con la programación de D1: «`dbt build` cada noche a las 2:00», y desde la línea de comandos `AmoxSQL.exe dbt build --project …`, con aviso (D2) si falla un test. Absorbe la antigua «dependencias entre procesos»: el orden lo pone el grafo de dbt | 70 |
 | I11 | **Capas desde el inicio** | Mejora | S | Crear un proyecto dbt trae `staging/`, `intermediate/` y `marts/`, con un ejemplo de cada una | 54 |
+| I12 | **El completado de dbt** | Mejora | M | Escribes `{{ dbt_utils.` y salen sus macros con sus parámetros; `config(` propone `materialized`, `unique_key`, `incremental_strategy` con sus valores; tras `FROM {{ ref('stg_ventas') }} v`, `v.` da sus columnas; un `ref('stg_ventsa')` se subraya con «¿quisiste decir stg_ventas?»; y `schema.yml` completa tests, modelos y columnas. **Añadido el 2026-10-21, a petición del autor** | 83, 89 |
 
 **Qué pasó con la lista anterior:** carga incremental, dependencias, instantáneas del lago,
 tiempos, frescura, capas y entornos quedan absorbidos por dbt y DuckLake (arriba). Las
@@ -954,7 +955,7 @@ Flow).
 | H3 | Cierre de proyecto | Nueva | 5.16 | S |
 | H4 | Confinar y cifrar | Mejora | 5.16 | S |
 | I1 | Convivir sin bloqueos (dbt) | Mejora | 5.10 | S |
-| I2–I11 | El ingeniero de datos: dbt y DuckLake | — | 5.12 | — |
+| I2–I12 | El ingeniero de datos: dbt y DuckLake | — | 5.12 | — |
 | J1–J10 | Mejoras sueltas | — | 5.17 | — |
 | K | Python y experimentos; R, correo y tiempo real quedan fuera | — | 6.0 | — |
 

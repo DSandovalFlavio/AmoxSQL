@@ -1,6 +1,7 @@
 # Plan de implementación — 5.12.0: el ingeniero de datos, dbt y DuckLake
 
-> La familia **I** (I2–I11) de [`candidatos_v6.md`](candidatos_v6.md), en fases. I1 (dbt
+> La familia **I** (I2–I12) de [`candidatos_v6.md`](candidatos_v6.md), en fases. I12 (el
+> completado de dbt) se añadió el 2026-10-21 a petición del autor. I1 (dbt
 > sin bloqueos) ya llegó con la 5.10.0. Hecho leyendo el código de `main` tras la 5.11.0
 > (`bdab975`), no suponiéndolo: cada decisión cita lo que encontró. Fecha: 2026-10-21.
 
@@ -61,6 +62,7 @@ internas de `main`: no hay alfas, betas, *Latest* ni copia a Drive.
 | `/api/dbt/command` arma el comando con `--target` si se da; `profiles.yml` se edita en Config | `server/index.js`, `DbtPanel.jsx` | I4 parte de aquí: falta saber cuál es el activo y cuál es producción |
 | El **linaje** se dibuja con los nodos y aristas del `manifest.json`; el autocompletado usa los modelos y fuentes del mismo | `DbtLineageGraph.jsx`, `/api/dbt/manifest`, `SqlEditor.jsx` | I3 pinta encima lo de `run_results.json`, que hoy **no se lee en ningún sitio** |
 | No se lee `catalog.json`, ni `compiled_code`, ni se usa `dbt show` | — | I2 e I5 empiezan de cero |
+| **El completado de dbt es mínimo**: los nombres de modelo dentro de `ref('…')` y de fuente y tabla dentro de `source('…', '…')` (del manifiesto, en el trabajador del editor), y 8 atajos fijos (`ref`, `source`, `config`, `is_incremental`, `this`, `var`, `env_var`, `macro`) que **sólo salen si el archivo ya tiene `{{` o `{%`**: un modelo nuevo y vacío no los ve. Sin macros, sin opciones de `config()`, sin columnas a través de `ref()`, sin avisos ni información al pasar el ratón, y nada en `schema.yml` | `SqlEditor.jsx` (`dbtItems`), `workers/sqlLanguageWorker.js` (`isJinjaContext`), `/api/dbt/manifest` | I12: el completado de dbt de verdad (Dec-35, fase 3b) |
 | **dbt sin bloqueos (I1):** antes de un comando que abre la base de AmoxSQL, la suelta y la recupera al terminar; avisa si dbt usa otra versión del motor | `server/dbtConvivir.js` | Toda ejecución de dbt —también la programada— pasa por aquí |
 | Los comentarios de tabla del motor sólo se leen si llevan la marca de procedencia (C5); un comentario normal **no se enseña** | `server/procedencia.js`, `/api/db/schema`, `ai/prompt/schema.js` | I5: dbt puede escribir sus descripciones como comentarios (`persist_docs`) y AmoxSQL sólo tiene que leerlos. Dec-30 |
 | **DuckLake:** abrir un `.ducklake` (prefijo `ducklake:` + `DATA_PATH`), el catálogo de metadatos oculto, y una fuente de tipo `lago` con `formato: ducklake` en sólo lectura | `DatabaseManager.js`, `fuentes.js` | I8 añade crear, versiones, «como estaba» y mantenimiento; nada de eso existe hoy |
@@ -143,6 +145,16 @@ correctos y fallidos, tests que fallan con su modelo, duración. El aviso de D2 
 la tratan como a un proceso. «Avisar si falla» incluye **un test que falla** aunque dbt
 salga con 0 por `warn`.
 
+**Dec-35 · El completado de dbt no lanza dbt.** Todo sale de lo que ya está en disco o en
+memoria: el `manifest.json` (modelos, fuentes, macros con su firma y su descripción,
+columnas documentadas), `dbt_project.yml` (las `vars`), `profiles.yml` (los *targets*), y
+el esquema que AmoxSQL ya tiene de la base (las columnas **reales** de un modelo
+materializado, por su `relation_name`). Un modelo nuevo que aún no está en el manifiesto
+se completa igual, leyendo los nombres de archivo de las carpetas de modelos. Un archivo
+es «de dbt» si está dentro de las carpetas de modelos, macros, tests o snapshots del
+proyecto, **o** si ya tiene Jinja; en un `.sql` suelto, nada de esto estorba. Va en el
+trabajador del editor (como hoy), sin coste en cada tecla.
+
 ---
 
 ## 5. Las fases
@@ -158,6 +170,7 @@ salga con 0 por `warn`.
 | 0.5 | DuckLake en el motor 1.5.6: crear con catálogo local, listar versiones, `AT (VERSION => n)` y `AT (TIMESTAMP => …)`, compactar, expirar y limpiar; y con catálogo SQLite, dbt escribiendo mientras AmoxSQL lee |
 | 0.6 | dbt por lista de argumentos con `conda run` y con un Python suelto en Windows, sin shell; cancelar; una ejecución de más de 5 minutos |
 | 0.7 | El *snapshot* en YAML (dbt ≥ 1.9) frente al bloque `{% snapshot %}`: cuál admite la versión que hay |
+| 0.8 | Qué trae el `manifest.json` de las macros (las del proyecto y las de paquetes como `dbt_utils`: `arguments` documentados, `macro_sql` para sacar la firma) y de las columnas; cuánto pesa en un proyecto grande |
 
 ### Fase 1 · El corredor de dbt (Dec-26, Dec-27, Dec-34)
 
@@ -185,6 +198,20 @@ salga con 0 por `warn`.
 | 3.2 | **Compiled**: el SQL compilado al lado, de sólo lectura |
 | 3.3 | **Preview**: el compilado en el motor de AmoxSQL, en la tabla de resultados de siempre (Dec-28) |
 | 3.4 | `ref('…')` y `source('…')` llevan al archivo con Ctrl+clic |
+
+### Fase 3b · El completado de dbt (I12, Dec-35)
+
+| # | Qué |
+|---|---|
+| 3b.1 | Saber que un archivo es de dbt por su carpeta (no sólo por tener `{{`); los atajos de Jinja en un modelo nuevo y vacío |
+| 3b.2 | **Macros**: las del proyecto y las de paquetes (`{{ dbt_utils.` → sus macros), con su firma y su descripción; ayuda de parámetros al escribir `(` |
+| 3b.3 | **`config(`**: las opciones (`materialized`, `unique_key`, `incremental_strategy`, `on_schema_change`, `schema`, `alias`, `tags`, `persist_docs`, `pre_hook`/`post_hook`, `enabled`…) con sus valores válidos para DuckDB |
+| 3b.4 | **Jinja y dbt**: `{% if %}`, `{% for %}`, `{% set %}`, `{% call %}`; `target.` (name, schema, type…), `this.`, `adapter.`, `run_query`, `log`; los nombres de `var('…')` de `dbt_project.yml` |
+| 3b.5 | **Columnas a través de `ref()` y `source()`**: tras `FROM {{ ref('stg_ventas') }} v`, `v.` propone sus columnas (las reales si está materializado; si no, las documentadas) |
+| 3b.6 | **Avisos**: un `ref` o un `source` que no existe, subrayado con lo más parecido («¿quisiste decir stg_ventas?») |
+| 3b.7 | **Al pasar el ratón**: un `ref` enseña la descripción, la materialización y las columnas del modelo; una macro, su firma y su descripción |
+| 3b.8 | **`schema.yml` y `sources.yml`**: `models:`, `columns:`, `tests:`/`data_tests:` con los genéricos (`unique`, `not_null`, `accepted_values`, `relationships`), y los nombres de modelos y columnas que hay |
+| 3b.9 | `scripts/probarCompletadoDbt.mjs`: el completado sobre un manifiesto de ejemplo, sin dbt |
 
 ### Fase 4 · Resultados en el linaje (I3)
 
@@ -247,6 +274,7 @@ salga con 0 por `warn`.
 | Selector de *target* y aviso **PRODUCTION** | Barra de DBT Studio; confirmación al escribir | 2 |
 | Plantillas con explicación (incremental, *snapshot*) | Diálogo de plantillas de DBT Studio | 2 |
 | Barra de modelo (Compiled · Preview · Run · Run +downstream · Test) | Encima del editor, sólo en un modelo de dbt | 3 |
+| Completado, avisos y ayuda al pasar el ratón | El editor, en un modelo de dbt y en `schema.yml` | 3b |
 | Linaje con resultados | `DbtLineageGraph` | 4 |
 | Descripciones | Explorador de base (tablas y columnas) | 5 |
 | «Use in dbt» y «Promote to dbt model» | Menú de una fuente; menú del editor y de una celda | 6 |
@@ -298,3 +326,4 @@ menú, no en la bienvenida.
 | Fecha | Fase | Qué |
 |---|---|---|
 | 2026-10-21 | — | Plan escrito leyendo `main` tras la 5.11.0. Hallazgos que lo moldean: dbt corre como texto de shell con un tope de 5 minutos; el entorno elegido vive en `localStorage`; el incremental ya existe y el *snapshot* no; nadie lee `run_results.json` ni `catalog.json`; AmoxSQL sólo lee comentarios de tabla con marca de procedencia. Decisiones Dec-26 a Dec-34; cuatro preguntas para el autor (§8) |
+| 2026-10-21 | 3b | **Añadido a petición del autor: I12, el completado de dbt.** Hoy sólo nombres dentro de `ref`/`source` y 8 atajos que exigen que el archivo ya tenga Jinja. Fase 3b (macros con firma, `config()` con sus valores, Jinja y `target`/`this`, columnas a través de `ref()`, avisos de `ref` inexistente, ayuda al pasar el ratón, `schema.yml`) y Dec-35 (sale del manifiesto, de los YAML y del esquema que AmoxSQL ya tiene; nunca lanza dbt); prueba 0.8 en la fase 0 |
