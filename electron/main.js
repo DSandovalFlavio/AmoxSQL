@@ -39,6 +39,10 @@ protocol.registerSchemesAsPrivileged([{
 // La instancia única se decide por la carpeta de datos de Electron. Con un
 // AMOXSQL_HOME propio (pruebas, una alfa en desarrollo) esa carpeta va dentro
 // de él: si no, la prueba entregaría sus órdenes a la aplicación del autor.
+// `--home <carpeta>` hace lo mismo desde la línea de comandos: es lo que pone
+// la tarea del sistema de un AmoxSQL con home propio (no puede pasar variables).
+const { home: homeDeLaOrden } = require('../server/ejecucion/ordenes').leerHome(process.argv);
+if (homeDeLaOrden) process.env.AMOXSQL_HOME = homeDeLaOrden;
 if ((process.env.AMOXSQL_HOME || '').trim()) {
     app.setPath('userData', path.join(path.resolve(process.env.AMOXSQL_HOME.trim()), 'electron'));
 }

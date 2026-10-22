@@ -40,8 +40,25 @@ const rutaDelRegistro = (id) => path.join(carpeta('registros'), `${id}.log`);
  *   { orden: 'run', proceso, proyecto, parametros, informe, error? }
  *   con las rutas ya absolutas respecto a `cwd`.
  */
+/**
+ * `--home <carpeta>`: el AmoxSQL de otra carpeta (una prueba, una alfa en
+ * desarrollo). Lo pone la tarea del sistema de un AmoxSQL con AMOXSQL_HOME
+ * propio, porque el Programador de tareas no pasa variables de entorno: sin él,
+ * la tarea despertaría al AmoxSQL de la carpeta de siempre y migraría su base.
+ * Se lee antes que nada y se quita de los argumentos.
+ */
+function leerHome(argv) {
+    const a = [...(argv || [])];
+    const i = a.findIndex(x => x === '--home' || String(x).startsWith('--home='));
+    if (i < 0) return { home: null, resto: a };
+    const conIgual = String(a[i]).startsWith('--home=');
+    const v = conIgual ? String(a[i]).slice('--home='.length) : a[i + 1];
+    a.splice(i, conIgual ? 1 : 2);
+    return { home: v && String(v).trim() ? path.resolve(String(v).trim()) : null, resto: a };
+}
+
 function leerArgumentos(argv, { desde = 1, cwd = process.cwd() } = {}) {
-    const a = (argv || []).slice(desde);
+    const a = leerHome(argv).resto.slice(desde);
     // Chromium y Electron añaden interruptores propios (--allow-file-access-…);
     // la orden es la primera palabra que no es uno de ellos.
     const primera = a.findIndex(x => !String(x).startsWith('--'));
@@ -176,6 +193,6 @@ function textoDelResultado(r) {
 }
 
 module.exports = {
-    CODIGO, USO, leerArgumentos, comprobarQueExiste, nuevoId,
+    CODIGO, USO, leerArgumentos, leerHome, comprobarQueExiste, nuevoId,
     rutaDelResultado, rutaDelRegistro, escribirJson, leerJson, textoDelResultado,
 };
