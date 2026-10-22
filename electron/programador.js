@@ -18,8 +18,20 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFile } = require('child_process');
+const crypto = require('crypto');
 
-const NOMBRE_TAREA = process.env.AMOXSQL_TAREA || 'AmoxSQL - scheduled processes';
+/** El home propio de este AmoxSQL (AMOXSQL_HOME o `--home`), o null si es el de siempre. */
+const homePropio = () => ((process.env.AMOXSQL_HOME || '').trim() ? path.resolve(process.env.AMOXSQL_HOME.trim()) : null);
+
+// Un AmoxSQL con home propio (una prueba, una alfa) tiene su propia tarea: si
+// compartieran nombre, encenderla en la prueba reescribiría la del usuario.
+function nombreDeTarea() {
+    if (process.env.AMOXSQL_TAREA) return process.env.AMOXSQL_TAREA;
+    const home = homePropio();
+    if (!home) return 'AmoxSQL - scheduled processes';
+    return `AmoxSQL - scheduled processes (${crypto.createHash('sha1').update(home.toLowerCase()).digest('hex').slice(0, 8)})`;
+}
+const NOMBRE_TAREA = nombreDeTarea();
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -30,10 +42,16 @@ function horaLocal(iso) {
     return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}T${dos(d.getHours())}:${dos(d.getMinutes())}:00`;
 }
 
+/** Los argumentos de la tarea: `tick`, y `--home` si este AmoxSQL tiene el suyo (pura: la usan las pruebas). */
+const argumentosDeTick = (home) => (home ? `tick --home "${home}"` : 'tick');
+
 /** Qué lanza la tarea: el ejecutable instalado, o Electron con la carpeta de la app en desarrollo. */
 let comando = function comandoReal() {
-    if (app.isPackaged) return { exe: process.execPath, args: 'tick' };
-    return { exe: process.execPath, args: `"${app.getAppPath()}" tick` };
+    // Con home propio, la tarea lo lleva: el Programador de tareas no pasa la
+    // variable de entorno, y sin ella `tick` abriría la base de siempre.
+    const tick = argumentosDeTick(homePropio());
+    if (app.isPackaged) return { exe: process.execPath, args: tick };
+    return { exe: process.execPath, args: `"${app.getAppPath()}" ${tick}` };
 };
 
 /** El XML de la tarea (pura: la usan las pruebas). */
@@ -152,7 +170,7 @@ async function esperarAvisos(maxMs = 4000) {
 }
 
 module.exports = {
-    NOMBRE_TAREA, xmlDeTarea, horaLocal, aplicar, consultar, avisar, esperarAvisos,
+    NOMBRE_TAREA, xmlDeTarea, horaLocal, argumentosDeTick, aplicar, consultar, avisar, esperarAvisos,
     _probar: {
         cambiarEjecutor: (f) => { ejecutar = f; },
         cambiarComando: (f) => { comando = f; },

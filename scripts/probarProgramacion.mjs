@@ -135,6 +135,16 @@ try {
     comprobar('corre lo que toca y lo cuenta en la consola', r.codigo === 0 && r.corridas.length === 1 && /1 scheduled process ran/.test(textoDelResultado(r)), textoDelResultado(r));
     const ordenes = require(path.join(RAIZ, 'server/ejecucion/ordenes.js'));
     comprobar('`AmoxSQL.exe tick` se reconoce como orden', ordenes.leerArgumentos(['AmoxSQL.exe', 'tick'], { desde: 1 })?.orden === 'tick');
+    {
+        // --home: el AmoxSQL de otra carpeta (lo pone la tarea de un AmoxSQL con home propio).
+        const h = ordenes.leerHome(['AmoxSQL.exe', 'tick', '--home', 'C:\Pruebas\home amox']);
+        comprobar('--home se lee y se quita', h.home === path.resolve('C:\Pruebas\home amox') && h.resto.join(' ') === 'AmoxSQL.exe tick', JSON.stringify(h));
+        comprobar('  también con =', ordenes.leerHome(['x', '--home=C:\h', 'tick']).home === path.resolve('C:\h'));
+        comprobar('  sin él, nada', ordenes.leerHome(['x', 'tick']).home === null);
+        comprobar('  y no estorba a tick ni a run', ordenes.leerArgumentos(['AmoxSQL.exe', 'tick', '--home', 'C:\h'], { desde: 1 })?.orden === 'tick'
+            && ordenes.leerArgumentos(['AmoxSQL.exe', 'run', 'a.sqlchain', '--home', 'C:\h', '--project', 'C:\p'], { desde: 1 })?.proceso?.endsWith('a.sqlchain')
+            && !ordenes.leerArgumentos(['AmoxSQL.exe', 'run', 'a.sqlchain', '--home', 'C:\h', '--project', 'C:\p'], { desde: 1 })?.error);
+    }
 
     console.log('\ndesde la interfaz');
     let v = await post('/api/programaciones/vista-previa', { regla: { tipo: 'mensual', hora: '07:00', modo: 'primer_habil' } });
@@ -177,6 +187,8 @@ try {
     tarea._probar.cambiarComando(() => ({ exe: 'C:\\Program Files\\AmoxSQL\\AmoxSQL.exe', args: 'tick' }));
     const xml = tarea.xmlDeTarea('2026-10-06T13:00:00.000Z', { exe: 'C:\\Program Files\\AmoxSQL\\AmoxSQL.exe', args: 'tick' });
     comprobar('el XML: sin contraseña, con la sesión del usuario, y al encenderse si se perdió', /<LogonType>InteractiveToken<\/LogonType>/.test(xml) && /<StartWhenAvailable>true/.test(xml) && /<RunLevel>LeastPrivilege/.test(xml) && /<Arguments>tick<\/Arguments>/.test(xml));
+    comprobar('con home propio, la tarea lo lleva', tarea.argumentosDeTick('C:\Pruebas\home amox') === 'tick --home "C:\Pruebas\home amox"' && tarea.argumentosDeTick(null) === 'tick');
+    comprobar('  y tiene su propio nombre: no pisa la del usuario', tarea.NOMBRE_TAREA !== 'AmoxSQL - scheduled processes' && /^AmoxSQL - scheduled processes \([0-9a-f]{8}\)$/.test(tarea.NOMBRE_TAREA), tarea.NOMBRE_TAREA);
     comprobar('la hora va en local y sin zona', new RegExp(`<StartBoundary>${tarea.horaLocal('2026-10-06T13:00:00.000Z')}</StartBoundary>`).test(xml) && !/Z<\/StartBoundary>/.test(xml));
     if (process.platform === 'win32') {
         await tarea.aplicar('2026-10-06T13:00:00.000Z', true);
