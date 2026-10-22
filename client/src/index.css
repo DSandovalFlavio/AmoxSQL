@@ -20302,6 +20302,23 @@ tr:hover td {
   color: var(--text-tertiary);
 }
 .db-procedencia--cambio span { color: var(--color-warning-text); }
+/* 5.12 (I5): la descripción de una tabla y de sus columnas */
+.db-descripcion {
+  padding: 2px 8px 4px 34px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+.db-column-desc {
+  margin-left: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.db-column-row--desc .db-column-left { min-width: 0; }
 
 /* ─── Credencial de nube con nombre (C4, 5.10) ────────────────────────── */
 .ncn { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }

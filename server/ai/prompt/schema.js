@@ -10,8 +10,9 @@ function formatTableSchemas(tables) {
     const overflow = tables.length > TABLE_DISPLAY_LIMIT;
     const visible = overflow ? tables.slice(0, TABLE_DISPLAY_LIMIT) : tables;
     const result = visible.map(t => {
+        // 5.12 (I5): la descripción de cada columna, como comentario SQL.
         const cols = t.columns
-            ? t.columns.map(c => `  ${c.name} ${c.type}`).join('\n')
+            ? t.columns.map(c => `  ${c.name} ${c.type}${c.descripcion ? ` -- ${String(c.descripcion).slice(0, 160)}` : ''}`).join('\n')
             : '  (schema unknown)';
         const rowInfo = t.rows !== undefined ? ` — ${t.rows} rows` : '';
         // A named source is a view in the `fuentes` catalog, read from its file
@@ -19,7 +20,8 @@ function formatTableSchemas(tables) {
         if (t.ref) return `SOURCE ${t.ref}${t.descripcion ? ` — ${t.descripcion}` : ''}\n${cols}`;
         // Where the data came from (loaded from a file), when AmoxSQL knows it.
         const origen = t.procedencia ? `\n  -- loaded ${t.procedencia}` : '';
-        return `TABLE "${t.name}"${rowInfo}${origen}\n${cols}`;
+        const que = t.descripcion ? `\n  -- ${String(t.descripcion).slice(0, 300)}` : '';
+        return `TABLE "${t.name}"${rowInfo}${que}${origen}\n${cols}`;
     }).join('\n\n');
     if (overflow) {
         return result + `\n\n_(${tables.length - TABLE_DISPLAY_LIMIT} more tables not shown — call \`list_tables\` for the full list)_`;
