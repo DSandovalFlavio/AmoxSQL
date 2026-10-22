@@ -12,10 +12,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     LuCircleAlert, LuCircleCheck, LuExternalLink, LuFile, LuFileSpreadsheet, LuFolderOpen, LuHistory,
-    LuLoader, LuPencil, LuRotateCcw, LuTriangleAlert, LuX,
+    LuLoader, LuPencil, LuRotateCcw, LuTriangleAlert, LuX, LuGitCompareArrows,
 } from 'react-icons/lu';
 import { API_BASE } from '../api.js';
 import { marcarVistas } from './operacion/Atencion';
+import CompararEntrega from './CompararEntrega';
 
 const ORIGEN = {
     interfaz: 'Run from Data Flow',
@@ -36,6 +37,7 @@ export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
     const [d, setD] = useState(null);
     const [error, setError] = useState(null);
     const [repitiendo, setRepitiendo] = useState(false);
+    const [comparando, setComparando] = useState(null);   // 5.14 (F3): la copia de la entrega anterior
 
     const cargar = useCallback(async (id) => {
         try {
@@ -121,6 +123,7 @@ export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
                                                     </div>
                                                     {g.existe && !g.remoto && window.electronAPI?.openPath && <button type="button" className="cf-boton" onClick={() => window.electronAPI.openPath(g.ruta)}><LuExternalLink size={13} /> Open</button>}
                                                     {g.existe && !g.remoto && window.electronAPI?.showItemInFolder && <button type="button" className="cf-boton" onClick={() => window.electronAPI.showItemInFolder(g.ruta)}><LuFolderOpen size={13} /> Show in folder</button>}
+                                                    {g.existe && g.anterior && <button type="button" className="cf-boton" onClick={() => setComparando(g.anterior.ruta)} title="What changed against the file it replaced"><LuGitCompareArrows size={13} /> Compare with the previous one</button>}
                                                 </li>
                                             );
                                         })}
@@ -157,6 +160,7 @@ export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
                     )}
                 </div>
             </div>
+            {comparando && <CompararEntrega copia={comparando} onClose={() => setComparando(null)} />}
         </div>,
         document.body
     );

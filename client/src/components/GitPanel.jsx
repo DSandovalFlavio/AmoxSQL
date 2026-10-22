@@ -12,6 +12,7 @@ import {
 } from 'react-icons/lu';
 
 import { API_BASE as API } from '../api.js';
+import { CambiosDeProceso } from './CambiosDeProceso';
 
 /* ── Status badge helpers ─────────────────────────────────────── */
 const STATUS_META = {
@@ -219,7 +220,8 @@ function GitPanel({ projectPath, onFileClick }) {
         try {
             const res = await fetch(`${API}/api/git/diff?file=${encodeURIComponent(file.path)}&staged=${!!staged}`);
             const data = await res.json();
-            setDiffModal({ file, diff: data.diff || '(no diff available)', staged });
+            // 5.14 (J9): un proceso se lee en pasos; el texto queda a un clic.
+            setDiffModal({ file, diff: data.diff || '(no diff available)', staged, pasos: /\.sqlchain$/i.test(file.path) });
         } catch { setError('Failed to load diff'); }
     }
 
@@ -537,8 +539,17 @@ function GitPanel({ projectPath, onFileClick }) {
                     <div className="git-diff-modal" onClick={e => e.stopPropagation()}>
                         <div className="git-diff-modal-header">
                             <span>{diffModal.file.path.split(/[/\\]/).pop()} — {diffModal.staged ? 'Staged' : 'Working Tree'} Diff</span>
+                            {/\.sqlchain$/i.test(diffModal.file.path) && (
+                                <span className="git-diff-vista">
+                                    <button className={`cpe-pestana${diffModal.pasos ? ' cpe-pestana--on' : ''}`} onClick={() => setDiffModal(m => ({ ...m, pasos: true }))}>Steps</button>
+                                    <button className={`cpe-pestana${!diffModal.pasos ? ' cpe-pestana--on' : ''}`} onClick={() => setDiffModal(m => ({ ...m, pasos: false }))}>Text</button>
+                                </span>
+                            )}
                             <button className="git-icon-btn" onClick={() => setDiffModal(null)}><LuX size={14} /></button>
                         </div>
+                        {diffModal.pasos ? (
+                            <CambiosDeProceso ruta={diffModal.file.path} antes={diffModal.staged ? 'HEAD' : 'index'} despues={diffModal.staged ? 'index' : 'disco'} />
+                        ) : (
                         <pre className="git-diff-content">
                             {diffModal.diff.split('\n').map((line, i) => {
                                 let cls = 'git-diff-line';
@@ -548,6 +559,7 @@ function GitPanel({ projectPath, onFileClick }) {
                                 return <div key={i} className={cls}>{line}</div>;
                             })}
                         </pre>
+                        )}
                     </div>
                 </div>
             )}

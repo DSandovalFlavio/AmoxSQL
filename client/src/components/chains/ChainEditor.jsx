@@ -49,6 +49,7 @@ import { DataFlowGuide } from './DataFlowGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 
 import { API_BASE } from '../../api.js';
+import VentanaCambiosDeProceso from '../CambiosDeProceso';
 
 const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) => {
     const toast = useToast();
@@ -148,6 +149,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const [showVariables, setShowVariables] = useState(false);
     const [showLote, setShowLote] = useState(false);
     const [showProgramar, setShowProgramar] = useState(false);
+    const [verCambios, setVerCambios] = useState(false);   // 5.14 (J9): What changed
     // 5.11 (D5): el proceso como formulario. Abre así si el proceso lo pide.
     const [comoFormulario, setComoFormulario] = useState(initialChain.vista === 'formulario');
     const [aiLoading, setAiLoading] = useState(false);
@@ -1099,8 +1101,11 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         setConfigPopoverNodeId(newNode.id);
     }, [nodes, setNodes]);
 
-    const dialogoProgramar = showProgramar && (
-        <ChainProgramar chainDefinition={serialize()} filePath={filePath} onClose={() => setShowProgramar(false)} />
+    const dialogoProgramar = (
+        <>
+            {showProgramar && <ChainProgramar chainDefinition={serialize()} filePath={filePath} onClose={() => setShowProgramar(false)} />}
+            {verCambios && <VentanaCambiosDeProceso ruta={filePath} onClose={() => setVerCambios(false)} />}
+        </>
     );
 
     if (comoFormulario) {
@@ -1210,6 +1215,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     onRunForEach={() => setShowLote(true)}
                     onOpenAsForm={() => setComoFormulario(true)}
                     onSchedule={() => setShowProgramar(true)}
+                    onWhatChanged={filePath ? () => setVerCambios(true) : undefined}
                     onExportSql={handleExportSql}
                     onExportYaml={handleExportYaml}
                     onImportYaml={handleImportYaml}
