@@ -58,6 +58,7 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 | ER diagram | [es](es/data/er-diagram.md) | [en](en/data/er-diagram.md) | 🟢 |
 | Importing data | [es](es/data/importing-data.md) | [en](en/data/importing-data.md) | 🟢 |
 | Data sources | [es](es/data/sources.md) | [en](en/data/sources.md) | 🟢 |
+| Lakes (DuckLake) | [es](es/data/lakes.md) | [en](en/data/lakes.md) | 🟢 |
 | Exporting data | [es](es/data/exporting-data.md) | [en](en/data/exporting-data.md) | 🟢 |
 | Google Sheets | [es](es/data/google-sheets.md) | [en](en/data/google-sheets.md) | 🟢 |
 | DuckDB extensions | [es](es/data/duckdb-extensions.md) | [en](en/data/duckdb-extensions.md) | 🟢 |
@@ -91,6 +92,9 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 | Page | Español | English | Status |
 |---|---|---|---|
 | DBT Studio | [es](es/dbt/dbt-studio.md) | [en](en/dbt/dbt-studio.md) | 🟢 |
+| dbt models in the editor | [es](es/dbt/models-in-the-editor.md) | [en](en/dbt/models-in-the-editor.md) | 🟢 |
+| dbt lineage | [es](es/dbt/lineage.md) | [en](en/dbt/lineage.md) | 🟢 |
+| AmoxSQL sources in dbt | [es](es/dbt/amoxsql-sources-in-dbt.md) | [en](en/dbt/amoxsql-sources-in-dbt.md) | 🟢 |
 
 ## AI · IA
 | Page | Español | English | Status |

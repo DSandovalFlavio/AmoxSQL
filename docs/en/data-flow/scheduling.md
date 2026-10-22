@@ -43,6 +43,15 @@ Each schedule shows in a sentence when it runs next and how the last run went, w
 
 The same occurrence never runs twice, whoever triggers it (the open app or the Windows task). If the previous run of a schedule is still going, the next one is skipped and the message says so.
 
+## Scheduling dbt
+
+A dbt command is scheduled just like a process. In [DBT Studio](../dbt/dbt-studio.md) → **Commands**, type the command (for example `dbt build --select +fct_sales`) and click the calendar button next to **Execute**: the same **Schedule…** opens, with the same rules, notifications and catch-up.
+
+- It runs with the project's dbt environment and target, with its [AmoxSQL sources](../dbt/amoxsql-sources-in-dbt.md), and releases the database if AmoxSQL has it open.
+- Its name is the command ("dbt build +fct_sales"), and in Operations and in the run's record it is one more run: each model and test is a step.
+- With **Notify me: only on failure**, a test in *warn* also notifies ("…: tests with warnings"), even though dbt ends fine.
+- A command with shell syntax (`&&`, `|`…) or a folder without `dbt_project.yml` can't be scheduled.
+
 ## Operations: everything in one place
 
 **Operations** shows everything scheduled on this computer, from every group. Open it from the button with today's count in the title bar (red if something failed today), from the **AmoxSQL** menu, or from the workspaces view.

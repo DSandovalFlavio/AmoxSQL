@@ -835,6 +835,10 @@ Llega en la **5.12.0**, adelantada (ver *La numeración*). I1 llega antes, con l
 
 > **Plan:** [`plan_5_12_dbt_y_ducklake.md`](plan_5_12_dbt_y_ducklake.md) (2026-10-21).
 
+> **Hecha en la 5.12.0** (fases 0–9 de `plan_5_12_dbt_y_ducklake.md`, con I12 añadida
+> a petición del autor). Sin publicar, como la 5.10.0 y la 5.11.0. Lo que cambió al
+> implementar está en la bitácora del plan.
+
 Lo que había hoy, leyendo la 5.9.0: detectar el entorno de dbt, crear el proyecto y su
 `profiles.yml`, plantillas de modelo, fuente, test y macro, armar y ejecutar comandos con
 la salida en vivo, y el linaje y el autocompletado leídos del `manifest.json`. Lo que

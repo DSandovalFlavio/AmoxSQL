@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 **AmoxSQL** is a desktop SQL IDE for local data analysis, built with Electron + React + Express + DuckDB.
-- **Version**: 5.11.0
+- **Version**: 5.12.0
 - **Author**: Flavio Sandoval (@dsandovalflavio)
 - **License**: AmoxSQL Community License (Source Available)
 - **Tagline**: "The Modern Codex for Local Data Analysis"
@@ -80,13 +80,14 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `EditorPane.jsx` — Editor container, detects .sqlnb for notebook mode
 - `DatabaseExplorer.jsx` — Schema browser
 - `FileExplorer.jsx` — Project file browser
-- `DbtPanel.jsx` — DBT integration
+- `DbtPanel.jsx` — DBT Studio. Its pieces live in `dbt/` (5.12): `EntornoDbt.jsx` (the project's environment, **Set up dbt…**), `BarraTarget.jsx`, `BarraModelo.jsx` (above a model in the editor: Compiled · Preview · Run · ±stream · Test; «Promote to dbt model» above a loose `.sql`), `useCorrerDbt.js` (run dbt from any screen, with the production confirmation), `PuenteDbt.jsx`. dbt completion is `client/src/utils/dbtCompletado.js` (pure), wired in `SqlEditor.jsx`; the catalog refreshes on the `amox_dbt_cambio` event
+- `lago/Lago.jsx` — DuckLake in the explorer (5.12): New lake…, Lake versions, As it was, maintenance
 - `ErDiagram.jsx` — ER diagram visualization
 - `CommandPalette.jsx` — Ctrl+Shift+P quick actions
 
 ### Backend (server/)
 - `index.js` (88KB) — All REST endpoints
-- `DatabaseManager.js` (10KB) — DuckDB connection lifecycle
+- `DatabaseManager.js` (10KB) — DuckDB connection lifecycle. The user DB is attached as `user_db` — unless it has views that name its catalog by the file's name (what dbt and the engine itself write: `"tienda"."main"."x"`), then it is attached under that name (`_ajustarAlias`, also after `recuperar()`). Code must read `dbManager.alias`, never assume `user_db`
 - `AiManager.js` (14KB) — Provider management (Ollama, Gemini, Anthropic, OpenAI, Vertex) + legacy `generateQuery()` and the tool-loop `chat()`
 - `ai/agenticLoop.js` — Main tool-calling loop (drives multi-step AI turns)
 - `ai/tools.js` — AI tool definitions (execute_sql, list_tables, describe_table, display_chart, suggest_followups)
@@ -124,6 +125,9 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `zip.js` — ZIP without libraries: `abrir()` lists every entry (ZIP64 included) and hands out raw or inflated bytes; `EscritorZip` adds small entries, streams big ones (data descriptor) and copies entries of another ZIP without recompressing
 - `motor.js` — **Every engine instance is created here** (`crearInstancia`), with `enable_external_file_cache = false`: with the cache on, reading a file that was replaced by a rename served bytes of the old one
 - `dbtConvivir.js` — **dbt without locks** (5.10, I1): reads from `profiles.yml` which files a dbt command will open; if one is AmoxSQL's database, `dbManager.prestar()` detaches it (engine, temp views, sources and extensions survive) and `recuperar()` re-attaches it when dbt ends, however it ends. Meanwhile `/api/query` answers 409 saying why
+- `dbt/` — **dbt inside AmoxSQL** (5.12, family I; Dec-26–36). `correr.js`: the one runner — the UI text is parsed into arguments (`&&`, `|`, `;`, redirections, `$(` rejected), spawned with no shell and no timeout, `DBT_USE_COLORS=false`, cancel kills the tree; the environment comes from `project.json → dbt.entorno` (types `amoxsql | python | conda | sistema` only: a `directo` exe is never read from the file, it travels with the project). `entorno.js`: **Set up dbt…** (venv + pinned `dbt-core`/`dbt-duckdb`/`duckdb` = the engine's version, under `<home>/entornos/`). `ejecutar.js`: a dbt run is a row in `ejecuciones` with no migration (`proceso` = the command text, summary in `resumen`); `resultados.js` turns `run_results.json` + manifest into the summary (`aviso` when a test warns and dbt exits 0). `proyecto.js`: targets, the active one (`--target` added unless the command names one), production and the typed confirmation (409 only when another target exists), `crear` (seed + one model per layer, `persist_docs`, `store_failures`, a single `prod`). `modelo.js`: what each file is, compile only when stale, the preview (compiled SQL in AmoxSQL's engine; catalog rewritten to the attached alias, or the target DB attached read-only), go-to-definition. `catalogo.js`: completion's catalog (never launches dbt). `linaje.js`: each run accumulates the last state per node in `target/amox_ultimos.json`; row counts by AmoxSQL (tables only). `fuentes.js` + `puente.js`: AmoxSQL sources as `source('amoxsql', …)` via `env_var('AMOXSQL_FUENTE_<N>')` (the full read in parentheses) in `models/sources/amoxsql.yml`; promote a query to a model (`ref()`/`source()`, the original untouched). Scheduling: `programador.correrOcurrencia` and `AmoxSQL.exe dbt <cmd> --project <dir>` take a command that starts with `dbt `
+- `lago.js` — **DuckLake** (5.12, I8): create (`<n>.ducklake` or `<n>.ducklake.sqlite`, data in `<catalog>.files/`), versions (table ids mapped to names through `__ducklake_metadata_<alias>`), «as it was» / «what changed» as SQL, maintenance with a dry-run preview of exactly what is deleted (Dec-33)
+- `descripciones.js` — Table/view/column descriptions (5.12, Dec-30): the engine's comments, else the dbt YAML from the manifest when the attached DB is the target's. Fed to the explorer (`/api/db/schemas`) and the assistant
 - `ejecucion/` — Data Flow runs: isolated contexts (memory / work database / project), the central run history, and the command line (`AmoxSQL.exe run … [--param n=v] [--batch runs.csv]`, see `ordenes.js`). `ejecutarProceso({ variables, deFuera, origen })`: `deFuera` are values that did not come from the author; `origen` ∈ interfaz · linea_de_comandos · lote · formulario. `GET /api/ejecuciones/:id` (5.11, D2) is one run for the client's `FichaEjecucion.jsx` (opened from a notification's click via `electronAPI.onAbrirEjecucion`, or anywhere with the `amox_abrir_ejecucion` window event); `POST /api/ejecuciones/:id/repetir` runs it again (a scheduled one as the same occurrence). `resumen.js` (5.11) turns a run's steps into what it read, what it left (files, with whether they still exist) and where it failed, plus one line for a notification — used by the form (D5) and the notifications (D2), `GET /api/chains/run/:runId/resumen`
 
 ### Utilities

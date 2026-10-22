@@ -43,6 +43,15 @@ Cada programación dice en una frase cuándo corre la próxima vez y cómo fue l
 
 La misma ocurrencia nunca corre dos veces, la lance quien la lance (la aplicación abierta o la tarea de Windows). Si la ejecución anterior de una programación sigue corriendo, la siguiente se salta y se dice.
 
+## Programar dbt
+
+Un comando de dbt se programa igual que un proceso. En [DBT Studio](../dbt/dbt-studio.md) → **Commands**, escribe el comando (por ejemplo `dbt build --select +fct_ventas`) y pulsa el botón de calendario junto a **Execute**: se abre el mismo **Schedule…**, con las mismas reglas, avisos y puesta al día.
+
+- Corre con el entorno de dbt y el *target* del proyecto, con sus [fuentes de AmoxSQL](../dbt/amoxsql-sources-in-dbt.md), y suelta la base si AmoxSQL la tiene abierta.
+- Su nombre es el comando («dbt build +fct_ventas»), y en Operations y en la ficha es una ejecución más: cada modelo y test es un paso.
+- Con **Notify me: only on failure**, un test en *warn* también avisa («…: tests with warnings»), aunque dbt termine bien.
+- Un comando con algo de consola (`&&`, `|`…) o una carpeta sin `dbt_project.yml` no se programa.
+
 ## Operations: todo en un sitio
 
 **Operations** enseña todo lo programado en esta computadora, de todos los grupos. Se abre con el botón de la barra de título que dice cuántas tocan hoy (en rojo si alguna falló hoy), desde el menú **AmoxSQL** o desde la vista de workspaces.
