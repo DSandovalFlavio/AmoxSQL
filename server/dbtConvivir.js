@@ -18,7 +18,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const yaml = require('js-yaml');
-const { exec } = require('child_process');
+const { exec, execFile } = require('child_process');
 
 // Comandos de dbt que no abren la base.
 const NO_ABREN = new Set(['clean', 'deps', 'parse', 'ls', 'list', 'init']);
@@ -136,17 +136,22 @@ function noArranco(codigo, lineas) {
 // la versión del motor del entorno de dbt una vez por entorno.
 const versiones = new Map();
 
-function versionDelMotorDeDbt({ condaEnv = null, condaPath = null } = {}) {
-    const clave = `${condaEnv || ''}|${condaPath || ''}`;
+function versionDelMotorDeDbt({ condaEnv = null, condaPath = null, python = null } = {}) {
+    const clave = `${condaEnv || ''}|${condaPath || ''}|${python || ''}`;
     if (versiones.has(clave)) return versiones.get(clave);
-    const py = `python -c "import duckdb; print(duckdb.__version__)"`;
-    const cmd = condaEnv && condaEnv !== 'none' ? `"${condaPath || 'conda'}" run -n ${condaEnv} ${py}` : py;
-    const p = new Promise((resolve) => {
-        exec(cmd, { timeout: 30000 }, (err, stdout) => {
-            const m = /(\d+\.\d+\.\d+)/.exec(String(stdout || ''));
-            resolve(err || !m ? null : m[1]);
+    const leer = (err, stdout) => {
+        const m = /(\d+\.\d+\.\d+)/.exec(String(stdout || ''));
+        return err || !m ? null : m[1];
+    };
+    // 5.12: con el Python del entorno (el de AmoxSQL, una carpeta, un conda por
+    // su carpeta), sin shell; si no, como antes.
+    const p = python
+        ? new Promise((resolve) => execFile(python, ['-c', 'import duckdb; print(duckdb.__version__)'], { timeout: 30000, windowsHide: true }, (err, stdout) => resolve(leer(err, stdout))))
+        : new Promise((resolve) => {
+            const py = `python -c "import duckdb; print(duckdb.__version__)"`;
+            const cmd = condaEnv && condaEnv !== 'none' ? `"${condaPath || 'conda'}" run -n ${condaEnv} ${py}` : py;
+            exec(cmd, { timeout: 30000 }, (err, stdout) => resolve(leer(err, stdout)));
         });
-    });
     versiones.set(clave, p);
     return p;
 }
@@ -163,7 +168,7 @@ const menor = (a, b) => {
  * entenderlo (comprobado: dbt con un motor más nuevo crea un lago que AmoxSQL
  * no abre, p07).
  */
-async function avisoDeVersion(raiz, comando, { condaEnv, condaPath, versionAmox }) {
+async function avisoDeVersion(raiz, comando, { condaEnv, condaPath, python = null, versionAmox }) {
     const { accion, profilesDir, target } = leerComando(comando);
     if (!abreLaBase(accion) || !versionAmox) return null;
     let perfilTexto = '';
@@ -174,7 +179,7 @@ async function avisoDeVersion(raiz, comando, { condaEnv, condaPath, versionAmox 
     // Con un motor de otra versión mayor (DuckDB 2 frente a 1.x) el aviso vale
     // también sin lago: una base que dbt cree desde cero queda en un formato que
     // AmoxSQL no lee; las que ya existían conservan el suyo (comprobado, p07).
-    const v = await versionDelMotorDeDbt({ condaEnv, condaPath });
+    const v = await versionDelMotorDeDbt({ condaEnv, condaPath, python });
     const amox = String(versionAmox).replace(/^v/, '');
     if (!v) return null;
     if (Number(v.split('.')[0]) > Number(amox.split('.')[0])) {

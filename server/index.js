@@ -19,6 +19,10 @@ const fuentes          = require('./fuentes');
 const dbtConvivir      = require('./dbtConvivir');
 const llegadas         = require('./llegadas');
 const procedencia      = require('./procedencia');
+const dbtCorrer        = require('./dbt/correr');
+const dbtEjecutar      = require('./dbt/ejecutar');
+const dbtEntorno       = require('./dbt/entorno');
+const dbtFuentes       = require('./dbt/fuentes');
 
 /**
  * Mientras dbt tiene la base del proyecto (fase 2b), lo que la lea no puede
@@ -5596,88 +5600,86 @@ app.post('/api/dbt/command', (req, res) => {
     res.json({ command: cmd });
 });
 
-// Execute a DBT command (Option A+: simple exec with output streaming)
-app.post('/api/dbt/execute', (req, res) => {
-    const { command, condaEnv, condaPath } = req.body;
+// Execute a DBT command (5.12, fase 1): el corredor de dbt, sin shell ni tope de
+// tiempo (Dec-26), con el entorno del proyecto (Dec-27) y su fila en el historial
+// (Dec-34). Lo que manda la interfaz sigue siendo un texto: se analiza a una lista
+// de argumentos y se rechaza si trae algo de shell.
+app.post('/api/dbt/execute', async (req, res) => {
+    const { command, condaEnv, condaPath } = req.body || {};
     if (!command) return res.status(400).json({ error: 'Command is required' });
+    let orden;
+    try { orden = dbtCorrer.analizarComando(command); } catch (e) { return res.status(400).json({ error: e.message }); }
 
-    // Security: only allow dbt commands
-    if (!command.trim().startsWith('dbt ')) {
-        return res.status(403).json({ error: 'Only dbt commands are allowed' });
+    // El entorno: el del proyecto; si aún no lo guardó, el que manda la interfaz.
+    let entorno = dbtCorrer.entornoDelProyecto(ROOT_DIR);
+    if (!entorno) {
+        if (condaEnv && condaEnv !== 'none') {
+            if (!/^[\w.-]+$/.test(condaEnv)) return res.status(400).json({ error: 'Invalid condaEnv value. Only alphanumeric characters, hyphens, underscores, and dots are allowed.' });
+            entorno = { tipo: 'conda', nombre: condaEnv, conda: condaPath || null };
+        } else entorno = { tipo: 'sistema' };
     }
 
-    // Security: validate condaEnv and condaPath to prevent shell injection.
-    // condaEnv must be a simple alphanumeric identifier (no special chars).
-    const SAFE_ID_RE = /^[a-zA-Z0-9_\-.]+$/;
-    if (condaEnv && condaEnv !== 'none' && !SAFE_ID_RE.test(condaEnv)) {
-        return res.status(400).json({ error: 'Invalid condaEnv value. Only alphanumeric characters, hyphens, underscores, and dots are allowed.' });
-    }
-    if (condaPath && !SAFE_ID_RE.test(path.basename(condaPath))) {
-        return res.status(400).json({ error: 'Invalid condaPath value.' });
-    }
-
-    // Wrap with conda run if a conda env is specified
-    let finalCmd = command;
-    if (condaEnv && condaEnv !== 'none') {
-        const condaCmd = condaPath || 'conda';
-        // Use execFile-style argument passing via the args array in exec options
-        finalCmd = `"${condaCmd}" run --no-capture-output -n ${condaEnv} ${command}`;
-    }
-
-    // Set up SSE for streaming output
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     const enviar = (o) => { try { res.write(`data: ${JSON.stringify(o)}\n\n`); } catch { /* el cliente se fue */ } };
+    // Cancelar: cuando el cliente cierra la respuesta (no `req.on('close')`, que
+    // salta al leer el cuerpo del POST).
+    const corte = new AbortController();
+    res.on('close', () => { if (!res.writableEnded) corte.abort(); });
 
-    (async () => {
-        // dbt sin bloqueos (fase 2b): si va a abrir la base que tiene AmoxSQL,
-        // se suelta antes y se recupera al terminar, pase lo que pase.
-        let prestamo = { aviso: null, despues: async () => {} };
-        try {
-            prestamo = await dbtConvivir.antesDeDbt(dbManager, ROOT_DIR, command);
-        } catch (e) {
-            enviar({ type: 'amox', text: `AmoxSQL could not release the database for dbt: ${e.message}` });
-        }
-        if (prestamo.aviso) enviar({ type: 'amox', text: prestamo.aviso });
-        try {
-            const v = (await dbManager.systemQuery('SELECT version() AS v', { lane: 'meta' }))?.[0]?.v;
-            const aviso = await dbtConvivir.avisoDeVersion(ROOT_DIR, command, { condaEnv, condaPath, versionAmox: v });
-            if (aviso) enviar({ type: 'amox', text: aviso });
-        } catch { /* sólo es un aviso */ }
+    const r = await dbtEjecutar.ejecutarDbt({
+        base: baseCentral, dbManager, raiz: ROOT_DIR, args: orden.args, entorno,
+        env: await dbtFuentes.variables(ROOT_DIR).catch(() => ({})),
+        origen: 'interfaz', senal: corte.signal,
+        alLinea: ({ tipo, texto }) => enviar({ type: tipo, text: texto }),
+    });
+    enviar({ type: 'resumen', resumen: r.resumen });
+    enviar({ type: 'exit', code: r.cancelado ? 130 : r.codigo });
+    try { res.end(); } catch { /* ya cerrado */ }
+});
 
-        const lineas = [];
-        let terminado = false;
-        const terminar = async (codigo, error) => {
-            if (terminado) return;
-            terminado = true;
-            try { await prestamo.despues(); } catch (e) { enviar({ type: 'amox', text: `AmoxSQL could not reattach the database: ${e.message}. Open it again from the title bar.` }); }
-            if (prestamo.aviso) enviar({ type: 'amox', text: 'AmoxSQL has the database again.' });
-            if (error) enviar({ type: 'error', text: error });
-            if (dbtConvivir.noArranco(codigo, lineas)) {
-                enviar({ type: 'amox', text: "dbt did not start: its environment fails before running any project code (see the error above). Fix dbt's environment — for example, check that its Python version is supported by dbt — and try again." });
-            }
-            enviar({ type: 'exit', code: codigo });
-            try { res.end(); } catch { /* ya cerrado */ }
-        };
+// El entorno, el target y producción del proyecto dbt (Dec-27, Dec-29).
+app.get('/api/dbt/proyecto', (_req, res) => {
+    const cfg = scaffolder.getProjectConfig(ROOT_DIR) || {};
+    res.json({ dbt: cfg.dbt || {}, entornoPropio: dbtEntorno.estado() });
+});
+app.put('/api/dbt/proyecto', (req, res) => {
+    const cfg = scaffolder.getProjectConfig(ROOT_DIR) || {};
+    const b = req.body || {};
+    const dbt = { ...(cfg.dbt || {}) };
+    if (b.entorno !== undefined) {
+        const e = b.entorno;
+        if (e && !['amoxsql', 'conda', 'python', 'sistema'].includes(e.tipo)) return res.status(400).json({ error: 'Unknown environment type.' });
+        if (e?.tipo === 'conda' && e.nombre && !/^[\w.-]+$/.test(e.nombre)) return res.status(400).json({ error: 'Invalid conda environment name.' });
+        dbt.entorno = e ? { tipo: e.tipo, ...(e.nombre ? { nombre: e.nombre } : {}), ...(e.ruta ? { ruta: e.ruta } : {}), ...(e.conda ? { conda: e.conda } : {}) } : undefined;
+    }
+    if (b.target !== undefined) dbt.target = b.target || undefined;
+    if (b.produccion !== undefined) dbt.produccion = Array.isArray(b.produccion) ? b.produccion.filter(x => typeof x === 'string' && x) : [];
+    const guardado = scaffolder.saveProjectConfig(ROOT_DIR, { dbt });
+    res.json({ dbt: guardado.dbt });
+});
 
-        const child = exec(finalCmd, { cwd: ROOT_DIR, timeout: 300000, maxBuffer: 1024 * 1024 * 10 });
-        const salida = (tipo) => (data) => {
-            for (const line of data.toString().split('\n')) {
-                if (!line.trim()) continue;
-                if (lineas.length < 400) lineas.push(line);
-                enviar({ type: tipo, text: line });
-            }
-        };
-        child.stdout.on('data', salida('stdout'));
-        child.stderr.on('data', salida('stderr'));
-        child.on('close', (code) => { terminar(code); });
-        child.on('error', (err) => { terminar(1, err.message); });
-        req.on('close', () => {
-            try { child.kill(); } catch (e) { /* already dead */ }
-            // Cancelado: la base vuelve igual (close llega cuando el proceso muere).
-        });
-    })();
+// «Set up dbt…» (Dec-36): el entorno de AmoxSQL, con el mismo motor.
+app.get('/api/dbt/entorno-propio', async (_req, res) => {
+    try { res.json({ ...dbtEntorno.estado(), pythons: await dbtEntorno.buscarPythons() }); }
+    catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/dbt/entorno-propio', async (req, res) => {
+    const python = req.body?.python;
+    if (!python) return res.status(400).json({ error: 'Choose a Python.' });
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    const enviar = (o) => { try { res.write(`data: ${JSON.stringify(o)}\n\n`); } catch { /* el cliente se fue */ } };
+    const corte = new AbortController();
+    res.on('close', () => { if (!res.writableEnded) corte.abort(); });
+    try {
+        const r = await dbtEntorno.crear({ python, senal: corte.signal, alProgreso: (p) => enviar({ type: 'progreso', ...p }) });
+        enviar({ type: 'listo', entorno: r });
+    } catch (e) {
+        enviar({ type: 'error', text: e.message });
+    }
+    try { res.end(); } catch { /* ya cerrado */ }
 });
 
 /** ¿Tiene dbt ahora la base del proyecto? Para el aviso de la interfaz. */
@@ -6693,6 +6695,22 @@ const horaUtc = (t) => (t ? new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(String(t)) ? St
 app.get('/api/ejecuciones/:id', conCentral(async (req) => {
     const [e] = await baseCentral.query(`SELECT * FROM ejecuciones WHERE id = $1`, [req.params.id]);
     if (!e) throw new Error('That run does not exist in the history.');
+    // 5.12 (Dec-34): una ejecución de dbt; sus pasos son sus modelos y tests.
+    if (dbtEjecutar.esDeDbt(e.proceso)) {
+        let r = null;
+        try { r = e.resumen ? JSON.parse(e.resumen) : null; } catch { /* sin resumen */ }
+        let programacion = null;
+        if (e.programacion_id) {
+            const p = await programaciones.leer(e.programacion_id).catch(() => null);
+            programacion = p ? { id: p.id, nombre: p.nombre, descripcion: p.descripcion } : { id: e.programacion_id, borrada: true };
+        }
+        const OK = new Set(['success', 'pass']);
+        return {
+            ejecucion: { id: e.id, proceso: e.proceso, proyecto: e.proyecto, origen: e.origen, estado: e.estado, inicio: e.inicio, fin: e.fin, error: e.error, parametros: {}, prevista: horaUtc(e.prevista) },
+            programacion, dbt: true, resumen: r, procesoEnProyecto: null,
+            pasos: (r?.nodos || []).map(n => ({ nodo: n.nombre, tipo: n.tipo, estado: OK.has(n.estado) ? 'success' : ['error', 'fail'].includes(n.estado) ? 'failed' : n.estado, ms: Math.round((n.segundos || 0) * 1000), filas: null, error: ['error', 'fail', 'warn'].includes(n.estado) ? (n.mensaje || n.estado) : null })),
+        };
+    }
     const { nodeRuns } = await historialDeProcesos.leer({ base: baseCentral, dbManager, runId: e.id });
     const pasos = [...nodeRuns].sort((a, b) => String(a.started_at || '').localeCompare(String(b.started_at || ''))).map(n => {
         let s = {};
@@ -6730,6 +6748,12 @@ app.post('/api/ejecuciones/:id/repetir', conCentral(async (req) => {
     if (e.programacion_id) {
         const prog = await programaciones.leer(e.programacion_id);
         if (prog) return programador.correrOcurrencia(prog, horaUtc(e.prevista) || new Date().toISOString(), { origen: 'programada' });
+    }
+    // 5.12: un comando de dbt se repite tal cual, en su proyecto.
+    if (dbtEjecutar.esDeDbt(e.proceso)) {
+        const { args } = dbtCorrer.analizarComando(e.proceso);
+        const r = await dbtEjecutar.ejecutarDbt({ base: baseCentral, dbManager: e.proyecto && path.resolve(e.proyecto) === path.resolve(ROOT_DIR) ? dbManager : null, raiz: e.proyecto, args, env: await dbtFuentes.variables(e.proyecto).catch(() => ({})), origen: e.origen === 'interfaz' ? 'interfaz' : 'linea_de_comandos' });
+        return { runId: r.runId, estado: r.resumen.estado === 'fallo' ? 'fallo' : 'ok', error: r.resumen.estado === 'fallo' ? r.resumen.linea : null };
     }
     if (!e.proceso || !fs.existsSync(e.proceso)) throw new Error(`The process is no longer there: ${e.proceso}`);
     const cadena = JSON.parse(fs.readFileSync(e.proceso, 'utf8'));
