@@ -106,14 +106,48 @@ con la 5.10.0. E, F, G y H se corren un número.
 | 5.10.0 | C · los datos donde están |
 | 5.11.0 | D · procesos que corren solos |
 | 5.12.0 | I · el ingeniero de datos: dbt y DuckLake (adelantada) |
-| 5.13.0 | E · confianza en los números |
-| 5.14.0 | F · entregar y recordar |
-| 5.15.0 | G · compartir y heredar |
-| 5.16.0 | H · operar la máquina |
-| 5.17.0 | J · mejoras sueltas |
-| **6.0.0** | K · Python y experimentos |
+| ~~5.13.0~~ | ~~E · confianza en los números~~ → ver *El recorte del 2026-10-22* |
+| ~~5.14.0 a 5.17.0~~ | ~~F, G, H, J~~ → ver *El recorte del 2026-10-22* |
+| ~~6.0.0~~ | ~~K · Python y experimentos~~ → fuera |
 
-Cada ficha lleva la versión de su familia.
+Cada ficha lleva la versión de su familia (la original; el recorte la cambia).
+
+### El recorte del 2026-10-22
+
+Revisadas con el autor después de la 5.12.0, con una pregunta por ficha: **¿ayuda a
+quien construye y corre flujos locales en su máquina, o supone un equipo, una
+organización o un gobierno de datos que AmoxSQL no tiene?** Muchas, además, ya estaban
+cubiertas a medias: Data Flow tiene `schema_validation`, `assert`, `diff`, `redact_pii`,
+`sample`, `checkpoint` y `notification`; la 5.10 trajo la procedencia, la 5.11 el
+resumen de cada ejecución y la 5.12 el linaje de dbt.
+
+**El camino que queda:**
+
+| Versión | Contenido |
+|---|---|
+| **5.13.0** · Flujos fiables | E2+E3 (contrato y reglas de la fuente), E1 reducida (medidas como macros), H1 (lo de fondo con límites), J10 (reintentos), F4 (la fecha de los datos). Plan: [`plan_5_13_flujos_fiables.md`](plan_5_13_flujos_fiables.md) |
+| **5.14.0** · El día a día | F5 (retomar), G2+G3 (proyecto desde plantilla y exportar sin datos), G1 reducida (el nivel del workspace), F3 reducida (comparar con la entrega anterior), J6 (cuaderno limpio), J9 (diff legible de procesos), J1 (mirar otro proyecto en sólo lectura) |
+| **6.0.0** | **Una funcionalidad nueva: un lienzo para el análisis de datos** (como una pizarra infinita, con datos vivos). Se plantea después de la 5.14.0. **Sin Python** |
+
+**Lo que se quita, y por qué:**
+
+| Ficha | Por qué |
+|---|---|
+| E4 Columnas sensibles | `redact_pii` y la política de IA por workspace ya lo cubren |
+| E5 Linaje del proyecto (L) | Procedencia, linaje de dbt y el grafo de cada proceso ya lo dicen; un linaje global es mucho para lo que añade |
+| E6 Bitácora de acceso a fuentes | El historial de ejecuciones ya dice qué se leyó y cuándo |
+| F1 Bitácora de entregas | Cada ejecución ya sabe qué archivo dejó y dónde (5.11) |
+| F2 Ficha del proyecto | Es un CRM; un `README.md` en la carpeta hace lo mismo |
+| F6 Registro de tiempo | No es de esta herramienta |
+| G4 Receta de reconstrucción | Un proceso que llama a los demás, o `dbt build`, ya lo resuelve |
+| G5 Comentarios anclados | Supone colaboración; para eso está git |
+| H2 Almacenamiento | Poco valor; como mucho, una línea en la vista de workspaces |
+| H3 Cierre de proyecto | `project.json` ya tiene `estado` |
+| H4 Confinar y cifrar | El cifrado de disco es del sistema operativo |
+| J2, J3, J4, J5, J7, J8 | El perfil y el muestreo ya existen (nodo `sample`); las skills son archivos que el usuario ya puede escribir; mapas, HTML interactivo e historial por celda son M sin demanda |
+| K Python y registro de experimentos | **Decisión del autor (2026-10-22):** sin Python en ninguna fase; la 6.0 sale sin él |
+
+Las fichas de abajo se quedan como estaban, para la historia; manda esta tabla.
 
 ### Lo que la 6 es, en una frase
 
@@ -577,6 +611,9 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 
 ### E · Confianza en los números
 
+> **Recortada el 2026-10-22** y llevada a la 5.13.0 como *Flujos fiables* (E2+E3, E1 reducida, con H1,
+> J10 y F4). **Plan:** [`plan_5_13_flujos_fiables.md`](plan_5_13_flujos_fiables.md).
+
 #### E1 · Medidas del workspace consultables
 `Modificación` · **5.13** · M
 
@@ -888,6 +925,9 @@ Todas van en la 5.17.0.
 ---
 
 ### K · Python, y lo que queda fuera
+
+> **Quitada el 2026-10-22** (decisión del autor): Python no entra en ninguna fase y la
+> 6.0 sale sin él. Ver *El recorte del 2026-10-22*.
 
 | Candidato | Versión | Por qué | Contestaría |
 |---|---|---|---|
