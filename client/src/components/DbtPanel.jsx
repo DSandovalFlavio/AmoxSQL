@@ -8,6 +8,7 @@ import {
 } from 'react-icons/lu';
 import DbtLineageGraph from './DbtLineageGraph';
 import EntornoDbt from './dbt/EntornoDbt';
+import BarraTarget from './dbt/BarraTarget';
 import { API_BASE as _API } from '../api.js';
 const API = `${_API}/api`;
 
@@ -106,7 +107,14 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
     const [cmdSelect, setCmdSelect] = useState('');
     const [cmdExclude, setCmdExclude] = useState('');
     const [cmdFullRefresh, setCmdFullRefresh] = useState(false);
-    const [cmdTarget, setCmdTarget] = useState('dev');
+    const [cmdTarget, setCmdTarget] = useState('');            // 5.12 (I4): el de la barra de target
+    const [confirmar, setConfirmar] = useState(null);          // 5.12 (Dec-29): { target, motivo } antes de escribir en producción
+    const [textoConfirmar, setTextoConfirmar] = useState('');
+    const [explicaciones, setExplicaciones] = useState({});   // 5.12 (I9)
+    const [snapRelacion, setSnapRelacion] = useState("ref('stg_orders')");
+    const [snapClave, setSnapClave] = useState('id');
+    const [snapEstrategia, setSnapEstrategia] = useState('timestamp');
+    const [snapFecha, setSnapFecha] = useState('updated_at');
     const [generatedCmd, setGeneratedCmd] = useState('');
     const [cmdCopied, setCmdCopied] = useState(false);
 
@@ -196,6 +204,9 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
         setProjectLoading(false);
     }, []);
 
+    // 5.12: el proyecto se detecta al abrir (leer sus archivos es instantáneo); la
+    // detección del entorno, que lanza procesos, sigue siendo a mano.
+    useEffect(() => { detectProject(); fetch(`${API}/dbt/explicaciones`).then(r => r.json()).then(setExplicaciones).catch(() => {}); }, []); // eslint-disable-line react-hooks/exhaustive-deps
     // No auto-fetch on mount — state loads from localStorage cache above.
     // User triggers refresh via the Refresh buttons in the UI.
 
@@ -370,6 +381,24 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
         setModelCreating(false);
     };
 
+    // --- Create Snapshot (5.12, I9) ---
+    const handleCreateSnapshot = async () => {
+        if (!modelName.trim()) return showToast('Snapshot name is required', 'error');
+        setModelCreating(true);
+        try {
+            const res = await fetch(`${API}/dbt/template/snapshot`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nombre: modelName, relacion: snapRelacion, clave: snapClave, estrategia: snapEstrategia, columnaFecha: snapFecha }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to create the snapshot');
+            showToast(`Snapshot created: ${data.path}`);
+            setModelName('');
+            if (onFileOpen) onFileOpen(data.path);
+        } catch (err) { showToast(err.message, 'error'); }
+        setModelCreating(false);
+    };
+
     // --- Create Source ---
     const handleCreateSource = async () => {
         if (!sourceName.trim()) return showToast('Source name is required', 'error');
@@ -422,8 +451,9 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
     };
 
     // --- Execute Command ---
-    const handleExecute = async () => {
+    const handleExecute = async (confirmarProduccion = null) => {
         if (!generatedCmd || execRunning) return;
+        setConfirmar(null);
         setExecOutput([]);
         setExecRunning(true);
         setExecExitCode(null);
@@ -435,11 +465,19 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
             const res = await fetch(`${API}/dbt/execute`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: generatedCmd, condaEnv: selectedCondaEnv, condaPath }),
+                body: JSON.stringify({ command: generatedCmd, condaEnv: selectedCondaEnv, condaPath, ...(typeof confirmarProduccion === 'string' ? { confirmarProduccion } : {}) }),
                 signal: corte.signal,
             });
             if (!res.ok && !String(res.headers.get('content-type') || '').includes('event-stream')) {
                 const d = await res.json().catch(() => ({}));
+                // Dec-29: escribir en producción pide escribir el nombre del target.
+                if (res.status === 409 && d.necesitaConfirmar) {
+                    setConfirmar({ target: d.target, motivo: d.motivo });
+                    setTextoConfirmar('');
+                    setExecRunning(false);
+                    corteRef.current = null;
+                    return;
+                }
                 throw new Error(d.error || `dbt could not start (${res.status})`);
             }
 
@@ -520,6 +558,9 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                     </button>
                 )}
             </div>
+
+            {/* 5.12 (I4): el target con el que se trabaja; PRODUCTION en rojo */}
+            <BarraTarget onCambio={(activo) => setCmdTarget(activo)} showToast={showToast} recargar={projectInfo?.exists ? 1 : 0} />
 
             {/* Section Tabs */}
             <div className="seg-wrap">
@@ -781,7 +822,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                 <div className="dbt-form-field">
                                     <label>Template</label>
                                     <div className="dbt-template-grid">
-                                        {['staging', 'intermediate', 'mart', 'incremental', 'basic'].map(t => (
+                                        {['staging', 'intermediate', 'mart', 'incremental', 'snapshot', 'basic'].map(t => (
                                             <button
                                                 key={t}
                                                 className={`dbt-template-btn ${modelTemplate === t ? 'dbt-template-btn--active' : ''}`}
@@ -793,10 +834,46 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                     </div>
                                 </div>
 
+                                {explicaciones[modelTemplate] && (
+                                    <p className="dbt-explicacion">{explicaciones[modelTemplate]}</p>
+                                )}
+
                                 <div className="dbt-form-field">
-                                    <label>Model Name</label>
-                                    <input type="text" value={modelName} onChange={e => setModelName(e.target.value)} placeholder="stg_orders" />
+                                    <label>{modelTemplate === 'snapshot' ? 'Snapshot Name' : 'Model Name'}</label>
+                                    <input type="text" value={modelName} onChange={e => setModelName(e.target.value)} placeholder={modelTemplate === 'snapshot' ? 'orders_history' : 'stg_orders'} />
                                 </div>
+
+                                {modelTemplate === 'snapshot' ? (
+                                    <>
+                                        <div className="dbt-form-field">
+                                            <label>What it keeps the history of</label>
+                                            <input type="text" value={snapRelacion} onChange={e => setSnapRelacion(e.target.value)} placeholder="ref('stg_orders')" />
+                                        </div>
+                                        <div className="dbt-form-row">
+                                            <div className="dbt-form-field">
+                                                <label>Unique key</label>
+                                                <input type="text" value={snapClave} onChange={e => setSnapClave(e.target.value)} placeholder="id" />
+                                            </div>
+                                            <div className="dbt-form-field">
+                                                <label>How it detects a change</label>
+                                                <select value={snapEstrategia} onChange={e => setSnapEstrategia(e.target.value)}>
+                                                    <option value="timestamp">An «updated at» column</option>
+                                                    <option value="check">Comparing every column</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        {snapEstrategia === 'timestamp' && (
+                                            <div className="dbt-form-field">
+                                                <label>«Updated at» column</label>
+                                                <input type="text" value={snapFecha} onChange={e => setSnapFecha(e.target.value)} placeholder="updated_at" />
+                                            </div>
+                                        )}
+                                        <button className="dbt-btn dbt-btn--primary" onClick={handleCreateSnapshot} disabled={modelCreating || !modelName.trim()}>
+                                            {modelCreating ? <LuLoader size={13} className="dbt-spin" /> : <LuFileCode size={13} />}
+                                            Create Snapshot
+                                        </button>
+                                    </>
+                                ) : (<>
 
                                 <div className="dbt-form-row">
                                     <div className="dbt-form-field">
@@ -832,6 +909,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                     {modelCreating ? <LuLoader size={13} className="dbt-spin" /> : <LuFileCode size={13} />}
                                     Create Model
                                 </button>
+                                </>)}
                             </div>
                         )}
                     </div>
@@ -980,10 +1058,6 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                     <label>--select <span className="dbt-optional">(optional)</span></label>
                                     <input type="text" value={cmdSelect} onChange={e => setCmdSelect(e.target.value)} placeholder="model_name or tag:daily" />
                                 </div>
-                                <div className="dbt-form-field">
-                                    <label>--target</label>
-                                    <input type="text" value={cmdTarget} onChange={e => setCmdTarget(e.target.value)} placeholder="dev" />
-                                </div>
                             </div>
 
                             <div className="dbt-form-field">
@@ -1007,7 +1081,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                     </button>
                                     <button
                                         className="dbt-btn dbt-btn--execute"
-                                        onClick={handleExecute}
+                                        onClick={() => handleExecute()}
                                         disabled={execRunning || !puedeCorrer}
                                         title={puedeCorrer ? 'Execute command' : "dbt was not found in this environment — choose another one, or set up AmoxSQL's dbt"}
                                     >
@@ -1017,6 +1091,19 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                 </div>
                             </div>
                         </div>
+
+                        {confirmar && (
+                            <div className="dbt-card dbt-confirmar-prod">
+                                <div className="dbt-card-header"><span><LuTriangleAlert size={13} /> Production</span></div>
+                                <p className="dbt-subtle-text">{confirmar.motivo} Type <b>{confirmar.target}</b> to run it.</p>
+                                <input type="text" value={textoConfirmar} onChange={e => setTextoConfirmar(e.target.value)} placeholder={confirmar.target} autoFocus aria-label="Target name"
+                                    onKeyDown={e => { if (e.key === 'Enter' && textoConfirmar === confirmar.target) handleExecute(confirmar.target); }} />
+                                <div className="dbt-form-row">
+                                    <button className="dbt-btn dbt-btn--execute" disabled={textoConfirmar !== confirmar.target} onClick={() => handleExecute(confirmar.target)}>Run in {confirmar.target}</button>
+                                    <button className="dbt-btn dbt-btn--ghost" onClick={() => setConfirmar(null)}>Cancel</button>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Output Panel */}
                         {(execOutput.length > 0 || execRunning) && (

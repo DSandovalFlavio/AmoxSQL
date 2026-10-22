@@ -12657,6 +12657,66 @@ tr:hover td {
 }
 
 /* Exit Badge */
+/* 5.12 (I4, Dec-29): el target con el que se trabaja */
+.dbt-target-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.dbt-target-bar label {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 10px;
+    color: var(--text-tertiary);
+}
+.dbt-target-bar select {
+    font-size: 11px;
+    padding: 2px 6px;
+    max-width: 140px;
+}
+.dbt-target-bar--prod {
+    background: var(--color-error-bg, transparent);
+    border-bottom-color: var(--color-error);
+}
+.dbt-target-prod {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    font-size: 10px;
+    color: var(--color-error-text, var(--color-error));
+    border: 1px solid var(--color-error);
+}
+.dbt-target-pregunta {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-primary);
+}
+.dbt-confirmar-prod { border-color: var(--color-error); }
+.dbt-confirmar-prod .dbt-card-header span { display: inline-flex; align-items: center; gap: 6px; color: var(--color-error-text, var(--color-error)); }
+.dbt-confirmar-prod input { width: 100%; box-sizing: border-box; margin-bottom: 8px; }
+
+/* 5.12 (I9): qué es un incremental, qué es un snapshot */
+.dbt-explicacion {
+    margin: 0 0 8px;
+    padding: 8px 10px;
+    border-left: 2px solid var(--accent-primary);
+    background: var(--surface-2, var(--panel-bg));
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
 /* 5.12: el resumen de una ejecución de dbt (run_results) */
 .dbt-resumen {
     display: flex;

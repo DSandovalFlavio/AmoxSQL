@@ -11,6 +11,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { correr } = require('./correr');
 const resultados = require('./resultados');
+const dbtProyecto = require('./proyecto');
 
 // estado del resumen → estado de `ejecuciones` (un test en warn termina «ok»: el
 // resumen dice «aviso» y el aviso del sistema lo cuenta).
@@ -32,6 +33,8 @@ function workspaceDelProyecto(raiz) {
  */
 async function ejecutarDbt({ base = null, dbManager = null, raiz, args, entorno, env, origen = 'interfaz', programacionId = null, prevista = null, alLinea, senal }) {
     const runId = crypto.randomUUID();
+    // El target activo del proyecto, si la orden no dice otro (I4).
+    args = dbtProyecto.conTarget(raiz, args);
     const comandoProvisional = ['dbt', ...args].join(' ');
     const anotar = async (sql, params) => { if (base?.estaAbierta?.()) await base.query(sql, params).catch((e) => console.warn('[dbt] historial:', e.message)); };
     await anotar(
