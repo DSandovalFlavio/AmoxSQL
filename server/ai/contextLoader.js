@@ -3,14 +3,16 @@
 /**
  * AmoxSQL AI — Context-as-Code Loader
  *
- * Reads `.amoxsql/context/` from the current project directory and builds
- * a structured context object for injection into the system prompt.
+ * Reads `context/` from the current project directory (the folder the project
+ * scaffolder creates) and builds a structured context object for injection
+ * into the system prompt.
  *
  * Convention:
- *   .amoxsql/context/metrics.yml   — business metric definitions
- *   .amoxsql/context/glossary.md   — domain terms and their meanings
- *   .amoxsql/context/joins.yml     — canonical join relationships between tables
- *   .amoxsql/context/examples/     — *.sql files with Q→SQL pairs (question in first comment)
+ *   context/metrics.yml   — business metric definitions (since 5.13 also SQL
+ *                           functions: see server/medidas.js)
+ *   context/glossary.md   — domain terms and their meanings
+ *   context/joins.yml     — canonical join relationships between tables
+ *   context/examples/     — *.sql files with Q→SQL pairs (question in first comment)
  *
  * All files are optional — if the directory doesn't exist, returns null (no context injected).
  */
@@ -122,9 +124,13 @@ function parseMetrics(text) {
         const desc  = (block.match(/description:\s*(.+)/))?.[1]?.trim();
         const grain = (block.match(/grain:\s*(.+)/))?.[1]?.trim();
         const table = (block.match(/table:\s*(.+)/))?.[1]?.trim();
+        // 5.13 (Dec-41): las columnas de la medida, a mano, si la extracción
+        // automática no basta: `columns: [importe, estado]`.
+        const cols  = (block.match(/^\s*(?:columns|columnas):\s*\[(.*)\]\s*$/m))?.[1];
+        const columns = cols ? cols.split(',').map(c => c.trim().replace(/^["']|["']$/g, '')).filter(Boolean) : null;
 
         if (name && sql) {
-            metrics.push({ name, sql, description: desc || '', grain: grain || null, table: table || null });
+            metrics.push({ name, sql, description: desc || '', grain: grain || null, table: table || null, ...(columns ? { columns } : {}) });
         }
     }
     return metrics;
@@ -269,9 +275,15 @@ function buildProjectContextSection(ctx) {
 
     // ── Metrics ──
     if (ctx.metrics.length > 0) {
+        // 5.13 (Dec-41): las que el motor ya tiene como función se usan así, y
+        // dan lo mismo en todos los proyectos.
+        let llamadaDe = () => null;
+        try { llamadaDe = require('../medidas').llamadaDe; } catch { /* sin medidas montadas */ }
         parts.push('### Business Metrics\n');
         for (const m of ctx.metrics) {
             parts.push(`**${m.name}**${m.description ? ` — ${m.description}` : ''}${m.compartida ? ` _(shared — ${m.compartida})_` : ''}`);
+            const llamada = llamadaDe(m.name);
+            if (llamada) parts.push(`  Use it as the SQL function \`${llamada}\` (an aggregate: works with or without GROUP BY; pass the columns by name)`);
             parts.push(`  SQL: \`${m.sql}\``);
             if (m.grain)  parts.push(`  Grain: ${m.grain}`);
             if (m.table)  parts.push(`  Table: ${m.table}`);

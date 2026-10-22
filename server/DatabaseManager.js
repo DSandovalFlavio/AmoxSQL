@@ -80,6 +80,7 @@ class DatabaseManager {
             this.instance = await crearInstancia(':memory:');
             for (const lane of LANES) {
                 this.connections[lane] = await this.instance.connect();
+                await this._aplicarSesion(this.connections[lane]);
             }
             this.attachedPath = null;
             this.isDuckLake = false;
@@ -94,6 +95,32 @@ class DatabaseManager {
             // ha terminado con la conexion. Ver warmExtensions().
         } catch (e) {
             console.error("[DB Manager] FATAL: Could not init system DB", e);
+        }
+    }
+
+    /**
+     * 5.13 (Dec-41): lo que cada conexión necesita tener. Una macro TEMPORAL (las
+     * medidas del workspace) es de la conexión que la crea, y AmoxSQL usa varias
+     * (los carriles): se crea en todas las que hay y en cada una que se abra
+     * después, también tras reiniciar el motor. Por clave: `ponerSesion('medidas', …)`
+     * sustituye lo anterior de esa clave.
+     */
+    async ponerSesion(clave, sentencias) {
+        if (!this._sesion) this._sesion = new Map();
+        this._sesion.set(clave, Array.isArray(sentencias) ? sentencias : []);
+        for (const lane of LANES) {
+            const c = this.connections[lane];
+            if (c) await this._aplicarSesion(c, [clave]);
+        }
+    }
+
+    async _aplicarSesion(conn, claves = null) {
+        if (!this._sesion || !conn) return;
+        for (const [k, sentencias] of this._sesion) {
+            if (claves && !claves.includes(k)) continue;
+            for (const s of sentencias) {
+                try { await conn.run(s); } catch (e) { console.warn(`[DB Manager] sesión (${k}):`, String(e.message || e).split('\n')[0]); }
+            }
         }
     }
 
@@ -204,6 +231,7 @@ class DatabaseManager {
         if (!this.connections[key] && this.instance) {
             // Lane lost (e.g. failed init) — reconnect it and restore context
             this.connections[key] = await this.instance.connect();
+            await this._aplicarSesion(this.connections[key]);
             if (this.attachedPath) {
                 try { await this.connections[key].run(`USE ${this.alias}`); } catch { /* best-effort */ }
             }

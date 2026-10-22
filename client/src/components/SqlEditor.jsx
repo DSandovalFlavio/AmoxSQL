@@ -59,6 +59,36 @@ function ensureDuckdbFunctionCatalog() {
         .catch(err => console.warn('[Monaco] Failed to load function catalog', err));
 }
 
+// 5.13 (Dec-41): las medidas del workspace y del proyecto, que el motor tiene como
+// funciones (`venta_neta(importe, estado)`). Una lista para todos los editores; se
+// vuelve a pedir al volver a la ventana o cuando algo avisa (`amox_medidas_cambio`),
+// porque el servidor monta de nuevo las de un metrics.yml que cambió.
+let __medidasEn = 0;
+function ensureMedidas(forzar = false) {
+    if (!forzar && Date.now() - __medidasEn < 15000) return;
+    __medidasEn = Date.now();
+    fetch(`${API_BASE}/api/medidas`)
+        .then(r => (r.ok ? r.json() : { medidas: [] }))
+        .then(d => { window.__amoxMedidas = (d.medidas || []).filter(m => m.estado === 'lista'); })
+        .catch(() => { /* sin proyecto: sin medidas */ });
+}
+if (typeof window !== 'undefined' && !window.__amoxMedidasOyente) {
+    window.__amoxMedidasOyente = true;
+    window.addEventListener('focus', () => ensureMedidas(true));
+    window.addEventListener('amox_medidas_cambio', () => ensureMedidas(true));
+}
+const comillasSiHace = (c) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(c) ? c : `"${String(c).replace(/"/g, '""')}"`);
+/** El texto de ayuda de una medida (completado y hover). */
+function ayudaDeMedida(m) {
+    const de = m.origen === 'workspace' ? `Shared measure${m.nombreWs ? ` · ${m.nombreWs}` : ''}` : 'Project measure';
+    return [
+        `**${m.llamada}** — ${de}`,
+        m.descripcion ? `\n\n${m.descripcion}` : '',
+        `\n\n\`\`\`sql\n${m.sql}\n\`\`\``,
+        `\n\nPass the columns by name; it works with or without GROUP BY.`,
+    ].join('');
+}
+
 // Resolve the output columns of a probe query (e.g. a CTE) by asking DuckDB to DESCRIBE it.
 // Cached by probe SQL (the probe text changes when the query changes, so it self-invalidates).
 // Aborts after 300ms and returns [] on any failure → the editor falls back to its heuristics.
@@ -345,6 +375,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         // Prefetch the DuckDB function catalog so the very first completion already has
         // functions (otherwise the first keystroke of a session shows none until it loads).
         ensureDuckdbFunctionCatalog();
+        ensureMedidas();
 
         // Restore view state if we have it cached (on mount)
         if (props.tabId && globalViewStateCache.has(props.tabId)) {
@@ -882,7 +913,24 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 allowedFunctionTypes = []; // No functions in LIMIT or GROUP BY
             }
 
+            // 5.13 (Dec-41): las medidas, delante de las funciones, con sus columnas ya
+            // escritas (se puede pasar a otra con Tab).
+            ensureMedidas();
+            const medidas = allowedFunctionTypes.length > 0 ? (window.__amoxMedidas || []) : [];
+            const nombresDeMedida = new Set(medidas.map(m => m.nombre.toLowerCase()));
+            medidas.forEach(m => {
+                suggestions.push({
+                    label: m.nombre, kind: monaco.languages.CompletionItemKind.Function,
+                    insertText: `${m.nombre}(${m.columnas.map((c, i) => `\${${i + 1}:${comillasSiHace(c).replace(/[$}\\]/g, '\\$&')}}`).join(', ')})`,
+                    insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+                    detail: `ƒ Measure · ${m.columnas.map(comillasSiHace).join(', ')}`,
+                    documentation: { value: ayudaDeMedida(m), isTrusted: true },
+                    sortText: '3_' + m.nombre, filterText: m.nombre + ' ' + m.nombre.toLowerCase(),
+                });
+            });
+
             (window.__duckdbFunctionCatalog || []).forEach(fn => {
+                if (nombresDeMedida.has(String(fn.name).toLowerCase())) return;
                 // If it's a known type and not in the allowed list, skip it!
                 if (allowedFunctionTypes.length > 0 && fn.type && !allowedFunctionTypes.includes(fn.type)) {
                     return;
@@ -995,6 +1043,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     }
                     const word = model.getWordAtPosition(position);
                     if (!word) return null;
+                    // 5.13 (Dec-41): una medida del workspace o del proyecto.
+                    const medida = (window.__amoxMedidas || []).find(m => m.nombre.toLowerCase() === word.word.toLowerCase());
+                    if (medida) {
+                        return {
+                            range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
+                            contents: [{ value: ayudaDeMedida(medida), isTrusted: true }],
+                        };
+                    }
                     populateHover();
 
                     const fn = hoverLookup[word.word.toLowerCase()];

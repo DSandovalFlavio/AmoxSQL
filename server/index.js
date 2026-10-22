@@ -16,6 +16,7 @@ const manifiesto       = require('./manifiesto');
 const contextoDeEjecucion = require('./ejecucion/ContextoDeEjecucion');
 const workspaces       = require('./workspaces');
 const fuentes          = require('./fuentes');
+const medidas          = require('./medidas');
 const dbtConvivir      = require('./dbtConvivir');
 const llegadas         = require('./llegadas');
 const procedencia      = require('./procedencia');
@@ -6443,6 +6444,8 @@ function remontarFuentes() {
                 const raiz = PROYECTO_ABIERTO ? ROOT_DIR : null;
                 const meta = dbManager.lane('meta');
                 const informe = await fuentes.montar(meta, { raiz });
+                // 5.13 (Dec-41): las medidas del workspace, como macros en cada carril.
+                await medidas.montar(dbManager, raiz).catch(e => console.warn('[Medidas] No se pudieron montar:', e?.message || e));
                 ultimoMontaje = { informe, esquemaHomonimo: raiz ? await fuentes.hayEsquemaHomonimo(meta) : false, en: new Date().toISOString() };
                 invalidateTableContextCache();
                 // C3: vigilar las carpetas de las fuentes de tipo carpeta.
@@ -6573,6 +6576,18 @@ app.delete('/api/fuentes/:nombre', conCentral(async (req) => {
     await remontarFuentes();
     return { ok: true };
 }));
+
+// 5.13 (E1 reducida, Dec-41): las medidas del workspace y del proyecto, con su
+// llamada (`venta_neta(importe, estado)`) o por qué no se pudo crear. Si los
+// metrics.yml cambiaron desde la última vez, se vuelven a montar.
+app.get('/api/medidas', async (_req, res) => {
+    try {
+        if (!PROYECTO_ABIERTO) return res.json({ medidas: [] });
+        res.json({ medidas: await medidas.actuales(dbManager, ROOT_DIR) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 
 // 5.13 (E2 + E3): el contrato de una fuente. «Check» lo comprueba ahora mismo;
 // «Take today's columns» lo propone con lo que trae hoy (Dec-40).
