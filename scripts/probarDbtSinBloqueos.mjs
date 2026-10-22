@@ -34,7 +34,10 @@ const require = createRequire(import.meta.url);
 const BIN = path.join(TMP, 'bin');
 fs.mkdirSync(BIN, { recursive: true });
 const CONTROL = path.join(BIN, 'control.json');
-fs.writeFileSync(path.join(BIN, 'dbt_falso.cjs'), `
+// 5.12: dbt se lanza sin shell y el proyecto apunta a su entorno; el falso es una
+// copia de Node en una carpeta de entorno (scripts/ayudas/dbtFalso.cjs).
+const { crearEntornoFalso } = require(path.join(RAIZ, 'scripts/ayudas/dbtFalso.cjs'));
+const FALSO = crearEntornoFalso(BIN, `
 const fs = require('fs');
 const { DuckDBInstance } = require(${JSON.stringify(require.resolve('@duckdb/node-api', { paths: [RAIZ] }))});
 const c = JSON.parse(fs.readFileSync(${JSON.stringify(CONTROL)}, 'utf8'));
@@ -46,7 +49,7 @@ const c = JSON.parse(fs.readFileSync(${JSON.stringify(CONTROL)}, 'utf8'));
     process.exit(1);
   }
   console.log('Running with dbt=1.10.0');
-  const accion = process.argv[2];
+  const accion = args[0];
   if (['deps', 'clean', 'parse'].includes(accion)) { console.log('Done.'); return; }
   try {
     const i = await DuckDBInstance.create(c.base);
@@ -62,9 +65,6 @@ const c = JSON.parse(fs.readFileSync(${JSON.stringify(CONTROL)}, 'utf8'));
   console.log('Completed successfully');
 })();
 `);
-fs.writeFileSync(path.join(BIN, 'dbt.cmd'), `@node "%~dp0dbt_falso.cjs" %*\r\n`);
-fs.writeFileSync(path.join(BIN, 'dbt'), `#!/bin/sh\nexec node "$(dirname "$0")/dbt_falso.cjs" "$@"\n`, { mode: 0o755 });
-process.env.PATH = BIN + path.delimiter + process.env.PATH;
 const control = (o) => fs.writeFileSync(CONTROL, JSON.stringify(o));
 
 const { startServer } = require(path.join(RAIZ, 'server/index.js'));
@@ -100,6 +100,7 @@ const BASE = path.join(P, 'tienda.duckdb');
 escribir(path.join(P, 'dbt_project.yml'), 'name: tienda\nprofile: tienda\n');
 escribir(path.join(P, 'profiles.yml'), 'tienda:\n  target: dev\n  outputs:\n    dev:\n      type: duckdb\n      path: tienda.duckdb\n    otra:\n      type: duckdb\n      path: otra.duckdb\n');
 escribir(path.join(P, 'datos', 'metas.csv'), 'tienda,meta\nnorte,10\n');
+escribir(path.join(P, '.amoxsql', 'project.json'), JSON.stringify({ dbt: { entorno: { tipo: 'python', ruta: FALSO.carpeta } } }));
 
 try {
     console.log('\nlas rutas del perfil');

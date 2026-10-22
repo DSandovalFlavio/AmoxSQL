@@ -12657,6 +12657,34 @@ tr:hover td {
 }
 
 /* Exit Badge */
+/* 5.12: el resumen de una ejecución de dbt (run_results) */
+.dbt-resumen {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    background: var(--surface-2, var(--panel-bg));
+    color: var(--text-primary);
+}
+.dbt-resumen span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.dbt-resumen--ok svg { color: var(--color-success); }
+.dbt-resumen--aviso svg { color: var(--color-warning); }
+.dbt-resumen--fallo svg,
+.dbt-resumen--cancelada svg { color: var(--color-error); }
+.dbt-fallidos {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+.dbt-fallidos li { margin: 2px 0; overflow-wrap: anywhere; }
+.dbt-fallido--warn strong { color: var(--color-warning); }
+.dbt-fallido--fail strong,
+.dbt-fallido--error strong { color: var(--color-error); }
+
 .dbt-exit-badge {
   display: inline-flex;
   padding: 1px 6px;
@@ -20756,6 +20784,8 @@ tr:hover td {
 .fej-icono { display: inline-flex; justify-content: center; color: var(--text-tertiary); }
 .fej-paso--success .fej-icono { color: var(--color-success-text); }
 .fej-paso--failed .fej-icono, .fej-error { color: var(--color-error-text); }
+.fej-paso--warn .fej-icono { color: var(--color-warning-text, var(--color-warning)); }
+.fej-paso--warn .fej-error { color: var(--color-warning-text, var(--color-warning)); }
 .fej-nodo { color: var(--text-active); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fej-meta { color: var(--text-tertiary); font-size: 11px; font-variant-numeric: tabular-nums; }
 .fej-error { grid-column: 2 / -1; font-size: 11px; }

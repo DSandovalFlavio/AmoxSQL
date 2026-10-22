@@ -12,7 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     LuCircleAlert, LuCircleCheck, LuExternalLink, LuFile, LuFileSpreadsheet, LuFolderOpen, LuHistory,
-    LuLoader, LuPencil, LuRotateCcw, LuX,
+    LuLoader, LuPencil, LuRotateCcw, LuTriangleAlert, LuX,
 } from 'react-icons/lu';
 import { API_BASE } from '../api.js';
 
@@ -78,7 +78,7 @@ export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
                             <div className={`fej-estado fej-estado--${ok ? 'ok' : e.estado === 'en_curso' ? 'curso' : 'mal'}`}>
                                 {ok ? <LuCircleCheck size={18} /> : e.estado === 'en_curso' ? <LuLoader size={18} className="lote-gira" /> : <LuCircleAlert size={18} />}
                                 <div>
-                                    <strong>{ESTADO[e.estado] || e.estado}{res?.duracionMs != null ? ` in ${duracion(res.duracionMs)}` : ''}</strong>
+                                    <strong>{ESTADO[e.estado] || e.estado}{d.dbt && res?.estado === 'aviso' ? ` with ${res.tests?.warn === 1 ? '1 warning' : `${res.tests?.warn} warnings`}` : ''}{res?.duracionMs != null ? ` in ${duracion(res.duracionMs)}` : ''}</strong>
                                     {!ok && res?.fallo && <p>{res.fallo.paso ? <>The step <b>{res.fallo.paso}</b> failed: </> : null}{String(res.fallo.error || e.error || '').split('\n')[0]}</p>}
                                     {!ok && !res?.fallo && e.error && <p>{String(e.error).split('\n')[0]}</p>}
                                 </div>
@@ -88,7 +88,7 @@ export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
                                 <dt>When</dt><dd>{fecha(ini)}{fin ? ` → ${fin.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : ''}</dd>
                                 <dt>How</dt>
                                 <dd>
-                                    {ORIGEN[e.origen] || e.origen}
+                                    {d.dbt && e.origen === 'interfaz' ? 'Run from DBT Studio' : (ORIGEN[e.origen] || e.origen)}
                                     {d.programacion && <> · {d.programacion.borrada ? 'a schedule that was removed' : d.programacion.descripcion}{e.prevista ? ` · due ${fecha(new Date(e.prevista))}` : ''}</>}
                                 </dd>
                                 {Object.keys(e.parametros || {}).length > 0 && (<><dt>With</dt><dd className="fej-params">{Object.entries(e.parametros).map(([k, v]) => <code key={k}>{k} = {String(v)}</code>)}</dd></>)}
@@ -125,7 +125,7 @@ export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
                                     <ol className="fej-pasos">
                                         {d.pasos.map((p, i) => (
                                             <li key={i} className={`fej-paso fej-paso--${p.estado}`}>
-                                                <span className="fej-icono" aria-hidden="true">{p.estado === 'success' ? <LuCircleCheck size={13} /> : p.estado === 'failed' ? <LuCircleAlert size={13} /> : <span className="lote-punto" />}</span>
+                                                <span className="fej-icono" aria-hidden="true">{p.estado === 'success' ? <LuCircleCheck size={13} /> : p.estado === 'failed' ? <LuCircleAlert size={13} /> : p.estado === 'warn' ? <LuTriangleAlert size={13} /> : <span className="lote-punto" />}</span>
                                                 <span className="fej-nodo">{p.nodo}</span>
                                                 <span className="fej-meta">{[p.filas != null ? `${Number(p.filas).toLocaleString()} rows` : null, duracion(p.ms), p.estado === 'skipped' ? 'skipped' : null].filter(Boolean).join(' · ')}</span>
                                                 {p.error && <span className="fej-error">{String(p.error).split('\n')[0]}</span>}

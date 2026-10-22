@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback, memo } from 'react';
+import { useState, useEffect, useCallback, useRef, memo } from 'react';
 import {
     LuContainer, LuCheck, LuX, LuCopy, LuPlay, LuRefreshCw,
     LuChevronDown, LuChevronRight, LuPlus, LuTrash2,
     LuFolderOpen, LuFileCode, LuSettings2, LuTerminal,
     LuPackage, LuLoader, LuCircleAlert, LuSparkles,
-    LuClipboardCopy, LuSquareTerminal, LuWrench, LuGitBranch
+    LuClipboardCopy, LuSquareTerminal, LuWrench, LuGitBranch, LuTriangleAlert
 } from 'react-icons/lu';
 import DbtLineageGraph from './DbtLineageGraph';
+import EntornoDbt from './dbt/EntornoDbt';
 import { API_BASE as _API } from '../api.js';
 const API = `${_API}/api`;
 
@@ -113,6 +114,8 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
     const [execOutput, setExecOutput] = useState([]);
     const [execRunning, setExecRunning] = useState(false);
     const [execExitCode, setExecExitCode] = useState(null);
+    const [execResumen, setExecResumen] = useState(null);   // 5.12: el resumen de la ejecución (run_results)
+    const corteRef = useRef(null);                            // 5.12: parar dbt (cierra la respuesta; el servidor termina el proceso)
 
     // Toast
     const [toast, setToast] = useState(null);
@@ -399,6 +402,8 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
     };
 
     // --- Command Builder ---
+    const esConda = selectedCondaEnv && !['none', 'amoxsql'].includes(selectedCondaEnv) && !selectedCondaEnv.startsWith('python:');
+    const puedeCorrer = selectedCondaEnv === 'amoxsql' || selectedCondaEnv?.startsWith('python:') || (selectedCondaEnv === 'none' ? !!envStatus?.dbt : condaEnvs.some(e => e.hasDbt && e.name === selectedCondaEnv));
     useEffect(() => {
         let cmd = `dbt ${cmdAction}`;
         if (cmdSelect) cmd += ` --select ${cmdSelect}`;
@@ -410,7 +415,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
     }, [cmdAction, cmdSelect, cmdExclude, cmdFullRefresh, cmdTarget]);
 
     const handleCopyCmd = () => {
-        const fullCmd = selectedCondaEnv !== 'none' ? `conda run -n ${selectedCondaEnv} ${generatedCmd}` : generatedCmd;
+        const fullCmd = esConda ? `conda run -n ${selectedCondaEnv} ${generatedCmd}` : generatedCmd;
         navigator.clipboard.writeText(fullCmd);
         setCmdCopied(true);
         setTimeout(() => setCmdCopied(false), 2000);
@@ -422,13 +427,21 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
         setExecOutput([]);
         setExecRunning(true);
         setExecExitCode(null);
+        setExecResumen(null);
 
+        const corte = new AbortController();
+        corteRef.current = corte;
         try {
             const res = await fetch(`${API}/dbt/execute`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: generatedCmd, condaEnv: selectedCondaEnv, condaPath })
+                body: JSON.stringify({ command: generatedCmd, condaEnv: selectedCondaEnv, condaPath }),
+                signal: corte.signal,
             });
+            if (!res.ok && !String(res.headers.get('content-type') || '').includes('event-stream')) {
+                const d = await res.json().catch(() => ({}));
+                throw new Error(d.error || `dbt could not start (${res.status})`);
+            }
 
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
@@ -448,6 +461,8 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                             const data = JSON.parse(line.slice(6));
                             if (data.type === 'exit') {
                                 setExecExitCode(data.code);
+                            } else if (data.type === 'resumen') {
+                                setExecResumen(data.resumen);
                             } else {
                                 setExecOutput(prev => [...prev, data]);
                             }
@@ -456,8 +471,10 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                 }
             }
         } catch (err) {
-            setExecOutput(prev => [...prev, { type: 'error', text: err.message }]);
+            if (err.name === 'AbortError') setExecOutput(prev => [...prev, { type: 'amox', text: 'Stopped. dbt was cancelled.' }]);
+            else setExecOutput(prev => [...prev, { type: 'error', text: err.message }]);
         }
+        corteRef.current = null;
         setExecRunning(false);
     };
 
@@ -575,8 +592,8 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                         <span className="dbt-env-version">{envStatus.conda ? `v${envStatus.condaVersion}` : 'Not found'}</span>
                                     </div>
                                     {envStatus.conda && envStatus.condaPath && envStatus.condaPath !== 'conda' && (
-                                        <div style={{ paddingLeft: '14px', fontSize: '10px', color: 'var(--text-tertiary)', wordBreak: 'break-all' }}>
-                                            ⚠ Not in PATH — found at: {envStatus.condaPath}
+                                        <div style={{ paddingLeft: '14px', fontSize: '10px', color: 'var(--text-tertiary)', wordBreak: 'break-all', display: 'flex', gap: 4, alignItems: 'flex-start' }}>
+                                            <LuTriangleAlert size={11} style={{ flexShrink: 0, marginTop: 1 }} /> <span>Not in PATH — found at: {envStatus.condaPath}</span>
                                         </div>
                                     )}
                                     {envStatus.mamba && (
@@ -589,12 +606,12 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                 </div>
                             ) : null}
 
-                            {/* Conda Environments */}
-                            {envStatus && (
+                            {/* El entorno de dbt del proyecto (5.12): siempre, sin esperar a la detección */}
+                            {(
                                 <div style={{ marginTop: '6px', borderTop: '1px solid var(--border-subtle)', paddingTop: '8px' }}>
                                     <div className="dbt-form-field">
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                            <label style={{ margin: 0 }}>Conda Environment</label>
+                                            <label style={{ margin: 0 }}>Environments</label>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                 {envCacheTime && (
                                                     <span style={{ fontSize: '9px', color: 'var(--text-tertiary)' }}>
@@ -612,41 +629,17 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                                 </button>
                                             </div>
                                         </div>
-                                        {envStatus.conda ? (
-                                            condaEnvsLoading ? (
-                                                <div className="dbt-loading" style={{ padding: '4px 0' }}>
-                                                    <LuLoader size={12} className="dbt-spin" /> Scanning envs...
-                                                </div>
-                                            ) : condaEnvs.length > 0 ? (
-                                                <select
-                                                    value={selectedCondaEnv}
-                                                    onChange={e => setSelectedCondaEnv(e.target.value)}
-                                                >
-                                                    <option value="none">System PATH (no conda)</option>
-                                                    {condaEnvs.map(env => (
-                                                        <option key={env.name} value={env.name}>
-                                                            {env.name}{env.hasDbt ? ` ✓ dbt${env.dbtVersion ? ` v${env.dbtVersion}` : ''}` : ''}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            ) : (
-                                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Conda detected, no envs found</span>
-                                            )
+                                        {condaEnvsLoading ? (
+                                            <div className="dbt-loading" style={{ padding: '4px 0' }}>
+                                                <LuLoader size={12} className="dbt-spin" /> Scanning envs...
+                                            </div>
                                         ) : (
-                                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
-                                                Conda not detected — install <a href="https://docs.anaconda.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)' }}>Anaconda</a> or <a href="https://docs.conda.io/projects/miniconda/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-primary)' }}>Miniconda</a> to use environments
-                                            </span>
+                                            <EntornoDbt condaEnvs={condaEnvs} condaPath={condaPath} valor={selectedCondaEnv} onCambio={(v) => setSelectedCondaEnv(v)} showToast={showToast} />
                                         )}
                                     </div>
                                 </div>
                             )}
 
-                            {envStatus && !envStatus.dbt && !condaEnvs.some(e => e.hasDbt) && (
-                                <div className="dbt-hint">
-                                    <LuCircleAlert size={12} />
-                                    <span>Install DBT: <code>pip install dbt-duckdb</code>{envStatus?.conda ? ' or ' : ''}{envStatus?.conda && <code>conda install -c conda-forge dbt-duckdb</code>}</span>
-                                </div>
-                            )}
                         </div>
 
                         {/* Project Status */}
@@ -700,7 +693,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                             <div className="dbt-card">
                                 <div className="dbt-card-header"><span>Quick Start</span></div>
                                 <ol className="dbt-steps">
-                                    <li><code>pip install dbt-duckdb</code>{envStatus?.conda && <> or <code>conda install -c conda-forge dbt-duckdb</code></>}</li>
+                                    <li>Choose the dbt environment above, or «Set up dbt…» to let AmoxSQL install its own</li>
                                     <li>Click "Initialize Project" above</li>
                                     <li>Go to Config tab to customize profiles.yml</li>
                                     <li>Go to Models tab to create your first model</li>
@@ -970,23 +963,8 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                         <div className="dbt-card">
                             <div className="dbt-card-header"><span>Command Builder</span></div>
 
-                            {/* Conda env selector in commands */}
-                            {envStatus?.conda && condaEnvs.length > 0 && (
-                                <div className="dbt-form-field">
-                                    <label>Conda Env</label>
-                                    <select
-                                        value={selectedCondaEnv}
-                                        onChange={e => setSelectedCondaEnv(e.target.value)}
-                                    >
-                                        <option value="none">System PATH</option>
-                                        {condaEnvs.map(env => (
-                                            <option key={env.name} value={env.name}>
-                                                {env.name}{env.hasDbt ? ' ✓' : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
+                            {/* El entorno del proyecto (5.12, Dec-27) */}
+                            <EntornoDbt compacto condaEnvs={condaEnvs} condaPath={condaPath} valor={selectedCondaEnv} onCambio={(v) => setSelectedCondaEnv(v)} showToast={showToast} />
 
                             <div className="dbt-form-field">
                                 <label>Action</label>
@@ -1022,7 +1000,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
 
                             {/* Generated Command */}
                             <div className="dbt-command-box">
-                                <code>{selectedCondaEnv !== 'none' ? `conda run -n ${selectedCondaEnv} ${generatedCmd}` : generatedCmd}</code>
+                                <code>{esConda ? `conda run -n ${selectedCondaEnv} ${generatedCmd}` : generatedCmd}</code>
                                 <div className="dbt-command-actions">
                                     <button className="dbt-icon-btn" onClick={handleCopyCmd} title="Copy to clipboard">
                                         {cmdCopied ? <LuCheck size={14} style={{ color: 'var(--color-success)' }} /> : <LuClipboardCopy size={14} />}
@@ -1030,8 +1008,8 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                     <button
                                         className="dbt-btn dbt-btn--execute"
                                         onClick={handleExecute}
-                                        disabled={execRunning || (!envStatus?.dbt && !condaEnvs.some(e => e.hasDbt && e.name === selectedCondaEnv))}
-                                        title={!envStatus?.dbt && selectedCondaEnv === 'none' ? 'DBT not found — select a conda env with dbt' : 'Execute command'}
+                                        disabled={execRunning || !puedeCorrer}
+                                        title={puedeCorrer ? 'Execute command' : "dbt was not found in this environment — choose another one, or set up AmoxSQL's dbt"}
                                     >
                                         {execRunning ? <LuLoader size={13} className="dbt-spin" /> : <LuSquareTerminal size={13} />}
                                         {execRunning ? 'Running...' : 'Execute'}
@@ -1052,8 +1030,12 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                             </span>
                                         )}
                                     </span>
-                                    {!execRunning && (
-                                        <button className="dbt-icon-btn" onClick={() => { setExecOutput([]); setExecExitCode(null); }}>
+                                    {execRunning ? (
+                                        <button className="dbt-btn dbt-btn--ghost" onClick={() => corteRef.current?.abort()} title="Stop dbt">
+                                            <LuX size={12} /> Stop
+                                        </button>
+                                    ) : (
+                                        <button className="dbt-icon-btn" onClick={() => { setExecOutput([]); setExecExitCode(null); setExecResumen(null); }}>
                                             <LuX size={13} />
                                         </button>
                                     )}
@@ -1070,6 +1052,24 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                         </div>
                                     )}
                                 </div>
+                                {execResumen && (
+                                    <div className={`dbt-resumen dbt-resumen--${execResumen.estado}`}>
+                                        {execResumen.estado === 'ok' ? <LuCheck size={13} /> : <LuCircleAlert size={13} />}
+                                        <span>{execResumen.linea}</span>
+                                        {execResumen.runId && (
+                                            <button className="dbt-btn dbt-btn--ghost" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId: execResumen.runId } }))}>Details</button>
+                                        )}
+                                    </div>
+                                )}
+                                {execResumen?.fallidos?.length > 0 && (
+                                    <ul className="dbt-fallidos">
+                                        {execResumen.fallidos.slice(0, 8).map((f, i) => (
+                                            <li key={i} className={`dbt-fallido--${f.estado}`}>
+                                                <strong>{f.nombre}</strong>{f.de ? ` (${f.de})` : ''}: {f.estado === 'warn' ? `warning${f.fallos ? `, ${f.fallos} rows` : ''}` : f.estado === 'fail' ? `failed${f.fallos ? `, ${f.fallos} rows` : ''}` : (f.mensaje || f.estado)}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
                             </div>
                         )}
                     </div>
