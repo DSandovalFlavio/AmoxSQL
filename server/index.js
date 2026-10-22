@@ -24,6 +24,7 @@ const dbtEjecutar      = require('./dbt/ejecutar');
 const dbtEntorno       = require('./dbt/entorno');
 const dbtFuentes       = require('./dbt/fuentes');
 const dbtProyecto      = require('./dbt/proyecto');
+const dbtModelo        = require('./dbt/modelo');
 
 /**
  * Mientras dbt tiene la base del proyecto (fase 2b), lo que la lea no puede
@@ -5196,6 +5197,34 @@ app.post('/api/dbt/targets/dev', (req, res) => {
     } catch (e) { res.status(400).json({ error: e.message }); }
 });
 app.get('/api/dbt/explicaciones', (_req, res) => res.json(dbtProyecto.EXPLICACIONES));
+
+// dbt dentro del editor (5.12, fase 3; I2, Dec-28).
+const archivoDelProyecto = (a) => {
+    if (!a) throw new Error('Which file?');
+    const abs = path.resolve(ROOT_DIR, String(a));
+    if (path.relative(ROOT_DIR, abs).startsWith('..')) throw new Error('That file is not in the project.');
+    return abs;
+};
+app.get('/api/dbt/modelo', (req, res) => {
+    try { res.json(dbtModelo.info(ROOT_DIR, archivoDelProyecto(req.query.archivo))); } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.post('/api/dbt/modelo/compilar', async (req, res) => {
+    try {
+        const r = await dbtModelo.compilar(ROOT_DIR, archivoDelProyecto(req.body?.archivo), { dbManager, forzar: !!req.body?.forzar, env: await dbtFuentes.variables(ROOT_DIR).catch(() => ({})) });
+        res.json(r);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.post('/api/dbt/modelo/vista-previa', async (req, res) => {
+    try {
+        const r = await dbtModelo.sqlDeVistaPrevia(ROOT_DIR, archivoDelProyecto(req.body?.archivo), { dbManager, env: await dbtFuentes.variables(ROOT_DIR).catch(() => ({})) });
+        res.json(r);
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.get('/api/dbt/definicion', (req, res) => {
+    const r = dbtModelo.definicion(ROOT_DIR, { ref: req.query.ref || null, source: req.query.source || null });
+    if (!r) return res.status(404).json({ error: req.query.ref ? `No model, seed or snapshot named «${req.query.ref}».` : `No source named «${req.query.source}».` });
+    res.json(r);
+});
 app.post('/api/dbt/template/snapshot', (req, res) => {
     try {
         const p = dbtProyecto.plantillaSnapshot(req.body || {});

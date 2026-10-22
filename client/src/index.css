@@ -12657,6 +12657,92 @@ tr:hover td {
 }
 
 /* Exit Badge */
+/* 5.12 (I2): la barra de un modelo de dbt, encima del editor */
+.dbt-modelo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 11px;
+}
+.dbt-modelo-barra {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+.dbt-modelo-nombre {
+    margin-right: 6px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.dbt-modelo-nombre b { color: var(--text-primary); font-weight: 600; }
+.dbt-modelo-mat {
+    margin-left: 6px;
+    padding: 0 5px;
+    border-radius: 3px;
+    border: 1px solid var(--border-subtle);
+    font-size: 10px;
+    color: var(--text-tertiary);
+}
+.dbt-modelo-sep { width: 1px; height: 14px; background: var(--border-subtle); margin: 0 4px; }
+.dbt-modelo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+}
+.dbt-modelo-btn:hover:not(:disabled) { background: var(--surface-2, var(--panel-bg)); color: var(--text-primary); border-color: var(--border-subtle); }
+.dbt-modelo-btn:disabled { opacity: 0.5; cursor: default; }
+.dbt-modelo-aviso {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: var(--surface-2, var(--panel-bg));
+    color: var(--text-primary);
+}
+.dbt-modelo-aviso span, .dbt-modelo-aviso pre { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.dbt-modelo-aviso pre { margin: 0; white-space: pre-wrap; font-family: var(--font-mono, monospace); font-size: 11px; }
+.dbt-modelo-aviso input { width: 90px; font-size: 11px; padding: 2px 6px; }
+.dbt-modelo-aviso--ok svg { color: var(--color-success); }
+.dbt-modelo-aviso--aviso svg { color: var(--color-warning); }
+.dbt-modelo-aviso--fallo svg, .dbt-modelo-aviso--error svg, .dbt-modelo-aviso--cancelada svg { color: var(--color-error); }
+.dbt-modelo-aviso--prod { border: 1px solid var(--color-error); }
+.dbt-modelo-aviso--prod > svg { color: var(--color-error); }
+.dbt-modelo-compilado {
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.dbt-modelo-compilado-cab {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 8px;
+    background: var(--surface-2, var(--panel-bg));
+    color: var(--text-tertiary);
+}
+.dbt-modelo-compilado pre {
+    margin: 0;
+    padding: 8px;
+    max-height: 180px;
+    overflow: auto;
+    font-family: var(--font-mono, monospace);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-primary);
+    white-space: pre;
+}
+
 /* 5.12 (I4, Dec-29): el target con el que se trabaja */
 .dbt-target-bar {
     display: flex;

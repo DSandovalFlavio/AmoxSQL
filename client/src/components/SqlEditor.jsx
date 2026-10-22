@@ -273,9 +273,12 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
     // Use a ref to ensure the event listener always has access to the latest prop
     const onDebugCteRef = React.useRef(props.onDebugCte);
+    // 5.12 (I2): Ctrl+clic en ref('x') o source('a', 'b') abre su archivo.
+    const onIrADbtRef = React.useRef(props.onIrADbt);
 
     React.useEffect(() => {
         onDebugCteRef.current = props.onDebugCte;
+        onIrADbtRef.current = props.onIrADbt;
     }, [props.onDebugCte]);
 
     const handleEditorDidMount = (editor, monaco) => {
@@ -500,6 +503,26 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
         // Handle Click
         const mouseDownDisposable = editor.onMouseDown((e) => {
+            // 5.12 (I2): Ctrl+clic (Cmd+clic) en ref('x') o source('a', 'b').
+            if ((e.event.ctrlKey || e.event.metaKey) && e.target.position && onIrADbtRef.current) {
+                const pos = e.target.position;
+                const linea = editor.getModel()?.getLineContent(pos.lineNumber) || '';
+                const col = pos.column - 1;
+                const patrones = [
+                    [/\bref\(\s*['"]([^'"]+)['"](?:\s*,\s*['"]([^'"]+)['"])?\s*\)/g, (m) => ({ ref: m[2] || m[1] })],
+                    [/\bsource\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/g, (m) => ({ source: `${m[1]}.${m[2]}` })],
+                ];
+                for (const [re, aDestino] of patrones) {
+                    let m;
+                    while ((m = re.exec(linea))) {
+                        if (col >= m.index && col <= m.index + m[0].length) {
+                            e.event.preventDefault?.();
+                            onIrADbtRef.current(aDestino(m));
+                            return;
+                        }
+                    }
+                }
+            }
             try {
                 if (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN) {
                     if (!e.target.position) return;

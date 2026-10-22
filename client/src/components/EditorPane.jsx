@@ -23,6 +23,7 @@ const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 const TextEditor = lazy(() => import('./TextEditor'));
 const CuadernoEditor = lazy(() => import('./cuaderno/CuadernoEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
+import BarraModelo from './dbt/BarraModelo';
 
 // Discreet fallback while a lazy pane chunk loads (matches ChainEditor's style)
 const PaneLoading = ({ label = 'Loading…' }) => (
@@ -413,6 +414,16 @@ const EditorPane = ({
     };
 
     // Track last run time
+    // 5.12 (I2): Ctrl+clic en ref('x') / source('a', 'b') abre el archivo que lo define.
+    const irADbt = async (destino) => {
+        const qs = destino.ref ? `ref=${encodeURIComponent(destino.ref)}` : `source=${encodeURIComponent(destino.source)}`;
+        try {
+            const r = await fetch(`${API_BASE}/api/dbt/definicion?${qs}`);
+            const d = await r.json();
+            if (r.ok && d.archivo && onOpenFile) onOpenFile(d.archivo);
+        } catch { /* sin servidor: nada */ }
+    };
+
     const handleRunWithTimestamp = async (tabId, query) => {
         lastRunTimeRef.current = new Date();
         return onRunQuery(tabId, query);
@@ -827,6 +838,15 @@ const EditorPane = ({
                                 query={resolveVariables(activeTab?.content || '', variables)}
                             />
 
+                            {/* 5.12 (I2): con un modelo de dbt abierto, su barra */}
+                            {/\.sql$/i.test(activeTab.path || '') && (
+                                <BarraModelo
+                                    archivo={activeTab.path}
+                                    onRunSql={(sql) => handleRunWithTimestamp(activeTab.id, sql)}
+                                    version={activeTab.dirty ? 1 : 2}
+                                />
+                            )}
+
                             {/* Editor Section — body of the card */}
                             <div className="ep-editor-section">
                                 <div className={`ep-editor-wrapper${isActive ? ' active' : ''}`}>
@@ -840,6 +860,7 @@ const EditorPane = ({
                                         language={idiomaDe(activeTab.path || activeTab.name)}
                                         onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
                                         onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
+                                        onIrADbt={irADbt}
                                         onRunQuery={(overrideQuery) => handleRunWithTimestamp(activeTab.id, overrideQuery || activeTab.content)}
                                         onSave={() => onSave && onSave()}
                                         onAnalyze={() => onAnalyze && onAnalyze()}
