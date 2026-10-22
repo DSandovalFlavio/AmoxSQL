@@ -168,8 +168,17 @@ app.post('/api/project/open', async (req, res) => {
         PROYECTO_ABIERTO = true;
         // La base de AmoxSQL anota que se abrió (y la ruta, si la carpeta se
         // movió). Sin esperar: abrir no depende de ella.
+        // 5.14 (F5): la apertura ANTERIOR, para «Donde lo dejaste». registrar()
+        // devuelve la fila de antes de anotar esta; recién creada, no hay anterior.
+        aperturaAnterior = { ruta: ROOT_DIR, cuando: null, lista: false };
+        const estaApertura = aperturaAnterior;
         baseCentral.abrir()
             .then(() => workspaces.registrar(ROOT_DIR, { abrir: true }))
+            .then((r) => {
+                const antes = r?.fila?.ultimo_abierto ? new Date(`${String(r.fila.ultimo_abierto).replace(' ', 'T')}Z`) : null;
+                estaApertura.cuando = antes && Date.now() - antes.getTime() > 10000 ? antes : null;
+                estaApertura.lista = true;
+            })
             .then(() => workspaces.refrescarPolitica(ROOT_DIR))
             .catch(() => {});
         // Las fuentes del proyecto (C1): ya, sin esperar al registro. Lo que se
@@ -6575,6 +6584,16 @@ app.delete('/api/fuentes/:nombre', conCentral(async (req) => {
     await fuentes.borrar(destinoDeFuente(req), req.params.nombre);
     await remontarFuentes();
     return { ok: true };
+}));
+
+// 5.14 (F5, Dec-46): «Donde lo dejaste», al abrir un proyecto.
+let aperturaAnterior = { ruta: null, cuando: null, lista: false };
+app.get('/api/proyecto/retomar', conCentral(async () => {
+    if (!PROYECTO_ABIERTO) return { hayAlgo: false };
+    // El registro de la apertura va sin esperar; si aún no terminó, un momento.
+    for (let i = 0; i < 40 && !aperturaAnterior.lista; i++) await new Promise(r => setTimeout(r, 50));
+    const desde = aperturaAnterior.ruta && path.resolve(aperturaAnterior.ruta) === path.resolve(ROOT_DIR) ? aperturaAnterior.cuando : null;
+    return require('./retomar').resumen({ base: baseCentral, raiz: ROOT_DIR, desde, git: gitManager });
 }));
 
 // 5.13 (E1 reducida, Dec-41): las medidas del workspace y del proyecto, con su

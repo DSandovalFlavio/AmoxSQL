@@ -21288,3 +21288,35 @@ tr:hover td {
 /* 5.13 (Dec-42): cuánto usa lo de fondo mientras se trabaja */
 .opx-limites { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--text-secondary); }
 .opx-limites select { padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-subtle); background: var(--surface-raised, var(--panel-bg)); color: var(--text-primary); font-size: 12px; }
+
+/* ── 5.14 (F5, Dec-46): «Donde lo dejaste» ─────────────────────────────────── */
+.lm-container { position: relative; }
+.lm-retomar { position: absolute; inset: 0; z-index: 30; display: flex; align-items: flex-start; justify-content: center; padding: 48px 16px 16px; pointer-events: none; }
+.rtm { pointer-events: auto; width: min(620px, 100%); max-height: calc(100% - 32px); overflow: auto; display: flex; flex-direction: column; gap: 12px; padding: 16px 18px; border-radius: 12px; border: 1px solid var(--border-subtle); background: var(--surface-raised, var(--panel-bg)); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28); }
+.rtm-cab { display: flex; gap: 10px; align-items: flex-start; color: var(--accent-primary); }
+.rtm-cab svg { flex: none; margin-top: 3px; }
+.rtm-titulo h2 { margin: 0; font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.rtm-titulo p { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+.rtm-entrega { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 9px; border: 1px solid var(--border-subtle); color: var(--text-secondary); }
+.rtm-entrega--urgente { border-color: var(--color-warning); color: var(--color-warning-text); }
+.rtm-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+.rtm-bloque { display: flex; flex-direction: column; gap: 5px; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border-subtle); min-width: 0; }
+.rtm-bloque--mal { border-color: color-mix(in oklch, var(--color-error) 40%, var(--border-subtle)); background: color-mix(in oklch, var(--color-error-bg) 50%, transparent); }
+.rtm-bloque h3 { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-tertiary); }
+.rtm-bloque--mal h3 { color: var(--color-error-text); }
+.rtm-bloque ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.rtm-lista { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary); overflow-wrap: anywhere; }
+.rtm-enlace { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; width: 100%; padding: 3px 4px; border: none; border-radius: 6px; background: none; text-align: left; font-size: 12px; color: var(--text-primary); cursor: pointer; }
+.rtm-enlace:hover { background: var(--surface-hover, rgba(127, 127, 127, 0.12)); }
+.rtm-enlace--fila { flex-wrap: nowrap; align-items: center; }
+.rtm-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rtm-meta { color: var(--text-tertiary); font-size: 11px; white-space: nowrap; }
+.rtm-razon { flex-basis: 100%; color: var(--text-secondary); overflow-wrap: anywhere; }
+.rtm-ok { color: var(--color-success); flex: none; }
+.rtm-mal { color: var(--color-error); flex: none; }
+.rtm-aviso { color: var(--color-warning); flex: none; }
+.rtm-pie { display: flex; justify-content: flex-end; gap: 8px; }
+.rtm-btn { padding: 6px 14px; border-radius: 7px; border: 1px solid var(--border-subtle); background: transparent; color: var(--text-primary); font-size: 12.5px; cursor: pointer; }
+.rtm-btn:hover { border-color: var(--accent-primary); }
+.rtm-btn--principal { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-on-accent, #fff); font-weight: 600; }
+.rtm button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }

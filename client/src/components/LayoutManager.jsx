@@ -19,8 +19,12 @@ import { splitSqlStatements } from '../utils/sqlSplitter';
 import { tipoDePestana } from '../utils/tiposDeArchivo';
 import { decidirAviso, decidirGuardado, ACCIONES } from '../utils/conflictoArchivo';
 import { vigilar } from '../state/vigilante';
+import Retomar from './Retomar';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
+// 5.14 (F5): las pestañas, por proyecto. Con la clave global, al abrir otro
+// proyecto se intentaba restaurar las del anterior.
+const clavePestanas = (proyecto) => (proyecto ? `${TAB_STORAGE_KEY}:${String(proyecto).replace(/\\/g, '/').toLowerCase()}` : TAB_STORAGE_KEY);
 // Split geometry — kept in its OWN key so a schema change here never risks
 // the tab-restoration logic in TAB_STORAGE_KEY (that one recovers unsaved
 // work; this one is just window-dressing, safe to drop and re-default).
@@ -177,6 +181,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // synchronous setItem per keystroke. Flushed on beforeunload/unmount. ---
     const persistTabsRef = useRef(null);
     const restoreAttemptedRef = useRef(false);
+    const projectPathRef = useRef(projectPath);
+    projectPathRef.current = projectPath;
+    // 5.14 (F5, Dec-46): «Donde lo dejaste», con las pestañas que volvieron.
+    const [retomar, setRetomar] = useState(null);
     useEffect(() => {
         const tabMeta = {
             leftTabs: leftTabs.map(t => ({ path: t.path, name: t.name, type: t.type })),
@@ -191,7 +199,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         if (!restoreAttemptedRef.current) return;
         const timer = setTimeout(() => {
             try {
-                localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(tabMeta));
+                localStorage.setItem(clavePestanas(projectPath), JSON.stringify(tabMeta));
             } catch { /* ignore */ }
         }, 600);
         return () => clearTimeout(timer);
@@ -201,7 +209,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const flush = () => {
             if (!restoreAttemptedRef.current || !persistTabsRef.current) return;
             try {
-                localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(persistTabsRef.current));
+                localStorage.setItem(clavePestanas(projectPathRef.current), JSON.stringify(persistTabsRef.current));
             } catch { /* ignore */ }
         };
         window.addEventListener('beforeunload', flush);
@@ -255,7 +263,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     useEffect(() => {
         const restoreTabs = async () => {
             try {
-                const saved = localStorage.getItem(TAB_STORAGE_KEY);
+                // La del proyecto; si no hay, la global de antes (una vez: luego
+                // se guarda con la del proyecto y la global se borra).
+                let saved = localStorage.getItem(clavePestanas(projectPath));
+                if (!saved && projectPath) {
+                    saved = localStorage.getItem(TAB_STORAGE_KEY);
+                    if (saved) { try { localStorage.removeItem(TAB_STORAGE_KEY); } catch { /* ignore */ } }
+                }
                 if (!saved) return;
                 const meta = JSON.parse(saved);
                 if (!meta.leftTabs?.length && !meta.rightTabs?.length) return;
@@ -295,11 +309,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     setRightActiveId(restoredRight[restoredRight.length - 1].id);
                     setSplitEnabled(true);
                 }
+                return [...restoredLeft, ...restoredRight].map(t => t.name);
             } catch (e) {
                 console.warn('[TabPersistence] Restore failed:', e);
             }
+            return [];
         };
-        restoreTabs().finally(() => {
+        restoreTabs().then((nombres) => setRetomar({ pestanas: nombres || [] })).finally(() => {
             // Persisting is allowed only after the restore attempt so the initial
             // empty tab state never overwrites the saved layout.
             restoreAttemptedRef.current = true;
@@ -2241,6 +2257,21 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             onDrop={handleGlobalDrop}
             onDragEnd={handleDragEnd}
         >
+            {retomar && (
+                <div className="lm-retomar">
+                    <Retomar
+                        pestanas={retomar.pestanas}
+                        onClose={() => setRetomar(null)}
+                        onAbrirArchivo={async (ruta) => {
+                            try {
+                                const data = await (await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(ruta)}`)).json();
+                                if (!data.error) openFileRef.current?.(ruta, data.content, tipoDePestana(ruta));
+                            } catch { /* el archivo ya no está */ }
+                        }}
+                    />
+                </div>
+            )}
+
             {/* Visual Overlays for Drop Zones */}
             {dragOverZone === 'left-edge' && (
                 <div className="lm-drop-zone left" />
