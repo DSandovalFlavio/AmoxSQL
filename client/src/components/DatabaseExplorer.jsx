@@ -199,7 +199,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     }}
                     onClick={() => toggleExpand(schema, table.name)}
                     className="db-table-row"
-                    title={`${dName}${table.procedencia ? `\nLoaded ${table.procedencia.resumen}` : ''}${table.procedencia?.cambiados?.length ? `\n${table.procedencia.cambiados.join(', ')} changed after it was loaded` : ''}\nDrag to editor or right click for operations`}
+                    title={`${dName}${table.descripcion ? `\n${table.descripcion}` : ''}${table.procedencia ? `\nLoaded ${table.procedencia.resumen}` : ''}${table.procedencia?.cambiados?.length ? `\n${table.procedencia.cambiados.join(', ')} changed after it was loaded` : ''}\nDrag to editor or right click for operations`}
                     onContextMenu={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -224,6 +224,10 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     </span>
                 </div>
 
+                {/* 5.12 (I5): lo que dice la tabla (su comentario, o dbt) */}
+                {isExpanded && table.descripcion && (
+                    <div className="db-descripcion" title={table.descripcionDe === 'dbt' ? 'From the dbt project' : 'From the table comment'}>{table.descripcion}</div>
+                )}
                 {/* Columns Node */}
                 {isExpanded && table.procedencia && (
                     <div className={`db-procedencia${table.procedencia.cambiados?.length ? ' db-procedencia--cambio' : ''}`}>
@@ -246,12 +250,13 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                                         e.dataTransfer.setData('application/json', JSON.stringify({ type: 'column', name: col.column_name, tableName: table.name, schema }));
                                         e.stopPropagation();
                                     }}
-                                    className="db-column-row"
-                                    title="Drag column to editor"
+                                    className={`db-column-row${col.descripcion ? ' db-column-row--desc' : ''}`}
+                                    title={col.descripcion ? `${col.column_name}: ${col.descripcion}\nDrag column to editor` : 'Drag column to editor'}
                                 >
                                     <div className="db-column-left">
                                         <div className="db-column-icon" style={{ color: meta.color }}>{meta.icon}</div>
                                         <span className="db-column-name">{col.column_name}</span>
+                                        {col.descripcion && <span className="db-column-desc">{col.descripcion}</span>}
                                     </div>
                                     <div className="db-column-right">
                                         <span className="db-column-type">{col.data_type.toLowerCase()}</span>

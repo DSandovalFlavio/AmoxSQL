@@ -19,6 +19,7 @@ const fuentes          = require('./fuentes');
 const dbtConvivir      = require('./dbtConvivir');
 const llegadas         = require('./llegadas');
 const procedencia      = require('./procedencia');
+const descripciones    = require('./descripciones');
 const dbtCorrer        = require('./dbt/correr');
 const dbtEjecutar      = require('./dbt/ejecutar');
 const dbtEntorno       = require('./dbt/entorno');
@@ -704,9 +705,17 @@ app.get('/api/db/schemas', async (req, res) => {
         // De dónde salió cada tabla (C5): su procedencia y si el archivo cambió.
         let origenes = {};
         try { origenes = await procedencia.deLasTablas(dbManager.lane('meta')); } catch { /* sin procedencias */ }
+        // 5.12 (I5): lo que dice cada tabla y cada columna (comentarios, o dbt).
+        let desc = {};
+        try { desc = await descripciones.deLaBase(dbManager, { raiz: PROYECTO_ABIERTO ? ROOT_DIR : null, attachedPath: dbManager.attachedPath }); } catch { /* sin descripciones */ }
         const result = Object.values(schemaMap).map(s => ({
             schema: s.schema,
-            tables: Object.values(s.tables).map(t => (origenes[`${s.schema}.${t.name}`] ? { ...t, procedencia: origenes[`${s.schema}.${t.name}`] } : t)),
+            tables: Object.values(s.tables).map(t => {
+                const k = `${s.schema}.${t.name}`;
+                const d = desc[k];
+                const conDesc = d ? { ...t, descripcion: d.descripcion || null, descripcionDe: d.de, columns: t.columns.map(c => (d.columnas[c.column_name] ? { ...c, descripcion: d.columnas[c.column_name] } : c)) } : t;
+                return origenes[k] ? { ...conDesc, procedencia: origenes[k] } : conDesc;
+            }),
         }));
 
         res.json(result);
@@ -2381,14 +2390,19 @@ async function buildTableContext(contextTables = null) {
 
         let origenes = {};
         try { origenes = await procedencia.deLasTablas(dbManager.lane('meta')); } catch { /* sin procedencias */ }
+        let desc = {};
+        try { desc = await descripciones.deLaBase(dbManager, { raiz: PROYECTO_ABIERTO ? ROOT_DIR : null, attachedPath: dbManager.attachedPath }); } catch { /* sin descripciones */ }
         const tableContexts = selected.map(t => {
             const key = `${t.table_schema}.${t.table_name}`;
             const rowsVal = sizeMap.get(key);
             const o = origenes[key];
+            const d = desc[key];
             return {
                 name: t.table_name,
                 schema: t.table_schema,
-                columns: colMap.get(key) || [],
+                // 5.12 (I5): la descripción de la tabla y de cada columna.
+                ...(d?.descripcion ? { descripcion: d.descripcion } : {}),
+                columns: (colMap.get(key) || []).map(c => (d?.columnas?.[c.name] ? { ...c, descripcion: d.columnas[c.name] } : c)),
                 rows: (rowsVal !== undefined && rowsVal !== null) ? rowsVal : '?',
                 ...(o ? { procedencia: `${o.resumen}${o.cambiados.length ? ' (the file changed since)' : ''}` } : {}),
             };

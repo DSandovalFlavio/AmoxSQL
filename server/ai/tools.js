@@ -280,13 +280,22 @@ function createTools(context) {
                         : `"${sinComillas(table_name)}"`;
                     const columns = await db.systemQuery(`DESCRIBE ${ref}`);
                     const sample = await db.systemQuery(`SELECT * FROM ${ref} LIMIT 5`);
+                    // 5.12 (I5): lo que dicen la tabla y sus columnas (comentarios, o dbt).
+                    let d = null;
+                    try {
+                        const todas = await require('../descripciones').deLaBase(db, { raiz: typeof projectPath === 'string' ? projectPath : null, attachedPath: dbManager?.attachedPath || null });
+                        const clave = dot > 0 ? `${sinComillas(table_name.slice(0, dot)).replace(/""/g, '"')}.${sinComillas(table_name.slice(dot + 1)).replace(/""/g, '"')}` : `main.${sinComillas(table_name).replace(/""/g, '"')}`;
+                        d = todas[clave] || null;
+                    } catch { /* sin descripciones */ }
 
                     return {
                         table: table_name,
+                        ...(d?.descripcion ? { description: d.descripcion } : {}),
                         columns: columns.map(c => ({
                             name: c.column_name,
                             type: c.column_type,
                             nullable: c.null === 'YES',
+                            ...(d?.columnas?.[c.column_name] ? { description: d.columnas[c.column_name] } : {}),
                         })),
                         sampleRows: sample,
                     };

@@ -523,11 +523,14 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
         { label: 'Compile', cmd: 'dbt compile --profiles-dir .', icon: LuPackage },
         { label: 'Test', cmd: 'dbt test --profiles-dir .', icon: LuCheck },
         { label: 'Debug', cmd: 'dbt debug --profiles-dir .', icon: LuWrench },
+        // 5.12 (I5): las descripciones y el catálogo de dbt (catalog.json).
+        { label: 'Docs', cmd: 'dbt docs generate --profiles-dir .', icon: LuFileCode },
     ];
 
     const handleQuickAction = (cmd) => {
         setGeneratedCmd(cmd);
-        setCmdAction(cmd.split(' ')[1]);
+        const partes = cmd.split(' ');
+        setCmdAction(['docs', 'source'].includes(partes[1]) ? partes.slice(1, 3).join(' ') : partes[1]);
     };
 
     // ============== RENDER ==============
@@ -1048,7 +1051,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                             <div className="dbt-form-field">
                                 <label>Action</label>
                                 <select value={cmdAction} onChange={e => setCmdAction(e.target.value)}>
-                                    {['run', 'build', 'compile', 'test', 'seed', 'snapshot', 'debug', 'clean', 'deps', 'parse'].map(a => (
+                                    {['run', 'build', 'compile', 'test', 'seed', 'snapshot', 'source freshness', 'docs generate', 'debug', 'clean', 'deps', 'parse'].map(a => (
                                         <option key={a} value={a}>dbt {a}</option>
                                     ))}
                                 </select>
