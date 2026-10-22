@@ -264,6 +264,9 @@ async function abrirContexto(modo, { dbManager, proyecto, chainFile, fuera = fal
     if (proyecto) {
         try { await require('../fuentes').montar(ctx, { raiz: proyecto }); }
         catch (e) { console.warn('[Fuentes] Contexto aislado sin catálogo:', e?.message || e); }
+        // 5.13 (Dec-41): las medidas del workspace, como en la interfaz.
+        try { await require('../medidas').enContexto(ctx, proyecto); }
+        catch (e) { console.warn('[Medidas] Contexto aislado sin medidas:', e?.message || e); }
     }
     return ctx;
 }
