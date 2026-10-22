@@ -59,6 +59,18 @@ El libro se recalcula al abrirse, así que las fórmulas enseñan los números d
 | Goes into | Una tabla de la plantilla, o una hoja y su primera celda |
 | Write the column names first | Sólo desde una celda: escribe los encabezados en esa celda y los datos debajo |
 | Save as | La ruta del libro; admite parámetros |
+| Add a “Data as of …” line | Una línea bajo cada tabla con la fecha de los datos (en las propiedades va siempre) |
+
+## La fecha de los datos
+
+El libro dice de cuándo son sus datos: la fecha del **archivo más nuevo que leyó el proceso** (una fuente, un archivo o una carpeta importados), no la del día en que corrió. El cierre de septiembre corrido el 2 de octubre con el Excel que llegó el 30 dice «30 Sep».
+
+- **Siempre** va en las propiedades del libro (Archivo → Información → Propiedades → Avanzadas): «Data as of» y «Made by».
+- **Add a “Data as of …” line under each table** añade una línea debajo de cada tabla, con una fila en blanco: la cabecera, los datos y el filtro no se mueven.
+- **En una plantilla**, define un nombre `datos_al` sobre una celda (Fórmulas → Definir nombre): esa celda recibe la fecha. Con formato de fecha va como fecha; si no, como texto.
+- Un dato remoto (una dirección web, un bucket) no tiene una fecha fiable y no cuenta. Si el proceso no leyó ningún archivo, no se escribe nada.
+
+La misma fecha sale en el aviso («… · data as of 30 Sep 2026 · 4 s») y en lo que publica el nodo **Publish** (`amoxsql.datos_al`).
 
 ## Trucos y joyas
 

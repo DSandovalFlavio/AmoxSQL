@@ -83,8 +83,10 @@ function avisar(prog, res, perdidas) {
     if (!estado.avisar || prog.avisar === 'nunca') return;
     if (prog.avisar === 'fallo' && res.estado === 'ok') return;
     // 5.12 (Dec-34): dbt sale con 0 con un test en warn; el aviso lo dice igual.
+    // 5.13: un proceso de Data Flow también puede terminar en aviso (un contrato
+    // que avisa en vez de parar); el título no habla de tests.
     if (res.estado === 'aviso') {
-        estado.avisar({ titulo: `${prog.nombre}: tests with warnings`, texto: res.linea, runId: res.runId || null, ok: false });
+        estado.avisar({ titulo: `${prog.nombre}: ${res.tipo === 'dbt' ? 'tests with warnings' : 'finished with a warning'}`, texto: res.linea, runId: res.runId || null, ok: false });
         return;
     }
     const extra = perdidas > 0 ? ` (${perdidas === 1 ? '1 earlier run was' : `${perdidas} earlier runs were`} missed while AmoxSQL was closed; this is the latest)` : '';

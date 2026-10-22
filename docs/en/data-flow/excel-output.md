@@ -59,6 +59,18 @@ The workbook recalculates when it is opened, so formulas show this run's numbers
 | Goes into | A table of the template, or a sheet and its first cell |
 | Write the column names first | Only from a cell: writes the headers at that cell and the data below |
 | Save as | The workbook's path; parameters allowed |
+| Add a “Data as of …” line | A line under each table with the data date (it always goes into the properties) |
+
+## The data date
+
+The workbook says how old its data is: the date of the **newest file the process read** (a source, an imported file or folder), not the day it ran. September's close run on 2 October with the Excel that arrived on the 30th says "30 Sep".
+
+- It **always** goes into the workbook properties (File → Info → Properties → Advanced): "Data as of" and "Made by".
+- **Add a “Data as of …” line under each table** adds a line below each table, after a blank row: the header, the data and the filter don't move.
+- **In a template**, define a name `datos_al` on a cell (Formulas → Define Name): that cell receives the date. With a date format it's written as a date; otherwise as text.
+- Remote data (a web address, a bucket) has no reliable date and doesn't count. If the process read no file, nothing is written.
+
+The same date shows in the notification ("… · data as of 30 Sep 2026 · 4 s") and in what the **Publish** node publishes (`amoxsql.datos_al`).
 
 ## Tips & gems
 

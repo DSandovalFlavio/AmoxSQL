@@ -611,6 +611,8 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 
 ### E · Confianza en los números
 
+> **Hecha en la 5.13.0** (fases 0–5 de `plan_5_13_flujos_fiables.md`), sin publicar.
+>
 > **Recortada el 2026-10-22** y llevada a la 5.13.0 como *Flujos fiables* (E2+E3, E1 reducida, con H1,
 > J10 y F4). **Plan:** [`plan_5_13_flujos_fiables.md`](plan_5_13_flujos_fiables.md).
 

@@ -39,6 +39,17 @@ metrics:
     table: orders
 ```
 
+#### Una métrica es también una función
+Desde la 5.13, cada métrica de `metrics.yml` (la del proyecto y la de su workspace, en `Contexto` del workspace; por nombre gana la del proyecto) es una **función de SQL** con las columnas que usa como parámetros:
+
+```sql
+SELECT tienda, revenue(amount, status) AS venta
+FROM orders
+GROUP BY ALL
+```
+
+Da lo mismo en el editor, un cuaderno, Data Flow y el asistente, y en todos los proyectos del workspace. El editor la propone con sus columnas ya escritas y, al pasar el ratón, enseña de quién es, su descripción y su SQL. Si la extracción automática de columnas no basta, dilas a mano: `columns: [amount, status]`. Una métrica no se vuelve función si su nombre ya es una función del motor (`sum`), si no es un identificador (lleva espacios) o si su SQL no compila; cambiar `metrics.yml` se nota sin reiniciar.
+
 ### Definir joins — `context/joins.yml`
 Las relaciones correctas entre tablas, para que la IA no adivine columnas. La condición `on` puede incluir filtros que siempre aplican.
 

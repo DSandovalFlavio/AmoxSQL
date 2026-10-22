@@ -65,7 +65,7 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 | Last result | The results table on screen |
 | Chart config | The active Story Flow chart |
 | Schema | All tables in the local database |
-| Project rules | `RULES.md` and `.amoxsql/context/` (see [Context as code](context-as-code.md)) |
+| Project rules | `RULES.md` and `context/` (see [Context as code](context-as-code.md)) |
 
 ## Tips & gems
 

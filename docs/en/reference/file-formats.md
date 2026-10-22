@@ -138,7 +138,7 @@ A skill is a reusable procedure the AI can activate. Each skill lives in its own
 
 ## `context/` — Domain context for AI
 
-An optional folder (`context/` at the project root, or `.amoxsql/context/`) that teaches the AI your business semantics: metrics, joins, glossary, and examples.
+An optional folder (`context/` at the project root; the workspace's, under its `Context`) that teaches the AI your business semantics: metrics, joins, glossary, and examples.
 
 | File | Contents |
 |---|---|

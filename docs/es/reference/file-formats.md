@@ -138,7 +138,7 @@ Un skill es un procedimiento reutilizable que la IA puede activar. Cada skill vi
 
 ## `context/` — Contexto de dominio para IA
 
-Carpeta opcional (`context/` en la raíz del proyecto, o `.amoxsql/context/`) que enseña a la IA la semántica de tu negocio: métricas, joins, glosario y ejemplos.
+Carpeta opcional (`context/` en la raíz del proyecto; la del workspace, en su `Contexto`) que enseña a la IA la semántica de tu negocio: métricas, joins, glosario y ejemplos.
 
 | Archivo | Contenido |
 |---|---|
