@@ -107,8 +107,31 @@ async function antesDeDbt(dbManager, raiz, comando) {
     const nada = { aviso: null, despues: async () => {} };
     if (!abreLaBase(accion)) return nada;
     const bases = basesDelPerfil(raiz, { profilesDir, target });
+
+    // 5.12: otras bases adjuntas que dbt va a abrir —la que adjunta la vista
+    // previa de un modelo (fase 3), un ATTACH a mano— también se sueltan y
+    // vuelven como estaban (en sólo lectura si lo estaban).
+    let extras = [];
+    try {
+        const filas = await dbManager.systemQuery(`SELECT database_name AS nombre, path, readonly FROM duckdb_databases() WHERE NOT internal AND path IS NOT NULL AND path <> ''`, { lane: 'meta' });
+        extras = (filas || []).filter(d => d.nombre !== dbManager.alias && bases.some(b => igual(b, d.path)));
+    } catch { /* sin motor: nada que soltar */ }
+    for (const d of extras) {
+        try { await dbManager.query(`DETACH "${String(d.nombre).replace(/"/g, '""')}"`); } catch (e) { console.warn('[dbt] No se pudo soltar', d.nombre, e.message); }
+    }
+    const devolverExtras = async () => {
+        for (const d of extras) {
+            try { await dbManager.query(`ATTACH IF NOT EXISTS '${String(d.path).replace(/'/g, "''")}' AS "${String(d.nombre).replace(/"/g, '""')}"${d.readonly ? ' (READ_ONLY)' : ''}`); } catch (e) { console.warn('[dbt] No se pudo volver a adjuntar', d.nombre, e.message); }
+        }
+    };
+
     const actual = dbManager.prestada?.ruta || dbManager.attachedPath;
-    if (!actual || !bases.some(b => igual(b, actual))) return nada;
+    const principal = !!actual && bases.some(b => igual(b, actual));
+    if (!principal && !extras.length) return nada;
+    if (!principal) {
+        let devueltas = false;
+        return { aviso: null, despues: async () => { if (devueltas) return; devueltas = true; await devolverExtras(); } };
+    }
 
     if (!dbManager.prestada) await dbManager.prestar('dbt');
     prestamos++;
@@ -120,6 +143,7 @@ async function antesDeDbt(dbManager, raiz, comando) {
             devuelta = true;
             prestamos = Math.max(0, prestamos - 1);
             if (prestamos === 0) await dbManager.recuperar();
+            await devolverExtras();
         },
     };
 }
