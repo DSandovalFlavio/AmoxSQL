@@ -5197,6 +5197,10 @@ app.post('/api/dbt/targets/dev', (req, res) => {
     } catch (e) { res.status(400).json({ error: e.message }); }
 });
 app.get('/api/dbt/explicaciones', (_req, res) => res.json(dbtProyecto.EXPLICACIONES));
+// Lo que el editor sabe de dbt para completar (5.12, fase 3b; I12, Dec-35).
+app.get('/api/dbt/catalogo', async (_req, res) => {
+    try { res.json(await require('./dbt/catalogo').catalogo(ROOT_DIR, { dbManager })); } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // dbt dentro del editor (5.12, fase 3; I2, Dec-28).
 const archivoDelProyecto = (a) => {
