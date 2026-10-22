@@ -23,6 +23,7 @@ import ContextoWorkspace from './ContextoWorkspace';
 import FuentesDelWorkspace from '../fuentes/FuentesDelWorkspace';
 import DestinosDeEntrega from '../fuentes/DestinosDeEntrega';
 import CalendarioDelWorkspace from './CalendarioDelWorkspace';
+import Atencion from '../operacion/Atencion';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, {
@@ -45,8 +46,11 @@ const ESTADO = Object.fromEntries(ESTADOS.map(([k, t, c]) => [k, { texto: t, cla
 
 /** Las fechas de la base llegan como TIMESTAMP sin zona, en UTC. */
 const aFecha = (t) => (t ? new Date(String(t).replace(' ', 'T') + (String(t).includes('Z') ? '' : 'Z')) : null);
-function hace(t) {
-    const d = aFecha(t);
+// `inicio` y `fin` de una ejecución se guardan en hora local (current_timestamp),
+// como los leen la ficha y Operations; las fechas de un proyecto, en UTC.
+const aFechaLocal = (t) => (t ? new Date(String(t).replace(' ', 'T')) : null);
+function hace(t, leer = aFecha) {
+    const d = leer(t);
     if (!d || Number.isNaN(d.getTime())) return '—';
     const dias = Math.floor((Date.now() - d.getTime()) / 86400000);
     if (dias <= 0) return 'today';
@@ -54,8 +58,8 @@ function hace(t) {
     if (dias < 7) return `${dias} days ago`;
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
-function hora(t) {
-    const d = aFecha(t);
+function hora(t, leer = aFecha) {
+    const d = leer(t);
     return d && !Number.isNaN(d.getTime()) ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '';
 }
 function duracion(a, b) {
@@ -90,7 +94,7 @@ function Ejecuciones({ lista }) {
                             {e.nombreProceso}
                         </div>
                         <div className="wsv-run-d">
-                            {[e.workspace, hace(e.inicio) === 'today' ? hora(e.inicio) : hace(e.inicio), ok ? duracion(e.inicio, e.fin) : (e.error || e.estado)].filter(Boolean).join(' · ')}
+                            {[e.workspace, hace(e.inicio, aFechaLocal) === 'today' ? hora(e.inicio, aFechaLocal) : hace(e.inicio, aFechaLocal), ok ? duracion(e.inicio, e.fin) : (e.error || e.estado)].filter(Boolean).join(' · ')}
                         </div>
                     </div>
                 );
@@ -302,6 +306,9 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
                     <button className="wsv-btn" type="button" onClick={() => exportar(actual)}><LuDownload size={13} />Export</button>
                 </div>
 
+                {/* 5.13 (Dec-45): lo de este workspace que falló sin nadie delante. */}
+                <Atencion key={`a-${actual.id}`} workspaceId={actual.id} mostrarGrupo={false} className="wsv-atencion" />
+
                 <div className="wsv-etq">Projects</div>
                 <div className="wsv-caja">
                     <table className="wsv-tabla">
@@ -386,6 +393,9 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
                         </p>
                     </div>
                 </div>
+
+                {/* 5.13 (Dec-45): lo que falló sin nadie delante, con su razón. */}
+                <Atencion className="wsv-atencion" />
 
                 <div className="wsv-etq"><LuCalendarClock size={12} />Recent runs, across all {e.p}</div>
                 <Ejecuciones lista={datos?.ejecuciones || []} />

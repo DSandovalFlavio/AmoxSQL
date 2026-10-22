@@ -1331,10 +1331,12 @@ class ChainExecutor extends EventEmitter {
                     tableToCheck = up.table || up.view || '';
                 }
                 if (!tableToCheck) throw new Error('Assert node: no table specified and no upstream table found');
+                // 5.13: lo que llega puede tener esquema (una fuente es `fuentes.x`).
+                const desde = targetTable ? `"${targetTable}"` : `(${this.outputToQuery(upstreamOutputs[0])}) AS entrada`;
 
                 if (assertType === 'row_count_gt') {
                     const threshold = parseInt(config.threshold) || 0;
-                    sql = `SELECT COUNT(*) as cnt FROM "${tableToCheck}"`;
+                    sql = `SELECT COUNT(*) as cnt FROM ${desde}`;
                     const result = await dbManager.query(sql);
                     const count = result[0]?.cnt || 0;
                     if (count <= threshold) {
@@ -1343,7 +1345,7 @@ class ChainExecutor extends EventEmitter {
                     resultType = 'assertion_passed';
                     resultSummary = { table: tableToCheck, assertion: `rows > ${threshold}`, actual: count };
                 } else if (assertType === 'not_empty') {
-                    sql = `SELECT COUNT(*) as cnt FROM "${tableToCheck}"`;
+                    sql = `SELECT COUNT(*) as cnt FROM ${desde}`;
                     const result = await dbManager.query(sql);
                     const count = result[0]?.cnt || 0;
                     if (count === 0) {
@@ -1354,7 +1356,7 @@ class ChainExecutor extends EventEmitter {
                 } else if (assertType === 'no_nulls') {
                     const column = config.column || '';
                     if (!column) throw new Error('Assert "no nulls": column not specified');
-                    sql = `SELECT COUNT(*) as cnt FROM "${tableToCheck}" WHERE "${column}" IS NULL`;
+                    sql = `SELECT COUNT(*) as cnt FROM ${desde} WHERE "${column}" IS NULL`;
                     const result = await dbManager.query(sql);
                     const nullCount = result[0]?.cnt || 0;
                     if (nullCount > 0) {
@@ -1365,7 +1367,7 @@ class ChainExecutor extends EventEmitter {
                 } else if (assertType === 'unique') {
                     const column = config.column || '';
                     if (!column) throw new Error('Assert "unique": column not specified');
-                    sql = `SELECT COUNT(*) - COUNT(DISTINCT "${column}") as dupes FROM "${tableToCheck}"`;
+                    sql = `SELECT COUNT(*) - COUNT(DISTINCT "${column}") as dupes FROM ${desde}`;
                     const result = await dbManager.query(sql);
                     const dupes = result[0]?.dupes || 0;
                     if (dupes > 0) {
@@ -2249,7 +2251,7 @@ class ChainExecutor extends EventEmitter {
                 if (!tableToCheck) throw new Error('Schema Validation node: no upstream table found');
                 if (expectedCols.length === 0) throw new Error('Schema Validation node: at least one expected column is required');
 
-                const schemaResult = await dbManager.query(`DESCRIBE SELECT * FROM "${tableToCheck}"`);
+                const schemaResult = await dbManager.query(`DESCRIBE ${this.outputToQuery(upstreamOutputs[0])}`);
                 const actualCols = new Map((schemaResult || []).map(r => [r.column_name || r.name, r.column_type || r.type]));
 
                 const failures = [];
@@ -2501,6 +2503,12 @@ class ChainExecutor extends EventEmitter {
             nodeStatuses.set(node.id, 'pending');
         }
 
+        // 5.13 (Dec-38): el contrato de las fuentes que lee el proceso, antes del
+        // primer paso. Es un paso más en la ficha («Source contract»); si una
+        // fuente que debe parar no lo cumple, no corre nada y se dice por qué.
+        const parada = await this.revisarContratos({ dbManager, anotar, runId, projectPath, activeNodes, nodeRunIds });
+        if (parada) return parada;
+
         // Build adjacency for parent checking
         const parentMap = new Map();
         for (const id of activeNodeIds) parentMap.set(id, []);
@@ -2699,6 +2707,56 @@ class ChainExecutor extends EventEmitter {
         this.closeSSE(runId);
         this.activeRuns.delete(runId);
         return { runId, status: 'completed' };
+    }
+
+    /**
+     * Comprueba el contrato de las fuentes que leen los pasos que van a correr
+     * (5.13, Dec-38). Sin fuentes con contrato, no hace nada (ni paso en la ficha).
+     * Devuelve el resultado de la ejecución si hay que parar, o null.
+     */
+    async revisarContratos({ dbManager, anotar, runId, projectPath, activeNodes, nodeRunIds }) {
+        const contrato = require('./contrato');
+        const fuentes = require('./fuentes');
+        const nombres = contrato.fuentesQueLee(activeNodes, {
+            leerArchivo: (rel) => fs.readFileSync(path.resolve(projectPath || '.', rel), 'utf-8'),
+        });
+        if (!nombres.length) return null;
+        const t0 = Date.now();
+        const comprobadas = [];
+        for (const nombre of nombres) {
+            let l = null;
+            try { l = await fuentes.localizar({ raiz: projectPath }, nombre); } catch { l = null; }
+            if (!l?.def?.contrato) continue;
+            const r = await fuentes.comprobarContrato(dbManager, l.def, l.ubicacion);
+            comprobadas.push({ nombre, ...r });
+        }
+        if (!comprobadas.length) return null;
+
+        const durationMs = Date.now() - t0;
+        const paran = comprobadas.filter(c => !c.ok && c.alFallar !== 'avisar');
+        const avisan = comprobadas.filter(c => !c.ok && c.alFallar === 'avisar');
+        const resultSummary = {
+            fuentes: comprobadas.map(c => ({ nombre: c.nombre, ok: c.ok, filas: c.filas, alFallar: c.alFallar, fallos: c.fallos.map(f => f.texto) })),
+            avisos: avisan.map(c => contrato.linea(c.nombre, c)),
+        };
+        const nodeRunId = await anotar.createNodeRun({ runId, nodeId: '__contrato', nodeType: 'contrato', nodeLabel: 'Source contract' });
+        await anotar.updateNodeRun(nodeRunId, { status: 'running' });
+        if (!paran.length) {
+            await anotar.updateNodeRun(nodeRunId, {
+                status: 'success', durationMs, resultType: avisan.length ? 'contrato_aviso' : 'contrato_ok', resultSummary,
+            });
+            this.emitLog(runId, { type: 'node_complete', nodeId: '__contrato', nodeLabel: 'Source contract', durationMs, resultType: avisan.length ? 'contrato_aviso' : 'contrato_ok' });
+            return null;
+        }
+        const error = paran.map(c => contrato.linea(c.nombre, c)).join('\n');
+        await anotar.updateNodeRun(nodeRunId, { status: 'failed', durationMs, errorMessage: error, resultType: 'contrato', resultSummary });
+        for (const id of nodeRunIds.values()) await anotar.updateNodeRun(id, { status: 'skipped' });
+        await anotar.updateRunStatus(runId, { status: 'failed', completedNodes: 0, failedNodeId: '__contrato', error });
+        this.emitLog(runId, { type: 'node_error', nodeId: '__contrato', nodeLabel: 'Source contract', durationMs, error });
+        this.emitLog(runId, { type: 'run_complete', status: 'failed', failedNodeId: '__contrato', error });
+        this.closeSSE(runId);
+        this.activeRuns.delete(runId);
+        return { runId, status: 'failed', failedNodeId: '__contrato', error };
     }
 
     cancelRun(runId) {

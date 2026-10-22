@@ -21230,3 +21230,54 @@ tr:hover td {
   .opx-controles { margin-left: 0; align-items: flex-start; }
   .opx-cuerpo, .opx-cabecera { padding-left: 16px; padding-right: 16px; }
 }
+
+/* ── 5.13 (Dec-45): «Needs attention» ─────────────────────────────────────── */
+.atn { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in oklch, var(--color-error) 35%, var(--border-subtle)); background: color-mix(in oklch, var(--color-error-bg) 55%, var(--surface-raised, var(--panel-bg))); }
+.atn-cab { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-error-text); }
+.atn-cuenta { min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--color-error); color: var(--text-on-accent, #fff); font-size: 10.5px; text-align: center; letter-spacing: 0; }
+.atn-todas { margin-left: auto; border: none; background: none; padding: 0; font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-secondary); cursor: pointer; }
+.atn-todas:hover { color: var(--text-primary); text-decoration: underline; }
+.atn-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.atn-fila { display: flex; align-items: flex-start; gap: 8px; padding: 7px 0; border-top: 1px solid var(--border-subtle); }
+.atn-fila:first-child { border-top: none; }
+.atn-icono { flex: none; margin-top: 1px; display: flex; }
+.atn-fila--fallo .atn-icono { color: var(--color-error); }
+.atn-fila--aviso .atn-icono { color: var(--color-warning); }
+.atn-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.atn-linea1 { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-size: 12.5px; }
+.atn-linea1 strong { flex: 0 1 auto; max-width: 70%; color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.atn-meta { flex: 1 1 0; min-width: 0; color: var(--text-tertiary); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.atn-razon { font-size: 12px; line-height: 1.45; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.atn-acciones { flex: none; display: flex; align-items: center; gap: 4px; }
+.atn-btn { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border-subtle); background: var(--surface-raised, var(--panel-bg)); color: var(--text-secondary); font-size: 11.5px; cursor: pointer; white-space: nowrap; }
+.atn-btn:hover:not(:disabled) { color: var(--text-primary); border-color: var(--accent-primary); }
+.atn-btn:disabled { opacity: 0.6; cursor: default; }
+.atn-quitar { display: inline-flex; padding: 4px; border: none; border-radius: 6px; background: none; color: var(--text-tertiary); cursor: pointer; }
+.atn-quitar:hover { color: var(--text-primary); background: var(--surface-hover, rgba(127, 127, 127, 0.12)); }
+.atn-mas { align-self: flex-start; border: none; background: none; padding: 0; font-size: 11.5px; color: var(--accent-primary); cursor: pointer; }
+.atn button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 1px; }
+.ws-atencion { margin-top: 22px; flex: none; }
+.wsv-atencion { margin: 4px 0 14px; }
+@media (max-width: 720px) {
+  .atn-fila { flex-wrap: wrap; }
+  .atn-acciones { width: 100%; justify-content: flex-end; }
+}
+
+/* ── 5.13 (E2 + E3): el contrato de una fuente ────────────────────────────── */
+.ctr-card { width: min(720px, calc(100vw - 32px)); }
+.ctr-titulo-seccion { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ctr-titulo-seccion .fnt-enlace, .ctr-anadir { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; }
+.ctr-tabla { display: flex; flex-direction: column; gap: 6px; }
+.ctr-columna, .ctr-regla { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ctr-columna > .wsx-input:first-child { flex: 1 1 180px; min-width: 0; }
+.ctr-familia { flex: 0 0 120px; }
+.ctr-obligatoria { flex: none; font-size: 12px; }
+.ctr-regla > select.wsx-input { flex: 0 1 190px; }
+.ctr-valores { flex: 1 1 200px; min-width: 0; }
+.ctr-quitar { display: inline-flex; padding: 5px; border: none; border-radius: 6px; background: none; color: var(--text-tertiary); cursor: pointer; }
+.ctr-quitar:hover { color: var(--color-error); background: var(--color-error-bg); }
+.ctr-resultado { display: flex; gap: 8px; align-items: flex-start; padding: 9px 11px; border-radius: 8px; font-size: 12.5px; line-height: 1.5; background: var(--color-success-bg); color: var(--color-success-text); }
+.ctr-resultado svg { flex: none; margin-top: 2px; }
+.ctr-resultado--mal { background: var(--color-error-bg); color: var(--color-error-text); }
+.ctr-resultado ul { margin: 4px 0 0; padding-left: 18px; color: var(--text-primary); }
+.fnt-contrato { flex: none; color: var(--text-tertiary); }

@@ -6574,6 +6574,24 @@ app.delete('/api/fuentes/:nombre', conCentral(async (req) => {
     return { ok: true };
 }));
 
+// 5.13 (E2 + E3): el contrato de una fuente. «Check» lo comprueba ahora mismo;
+// «Take today's columns» lo propone con lo que trae hoy (Dec-40).
+app.post('/api/fuentes/:nombre/comprobar', conCentral(async (req) => {
+    const l = await fuentes.localizar(destinoDeFuente(req), req.params.nombre);
+    if (!l) throw new Error(`The source "${req.params.nombre}" does not exist.`);
+    // El contrato que se está editando, sin guardar todavía; si no, el guardado.
+    const def = req.body?.contrato !== undefined ? { ...l.def, contrato: require('./contrato').normalizar(req.body.contrato) } : l.def;
+    if (!def.contrato) return { ok: true, sinContrato: true, fallos: [] };
+    const r = await fuentes.comprobarContrato(dbManager.lane('meta'), def, l.ubicacion);
+    return { ...r, linea: r.ok ? null : require("./contrato").linea(def.nombre, r) };
+}));
+
+app.post('/api/fuentes/:nombre/contrato/de-hoy', conCentral(async (req) => {
+    const l = await fuentes.localizar(destinoDeFuente(req), req.params.nombre);
+    if (!l) throw new Error(`The source "${req.params.nombre}" does not exist.`);
+    return { contrato: await fuentes.contratoDeHoy(dbManager.lane('meta'), l.def, l.ubicacion) };
+}));
+
 app.put('/api/fuentes/:nombre/ubicacion', conCentral(async (req) => {
     const ubicacion = await fuentes.ubicar(destinoDeFuente(req), req.params.nombre, req.body?.ubicacion || null);
     await remontarFuentes();
@@ -6697,8 +6715,24 @@ app.get('/api/operacion', conCentral(async (req) => {
         programaciones: lista,
         bitacora,
         pausaGeneral: pausa,
+        // 5.13 (Dec-45): lo que falló y nadie ha mirado, no sólo lo de hoy.
+        atencion: (await atencion.listar(baseCentral).catch(() => [])).length,
         sistema: { activo: (await baseCentral.preferencia('programador_sistema')) === true, soportado: process.platform === 'win32' },
     };
+}));
+
+// ── Lo que falló y nadie ha mirado (5.13, Dec-45) ────────────────────────────
+// La bienvenida (todas) y la ficha de cada workspace (las suyas). Ver
+// server/ejecucion/atencion.js.
+const atencion = require('./ejecucion/atencion');
+
+app.get('/api/operacion/atencion', conCentral(async (req) => ({
+    atencion: await atencion.listar(baseCentral, { workspaceId: req.query.workspace ? String(req.query.workspace) : null }),
+})));
+
+app.post('/api/operacion/atencion/vista', conCentral(async (req) => {
+    await atencion.marcarVistas(baseCentral, req.body?.ids || []);
+    return { ok: true };
 }));
 
 // ── La ficha de una ejecución (5.11, D2) ─────────────────────────────────────
@@ -6726,7 +6760,7 @@ app.get('/api/ejecuciones/:id', conCentral(async (req) => {
         };
     }
     const { nodeRuns } = await historialDeProcesos.leer({ base: baseCentral, dbManager, runId: e.id });
-    const pasos = [...nodeRuns].sort((a, b) => String(a.started_at || '').localeCompare(String(b.started_at || ''))).map(n => {
+    const pasos = [...nodeRuns].sort((a, b) => String(a.started_at || a.finished_at || '').localeCompare(String(b.started_at || b.finished_at || ''))).map(n => {
         let s = {};
         try { s = JSON.parse(n.result_summary || '{}'); } catch { /* sin resumen */ }
         return { nodo: n.node_label || n.node_id, tipo: n.node_type, estado: n.status, ms: n.duration_ms, filas: s.rowCount ?? null, error: n.error_message || null };

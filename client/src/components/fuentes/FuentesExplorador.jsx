@@ -9,13 +9,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
     LuInbox, LuChevronRight, LuChevronDown, LuPlus, LuClipboard, LuCode, LuPencil,
-    LuFolderOpen, LuTrash2, LuTriangleAlert,
+    LuFolderOpen, LuTrash2, LuTriangleAlert, LuFileCheck,
 } from 'react-icons/lu';
 import DeleteConfirmModal from '../DeleteConfirmModal';
 import { useToast } from '../ToastProvider';
 import { API_BASE } from '../../api.js';
 import { useEtiqueta } from '../../etiqueta';
 import EditorDeFuente from './EditorDeFuente';
+import ContratoDeFuente from './ContratoDeFuente';
 import {
     listarFuentes, columnasDeFuentes, borrarFuente, ubicarFuente, elegirArchivo, avisarCambio, TEXTO_ESTADO,
 } from './api';
@@ -30,6 +31,7 @@ export default function FuentesExplorador({ onSelectQuery, refresco, busqueda = 
     const [menu, setMenu] = useState(null);           // { x, y, fuente }
     const [editor, setEditor] = useState(null);       // { fuente } | { nueva: true }
     const [aBorrar, setABorrar] = useState(null);
+    const [contrato, setContrato] = useState(null);    // la fuente cuyo contrato se edita (5.13)
     const [workspaceNombre, setWorkspaceNombre] = useState(null);
     const toast = useToast();
     const e = useEtiqueta();
@@ -119,6 +121,7 @@ export default function FuentesExplorador({ onSelectQuery, refresco, busqueda = 
                                     <LuInbox size={14} className="fnt-icono" />
                                     <span className="db-table-name">{f.nombre}</span>
                                     {f.origen === 'workspace' && <span className="fnt-origen" title={`From ${workspaceNombre || `the ${e.s}`}`}>{workspaceNombre ? workspaceNombre.slice(0, 1).toUpperCase() : 'W'}</span>}
+                                    {f.contrato && <LuFileCheck size={12} className="fnt-contrato" title={`Has a contract: ${f.contrato.columnas.length} column${f.contrato.columnas.length === 1 ? '' : 's'}, ${f.contrato.reglas.length} rule${f.contrato.reglas.length === 1 ? '' : 's'}; ${f.contrato.alFallar === 'avisar' ? 'warns' : 'stops the process'} if the file does not match`} />}
                                     {problema && <LuTriangleAlert size={12} className="fnt-problema" title={problema} />}
                                     {!problema && f.vieja && <LuTriangleAlert size={12} className="fnt-problema" title={`${f.edadDias} days old: older than the ${f.frescuraDias} days expected`} />}
                                     <span className="db-copy-btn" onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(ref(f.nombre)); }} title="Copy reference">
@@ -172,6 +175,9 @@ export default function FuentesExplorador({ onSelectQuery, refresco, busqueda = 
                     <div className="ctx-menu-item" onClick={() => { setEditor({ fuente: menu.fuente }); setMenu(null); }}>
                         <LuPencil size={14} /> Edit…
                     </div>
+                    <div className="ctx-menu-item" onClick={() => { setContrato(menu.fuente); setMenu(null); }}>
+                        <LuFileCheck size={14} /> {menu.fuente.contrato ? 'Contract…' : 'Add a contract…'}
+                    </div>
                     <div className="ctx-menu-separator" />
                     <div className="ctx-menu-item danger" onClick={() => { setABorrar(menu.fuente); setMenu(null); }}>
                         <LuTrash2 size={14} /> Remove source…
@@ -187,6 +193,10 @@ export default function FuentesExplorador({ onSelectQuery, refresco, busqueda = 
                     enProyecto
                     onClose={() => setEditor(null)}
                 />
+            )}
+
+            {contrato && (
+                <ContratoDeFuente fuente={contrato} workspaceId={datos.workspaceId} onClose={() => setContrato(null)} />
             )}
 
             <DeleteConfirmModal

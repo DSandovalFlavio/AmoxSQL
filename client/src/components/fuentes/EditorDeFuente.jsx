@@ -140,6 +140,13 @@ export default function EditorDeFuente({ fuente = null, workspaceId = null, work
         if (formato === 'csv') d.csv = { delimitador: delimitador || undefined, encabezado };
         // Al editar una fuente cuya ruta va en la definición, se conserva.
         if (editando && fuente.como !== 'local' && fuente.ubicacion && ruta === fuente.ubicacionAqui) d.ubicacion = fuente.ubicacion;
+        // Lo que este diálogo no edita, también: el contrato (5.13), la frescura y
+        // quién la publica.
+        if (editando) {
+            if (fuente.contrato) d.contrato = fuente.contrato;
+            if (fuente.frescuraDias) d.frescuraDias = fuente.frescuraDias;
+            if (fuente.publicada) d.publicada = fuente.publicada;
+        }
         return d;
     }, [nombre, descripcion, tipo, esCarpeta, esNube, remota, patron, criterio, subcarpetas, formato, formatoBucket, formatoLago, patronBucket, hive, tabla, credencial, excelOpc, elegidas, unir, encabezado, delimitador, editando, fuente, ruta]);
 

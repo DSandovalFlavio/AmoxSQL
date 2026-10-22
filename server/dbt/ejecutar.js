@@ -43,8 +43,17 @@ async function ejecutarDbt({ base = null, dbManager = null, raiz, args, entorno,
         [runId, comandoProvisional, raiz, workspaceDelProyecto(raiz), origen, programacionId, prevista ? new Date(prevista).toISOString() : null],
     );
     let r;
+    // 5.13 (Dec-38): las fuentes de AmoxSQL que el proyecto usa en dbt cumplen su
+    // contrato, o dbt no se lanza.
+    const parada = await contratosParaDbt({ raiz, args, dbManager });
+    for (const a of parada?.avisos || []) alLinea?.({ tipo: 'amox', texto: `Source contract (warning): ${a}` });
     try {
-        r = await correr({ raiz, args, entorno, dbManager, env, alLinea, senal });
+        if (parada?.error) {
+            alLinea?.({ tipo: 'amox', texto: `Source contract: ${parada.error}` });
+            r = { codigo: 1, cancelado: false, ms: 0, inicio: new Date(), comando: comandoProvisional, error: `Source contract: ${parada.error}` };
+        } else {
+            r = await correr({ raiz, args, entorno, dbManager, env, alLinea, senal });
+        }
     } catch (e) {
         r = { codigo: 1, cancelado: false, ms: 0, inicio: new Date(), comando: comandoProvisional, error: e.message };
         alLinea?.({ tipo: 'stderr', texto: e.message });
@@ -65,4 +74,32 @@ async function ejecutarDbt({ base = null, dbManager = null, raiz, args, entorno,
     return { runId, codigo: r.codigo, cancelado: r.cancelado, resumen: { ...resumen, runId }, resultados: res, noArranco: r.noArranco };
 }
 
-module.exports = { ejecutarDbt, esDeDbt };
+// Las acciones que leen las fuentes.
+const LEEN = new Set(['run', 'build', 'test', 'snapshot', 'show', 'source']);
+
+/**
+ * El contrato de las fuentes de AmoxSQL que están en `amoxsql.yml` (5.13). Devuelve
+ * null si no hay nada que comprobar, o { error?, avisos }.
+ */
+async function contratosParaDbt({ raiz, args, dbManager }) {
+    if (!LEEN.has(String(args?.[0] || '')) || !dbManager) return null;
+    let nombres = [];
+    try { nombres = require('./puente').estado(raiz).fuentes.filter(f => f.enDbt).map(f => f.nombre); } catch { return null; }
+    if (!nombres.length) return null;
+    const fuentes = require('../fuentes');
+    const contrato = require('../contrato');
+    const db = dbManager.lane ? dbManager.lane('meta') : dbManager;
+    const paran = [];
+    const avisos = [];
+    for (const nombre of nombres) {
+        const l = await fuentes.localizar({ raiz }, nombre).catch(() => null);
+        if (!l?.def?.contrato) continue;
+        const c = await fuentes.comprobarContrato(db, l.def, l.ubicacion);
+        if (c.ok) continue;
+        (c.alFallar === 'avisar' ? avisos : paran).push(contrato.linea(nombre, c));
+    }
+    if (!paran.length && !avisos.length) return null;
+    return { error: paran.length ? paran.join('; ') : null, avisos };
+}
+
+module.exports = { ejecutarDbt, esDeDbt, contratosParaDbt };

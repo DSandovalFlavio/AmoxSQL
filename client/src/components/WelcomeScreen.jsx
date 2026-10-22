@@ -6,6 +6,7 @@ import { useEtiqueta } from '../etiqueta';
 import Logo from './Logo';
 import AlertDialog from './AlertDialog';
 import LogoMorph from './welcome/LogoMorph';
+import Atencion from './operacion/Atencion';
 
 const RECENT_KEY = 'amoxsql-recent-projects';
 
@@ -212,6 +213,10 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
                                     {opening ? 'Opening…' : 'Open Project'}
                                 </button>
                             </form>
+
+                            {/* 5.13 (Dec-45), a petición del autor: lo que falló sin nadie
+                                delante, con su razón. Si no hay nada, no se pinta. */}
+                            <Atencion className="ws-atencion ws-enter ws-enter-2" />
 
                             {/* Los recientes ya no van dentro de la tarjeta del paso 1: son la
                                 lista principal y se quedan con todo el alto que sobra. */}
