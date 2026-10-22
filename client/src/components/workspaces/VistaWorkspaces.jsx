@@ -24,6 +24,7 @@ import FuentesDelWorkspace from '../fuentes/FuentesDelWorkspace';
 import DestinosDeEntrega from '../fuentes/DestinosDeEntrega';
 import CalendarioDelWorkspace from './CalendarioDelWorkspace';
 import Atencion from '../operacion/Atencion';
+import DesdePaquete from '../paquete/DesdePaquete';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, {
@@ -195,6 +196,7 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
     const [importando, setImportando] = useState(null);
     const [aviso, setAviso] = useState(null);
     const archivoRef = useRef(null);
+    const [desdePaquete, setDesdePaquete] = useState(false);   // 5.14 (G2 + G3)
 
     const cargar = useCallback(() => pedir('GET', '/api/inicio').then(d => { setDatos(d); setError(null); }).catch(err => setError(err.message)), []);
     useEffect(() => {
@@ -481,6 +483,7 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
                     </label>
                     <span className="wsv-sep" />
                     <button className="wsv-btn wsv-btn--fant" type="button" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_operacion'))}><LuCalendarClock size={13} />Operations</button>
+                    <button className="wsv-btn wsv-btn--fant" type="button" onClick={() => setDesdePaquete(true)} title="Start a project from a .amoxproject package (or a template)"><LuFolderOpen size={13} />From a package…</button>
                     <button className="wsv-btn wsv-btn--fant" type="button" onClick={() => archivoRef.current?.click()}><LuUpload size={13} />Import…</button>
                     <input ref={archivoRef} type="file" accept=".amoxworkspace,.json" hidden onChange={elegirArchivo} />
                     <button className="wsv-btn wsv-btn--pri" type="button" onClick={ajustes}><LuPlus size={13} />New {e.s}</button>
@@ -488,6 +491,7 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
                 {error && <p className="wsx-error">{error}</p>}
                 {!datos && !error ? <LuLoader size={16} className="stg-spin" /> : principal}
                 {aviso && <div className="wsv-aviso" role="status">{aviso}</div>}
+                {desdePaquete && <DesdePaquete onClose={() => setDesdePaquete(false)} onAbrir={(raiz) => { setDesdePaquete(false); onAbrir?.(raiz); }} />}
             </main>
 
             {contexto && <ContextoWorkspace workspace={contexto} onClose={() => setContexto(null)} />}

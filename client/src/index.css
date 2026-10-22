@@ -21320,3 +21320,21 @@ tr:hover td {
 .rtm-btn:hover { border-color: var(--accent-primary); }
 .rtm-btn--principal { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--text-on-accent, #fff); font-weight: 600; }
 .rtm button:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+
+/* ── 5.14 (G2 + G3): el paquete de un proyecto ─────────────────────────────── */
+.pqt-card { width: min(640px, calc(100vw - 32px)); }
+.pqt-siempre { display: flex; gap: 6px; align-items: flex-start; margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }
+.pqt-siempre svg { flex: none; margin-top: 3px; color: var(--color-success); }
+.pqt-datos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow: auto; }
+.pqt-datos .wsx-check { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pqt-ruta { flex: 1; min-width: 0; font-family: var(--font-mono, monospace); font-size: 11.5px; overflow-wrap: anywhere; color: var(--text-primary); }
+.pqt-meta { font-size: 11px; color: var(--text-tertiary); white-space: nowrap; }
+.pqt-no { opacity: 0.55; }
+.pqt-hecho { display: flex; gap: 8px; align-items: flex-start; padding: 9px 11px; border-radius: 8px; background: var(--color-success-bg); color: var(--color-success-text); font-size: 12.5px; }
+.pqt-hecho svg { flex: none; margin-top: 2px; }
+.pqt-resumen { padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border-subtle); font-size: 12.5px; color: var(--text-primary); display: flex; flex-direction: column; gap: 3px; }
+.pqt-elegir { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; justify-content: flex-start; }
+.pqt-faltan { padding: 9px 11px; border-radius: 8px; border: 1px solid var(--color-warning); font-size: 12.5px; color: var(--text-primary); }
+.pqt-faltan ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.pqt-faltan li { display: flex; gap: 6px; align-items: baseline; color: var(--text-secondary); }
+.pqt-faltan svg { flex: none; color: var(--color-warning); }
