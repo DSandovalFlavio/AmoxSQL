@@ -21351,3 +21351,45 @@ tr:hover td {
 .otp-elegir-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .otp-elegir-meta { font-size: 11px; color: var(--text-secondary); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .otp-no { opacity: 0.55; cursor: default; }
+
+/* ── Compare with the previous one (5.14, F3) ───────────────────────────── */
+.cpe-card { width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
+.cpe-cuerpo { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.cpe-cuerpo .cr-mini-table-wrap { max-height: 46vh; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.cpe-resumen { margin: 0; font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.cpe-resumen strong { color: var(--color-success-text); }
+.cpe-columnas { margin: 0; display: flex; gap: 6px; align-items: flex-start; font-size: 12px; color: var(--color-warning-text); }
+.cpe-columnas svg { flex-shrink: 0; margin-top: 2px; }
+.cpe-columnas code { font-family: var(--font-mono); font-size: 11px; }
+.cpe-pestanas { display: flex; gap: 6px; flex-wrap: wrap; }
+.cpe-pestana { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.cpe-pestana:hover { color: var(--text-primary); }
+.cpe-pestana--on { background: var(--surface-raised); color: var(--text-primary); border-color: var(--accent-primary); }
+.cpe-pestana--mas svg { color: var(--color-success-text); }
+.cpe-pestana--menos svg { color: var(--color-error-text, var(--color-warning-text)); }
+.cpe-cambio { background: color-mix(in srgb, var(--color-warning-text) 12%, transparent); }
+.cpe-antes { display: block; font-size: 10px; color: var(--text-secondary); text-decoration: line-through; }
+
+/* ── What changed en un proceso (5.14, J9) ──────────────────────────────── */
+.cdp-card { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; }
+.cdp-cuerpo { min-height: 0; overflow: auto; }
+.cdp { display: flex; flex-direction: column; gap: 12px; font-size: 13px; }
+.cdp section { display: flex; flex-direction: column; gap: 4px; }
+.cdp-h { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-secondary); }
+.cdp-lista, .cdp-campos { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.cdp-paso > svg { vertical-align: -2px; color: var(--text-secondary); }
+.cdp-paso small { color: var(--text-secondary); margin-left: 4px; }
+.cdp-paso--mas > svg { color: var(--color-success-text); }
+.cdp-paso--menos > svg { color: var(--color-error-text); }
+.cdp-paso--menos strong { text-decoration: line-through; color: var(--text-secondary); }
+.cdp-campos { padding-left: 20px; margin-top: 3px; }
+.cdp-campo { color: var(--text-primary); overflow-wrap: anywhere; }
+.cdp-nombre { color: var(--text-secondary); margin-right: 6px; }
+.cdp-nombre::after { content: ':'; }
+.cdp code { font-family: var(--font-mono); font-size: 12px; background: var(--surface-raised); padding: 0 4px; border-radius: 3px; }
+.cdp em { color: var(--text-secondary); }
+.cdp-flecha { color: var(--text-secondary); margin: 0 2px; }
+.cdp-nada, .cdp-nota { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.cdp-error { margin: 0; color: var(--color-error-text); display: flex; gap: 6px; align-items: center; }
+.git-diff-modal .cdp { padding: 12px 16px; overflow: auto; }
+.git-diff-vista { display: flex; gap: 4px; margin-left: auto; margin-right: 8px; }

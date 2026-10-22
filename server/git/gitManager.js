@@ -318,7 +318,23 @@ async function getStashList(dir) {
     };
 }
 
+/**
+ * El contenido de un archivo en una versión: `HEAD` (el último commit) o
+ * `index` (lo preparado). `null` si en esa versión el archivo no existía.
+ * 5.14 (J9): para comparar un proceso con lo que había.
+ */
+async function getFileAt(dir, filePath, ref = 'HEAD') {
+    const rel = String(filePath).replace(/\\/g, '/').replace(/^\.\//, '');
+    const spec = ref === 'index' ? `:${rel}` : `${ref}:${rel}`;
+    try {
+        return await git(dir).show([spec]);
+    } catch {
+        return null;
+    }
+}
+
 module.exports = {
+    getFileAt,
     isGitAvailable,
     isRepo,
     initRepo,

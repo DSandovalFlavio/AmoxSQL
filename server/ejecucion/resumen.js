@@ -59,7 +59,7 @@ async function resumir({ base, dbManager, runId, proyecto }) {
             const abs = path.isAbsolute(ruta) ? path.normalize(ruta) : path.resolve(proyecto || '.', ruta);
             let st = null;
             try { st = fs.statSync(abs); } catch { /* ya no está */ }
-            guardados.push({ paso, ruta: abs, existe: !!st, bytes: st?.size ?? null, filas: s.rowCount ?? null, hojas: s.sheets || null });
+            guardados.push({ paso, ruta: abs, existe: !!st, bytes: st?.size ?? null, filas: s.rowCount ?? null, hojas: s.sheets || null, anterior: s.anterior?.ruta && fs.existsSync(s.anterior.ruta) ? { ruta: s.anterior.ruta, escrita: s.anterior.escrita } : null });
         } else if (ruta) {
             guardados.push({ paso, ruta, existe: null, bytes: null, filas: s.rowCount ?? null, remoto: true });
         }

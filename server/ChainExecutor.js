@@ -16,6 +16,7 @@ const excel = require('./excel');
 const procedencia = require('./procedencia');
 const { publicar } = require('./publicar');
 const { escribirLibro } = require('./xlsxEscribir');
+const entregas = require('./entregas');
 const { rellenarPlantilla } = require('./xlsxPlantilla');
 const parametros = require('./parametros');
 const destinos = require('./destinos');
@@ -1503,9 +1504,10 @@ class ChainExecutor extends EventEmitter {
                 } else if ((format === 'xlsx' || format === 'excel') && !isCloud) {
                     // 5.11 (D3): el libro lo escribe AmoxSQL, con formato y sin
                     // cargar la extensión espacial.
-                    const r = await escribirLibro(dbManager, outputPath, [{ nombre: path.basename(outputPath).replace(/\.xlsx$/i, ''), consulta: query, formatos: config.formatos || {} }], { datosAl: ctx.lecturas?.masNueva || null, proceso: chainFile || null });
+                    // 5.14 (F3): la entrega que se reemplaza se guarda antes.
+                    const { r, copia } = await entregas.conAnterior(projectPath, outputPath, () => escribirLibro(dbManager, outputPath, [{ nombre: path.basename(outputPath).replace(/\.xlsx$/i, ''), consulta: query, formatos: config.formatos || {} }], { datosAl: ctx.lecturas?.masNueva || null, proceso: chainFile || null }));
                     resultType = 'file_exported';
-                    resultSummary = { path: outputPath, format: 'xlsx', size: `${(r.bytes / 1024).toFixed(1)} KB`, rowCount: r.hojas[0].filas, destino: config.destino || null };
+                    resultSummary = { path: outputPath, format: 'xlsx', size: `${(r.bytes / 1024).toFixed(1)} KB`, rowCount: r.hojas[0].filas, destino: config.destino || null, anterior: entregas.paraResumen(copia) };
                     sql = `-- Excel: ${outputPath}`;
                     break;
                 } else if (format === 'xlsx' || format === 'excel') {
@@ -1517,11 +1519,13 @@ class ChainExecutor extends EventEmitter {
                     sql = `COPY (${query}) TO '${outputPath}' (FORMAT CSV, HEADER${partOpt})`;
                 }
 
-                await dbManager.query(sql);
+                // 5.14 (F3): un archivo local que se reemplaza (no una carpeta
+                // particionada) deja su copia antes.
+                const { copia } = await entregas.conAnterior(isCloud || partCols.length ? null : projectPath, outputPath, () => dbManager.query(sql));
                 const stat = (!isCloud && fs.existsSync(outputPath)) ? fs.statSync(outputPath) : null;
                 const sizeKb = stat ? (stat.size / 1024).toFixed(1) : '?';
                 resultType = 'file_exported';
-                resultSummary = { path: outputPath, format, size: isCloud ? 'cloud' : `${sizeKb} KB`, destino: config.destino || null };
+                resultSummary = { path: outputPath, format, size: isCloud ? 'cloud' : `${sizeKb} KB`, destino: config.destino || null, anterior: entregas.paraResumen(copia) };
                 break;
             }
 
@@ -1549,11 +1553,11 @@ class ChainExecutor extends EventEmitter {
                 let pj = {};
                 try { pj = JSON.parse(fs.readFileSync(path.join(projectPath, '.amoxsql', 'project.json'), 'utf8')); } catch { /* sin manifiesto */ }
                 const proceso = chainFile || null;
-                const r = await publicar(dbManager, {
+                const { r, copia } = await entregas.conAnterior(remoto ? null : projectPath, destino, () => publicar(dbManager, {
                     consulta: query, destino, formato,
                     esquemaRoto: config.esquemaRoto === 'avisar' ? 'avisar' : 'detener',
                     metadatos: { fuente: nombre, proceso, proyecto: path.basename(projectPath), workspace: pj.workspace?.nombre || null, ...(ctx.lecturas?.masNueva ? { datos_al: ctx.lecturas.masNueva.toISOString() } : {}) },
-                });
+                }));
                 // 6.4: quien la usa la ve por su nombre.
                 let registro = null;
                 try {
@@ -1576,6 +1580,7 @@ class ChainExecutor extends EventEmitter {
                 resultSummary = {
                     path: destino, format: formato, rowCount: r.filas, source: nombre,
                     registeredIn: registro?.en || null, warnings: r.avisos, retries: r.reintentos,
+                    anterior: entregas.paraResumen(copia),
                 };
                 break;
             }
@@ -1601,7 +1606,7 @@ class ChainExecutor extends EventEmitter {
                         return { ...d, consulta };
                     });
                     if (!destinos.length) throw new Error('Excel node: say where each input goes in the template');
-                    const r = await rellenarPlantilla(dbManager, this.resolvePath(projectPath, config.plantilla), destino, destinos, { datosAl: ctx.lecturas?.masNueva || null });
+                    const { r, copia } = await entregas.conAnterior(projectPath, destino, () => rellenarPlantilla(dbManager, this.resolvePath(projectPath, config.plantilla), destino, destinos, { datosAl: ctx.lecturas?.masNueva || null }));
                     sql = `-- Excel template ${config.plantilla} → ${destino}`;
                     resultType = 'file_exported';
                     resultSummary = {
@@ -1610,6 +1615,7 @@ class ChainExecutor extends EventEmitter {
                         sheets: r.regiones.map(x => ({ name: x.tabla ? `${x.hoja} · ${x.tabla}` : x.hoja, rows: x.filas, range: x.rango })),
                         warnings: r.avisos,
                         ...(r.datosAlEn ? { datosAlEn: r.datosAlEn } : {}),
+                        anterior: entregas.paraResumen(copia),
                     };
                     break;
                 }
@@ -1625,7 +1631,7 @@ class ChainExecutor extends EventEmitter {
                 if (/\.xlsm$/i.test(destino)) throw new Error('Excel node: a new workbook is saved as .xlsx (.xlsm is only for a template that has macros)');
                 // 5.13 (Dec-44): la fecha de los datos, en las propiedades del libro y,
                 // si el nodo lo pide, en una línea bajo cada tabla.
-                const r = await escribirLibro(dbManager, destino, hojas, { datosAl: ctx.lecturas?.masNueva || null, proceso: chainFile || null, lineaDeFecha: !!config.lineaDeFecha });
+                const { r, copia } = await entregas.conAnterior(projectPath, destino, () => escribirLibro(dbManager, destino, hojas, { datosAl: ctx.lecturas?.masNueva || null, proceso: chainFile || null, lineaDeFecha: !!config.lineaDeFecha }));
                 sql = `-- Excel workbook → ${destino}`;
                 resultType = 'file_exported';
                 resultSummary = {
@@ -1633,6 +1639,7 @@ class ChainExecutor extends EventEmitter {
                     rowCount: r.hojas.reduce((s, x) => s + x.filas, 0),
                     sheets: r.hojas.map(x => ({ name: x.nombre, rows: x.filas, columns: x.columnas })),
                     warnings: r.hojas.filter(x => x.recortadas).map(x => `${x.nombre}: ${x.recortadas} cell(s) longer than Excel allows were cut`),
+                    anterior: entregas.paraResumen(copia),
                 };
                 break;
             }

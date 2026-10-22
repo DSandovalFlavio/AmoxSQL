@@ -16,6 +16,7 @@ const manifiesto       = require('./manifiesto');
 const contextoDeEjecucion = require('./ejecucion/ContextoDeEjecucion');
 const workspaces       = require('./workspaces');
 const hermanos         = require('./hermanos');
+const entregas         = require('./entregas');
 const fuentes          = require('./fuentes');
 const medidas          = require('./medidas');
 const dbtConvivir      = require('./dbtConvivir');
@@ -6649,6 +6650,42 @@ app.post('/api/snippets/workspace', conCentral(async (req) => {
     await workspaces.escribirArchivo(ws.id, 'snippets.json', JSON.stringify(limpia, null, 2));
     return { ok: true, snippets: limpia.length };
 }));
+
+// 5.14 (F3, Dec-52): la entrega anterior de un archivo y la comparación.
+app.get('/api/entregas', async (req, res) => {
+    try {
+        const d = entregas.deCopia(req.query.copia);
+        let clave = null;
+        if (d.actual) { try { clave = await entregas.claveSugerida(dbManager, d.ruta); } catch { /* sin sugerencia */ } }
+        res.json({ ...d, clave });
+    } catch (err) { res.status(400).json({ error: err.message }); }
+});
+app.post('/api/entregas/comparar', async (req, res) => {
+    try {
+        const { copia, clave } = req.body || {};
+        const d = entregas.deCopia(copia);
+        if (!d.actual) throw new Error(`${path.basename(d.ruta)} is no longer there.`);
+        res.json(await entregas.comparar(dbManager, { actual: d.ruta, anterior: path.resolve(copia), clave: Array.isArray(clave) ? clave : (clave ? [clave] : []) }));
+    } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// 5.14 (J9, Dec-53): qué cambió en un proceso, en pasos y no en JSON. `antes`:
+// HEAD (el último commit) o index (lo preparado); `despues`: index o el disco.
+app.get('/api/procesos/cambios', async (req, res) => {
+    try {
+        const rel = String(req.query.ruta || '');
+        const abs = path.resolve(ROOT_DIR, rel);
+        if (!/\.sqlchain$/i.test(rel) || path.relative(ROOT_DIR, abs).startsWith('..')) throw new Error('Only a process of this project can be compared.');
+        const relGit = path.relative(ROOT_DIR, abs);
+        const antes = await gitManager.getFileAt(ROOT_DIR, relGit, req.query.antes === 'index' ? 'index' : 'HEAD');
+        const despues = req.query.despues === 'index'
+            ? await gitManager.getFileAt(ROOT_DIR, relGit, 'index')
+            : (fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : null);
+        const diffDeProcesos = require('./diffDeProcesos');
+        const d = diffDeProcesos.diferencias(antes, despues);
+        res.json({ ...d, lineas: diffDeProcesos.describir(d), nuevo: antes == null, borrado: despues == null });
+    } catch (err) { res.status(400).json({ error: err.message }); }
+});
 
 // 5.14 (J1, Dec-51): mirar otro proyecto del workspace, su base en sólo lectura.
 app.get('/api/proyecto/hermanos', conCentral(async () => {
