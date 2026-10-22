@@ -55,6 +55,7 @@ function lineaDeEvento(e) {
  */
 async function atender(orden, { dbManager, config }) {
     if (orden.orden === 'tick') return atenderTick(orden, { dbManager });
+    if (orden.orden === 'dbt') return atenderDbt(orden, { dbManager });
     const { id } = orden;
     const inicio = Date.now();
     const registro = rutaDelRegistro(id);
@@ -232,6 +233,35 @@ async function atenderTick(orden, { dbManager }) {
     try {
         fs.appendFileSync(rutaDelRegistro(orden.id), `${hora()}  tick: ${resultado.corridas.length} ran, ${resultado.saltadas.length} skipped${resultado.pausado ? `, paused until ${resultado.pausado}` : ''}\n`);
     } catch { /* sin registro */ }
+    try { escribirJson(rutaDelResultado(orden.id), resultado); } catch (e) { console.error('[CLI] No se pudo escribir el resultado:', e.message); }
+    return resultado;
+}
+
+/**
+ * `AmoxSQL.exe dbt <acción> … --project <carpeta>` (5.12, I10): dbt con el entorno del
+ * proyecto, sus fuentes y su historial, como desde DBT Studio. Sale con 0 si dbt
+ * terminó bien (también con tests en warn, como dbt), 1 si no.
+ */
+async function atenderDbt(orden, { dbManager }) {
+    const { ejecutarDbt } = require('../dbt/ejecutar');
+    const baseCentral = require('../central/BaseCentral');
+    const registro = rutaDelRegistro(orden.id);
+    const anotar = (t) => { try { fs.appendFileSync(registro, t + '\n'); } catch { /* sin registro */ } };
+    const inicio = Date.now();
+    anotar(`${hora()}  ${orden.proceso} (project ${orden.proyecto})`);
+    let r;
+    try {
+        const env = await require('../dbt/fuentes').variables(orden.proyecto).catch(() => ({}));
+        r = await ejecutarDbt({ base: baseCentral, dbManager, raiz: orden.proyecto, args: require('../dbt/correr').analizarComando(orden.proceso).args, env, origen: 'linea_de_comandos', alLinea: ({ texto }) => anotar(texto) });
+    } catch (e) { r = { codigo: 1, resumen: { estado: 'fallo', linea: e.message, fallidos: [] } }; }
+    const ok = r.resumen?.estado === 'ok' || r.resumen?.estado === 'aviso';
+    const resultado = {
+        id: orden.id, orden: 'dbt', codigo: ok ? CODIGO.ok : CODIGO.fallo, estado: ok ? 'ok' : 'fallo',
+        proceso: orden.proceso, proyecto: orden.proyecto, runId: r.runId || null, resumen: r.resumen,
+        mensaje: ok ? null : (r.resumen?.linea || null), inicio: new Date(inicio).toISOString(), fin: new Date().toISOString(),
+        duracionMs: Date.now() - inicio, registro, entregada: !!orden.entregada,
+    };
+    anotar(`${hora()}  ${r.resumen?.linea || ''}`);
     try { escribirJson(rutaDelResultado(orden.id), resultado); } catch (e) { console.error('[CLI] No se pudo escribir el resultado:', e.message); }
     return resultado;
 }

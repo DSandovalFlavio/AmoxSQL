@@ -6573,14 +6573,15 @@ const programador = require('./programacion/programador');
 const reglasDeProgramacion = require('./programacion/reglas');
 const calendarioDeTrabajo = require('./programacion/calendario');
 
-const rutaDeProceso = (proceso, proyecto) => (path.isAbsolute(String(proceso)) ? String(proceso) : path.resolve(proyecto, String(proceso)));
+// 5.12 (I10): un comando de dbt («dbt build …») no es una ruta.
+const rutaDeProceso = (proceso, proyecto) => (/^dbt\s/.test(String(proceso)) ? String(proceso) : path.isAbsolute(String(proceso)) ? String(proceso) : path.resolve(proyecto, String(proceso)));
 const tras = async (r) => { programador.anunciarProxima(); return r; };
 
 app.get('/api/programaciones', conCentral(async (req) => {
     let lista = await programaciones.listar();
     if (req.query.proceso && PROYECTO_ABIERTO) {
         const abs = rutaDeProceso(req.query.proceso, ROOT_DIR);
-        lista = lista.filter(p => path.resolve(p.proceso) === path.resolve(abs));
+        lista = lista.filter(p => (/^dbt\s/.test(abs) ? /^dbt\s/.test(p.proceso) && path.resolve(p.proyecto) === path.resolve(ROOT_DIR) : path.resolve(p.proceso) === path.resolve(abs)));
     }
     return {
         programaciones: lista,
