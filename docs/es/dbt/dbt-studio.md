@@ -2,104 +2,106 @@
 
 **🌐 [English](../../en/dbt/dbt-studio.md) · Español**
 
-> El panel de AmoxSQL para trabajar con proyectos dbt sobre DuckDB: detecta tu entorno, edita la configuración, genera modelos y fuentes, construye y ejecuta comandos, y visualiza el linaje — sin salir de la app.
+> El panel de AmoxSQL para proyectos dbt sobre DuckDB: prepara el entorno de dbt, elige el *target*, crea el proyecto con ejemplos, corre comandos con su resumen, los programa y enseña el linaje con lo que pasó en cada modelo.
 
 <img src="../../../images/08_dbt_studio.png" alt="DBT Studio en AmoxSQL" width="100%" />
 
 ## Qué es
 
-**DBT Studio** es un panel integrado para gestionar un proyecto dbt que corre sobre DuckDB. En lugar de saltar a una terminal, obtienes una interfaz con seis secciones — Setup, Config, Models, Sources, Commands y Lineage — que cubren el ciclo de trabajo: preparar el entorno, configurar los perfiles, crear modelos y fuentes, ejecutar comandos y ver cómo se conectan tus modelos.
+**DBT Studio** es el panel de AmoxSQL para trabajar con un proyecto dbt que corre sobre DuckDB. Tiene seis secciones: **Setup**, **Config**, **Models**, **Sources**, **Lineage** y **Commands**. Los archivos del proyecto (`dbt_project.yml`, `profiles.yml`, los modelos `.sql` y sus YAML) viven en tu carpeta como siempre.
 
-AmoxSQL no incluye dbt: lo detecta en tu sistema (Python + dbt, opcionalmente vía Conda/Mamba) y ejecuta la línea de comandos de dbt por ti, transmitiendo la salida en vivo. El código y los archivos del proyecto (`profiles.yml`, `dbt_project.yml`, tus modelos `.sql` y los YAML de fuentes) viven en tu proyecto como siempre.
-
-Cambias de sección con las pestañas de la parte superior del panel. La sección **Lineage** también puede abrirse en su propia pestaña a pantalla completa.
+Desde la 5.12, dbt deja de ser un panel aparte. Un modelo abierto en el editor tiene su barra para compilarlo, verlo y correrlo ([Modelos en el editor](models-in-the-editor.md)). El linaje dice qué pasó en cada nodo ([Linaje](lineage.md)). Las fuentes de AmoxSQL se usan en dbt sin copiar rutas ([Fuentes de AmoxSQL en dbt](amoxsql-sources-in-dbt.md)).
 
 ## Cuándo usarlo
 
-- Cuando tu análisis usa **dbt para transformar** datos en DuckDB y quieres gestionarlo desde AmoxSQL.
-- Para **arrancar un proyecto dbt** rápido: detectar el entorno, inicializar el proyecto y configurar el perfil de DuckDB.
-- Para **generar el andamiaje** de modelos (staging, intermediate, mart, incremental) y de fuentes sin escribir el YAML a mano.
-- Para **ejecutar comandos de dbt** (`run`, `build`, `test`…) con un constructor visual y ver el resultado con su código de salida.
-- Para **entender las dependencias** entre modelos con el grafo de linaje.
+- Cuando transformas datos en DuckDB **con dbt** y quieres hacerlo sin salir de AmoxSQL.
+- Para **empezar un proyecto dbt** que funcione a la primera: el entorno, el proyecto con un ejemplo por capa y su base.
+- Para **correr y programar** `dbt build` y ver, en una línea, cómo fue.
 
-Si solo quieres ejecutar SQL directo sobre DuckDB, usa el [Editor SQL](../editor/sql-editor.md); DBT Studio es para proyectos que usan dbt.
+Si sólo quieres consultar DuckDB, usa el [Editor SQL](../editor/sql-editor.md).
 
 ## Cómo usarlo
 
-### 1. Setup (preparar el entorno)
-1. En la tarjeta **Environment**, pulsa refrescar para detectar **Python**, **dbt**, **Conda** y **Mamba**; cada uno muestra un punto verde/rojo y su versión.
-2. Si usas Conda, elige un **entorno** en el selector; DBT Studio marca los que tienen dbt instalado y comprueba su versión exacta.
-3. En la tarjeta **Project**, refresca para detectar un proyecto dbt existente. Si no hay ninguno, escribe un nombre y pulsa **Initialize Project** para crear uno.
+### 1. El entorno de dbt (Setup)
 
-### 2. Config (configurar el proyecto)
-1. Edita `profiles.yml` con campos de formulario: nombre del perfil, target, hilos, ruta del archivo DuckDB y esquema. Pulsa **Save Profile** para escribirlo.
-2. La tarjeta de `dbt_project.yml` muestra un resumen (nombre, versión, perfil, rutas de modelos).
+dbt es un programa de Python. En **Environment** eliges con cuál corre este proyecto:
 
-### 3. Models (generar modelos)
-1. Elige una **plantilla**: staging, intermediate, mart, incremental o basic. La ruta y la materialización por defecto se ajustan solas a la plantilla.
-2. Escribe el nombre del modelo y, si quieres, ajusta ruta, materialización, esquema y descripción.
-3. Pulsa **Create Model**; el archivo se crea y se abre en el editor.
+- **El de AmoxSQL.** **Set up dbt…** lo crea por ti: busca un Python 3.10 a 3.13 en la computadora, crea un entorno propio dentro de la carpeta de AmoxSQL e instala dbt con **la misma versión del motor que usa AmoxSQL** (DuckDB 1.5.6). Tarda un minuto o dos y enseña el progreso. Es la opción recomendada: dbt y AmoxSQL leen y escriben la misma base sin sorpresas de formato.
+- **Un entorno de Python que ya tengas** (una carpeta con dbt instalado), **un entorno de Conda**, o **dbt en el PATH del sistema**.
 
-### 4. Sources (definir fuentes)
-1. Escribe el nombre de la fuente y, opcionalmente, el esquema.
-2. Añade una o más **tablas** (nombre + descripción). Usa **Add Table** para más filas.
-3. Pulsa **Create Source**; se genera el YAML de la fuente y se muestra una vista previa que puedes copiar.
+La elección se guarda en el proyecto (`.amoxsql/project.json`), así que viaja con él. Si el paquete de DuckDB de ese entorno no es la versión del motor de AmoxSQL, el panel **Output** lo dice antes de correr.
 
-### 5. Commands (ejecutar dbt)
-1. Usa las **acciones rápidas** (Run All, Compile, Test, Debug) o el **constructor de comandos**.
-2. En el constructor, elige la acción (`run`, `build`, `compile`, `test`, `seed`, `snapshot`, `debug`, `clean`, `deps`, `parse`) y añade banderas: `--select`, `--exclude`, `--target` y, para run/build, `--full-refresh`.
-3. El comando final se muestra abajo (con `conda run -n <env>` delante si hay un entorno seleccionado). **Copia** al portapapeles o pulsa **Execute**.
-4. La salida se transmite en vivo en el panel **Output**, con una insignia de **código de salida** al terminar (verde si es 0, rojo si no).
+### 2. El proyecto
 
-**Sin bloqueos (desde la 5.10).** dbt escribe en la base `.duckdb` desde su propio proceso, y antes no podía si AmoxSQL la tenía abierta. Ahora, si el comando va a abrir la base que tienes adjunta —AmoxSQL lo lee en tu `profiles.yml`—, AmoxSQL la suelta y la vuelve a adjuntar al terminar dbt, también si falla o lo cancelas. Tus vistas de cuaderno, fuentes y extensiones siguen ahí. Mientras dbt la tiene, una consulta a la base dice por qué no corre; las que sólo leen fuentes sí corren. Los avisos de AmoxSQL salen en el panel **Output**, en otro color. Si dbt no llega a arrancar porque su entorno falla, también se dice.
+Si la carpeta no tiene un proyecto dbt, escribe un nombre y pulsa **Initialize Project**. AmoxSQL crea un proyecto que **corre a la primera**:
 
-**Usa la misma versión del motor en dbt.** AmoxSQL 5.10 usa DuckDB 1.5.6; el paquete de DuckDB del entorno de dbt debería ser también 1.5.6. Un lago DuckLake escrito por una versión puede no abrir en la otra, y DuckDB 2 crea las bases nuevas en un formato que la 1.5 no lee (las que ya existían siguen funcionando). Si las versiones no coinciden, AmoxSQL lo dice en el panel **Output** antes de que corra dbt, y abrir una base creada por DuckDB 2 dice qué pasó en vez de un número de formato.
+- una semilla de ejemplo (`seeds/example_orders.csv`);
+- un modelo por capa, encadenados con `ref()`: `stg_orders` → `int_orders_daily` → `fct_revenue_monthly`;
+- tests en los YAML, `persist_docs` (las descripciones llegan a la base y al explorador) y `store_failures` (las filas que rompen un test se pueden ver);
+- un único *target*, `prod`, marcado como producción.
 
-### 6. Lineage (linaje)
-1. Abre la sección **Lineage** (o el botón **Open in tab** para verla a pantalla completa).
-2. El grafo se construye desde el `manifest.json` del proyecto; si no existe, ejecuta `dbt compile` primero.
-3. Los nodos están **coloreados por tipo** (source, seed, model, snapshot…), con insignias de tipo y materialización. Pasa el cursor para resaltar las conexiones y ver los detalles; **haz clic** en un nodo para abrir su archivo.
-4. Usa los controles de **zoom** y arrastra para hacer paneo; **Reset View** vuelve al encuadre inicial.
+El proyecto se detecta solo al abrir el panel.
+
+### 3. El target (la barra bajo la cabecera)
+
+La barra **Target** dice en qué base escriben los comandos. Un *target* de producción sale en rojo con **PRODUCTION**.
+
+- Con un solo *target*, los comandos escriben en producción sin preguntar: es tu proyecto y no hay otro sitio.
+- **Create a dev target** añade `dev`, una copia del activo con su propia base (`tienda.duckdb` → `tienda_dev.duckdb`), para probar antes de tocar producción. Sólo si tú lo creas.
+- Si el proyecto no dice cuál es producción, la barra lo pregunta (**Which target is production?**) y propone `prod`.
+- **Con otro *target* al lado**, un comando que escribe en producción (`run`, `build`, `seed`, `snapshot`, `--full-refresh`) pide que **escribas su nombre** antes de correr.
+
+El *target* activo se guarda en el proyecto y se añade a cada comando como `--target`, salvo que el comando diga otro.
+
+### 4. Comandos (Commands)
+
+1. Usa las **acciones rápidas** (Run All, Compile, Test, Debug, Docs) o el **constructor**: la acción (`run`, `build`, `compile`, `test`, `seed`, `snapshot`, `source freshness`, `docs generate`, `debug`, `deps`, `clean`, `parse`), `--select`, `--exclude` y `--full-refresh`.
+2. Pulsa **Execute**. La salida llega en vivo a **Output**; los avisos de AmoxSQL salen en otro color.
+3. Al terminar, **una línea dice cómo fue**: «dbt build · 3 models, 3 tests (1 warning), 1 seed · 9 s», o qué modelo o test falló y por qué. **Details** abre la ficha de la ejecución, con cada modelo y test como un paso.
+4. **Stop** corta dbt y todo lo que lanzó. La base queda libre.
+
+dbt corre **sin consola de por medio y sin tope de tiempo**: el comando se analiza como argumentos, y no se aceptan `&&`, `|`, `;`, redirecciones ni `$(`. Cada ejecución queda en el historial de AmoxSQL como cualquier proceso.
+
+**Un test en *warn*:** dbt termina «bien» (código 0) aunque un test avise. AmoxSQL lo distingue: el resumen dice «Finished with 1 warning» y un aviso «sólo si falla» también salta.
+
+**Sin bloqueos.** dbt escribe en la base `.duckdb` desde su propio proceso. Si va a abrir una base que AmoxSQL tiene adjunta (la principal, o la que adjuntó una vista previa), AmoxSQL la suelta y la vuelve a adjuntar al terminar, también si falla o lo cortas. Tus vistas de cuaderno, fuentes y extensiones siguen ahí. Mientras tanto, una consulta a esa base dice por qué espera.
+
+### 5. Programar un comando
+
+El botón de calendario junto a **Execute** abre **Schedule…** con el comando: cada noche, cada hora, el primer día hábil o al llegar un archivo, igual que un proceso de Data Flow. Debajo se listan las programaciones de dbt del proyecto. Ver [Programar procesos](../data-flow/scheduling.md#programar-dbt).
+
+### 6. Plantillas (Models y Sources)
+
+- **Models**: plantillas de staging, intermediate, mart, incremental, *snapshot* (en YAML, por fecha o comparando columnas) o básica. El diálogo explica en dos líneas qué es un incremental y qué es un *snapshot*.
+- **Sources**: crear el YAML de una fuente de dbt, y **AmoxSQL sources in dbt** para usar las [fuentes con nombre](../data/sources.md) de AmoxSQL desde dbt ([ver](amoxsql-sources-in-dbt.md)).
 
 ## Referencia de secciones
 
 | Sección | Qué hace |
 |---|---|
-| **Setup** | Detecta Python/dbt/Conda/Mamba, selecciona el entorno Conda, detecta o inicializa el proyecto |
-| **Config** | Edita `profiles.yml` (perfil de DuckDB) y muestra un resumen de `dbt_project.yml` |
-| **Models** | Generador de modelos: staging, intermediate, mart, incremental, basic |
-| **Sources** | Generador de definiciones de fuentes (YAML) con una o más tablas |
-| **Commands** | Constructor de comandos dbt con banderas, ejecución transmitida e insignia de código de salida |
-| **Lineage** | Grafo (DAG) desde `manifest.json`, coloreado por tipo; clic para abrir el archivo |
-
-### Acciones de comandos disponibles
-| Acción | Uso típico |
-|---|---|
-| `run` · `build` | Construir modelos (con `--full-refresh` opcional) |
-| `compile` · `parse` | Compilar/parsear el proyecto (genera el manifiesto) |
-| `test` | Ejecutar las pruebas |
-| `seed` · `snapshot` | Cargar seeds · tomar snapshots |
-| `debug` · `deps` · `clean` | Diagnosticar · instalar dependencias · limpiar artefactos |
+| **Setup** | El entorno de dbt del proyecto (**Set up dbt…**), detectar o crear el proyecto |
+| **Config** | Edita `profiles.yml` y resume `dbt_project.yml` |
+| **Models** | Plantillas de modelos y de *snapshot* |
+| **Sources** | YAML de fuentes de dbt y fuentes de AmoxSQL en dbt |
+| **Lineage** | El grafo con el último resultado de cada nodo ([Linaje](lineage.md)) |
+| **Commands** | Acciones rápidas, constructor, salida en vivo, resumen, Stop y programar |
 
 ## Tips y gemas
 
-- **El estado se cachea localmente:** la detección del entorno y del proyecto se guarda entre sesiones, así que el panel abre al instante; refresca con los botones cuando cambie tu entorno.
-- **Conda de primera clase:** si Conda no está en el PATH, DBT Studio intenta localizarlo y te avisa dónde lo encontró; el selector marca los entornos que traen dbt.
-- **El linaje necesita el manifiesto:** el grafo se lee de `manifest.json`; si ves "No manifest found", ejecuta `dbt compile` (o `run`) desde la sección Commands primero.
-- **Del grafo al código en un clic:** clic en un nodo del linaje abre su archivo `.sql` en el editor — ideal para navegar un proyecto grande.
-- **La plantilla ajusta la materialización:** al elegir staging/intermediate se propone `view`; mart propone `table`; incremental propone `incremental`. Puedes cambiarlo antes de crear.
-- **Los comandos respetan tu entorno:** si seleccionas un entorno Conda, tanto el comando copiado como la ejecución lo anteponen con `conda run -n <env>`.
+- **Desde la línea de comandos:** `AmoxSQL.exe dbt build --select +fct_ventas --project C:\mi-proyecto` corre dbt con el entorno y el *target* del proyecto, sin ventana. Ver [Línea de comandos](../data-flow/command-line.md#dbt).
+- **La base de dbt en el explorador:** las vistas que crea dbt se leen al abrir su base en AmoxSQL; AmoxSQL la adjunta con el nombre que dbt usa (el del archivo) cuando sus vistas lo necesitan.
+- **Descripciones:** con `persist_docs`, la descripción de cada modelo y columna aparece en el [explorador de base](../data/database-explorer.md#descripciones) y el asistente la lee.
 
 ## Atajos y formatos relacionados
 
 | Formato / archivo | Detalle |
 |---|---|
-| `profiles.yml` | Perfil de conexión de dbt (aquí, el adaptador de DuckDB) |
-| `dbt_project.yml` | Configuración del proyecto dbt |
-| `manifest.json` | Artefacto compilado del que se lee el linaje |
-| Modelos `.sql`, fuentes `.yml` | Archivos generados por los generadores |
+| `profiles.yml` | Los *targets*: cada uno con su base de DuckDB |
+| `.amoxsql/project.json → dbt` | El entorno, el *target* activo y cuál es producción |
+| `target/run_results.json`, `manifest.json` | Lo que lee AmoxSQL para el resumen y el linaje |
+| `target/amox_ultimos.json` | El último estado de cada nodo, acumulado entre comandos |
 
 ## Relacionado
 
-- [Editor SQL](../editor/sql-editor.md) · [Explorador de archivos](../data/file-explorer.md)
-- [Data Flow](../data-flow/data-flow.md) · [Diagrama ER](../data/er-diagram.md)
+- [Modelos en el editor](models-in-the-editor.md) · [Linaje](lineage.md) · [Fuentes de AmoxSQL en dbt](amoxsql-sources-in-dbt.md)
+- [Lagos (DuckLake)](../data/lakes.md) · [Programar procesos](../data-flow/scheduling.md) · [Línea de comandos](../data-flow/command-line.md)

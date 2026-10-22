@@ -57,7 +57,9 @@ Hover over a DuckDB function to see a card with its **signature**, **category**,
 <!-- 📷 CAPTURE: docs/images/editor/autocomplete-hover-doc.png — hover card with a function's signature and description -->
 
 ### Snippets and dbt/Jinja helpers
-The popup also includes smart snippets (for example `LEFT JOIN`, a CTE template). dbt/Jinja helpers (`ref`, `source`, `config`, `var`, `macro`) appear only in templated files, where they're useful — they never clutter a plain `.sql`.
+The popup also includes smart snippets (for example `LEFT JOIN`, a CTE template). dbt/Jinja helpers never clutter a plain `.sql`.
+
+In a file of a dbt project (by its folder), completion **understands the project**: `ref()` and `source()` with their models and sources, macros with their signature, `config()` with its values, real columns after a `ref()`, warnings for what doesn't exist, help on hover and `schema.yml`. See [dbt models in the editor](../dbt/models-in-the-editor.md#dbt-completion).
 
 ## Behavior reference
 

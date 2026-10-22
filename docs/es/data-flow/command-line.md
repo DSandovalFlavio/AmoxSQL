@@ -88,6 +88,21 @@ Para llamarlo desde otra herramienta, usa el Programador de tareas de Windows a 
 
 La tarea corre con tu usuario, así que usa tus credenciales del llavero.
 
+### dbt
+
+`AmoxSQL.exe dbt <comando de dbt> --project <carpeta>` corre dbt sin ventana, con el entorno de dbt, el *target* y las [fuentes de AmoxSQL](../dbt/amoxsql-sources-in-dbt.md) del proyecto:
+
+```bat
+amoxsql dbt build --select +fct_revenue_monthly --project "C:\Proyectos\tienda"
+```
+
+```
+AmoxSQL: dbt build · 3 models, 3 tests, 1 seed · 13 s
+  Log: C:\Users\tu-usuario\.amoxsql\registros\20261022-020100-7c1e9a04.log
+```
+
+Sale con **0** si dbt terminó bien (también con un test en *warn*, como dbt) y con **1** si no; entonces la salida lista cada modelo o test que falló y por qué. Queda en el historial como una ejecución de línea de comandos. Los códigos 2 y 5 significan lo mismo que con `run`.
+
 ## Referencia: dónde queda cada cosa
 
 | Qué | Dónde |

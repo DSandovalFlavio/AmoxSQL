@@ -50,6 +50,12 @@ The **View Details** modal has five tabs: **Schema** (fields, type, null, key, d
 ### Quality check
 The **Quality Check** runs automated checks: `SUMMARIZE`, duplicate rows, null %, cardinality (unique count), and likely-ID vs. categorical detection. It returns an overall score and a per-column checks table (completeness and uniqueness).
 
+### Descriptions
+If a table, view or column has a description, the explorer shows it: the table's under its name, each column's next to it (and in full on hover). It comes from the comment the database keeps (`COMMENT ON`, or dbt's `persist_docs`). In the database of a dbt project without `persist_docs`, it comes from the project's YAML; the database's comment wins. **The assistant reads them** with the schema and in `describe_table`.
+
+### Lakes
+The lake button in the header (**New lake…**) creates a DuckLake lake. With a lake open, the tree has **Lake versions** and each table's menu, **As it was…**. See [Lakes (DuckLake)](lakes.md).
+
 ## Reference
 
 ### Table context menu
@@ -61,6 +67,7 @@ The **Quality Check** runs automated checks: `SUMMARIZE`, duplicate rows, null %
 | View Details | Opens the modal with Schema · Profile · Details · Preview · DDL |
 | Quality Check | Runs the data quality report |
 | Drop Table… | Deletes the table (with confirmation) |
+| As it was… | Only in a lake: the table in a version or on a date |
 
 ### Column type icons
 | Icon | Type |
@@ -79,5 +86,5 @@ The **Quality Check** runs automated checks: `SUMMARIZE`, duplicate rows, null %
 
 ## Related
 
-- [ER diagram](er-diagram.md) · [File explorer](file-explorer.md) · [Importing data](importing-data.md)
+- [ER diagram](er-diagram.md) · [File explorer](file-explorer.md) · [Importing data](importing-data.md) · [Lakes (DuckLake)](lakes.md)
 - [Data Profiler](../results/data-profiler.md) · [SQL editor](../editor/sql-editor.md)

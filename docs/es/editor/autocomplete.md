@@ -57,7 +57,9 @@ Pasa el mouse sobre una función de DuckDB para ver una tarjeta con su **firma**
 <!-- 📷 CAPTURE: docs/images/editor/autocomplete-hover-doc.png — tarjeta de hover con firma y descripción de una función -->
 
 ### Snippets y ayudas dbt/Jinja
-El popup también incluye snippets inteligentes (por ejemplo `LEFT JOIN`, plantilla de CTE). Las ayudas de dbt/Jinja (`ref`, `source`, `config`, `var`, `macro`) solo aparecen en archivos con plantillas, donde son útiles — nunca ensucian un `.sql` plano.
+El popup también incluye snippets inteligentes (por ejemplo `LEFT JOIN`, plantilla de CTE). Las ayudas de dbt/Jinja nunca ensucian un `.sql` plano.
+
+En un archivo de un proyecto dbt (por su carpeta), el completado **entiende el proyecto**: `ref()` y `source()` con sus modelos y fuentes, las macros con su firma, `config()` con sus valores, las columnas reales tras un `ref()`, avisos de lo que no existe, ayuda al pasar el ratón y `schema.yml`. Ver [Modelos de dbt en el editor](../dbt/models-in-the-editor.md#el-completado-de-dbt).
 
 ## Referencia de comportamiento
 

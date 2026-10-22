@@ -5,6 +5,83 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.12.0] — 2026-10-22 (sin publicar)
+
+**dbt y DuckLake.** El cuarto tramo del camino a la 6.0 (plan en
+`docs/dev/plan_5_12_dbt_y_ducklake.md`): dbt deja de ser un panel aparte y
+pasa a ser parte del editor, del linaje, de las fuentes y de lo programado; un
+lago DuckLake se crea, se consulta como estaba y se mantiene sabiendo qué se
+borra. Motor: DuckDB 1.5.6, sin cambios. No se publica.
+
+### El entorno y el proyecto
+
+- **Set up dbt…**: AmoxSQL crea su propio entorno de dbt (busca un Python 3.10
+  a 3.13) con la misma versión del motor que usa AmoxSQL. O se elige un
+  entorno de Python, de Conda o el dbt del PATH. La elección viaja con el
+  proyecto.
+- **Un proyecto nuevo corre a la primera**: semilla y un modelo por capa
+  encadenados con `ref()`, tests, `persist_docs`, `store_failures` y un solo
+  *target* `prod`, marcado como producción.
+- **El target**: la barra lo dice (PRODUCTION en rojo). **Create a dev target**
+  sólo si lo creas; con otro *target* al lado, escribir en producción pide
+  teclear su nombre.
+
+### Correr dbt
+
+- **Un solo corredor**, sin consola ni tope de tiempo; **Stop** corta dbt y lo
+  que lanzó. Al terminar, **una línea** dice cómo fue («dbt build · 3 models,
+  3 tests (1 warning), 1 seed · 9 s») con **Details**: cada ejecución de dbt
+  queda en el historial, con cada modelo y test como un paso.
+- **Un test en *warn*** se distingue de un «todo bien», también en los avisos.
+- **Programar un comando de dbt** como cualquier proceso, y
+  `AmoxSQL.exe dbt build --select … --project <carpeta>` sin ventana.
+- Plantilla de **snapshot** y una explicación corta de incremental y snapshot.
+
+### En el editor
+
+- **La barra del modelo**: Compiled · Preview (el compilado en el motor de
+  AmoxSQL, sin construir; dbt sólo compila si el archivo cambió) · Run ·
+  +Upstream · +Downstream · Test.
+- **El completado de dbt**: `ref()`, `source()`, macros con su firma,
+  `config()` con sus valores, Jinja, `target.`/`this.`, columnas reales tras
+  un `ref()`, avisos de lo que no existe («Did you mean …?»), ayuda al pasar el
+  ratón y `schema.yml`. Ctrl+clic va a la definición. Nunca lanza dbt.
+
+### Linaje y descripciones
+
+- **Cada nodo con su último resultado**: estado, tiempo, filas, tests y SLOW;
+  **See rows** abre las filas que rompen un test; **Run from here** y **Build
+  up to here**.
+- **Las descripciones** de tablas, vistas y columnas (los comentarios de la
+  base, o el YAML de dbt) en el explorador y para el asistente.
+
+### El puente
+
+- **Las fuentes de AmoxSQL en dbt** como `source('amoxsql', 'x')`, sin rutas en
+  el proyecto; fuera de AmoxSQL sólo esos modelos fallan, diciendo por qué.
+- **Promote to dbt model**: una consulta o una celda de cuaderno pasa a modelo
+  con sus `ref()` y `source()`; el original no se toca.
+
+### DuckLake
+
+- **New lake…**: simple o con catálogo SQLite (compartido con dbt, que puede
+  escribir mientras AmoxSQL lo tiene abierto).
+- **Lake versions**, **As it was** (por versión o fecha) y **What changed**.
+- **Mantenimiento** que dice antes cuántas versiones expiran, cuántos archivos
+  y MB se borran y desde qué fecha se podrá consultar «como estaba».
+
+### Arreglado
+
+- **Las vistas de dbt** fallaban al abrir su base en AmoxSQL («Catalog "tienda"
+  does not exist»): dbt las guarda con el nombre del archivo como catálogo y
+  AmoxSQL la adjuntaba como `user_db`. Ahora, si sus vistas lo necesitan, se
+  adjunta con ese nombre (también al recuperarla tras correr dbt).
+- `project.json` ya no puede nombrar un ejecutable cualquiera como entorno de
+  dbt.
+- El constructor de comandos mandaba `--target dev` aunque no existiera, y
+  «Docs» quedaba como «dbt docs».
+- El proyecto dbt se detecta al abrir el panel, sin pulsar refrescar.
+
 ## [5.11.0] — 2026-10-21 (sin publicar)
 
 **Procesos que corren solos.** El tercer tramo del camino a la 6.0 (plan en

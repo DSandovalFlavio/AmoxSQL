@@ -88,6 +88,21 @@ To call it from another tool instead, use the Windows Task Scheduler by hand:
 
 The task runs as your user, so it uses your keychain credentials.
 
+### dbt
+
+`AmoxSQL.exe dbt <dbt command> --project <folder>` runs dbt with no window, with the project's dbt environment, target and [AmoxSQL sources](../dbt/amoxsql-sources-in-dbt.md):
+
+```bat
+amoxsql dbt build --select +fct_revenue_monthly --project "C:\Projects\store"
+```
+
+```
+AmoxSQL: dbt build · 3 models, 3 tests, 1 seed · 13 s
+  Log: C:\Users\your-user\.amoxsql\registros\20261022-020100-7c1e9a04.log
+```
+
+It exits with **0** if dbt ended fine (also with a test in *warn*, like dbt) and with **1** if not; then the output lists each model or test that failed and why. It is kept in the history as a command-line run. Codes 2 and 5 mean the same as with `run`.
+
 ## Reference: where things end up
 
 | What | Where |

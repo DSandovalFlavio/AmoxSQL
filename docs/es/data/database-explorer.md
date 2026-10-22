@@ -50,6 +50,12 @@ El modal de **Ver detalles** tiene cinco pestañas: **Schema** (campos, tipo, nu
 ### Chequeo de calidad
 El **Chequeo de calidad** corre comprobaciones automáticas: `SUMMARIZE`, filas duplicadas, % de nulos, cardinalidad (únicos) y detección de posibles IDs vs. categóricos. Devuelve una puntuación global y una tabla de checks por columna (completitud y unicidad).
 
+### Descripciones
+Si una tabla, una vista o una columna tiene descripción, el explorador la enseña: la de la tabla bajo su nombre, la de cada columna a su lado (y entera al pasar el ratón). Sale del comentario que guarda la base (`COMMENT ON`, o el `persist_docs` de dbt). En la base de un proyecto dbt sin `persist_docs`, sale del YAML del proyecto; el comentario de la base gana. **El asistente las lee** con el esquema y en `describe_table`.
+
+### Lagos
+El botón de lago de la cabecera (**New lake…**) crea un lago DuckLake. Con un lago abierto, el árbol tiene **Lake versions** y el menú de cada tabla, **As it was…**. Ver [Lagos (DuckLake)](lakes.md).
+
 ## Referencia de opciones
 
 ### Menú contextual de tabla
@@ -61,6 +67,7 @@ El **Chequeo de calidad** corre comprobaciones automáticas: `SUMMARIZE`, filas 
 | Ver detalles | Abre el modal con Schema · Profile · Details · Preview · DDL |
 | Chequeo de calidad | Ejecuta el informe de calidad de datos |
 | Drop Table… | Elimina la tabla (con confirmación) |
+| As it was… | Sólo en un lago: la tabla en una versión o una fecha |
 
 ### Iconos por tipo de columna
 | Icono | Tipo |
@@ -79,5 +86,5 @@ El **Chequeo de calidad** corre comprobaciones automáticas: `SUMMARIZE`, filas 
 
 ## Relacionado
 
-- [Diagrama ER](er-diagram.md) · [Explorador de archivos](file-explorer.md) · [Importar datos](importing-data.md)
+- [Diagrama ER](er-diagram.md) · [Explorador de archivos](file-explorer.md) · [Importar datos](importing-data.md) · [Lagos (DuckLake)](lakes.md)
 - [Data Profiler](../results/data-profiler.md) · [Editor SQL](../editor/sql-editor.md)

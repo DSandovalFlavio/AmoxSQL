@@ -344,6 +344,7 @@ class DatabaseManager {
         console.log(`[DB Manager] Request to attach: ${dbPath}`);
         // Una sesion nueva olvida lo que estuviera prestado (dbt): no se recupera.
         this.prestada = null;
+        this.alias = 'user_db';
 
         // 0. Resolve Path
         let fullPath = ':memory:';
@@ -401,6 +402,7 @@ class DatabaseManager {
 
             // Execute SQL ATTACH — instance-wide, visible to every lane
             await this.query(attachSql);
+            if (!isDuckLake) await this._ajustarAlias(fullPath, options);
 
             this.attachedPath = fullPath;
             this._readOnly = !!options.readOnly;
@@ -452,6 +454,35 @@ class DatabaseManager {
         }
         const attachMode = options.readOnly ? '(READ_ONLY)' : '';
         return `ATTACH '${fullPath}' AS ${this.alias} ${attachMode}`.trim();
+    }
+
+    /**
+     * 5.12: el motor nombra el catálogo de un archivo por su nombre (`tienda.duckdb`
+     * → `tienda`), y así guardan sus vistas quienes lo abren directo (dbt, el propio
+     * motor): `… FROM "tienda"."main"."stg_orders"`. Adjunta como `user_db`, esas
+     * vistas no encuentran su catálogo. Si la base tiene vistas así, se adjunta con
+     * su nombre. Si no, sigue siendo `user_db`.
+     */
+    async _ajustarAlias(fullPath, options = {}) {
+        const nombre = path.basename(fullPath).replace(/\.[^.]+$/, '');
+        if (!/^[A-Za-z_]\w*$/.test(nombre) || this.alias === nombre) return;
+        if (['memory', 'system', 'temp', 'main', 'fuentes', 'user_db'].includes(nombre.toLowerCase())) return;
+        const escapado = nombre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let hay = 0;
+        try {
+            const r = await this._rawQuery(`SELECT count(*)::INTEGER AS n FROM duckdb_views() WHERE database_name = '${this.alias}' AND NOT internal
+                AND regexp_matches(sql, '(^|[^\\w"])("${escapado}"|${escapado})\\.', 'i')`);
+            hay = Number(r?.[0]?.n || 0);
+        } catch { return; }
+        if (!hay) return;
+        const yaHay = await this._rawQuery(`SELECT 1 FROM duckdb_databases() WHERE lower(database_name) = lower('${nombre}')`).catch(() => [{}]);
+        if (yaHay?.length) return;
+        const reservada = await this._rawQuery(`SELECT 1 FROM duckdb_keywords() WHERE keyword_category = 'reserved' AND lower(keyword_name) = lower('${nombre}')`).catch(() => [{}]);
+        if (reservada?.length) return;
+        await this._rawQuery(`DETACH ${this.alias}`);
+        this.alias = nombre;
+        await this._rawQuery(this._buildAttachSql(fullPath, false, options));
+        console.log(`[DB Manager] ${hay} view(s) name the catalog «${nombre}»: attached as ${this.alias}.`);
     }
 
     async _initHistory() {
@@ -766,6 +797,8 @@ class DatabaseManager {
         try {
             await this._ensureLane('main');
             await this.connections.main.run(this._buildAttachSql(p.ruta, p.isDuckLake, { readOnly: p.readOnly }));
+            // dbt pudo dejar vistas nuevas que nombran el catálogo por el archivo.
+            if (!p.isDuckLake) await this._ajustarAlias(p.ruta, { readOnly: p.readOnly });
             this.attachedPath = p.ruta;
             this.isDuckLake = p.isDuckLake;
             for (const lane of LANES) {
