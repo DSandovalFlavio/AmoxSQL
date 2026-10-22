@@ -31,6 +31,7 @@ import AvisoDeLlegadas from './components/fuentes/AvisoDeLlegadas';
 import AvisoProgramador from './components/AvisoProgramador';
 import FichaEjecucion from './components/FichaEjecucion';
 import VistaOperacion from './components/operacion/VistaOperacion';
+import ExportarProyecto from './components/paquete/ExportarProyecto';
 import AiAssistantPanel from './components/ai/AiAssistantPanel';
 import AiDivingPanel from './components/ai/AiDivingPanel';
 import ConversationList from './components/ai/ConversationList';
@@ -651,6 +652,13 @@ function App() {
   const [fichaEjecucion, setFichaEjecucion] = useState(null);
   // El panel de operación (5.11, D7): una vista aparte, encima de lo que haya.
   const [verOperacion, setVerOperacion] = useState(false);
+  // 5.14 (G2 + G3): exportar el proyecto a un .amoxproject (o como plantilla).
+  const [exportando, setExportando] = useState(null);   // { plantilla }
+  useEffect(() => {
+    const abrir = (e) => setExportando({ plantilla: !!e.detail?.plantilla });
+    window.addEventListener('amox_exportar_proyecto', abrir);
+    return () => window.removeEventListener('amox_exportar_proyecto', abrir);
+  }, []);
   useEffect(() => {
     const abrir = () => setVerOperacion(true);
     window.addEventListener('amox_abrir_operacion', abrir);
@@ -1486,6 +1494,9 @@ function App() {
       {verOperacion && <VistaOperacion onClose={() => setVerOperacion(false)} />}
       {fichaEjecucion && (
         <FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} onAbrirProceso={(ruta) => handleFileOpen(ruta)} />
+      )}
+      {exportando && (
+        <ExportarProyecto plantilla={exportando.plantilla} proyecto={(projectPath || 'project').split(/[\\/]/).filter(Boolean).pop()} onClose={() => setExportando(null)} />
       )}
 
       {/* Workspace Scaffolding Wizard — shown on first open of new projects */}

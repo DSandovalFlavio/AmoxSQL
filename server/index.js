@@ -6586,6 +6586,33 @@ app.delete('/api/fuentes/:nombre', conCentral(async (req) => {
     return { ok: true };
 }));
 
+// 5.14 (G2 + G3, Dec-47 y Dec-48): el paquete de un proyecto (.amoxproject).
+const paquete = require('./paquete');
+const conPaquete = (fn) => async (req, res) => {
+    try { res.json(await fn(req)); } catch (err) { res.status(err instanceof paquete.ErrorDePaquete ? 400 : 500).json({ error: err.message }); }
+};
+app.get('/api/proyecto/paquete', conPaquete(async () => {
+    if (!PROYECTO_ABIERTO) throw new paquete.ErrorDePaquete('Open a project first.');
+    return paquete.contenido(ROOT_DIR);
+}));
+app.post('/api/proyecto/exportar', conPaquete(async (req) => {
+    if (!PROYECTO_ABIERTO) throw new paquete.ErrorDePaquete('Open a project first.');
+    const { destino, incluir = null, plantilla = false } = req.body || {};
+    if (!destino || !path.isAbsolute(destino)) throw new paquete.ErrorDePaquete('Choose where to save the package.');
+    const ruta = /\.amoxproject$/i.test(destino) ? destino : `${destino}.amoxproject`;
+    return paquete.exportar(ROOT_DIR, ruta, { incluir, plantilla });
+}));
+app.post('/api/paquete/leer', conPaquete(async (req) => paquete.leer(String(req.body?.ruta || ''))));
+app.post('/api/proyecto/desde-paquete', conPaquete(async (req) => {
+    const { paquete: ruta, carpeta } = req.body || {};
+    if (!ruta || !carpeta || !path.isAbsolute(String(carpeta))) throw new paquete.ErrorDePaquete('Choose the package and a new folder for the project.');
+    const r = paquete.extraer(String(ruta), String(carpeta));
+    // Lo que le falta en esta máquina (A2): credenciales, extensiones y fuentes.
+    let comprobado = null;
+    try { comprobado = await manifiesto.comprobar(r.raiz, dbManager, aiManager.getConfig()); } catch { /* se verá al abrirlo */ }
+    return { ...r, faltan: comprobado?.faltan || null, completo: comprobado ? comprobado.completo : null };
+}));
+
 // 5.14 (F5, Dec-46): «Donde lo dejaste», al abrir un proyecto.
 let aperturaAnterior = { ruta: null, cuando: null, lista: false };
 app.get('/api/proyecto/retomar', conCentral(async () => {

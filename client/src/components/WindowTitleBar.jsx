@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   LuDatabase, LuBrain, LuChevronDown, LuX, LuFolder, LuClock,
-  LuSearch, LuSettings, LuKeyboard, LuRefreshCw, LuLayers, LuCalendarClock,
+  LuSearch, LuSettings, LuKeyboard, LuRefreshCw, LuLayers, LuCalendarClock, LuPackage, LuLayoutTemplate,
 } from 'react-icons/lu';
 import { useEnlace, pedirEnlazar } from './workspaces/WorkspacesHost';
 import PoliticaIAChip from './workspaces/PoliticaIAChip';
@@ -201,6 +201,16 @@ const WindowTitleBar = ({
                   </>
                 )}
 
+                <div className="wtb-dropdown-divider" />
+                {/* 5.14 (G2 + G3): el proyecto en un archivo, con o sin datos. */}
+                <button className="wtb-dropdown-item" role="menuitem" onClick={() => { setOpenMenu(null); window.dispatchEvent(new CustomEvent('amox_exportar_proyecto', { detail: { plantilla: false } })); }}>
+                  <LuPackage size={12} className="wtb-dropdown-item-icon" />
+                  <span>Export project…</span>
+                </button>
+                <button className="wtb-dropdown-item" role="menuitem" onClick={() => { setOpenMenu(null); window.dispatchEvent(new CustomEvent('amox_exportar_proyecto', { detail: { plantilla: true } })); }}>
+                  <LuLayoutTemplate size={12} className="wtb-dropdown-item-icon" />
+                  <span>Save as template…</span>
+                </button>
                 <div className="wtb-dropdown-divider" />
                 <button className="wtb-dropdown-item wtb-dropdown-item--danger" role="menuitem" onClick={handleCloseWorkspace}>
                   <LuX size={12} className="wtb-dropdown-item-icon" />
