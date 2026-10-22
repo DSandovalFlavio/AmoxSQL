@@ -16,9 +16,18 @@
  * hablara el idioma nuevo sería tocar código que hoy funciona a cambio de nada.
  */
 
+/**
+ * Los borradores no salen (5.14, J6; Dec-50): siguen corriendo y dejando su
+ * vista, pero no son parte de lo que se entrega.
+ */
+export const sinBorradores = (celdas) => (celdas || []).filter((c) => !c.borrador);
+
+/** Cuántas celdas se quedan fuera por borrador, para decirlo antes de exportar. */
+export const borradores = (celdas) => (celdas || []).filter((c) => c.borrador).length;
+
 /** Las celdas en la forma que entiende el exportador. */
 export function celdasParaExportar(celdas) {
-    return (celdas || []).map((c) => ({
+    return sinBorradores(celdas).map((c) => ({
         id: c.id,
         type: c.tipo === 'texto' ? 'markdown' : 'code',
         content: String(c.contenido || ''),
@@ -35,7 +44,7 @@ export function celdasParaExportar(celdas) {
  */
 export function graficosQueNoSalen(celdas, claves, estados) {
     const fuera = [];
-    for (const c of celdas || []) {
+    for (const c of sinBorradores(celdas)) {
         if (c.tipo !== 'sql') continue;
         const e = estados?.[claves?.[c.id]];
         if (!e || e.vista !== 'chart') continue;
@@ -61,7 +70,7 @@ export function planDeTablero(celdas, claves, estados, resultados, base) {
     const trozos = [];
     let figura = 0;
 
-    for (const c of celdas || []) {
+    for (const c of sinBorradores(celdas)) {
         if (c.tipo === 'texto') {
             if (String(c.contenido || '').trim()) trozos.push({ clase: 'prosa', texto: c.contenido });
             continue;

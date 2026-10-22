@@ -25,7 +25,7 @@
  * que crecen, un cuaderno de veinte deja de poder recorrerse.
  */
 import { memo, useCallback, useRef, useState } from 'react';
-import { LuDatabase, LuLayers, LuTriangleAlert, LuHistory, LuArrowUpFromLine } from 'react-icons/lu';
+import { LuDatabase, LuLayers, LuTriangleAlert, LuHistory, LuArrowUpFromLine, LuPencilLine } from 'react-icons/lu';
 import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
 import { MODOS } from './modos.js';
@@ -268,6 +268,13 @@ const Celda = ({
                     <button type="button" className="cdn-promover" onClick={onPromover} title="Promote this cell to a dbt model">
                         <LuArrowUpFromLine size={11} /> dbt
                     </button>
+                )}
+
+                {celda.borrador && (
+                    <span className="cdn-deja cdn-deja--borrador" title="Draft: it runs and leaves its view, but stays out of Word and the deck">
+                        <LuPencilLine size={11} />
+                        draft
+                    </span>
                 )}
 
                 {/* Que algo esté viejo se dice con palabras, no sólo con el color

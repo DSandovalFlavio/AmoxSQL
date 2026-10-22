@@ -38,6 +38,14 @@
  * que no haya que escribirlo es justamente el objetivo. En la directiva, el
  * nombre es del cuaderno y el SQL se queda limpio.
  *
+ * ## Borradores (5.14, J6; Dec-50)
+ *
+ * Una celda en borrador lleva la marca en su directiva, como `materializada`:
+ * `<!-- celda: nombre borrador -->`, o `<!-- celda borrador -->` si no tiene
+ * nombre. Una de texto no tiene directiva, así que lleva una propia delante:
+ * `<!-- texto borrador -->`; y la de texto que va justo detrás de un borrador
+ * lleva `<!-- texto -->`, para que al leer no se pegue a él.
+ *
  * ## Los cuatro formatos
  *
  * Se leen los tres viejos además del nuevo: JSON v3, JSON v2 y los marcadores
@@ -45,8 +53,10 @@
  * pasa al nuevo.
  */
 
-/** La directiva que abre una celda de código. */
-const RE_DIRECTIVA = /^<!--\s*celda:\s*([^\s>]+)(\s+materializada)?\s*-->$/;
+/** La directiva que abre una celda de código: nombre (tras `:`) y marcas. */
+const RE_DIRECTIVA = /^<!--\s*celda(?::\s*([^\s>]+))?((?:\s+(?:materializada|borrador))*)\s*-->$/;
+/** La que abre una celda de texto: sólo hace falta para marcarla (o separarla). */
+const RE_TEXTO = /^<!--\s*texto(\s+borrador)?\s*-->$/;
 const CERCA = '```';
 
 let contador = 0;
@@ -102,6 +112,13 @@ function desentrecomillar(v) {
     return t;
 }
 
+/** La directiva de una celda de código, o `null` si no lleva ninguna. */
+function directiva({ nombre, materializada, borrador }) {
+    const marcas = `${materializada ? ' materializada' : ''}${borrador ? ' borrador' : ''}`;
+    if (nombre) return `<!-- celda: ${nombre}${marcas} -->`;
+    return marcas ? `<!-- celda${marcas} -->` : null;
+}
+
 function escribirMeta(meta) {
     const lineas = [];
     for (const [clave, valor] of Object.entries(meta || {})) {
@@ -129,19 +146,29 @@ function leerCuerpo(cuerpo) {
     const celdas = [];
     let texto = [];
     let pendiente = null;   // la directiva leída, esperando su bloque
+    let textoBorrador = false;
 
     const volcarTexto = () => {
         const t = texto.join('\n').trim();
         texto = [];
-        if (t) celdas.push({ id: idNuevo(), tipo: 'texto', contenido: t });
+        if (t) celdas.push({ id: idNuevo(), tipo: 'texto', contenido: t, ...(textoBorrador ? { borrador: true } : {}) });
+        textoBorrador = false;
     };
 
     for (let i = 0; i < lineas.length; i++) {
         const linea = lineas[i];
         const dir = RE_DIRECTIVA.exec(linea.trim());
-        if (dir) {
+        // `<!-- celda -->` sin nombre ni marcas no dice nada: se queda como texto.
+        if (dir && (dir[1] || dir[2])) {
             volcarTexto();
-            pendiente = { nombre: dir[1], materializada: !!dir[2] };
+            if (pendiente) texto.push(directiva(pendiente));
+            pendiente = { nombre: dir[1] || '', materializada: /materializada/.test(dir[2] || ''), borrador: /borrador/.test(dir[2] || '') };
+            continue;
+        }
+        const tx = RE_TEXTO.exec(linea.trim());
+        if (tx && !pendiente) {
+            volcarTexto();
+            textoBorrador = !!tx[1];
             continue;
         }
         const abre = /^\s*```(\w*)\s*$/.exec(linea);
@@ -158,6 +185,7 @@ function leerCuerpo(cuerpo) {
                 tipo: 'sql',
                 nombre: pendiente?.nombre || '',
                 materializada: !!pendiente?.materializada,
+                ...(pendiente?.borrador ? { borrador: true } : {}),
                 contenido: dentro.join('\n').trim(),
             });
             pendiente = null;
@@ -165,12 +193,12 @@ function leerCuerpo(cuerpo) {
         }
         // Una directiva sin su bloque detrás no se pierde: vuelve al texto.
         if (pendiente) {
-            texto.push(`<!-- celda: ${pendiente.nombre}${pendiente.materializada ? ' materializada' : ''} -->`);
+            texto.push(directiva(pendiente));
             pendiente = null;
         }
         texto.push(linea);
     }
-    if (pendiente) texto.push(`<!-- celda: ${pendiente.nombre} -->`);
+    if (pendiente) texto.push(directiva(pendiente));
     volcarTexto();
     return celdas;
 }
@@ -264,15 +292,18 @@ export function escribirCuaderno({ meta = {}, celdas = [] } = {}) {
     const cabecera = escribirMeta(meta);
     if (cabecera.length) partes.push(['---', ...cabecera, '---'].join('\n'));
 
+    let trasBorrador = false;   // la última celda escrita fue un texto en borrador
     for (const celda of celdas) {
         if (celda.tipo === 'texto') {
             const t = String(celda.contenido || '').trim();
-            if (t) partes.push(t);
+            if (!t) continue;
+            const marca = celda.borrador ? '<!-- texto borrador -->' : (trasBorrador ? '<!-- texto -->' : null);
+            partes.push(marca ? `${marca}\n${t}` : t);
+            trasBorrador = !!celda.borrador;
             continue;
         }
-        const nombre = String(celda.nombre || '').trim();
-        const marca = celda.materializada ? ' materializada' : '';
-        const dir = nombre ? `<!-- celda: ${nombre}${marca} -->` : null;
+        trasBorrador = false;
+        const dir = directiva({ ...celda, nombre: String(celda.nombre || '').trim() });
         const sql = String(celda.contenido || '').trim();
         partes.push([dir, `${CERCA}sql`, sql, CERCA].filter((x) => x !== null).join('\n'));
     }

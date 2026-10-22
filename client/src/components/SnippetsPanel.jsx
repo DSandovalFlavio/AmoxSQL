@@ -1,4 +1,5 @@
 import { API_BASE } from '../api.js';
+import { useEtiqueta } from '../etiqueta';
 import { useState, useEffect, memo } from 'react';
 import { LuSearch, LuClipboardCopy, LuPlus, LuTrash2, LuCode, LuChevronRight, LuChevronDown } from 'react-icons/lu';
 
@@ -65,6 +66,11 @@ const SnippetsPanel = ({ onInsert }) => {
     const [customSnippets, setCustomSnippets] = useState([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [newSnippet, setNewSnippet] = useState({ name: '', sql: '' });
+    // 5.14 (G1, Dec-49): la biblioteca del workspace, en todos sus proyectos.
+    const [wsSnippets, setWsSnippets] = useState([]);
+    const et = useEtiqueta();
+    const [workspace, setWorkspace] = useState(null);      // { id, nombre } o null
+    const [guardarEn, setGuardarEn] = useState('proyecto');
 
     // Load custom snippets from server
     useEffect(() => {
@@ -72,7 +78,19 @@ const SnippetsPanel = ({ onInsert }) => {
             .then(r => r.ok ? r.json() : [])
             .then(data => setCustomSnippets(data))
             .catch(() => { });
+        fetch(`${API_BASE}/api/snippets/workspace`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { setWorkspace(d?.workspace || null); setWsSnippets(d?.snippets || []); })
+            .catch(() => { });
     }, []);
+
+    const guardarWorkspace = async (lista) => {
+        try {
+            await fetch(`${API_BASE}/api/snippets/workspace`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(lista),
+            });
+        } catch { /* silent, como los del proyecto */ }
+    };
 
     const toggleCategory = (cat) => {
         setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
@@ -88,6 +106,14 @@ const SnippetsPanel = ({ onInsert }) => {
 
     const handleAddCustom = async () => {
         if (!newSnippet.name || !newSnippet.sql) return;
+        if (guardarEn === 'workspace' && workspace) {
+            const lista = [...wsSnippets, { name: newSnippet.name, sql: newSnippet.sql, description: `Shared in ${workspace.nombre || `the ${et.s}`}` }];
+            setWsSnippets(lista);
+            setNewSnippet({ name: '', sql: '' });
+            setShowAddForm(false);
+            await guardarWorkspace(lista);
+            return;
+        }
         const updated = [...customSnippets, { name: newSnippet.name, sql: newSnippet.sql, description: 'Custom snippet' }];
         setCustomSnippets(updated);
         setNewSnippet({ name: '', sql: '' });
@@ -114,9 +140,17 @@ const SnippetsPanel = ({ onInsert }) => {
         } catch (e) { /* silent */ }
     };
 
+    const borrarDelWorkspace = async (idx) => {
+        const lista = wsSnippets.filter((_, i) => i !== idx);
+        setWsSnippets(lista);
+        await guardarWorkspace(lista);
+    };
+
+    // Los del workspace y los del proyecto, delante de los de serie.
     const allCategories = [
+        ...(wsSnippets.length > 0 ? [{ category: `${workspace?.nombre || et.s} · shared`, nivel: 'workspace', snippets: wsSnippets }] : []),
+        ...(customSnippets.length > 0 ? [{ category: 'This project', nivel: 'proyecto', snippets: customSnippets }] : []),
         ...BUILT_IN_SNIPPETS,
-        ...(customSnippets.length > 0 ? [{ category: 'My Snippets', snippets: customSnippets }] : []),
     ];
 
     const q = search.toLowerCase();
@@ -174,6 +208,16 @@ const SnippetsPanel = ({ onInsert }) => {
                         onChange={e => setNewSnippet(prev => ({ ...prev, sql: e.target.value }))}
                         style={{ width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", resize: 'vertical' }}
                     />
+                    {workspace && (
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            Save in
+                            <select value={guardarEn} onChange={e => setGuardarEn(e.target.value)}
+                                style={{ flex: 1, backgroundColor: 'var(--input-bg)', color: 'var(--text-active)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '2px 6px', fontSize: '11px' }}>
+                                <option value="proyecto">This project</option>
+                                <option value="workspace">{workspace.nombre || `The ${et.s}`} (all its projects)</option>
+                            </select>
+                        </label>
+                    )}
                     <button
                         onClick={handleAddCustom}
                         style={{ padding: '4px 10px', fontSize: '11px', fontWeight: '600', backgroundColor: 'var(--accent-color-user)', color: 'var(--button-text-color)', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
@@ -224,9 +268,9 @@ const SnippetsPanel = ({ onInsert }) => {
                                             >
                                                 <LuClipboardCopy size={12} />
                                             </span>
-                                            {cat.category === 'My Snippets' && (
+                                            {(cat.nivel === 'proyecto' || cat.nivel === 'workspace') && (
                                                 <span
-                                                    onClick={e => { e.stopPropagation(); handleDeleteCustom(idx); }}
+                                                    onClick={e => { e.stopPropagation(); if (cat.nivel === 'workspace') borrarDelWorkspace(idx); else handleDeleteCustom(idx); }}
                                                     title="Delete"
                                                     style={{ opacity: 0.5, display: 'flex', alignItems: 'center', color: 'var(--color-error)' }}
                                                 >

@@ -280,6 +280,8 @@ const PERMITIDOS = [
     /^destinos\/[a-z0-9]+(?:-[a-z0-9]+)*\.json$/,
     // Y su calendario de días hábiles y festivos (D1, 5.11).
     /^calendario\.json$/,
+    // Y sus snippets, la biblioteca del workspace (G1, 5.14).
+    /^snippets\.json$/,
 ];
 const CANONICOS = ['RULES.md', 'contexto/metrics.yml', 'contexto/joins.yml', 'contexto/glossary.md'];
 
@@ -484,6 +486,7 @@ async function exportar(id) {
     }
     for (const r of archivosDeFuentes(id)) contexto[r] = (await leerArchivo(id, r)).texto;
     if (fs.existsSync(path.join(carpetaDe(id), 'calendario.json'))) contexto['calendario.json'] = (await leerArchivo(id, 'calendario.json')).texto;
+    if (fs.existsSync(path.join(carpetaDe(id), 'snippets.json'))) contexto['snippets.json'] = (await leerArchivo(id, 'snippets.json')).texto;
     const credenciales = new Map();
     const extensiones = new Set();
     for (const p of await proyectosDe(id)) {

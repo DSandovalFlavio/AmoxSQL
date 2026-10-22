@@ -21338,3 +21338,16 @@ tr:hover td {
 .pqt-faltan ul { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .pqt-faltan li { display: flex; gap: 6px; align-items: baseline; color: var(--text-secondary); }
 .pqt-faltan svg { flex: none; color: var(--color-warning); }
+
+/* ── Other projects en el explorador (5.14, J1) ─────────────────────────── */
+.otp-icono, .otp-candado { color: var(--text-secondary); flex-shrink: 0; }
+.otp-cabeza { cursor: default; }
+.otp-cabeza .db-table-name { font-family: var(--font-mono); }
+.otp-nombre { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.otp-tabla { padding-left: 18px; }
+.otp-elegir { min-width: 260px; max-width: 360px; }
+.otp-elegir-titulo { padding: 6px 12px 4px; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+.otp-elegir-nada { padding: 6px 12px 8px; font-size: 12px; color: var(--text-secondary); }
+.otp-elegir-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.otp-elegir-meta { font-size: 11px; color: var(--text-secondary); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.otp-no { opacity: 0.55; cursor: default; }

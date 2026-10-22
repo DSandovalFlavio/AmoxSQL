@@ -15,6 +15,7 @@ const secretos         = require('./secretos');
 const manifiesto       = require('./manifiesto');
 const contextoDeEjecucion = require('./ejecucion/ContextoDeEjecucion');
 const workspaces       = require('./workspaces');
+const hermanos         = require('./hermanos');
 const fuentes          = require('./fuentes');
 const medidas          = require('./medidas');
 const dbtConvivir      = require('./dbtConvivir');
@@ -106,7 +107,10 @@ function userTablesWhereClause(schemaCol = 'table_schema', nameCol = 'table_name
     // esquema `main`: sin esto se mezclarian con las tablas del proyecto. El
     // explorador las enseña aparte (/api/fuentes/columnas).
     const fuentesClause = `${catalogCol} <> 'fuentes' AND ${catalogCol} NOT LIKE 'amox\\_lago\\_%' ESCAPE '\\'`;
-    return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND ${chainArtifactClause} AND ${duckLakeMetaClause} AND ${fuentesClause} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
+    // 5.14 (J1): las bases de otros proyectos que se están mirando tienen su sección.
+    const otros = hermanos.catalogos();
+    const hermanosClause = otros.length ? ` AND ${catalogCol} NOT IN (${otros.map(c => `'${c.replace(/'/g, "''")}'`).join(',')})` : '';
+    return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND ${chainArtifactClause} AND ${duckLakeMetaClause} AND ${fuentesClause}${hermanosClause} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
 }
 
 app.use(cors());
@@ -6622,6 +6626,42 @@ app.get('/api/proyecto/retomar', conCentral(async () => {
     const desde = aperturaAnterior.ruta && path.resolve(aperturaAnterior.ruta) === path.resolve(ROOT_DIR) ? aperturaAnterior.cuando : null;
     return require('./retomar').resumen({ base: baseCentral, raiz: ROOT_DIR, desde, git: gitManager });
 }));
+
+// 5.14 (G1, Dec-49): la biblioteca del workspace del proyecto abierto, en
+// `<home>/workspaces/<id>/snippets.json` (viaja con el .amoxworkspace).
+function workspaceDelAbierto() {
+    try { return JSON.parse(fs.readFileSync(path.join(ROOT_DIR, '.amoxsql', 'project.json'), 'utf8'))?.workspace || null; } catch { return null; }
+}
+app.get('/api/snippets/workspace', conCentral(async () => {
+    const ws = PROYECTO_ABIERTO ? workspaceDelAbierto() : null;
+    if (!ws?.id) return { workspace: null, snippets: [] };
+    const { texto } = await workspaces.leerArchivo(ws.id, 'snippets.json');
+    let snippets = [];
+    try { snippets = texto ? JSON.parse(texto) : []; } catch { snippets = []; }
+    return { workspace: { id: ws.id, nombre: ws.nombre || null }, snippets: Array.isArray(snippets) ? snippets : [] };
+}));
+app.post('/api/snippets/workspace', conCentral(async (req) => {
+    const ws = PROYECTO_ABIERTO ? workspaceDelAbierto() : null;
+    if (!ws?.id) throw new Error('This project is not in a workspace: its snippets can only be saved in the project.');
+    const lista = Array.isArray(req.body) ? req.body : [];
+    const limpia = lista.filter(s => s && typeof s.name === 'string' && typeof s.sql === 'string')
+        .map(s => ({ name: s.name.slice(0, 120), sql: s.sql, ...(s.description ? { description: String(s.description).slice(0, 300) } : {}) }));
+    await workspaces.escribirArchivo(ws.id, 'snippets.json', JSON.stringify(limpia, null, 2));
+    return { ok: true, snippets: limpia.length };
+}));
+
+// 5.14 (J1, Dec-51): mirar otro proyecto del workspace, su base en sólo lectura.
+app.get('/api/proyecto/hermanos', conCentral(async () => {
+    if (!PROYECTO_ABIERTO) return { workspace: null, proyectos: [] };
+    return hermanos.listar(dbManager, { raiz: ROOT_DIR });
+}));
+app.post('/api/proyecto/hermanos/mirar', conCentral(async (req) => {
+    if (!PROYECTO_ABIERTO) throw new Error('Open a project first.');
+    return hermanos.mirar(dbManager, { raiz: ROOT_DIR, ruta: String(req.body?.ruta || '') });
+}));
+app.post('/api/proyecto/hermanos/soltar', conCentral(async (req) => hermanos.soltar(dbManager, String(req.body?.alias || ''))));
+app.get('/api/proyecto/hermanos/tablas', conCentral(async (req) => ({ tablas: await hermanos.tablas(dbManager, String(req.query.alias || '')) })));
+
 
 // 5.13 (E1 reducida, Dec-41): las medidas del workspace y del proyecto, con su
 // llamada (`venta_neta(importe, estado)`) o por qué no se pudo crear. Si los
