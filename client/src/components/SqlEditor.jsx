@@ -5,6 +5,35 @@ import { format } from 'sql-formatter';
 import { getSharedSqlWorkerBridge, initSharedSqlWorkerBridge } from '../utils/sqlWorkerBridge';
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import { splitSqlStatements } from '../utils/sqlSplitter';
+import * as dbtCompletado from '../utils/dbtCompletado.js';
+
+// 5.12 (I12, Dec-35): el catálogo de dbt del proyecto abierto, compartido por todos
+// los editores. Se pide al abrir un editor y se refresca si tiene más de 20 s o si
+// alguien avisa de que dbt cambió algo (`amox_dbt_cambio`).
+const dbtCat = { datos: null, cuando: 0, pidiendo: null };
+function cargarCatalogoDbt(forzar = false) {
+    if (dbtCat.pidiendo) return dbtCat.pidiendo;
+    if (!forzar && dbtCat.datos && Date.now() - dbtCat.cuando < 20000) return Promise.resolve(dbtCat.datos);
+    dbtCat.pidiendo = fetch(`${API_BASE}/api/dbt/catalogo`).then(r => (r.ok ? r.json() : null)).catch(() => null)
+        .then((d) => { dbtCat.datos = d; dbtCat.cuando = Date.now(); dbtCat.pidiendo = null; window.__amoxDbtCatalogo = d; return d; });
+    return dbtCat.pidiendo;
+}
+if (typeof window !== 'undefined' && !window.__amoxDbtCambioOido) {
+    window.__amoxDbtCambioOido = true;
+    window.addEventListener('amox_dbt_cambio', () => cargarCatalogoDbt(true));
+}
+const KIND_DBT = (monaco, k) => ({
+    modulo: monaco.languages.CompletionItemKind.Module, tabla: monaco.languages.CompletionItemKind.Class,
+    campo: monaco.languages.CompletionItemKind.Field, funcion: monaco.languages.CompletionItemKind.Function,
+    variable: monaco.languages.CompletionItemKind.Variable, palabra: monaco.languages.CompletionItemKind.Keyword,
+    valor: monaco.languages.CompletionItemKind.EnumMember, fragmento: monaco.languages.CompletionItemKind.Snippet,
+}[k] || monaco.languages.CompletionItemKind.Text);
+const aMonaco = (monaco, xs, rango) => xs.map(x => ({
+    label: x.label, kind: KIND_DBT(monaco, x.kind), insertText: x.insert,
+    ...(x.snippet ? { insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet } : {}),
+    detail: x.detail, documentation: x.doc ? { value: x.doc } : undefined, sortText: `${x.sort || '0'}_${x.label}`,
+    ...(rango ? { range: rango } : {}),
+}));
 
 // Per-editor-instance document id inside the SHARED SQL worker (one worker +
 // one WASM pair for the whole app; documents keyed by this id).
@@ -275,6 +304,23 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     const onDebugCteRef = React.useRef(props.onDebugCte);
     // 5.12 (I2): Ctrl+clic en ref('x') o source('a', 'b') abre su archivo.
     const onIrADbtRef = React.useRef(props.onIrADbt);
+    // 5.12 (I12): ¿este archivo es de dbt? Por su carpeta, aunque aún no tenga Jinja.
+    const esDbtRef = React.useRef(false);
+    useEffect(() => {
+        esDbtRef.current = false;
+        const ruta = props.rutaArchivo;
+        if (!ruta || !/\.(sql|ya?ml)$/i.test(ruta)) return;
+        let vivo = true;
+        fetch(`${API_BASE}/api/dbt/modelo?archivo=${encodeURIComponent(ruta)}`).then(r => r.json()).then(d => {
+            if (!vivo) return;
+            esDbtRef.current = !!d?.esDbt;
+            if (d?.esDbt) cargarCatalogoDbt().then(() => marcarDbtRef.current?.());
+        }).catch(() => {});
+        return () => { vivo = false; };
+    }, [props.rutaArchivo]);
+    const marcarDbtRef = React.useRef(null);
+    const idiomaRef = React.useRef(props.language);
+    idiomaRef.current = props.language;
 
     React.useEffect(() => {
         onDebugCteRef.current = props.onDebugCte;
@@ -646,9 +692,26 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             });
         }
         
+        // 5.12 (I12): avisos de ref()/source() que no existen.
+        const marcarDbt = () => {
+            const model = editor.getModel();
+            if (!model) return;
+            const texto = model.getValue();
+            const cat = dbtCat.datos;
+            const dbt = esDbtRef.current || texto.includes('{{');
+            const marcas = dbt && cat?.disponible && idiomaRef.current !== 'yaml' ? dbtCompletado.diagnosticos(texto, cat) : [];
+            monaco.editor.setModelMarkers(model, 'dbt', marcas.map(d => ({
+                startLineNumber: d.linea, endLineNumber: d.linea, startColumn: d.desde, endColumn: d.hasta,
+                message: d.mensaje, severity: monaco.MarkerSeverity.Warning, source: 'dbt',
+            })));
+        };
+        marcarDbtRef.current = marcarDbt;
+        let dbtMarcaTimer;
         let fileScanTimeout;
         const changeModelDisposable = editor.onDidChangeModelContent(() => {
             const text = editor.getValue();
+            if (dbtMarcaTimer) clearTimeout(dbtMarcaTimer);
+            dbtMarcaTimer = setTimeout(marcarDbt, 400);
             if (workerBridgeRef.current) {
                 workerBridgeRef.current.syncDocument(docIdRef.current, text);
             }
@@ -672,6 +735,27 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
             // --- FILE PATH AUTOCOMPLETE (inside single quotes) ---
             const textUntilCursor = fullText.substring(0, cursorOffset);
+
+            // --- dbt (5.12, I12): dentro de {{ }} / {% %}, tras «alias.» de un ref(), y schema.yml ---
+            const esDbt = esDbtRef.current || fullText.includes('{{') || fullText.includes('{%');
+            if (idiomaRef.current === 'yaml') {
+                if (!esDbtRef.current) return { suggestions: [] };
+                const cat = await cargarCatalogoDbt();
+                const rango = { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn };
+                return { suggestions: aMonaco(monaco, dbtCompletado.sugerenciasYaml(textUntilCursor, cat), rango) };
+            }
+            if (esDbt) {
+                const cat = await cargarCatalogoDbt();
+                if (cat?.disponible) {
+                    const ctx = dbtCompletado.contexto(textUntilCursor);
+                    const rango = { startLineNumber: position.lineNumber, endLineNumber: position.lineNumber, startColumn: word.startColumn, endColumn: word.endColumn };
+                    if (ctx.tipo !== 'sql') {
+                        return { suggestions: aMonaco(monaco, dbtCompletado.sugerencias(ctx, cat), rango) };
+                    }
+                    const trasPunto = dbtCompletado.columnasTrasPunto(textUntilCursor, fullText, cat);
+                    if (trasPunto) return { suggestions: aMonaco(monaco, trasPunto, rango) };
+                }
+            }
             
             // Only count quotes on the CURRENT LINE so multi-line text doesn't break it
             const currentLineText = linesBeforeCursor.length > 0 
@@ -829,8 +913,12 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 { name: 'env_var', insert: "{{ env_var('${1:ENV_VARIABLE}') }}", doc: 'Access an environment variable' },
                 { name: 'macro', insert: '{% macro ${1:macro_name}(${2:args}) %}\n    ${3:-- logic}\n{% endmacro %}', doc: 'Define a reusable Jinja macro' }
             ];
-            // Only surface dbt/Jinja helpers in templated files — they're noise in plain SQL.
-            const isDbtContext = fullText.includes('{{') || fullText.includes('{%');
+            // Only surface dbt/Jinja helpers in dbt files (5.12: by their folder too,
+            // so a new, empty model gets them) — they're noise in plain SQL.
+            const isDbtContext = esDbt;
+            if (isDbtContext && dbtCat.datos?.disponible) {
+                aMonaco(monaco, dbtCompletado.columnasDelModelo(fullText, dbtCat.datos)).forEach(x => suggestions.push(x));
+            }
             if (isDbtContext) dbtItems.forEach(item => {
                 suggestions.push({
                     label: `dbt: ${item.name}`, kind: monaco.languages.CompletionItemKind.Snippet,
@@ -875,6 +963,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     return resolver ? resolver(model, position, token) : { suggestions: [] };
                 }
             });
+            // 5.12 (I12): schema.yml y los demás YAML de dbt, por el mismo enrutado.
+            monaco.languages.registerCompletionItemProvider('yaml', {
+                triggerCharacters: [' ', ':', '-'],
+                provideCompletionItems: (model, position, context, token) => {
+                    const resolver = window.__amoxSqlCompletionResolvers.get(model.uri.toString());
+                    return resolver ? resolver(model, position, token) : { suggestions: [] };
+                }
+            });
 
             // --- HOVER PROVIDER: DuckDB Function Documentation ---
             // Build lookup lazily from same catalog used by autocomplete
@@ -891,6 +987,12 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
             const hoverDisposable = monaco.languages.registerHoverProvider('sql', {
                 provideHover: (model, position) => {
+                    // 5.12 (I12): un ref(), un source() o una macro de dbt.
+                    const cat = window.__amoxDbtCatalogo;
+                    if (cat?.disponible) {
+                        const a = dbtCompletado.ayuda(model.getLineContent(position.lineNumber), position.column, cat);
+                        if (a) return { range: new monaco.Range(position.lineNumber, a.desde, position.lineNumber, a.hasta), contents: [{ value: a.md }] };
+                    }
                     const word = model.getWordAtPosition(position);
                     if (!word) return null;
                     populateHover();

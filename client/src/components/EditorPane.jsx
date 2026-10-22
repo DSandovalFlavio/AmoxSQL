@@ -861,6 +861,7 @@ const EditorPane = ({
                                         onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
                                         onDebugCte={(cteName) => handleDebugCte(cteName, activeTab.content)}
                                         onIrADbt={irADbt}
+                                        rutaArchivo={activeTab.path}
                                         onRunQuery={(overrideQuery) => handleRunWithTimestamp(activeTab.id, overrideQuery || activeTab.content)}
                                         onSave={() => onSave && onSave()}
                                         onAnalyze={() => onAnalyze && onAnalyze()}

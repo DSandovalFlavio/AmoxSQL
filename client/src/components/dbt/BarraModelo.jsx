@@ -51,6 +51,7 @@ const BarraModelo = ({ archivo, onRunSql, version = 0 }) => {
             const d = await pedir('/dbt/modelo/compilar', { archivo });
             setInfo(i => ({ ...i, ...d }));
             setVerCompilado(true);
+            window.dispatchEvent(new Event('amox_dbt_cambio'));
         } catch (e) { setError(e.message); }
         setOcupado(null);
     };
@@ -94,6 +95,7 @@ const BarraModelo = ({ archivo, onRunSql, version = 0 }) => {
                 }
             }
             cargar();
+            window.dispatchEvent(new Event('amox_dbt_cambio'));
         } catch (e) {
             if (e.name !== 'AbortError') setError(e.message);
         }

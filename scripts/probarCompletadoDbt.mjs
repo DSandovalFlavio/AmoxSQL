@@ -169,6 +169,13 @@ console.log('\nel catálogo del servidor');
     comprobar('sólo las macros del proyecto y sus paquetes (sin las de dbt, del adaptador ni test_)', k.macros.map(x => `${x.package}.${x.name}`).sort().join() === 'dbt_utils.star,tienda.m' && k.macros.find(x => x.name === 'm').firma === 'm(a, b=1)', JSON.stringify(k.macros.map(x => x.name)));
     comprobar('las vars (también las del proyecto) y los targets', k.vars.map(v => v.name).join() === 'dias,region' && k.targets.join() === 'prod');
     comprobar('las fuentes', k.fuentes[0]?.name === 'crudo' && k.fuentes[0].tables[0].name === 'pedidos');
+    // Sin la base adjunta (sesión en memoria): se leen sus columnas abriéndola un momento.
+    await dbManager.connect(':memory:', P);
+    const k2 = await catalogo(P, { dbManager });
+    comprobar('sin la base adjunta, las columnas reales igual (abriéndola un momento en sólo lectura)', JSON.stringify(k2.modelos.find(x => x.name === 'stg_ventas').columns.map(x => `${x.name}:${x.type}`)) === '["id:INTEGER","tienda:VARCHAR"]', JSON.stringify(k2.modelos.find(x => x.name === 'stg_ventas').columns));
+    const w = await DuckDBInstance.create(path.join(P, 'tienda.duckdb'));
+    w.closeSync();
+    comprobar('  y no la deja abierta (otro la puede escribir)', true);
     await dbManager.close().catch(() => {});
     await baseCentral.cerrar().catch(() => {});
 }

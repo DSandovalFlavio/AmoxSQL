@@ -19,6 +19,7 @@ const resultados = require('./resultados');
 const modelo = require('./modelo');
 const dbtProyecto = require('./proyecto');
 const dbtConvivir = require('../dbtConvivir');
+const { crearInstancia } = require('../motor');
 
 const unix = (p) => String(p || '').replace(/\\/g, '/');
 const igual = (a, b) => path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
@@ -56,6 +57,25 @@ function varsDe(raiz, nombreProyecto) {
         const delProyecto = v[nombreProyecto] && typeof v[nombreProyecto] === 'object' ? Object.entries(v[nombreProyecto]).map(([k, x]) => ({ name: k, value: x })) : [];
         return [...planas, ...delProyecto];
     } catch { return []; }
+}
+
+const columnasPorArchivo = new Map();   // ruta → { mtime, filas }
+async function columnasDeArchivo(base, catalogo) {
+    let mtime;
+    try { mtime = fs.statSync(base).mtimeMs; } catch { return []; }
+    const c = columnasPorArchivo.get(base);
+    if (c && c.mtime === mtime) return c.filas;
+    let inst = null, con = null;
+    try {
+        inst = await crearInstancia(':memory:');
+        con = await inst.connect();
+        await con.run(`ATTACH '${unix(base).replace(/'/g, "''")}' AS "${String(catalogo).replace(/"/g, '""')}" (READ_ONLY)`);
+        const filas = await (await con.run(`SELECT database_name AS db, schema_name AS sch, table_name AS tab, column_name AS col, data_type AS tipo FROM duckdb_columns() WHERE database_name = '${String(catalogo).replace(/'/g, "''")}' AND NOT internal ORDER BY column_index`)).getRowObjectsJson();
+        columnasPorArchivo.set(base, { mtime, filas });
+        return filas;
+    } catch { return []; } finally {
+        try { con?.closeSync(); inst?.closeSync(); } catch { /* ya cerrada */ }
+    }
 }
 
 async function catalogo(raiz, { dbManager = null } = {}) {
@@ -111,7 +131,15 @@ async function catalogo(raiz, { dbManager = null } = {}) {
             const t = dbtProyecto.targets(raiz);
             const base = dbtConvivir.basesDelPerfil(raiz, { target: t.activo })[0] || null;
             const adjunta = !!(base && dbManager.attachedPath && igual(dbManager.attachedPath, base));
-            const filas = await dbManager.systemQuery(`SELECT database_name AS db, schema_name AS sch, table_name AS tab, column_name AS col, data_type AS tipo FROM duckdb_columns() WHERE NOT internal ORDER BY column_index`, { lane: 'meta' });
+            let filas = await dbManager.systemQuery(`SELECT database_name AS db, schema_name AS sch, table_name AS tab, column_name AS col, data_type AS tipo FROM duckdb_columns() WHERE NOT internal ORDER BY column_index`, { lane: 'meta' });
+            // La base del target no está adjunta (sesión en memoria, otra base): se
+            // leen sus columnas abriéndola un momento en sólo lectura, recordadas por
+            // la fecha del archivo. Si dbt la tiene abierta, se queda sin ellas.
+            const catalogoDeLaBase = modelos.find(x => x.database)?.database;
+            const yaVisible = (filas || []).some(f => f.db === catalogoDeLaBase);
+            if (!adjunta && !yaVisible && base && fs.existsSync(base) && catalogoDeLaBase) {
+                filas = [...(filas || []), ...(await columnasDeArchivo(base, catalogoDeLaBase))];
+            }
             const reales = new Map();
             for (const f of filas || []) {
                 const k = `${f.db}\u0000${f.sch}\u0000${f.tab}`.toLowerCase();
