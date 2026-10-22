@@ -32,6 +32,7 @@ const baseCentral = require('./central/BaseCentral');
 const scaffolder = require('./projectScaffolder');
 const { homeAmox } = require('./rutas');
 const excel = require('./excel');
+const contrato = require('./contrato');
 
 const CATALOGO = 'fuentes';
 const NOMBRE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -143,6 +144,9 @@ function normalizarDefinicion(d) {
         const e = excel.normalizarOpciones(x.excel);
         if (Object.keys(e).length) def.excel = e;
     }
+    // 5.13 (E2 + E3): lo que el archivo tiene que traer.
+    const c = contrato.normalizar(x.contrato);
+    if (c) def.contrato = c;
     if (x.csv && typeof x.csv === 'object') {
         const c = {};
         if (texto(x.csv.delimitador, 4)) c.delimitador = texto(x.csv.delimitador, 4);
@@ -451,11 +455,38 @@ const paraMotor = (u) => (REMOTA.test(u) ? u : u.split(path.sep).join('/'));
  * «arregla» eso perdiendo el texto), y un rango abierto por abajo se cierra al
  * final de la hoja con `stop_at_empty`.
  */
-function sqlDeLectura(def, ubicacion) {
-    if (def.tipo === 'carpeta') return sqlDeCarpeta(def, ubicacion);
+function sqlDeLectura(def, ubicacion, { crudo = false } = {}) {
     if (def.tipo === 'bucket') return sqlDeBucket(def, ubicacion);
     if (def.tipo === 'lago') return sqlDeLago(def, ubicacion);
-    return sqlDeArchivo(def, ubicacion);
+    // 5.13 (Dec-37): con contrato, un Excel o un CSV se lee como texto y cada
+    // columna se convierte a su familia. `crudo`: sin convertir (para comprobarlo).
+    const formato = formatoDeLectura(def, ubicacion);
+    const texto = contrato.leeComoTexto(def, formato);
+    const base = def.tipo === 'carpeta' ? sqlDeCarpeta(def, ubicacion, { texto }) : sqlDeArchivo(def, ubicacion, { texto });
+    if (!texto || crudo) return base;
+    return contrato.envolver(base, def.contrato, { serial: formato === 'xlsx' });
+}
+
+function formatoDeLectura(def, ubicacion) {
+    return def.formato || formatoDe(def.tipo === 'carpeta' ? def.patron || '' : ubicacion || '');
+}
+
+/**
+ * Lo que necesita comprobar el contrato de una fuente (5.13): la lectura sin
+ * convertir, si es como texto, y la lectura con tipos (la pista de «Take today's
+ * columns»).
+ */
+function lecturaParaContrato(def, ubicacion) {
+    const formato = formatoDeLectura(def, ubicacion);
+    const comoTexto = contrato.leeComoTexto({ ...def, contrato: def.contrato || {} }, formato);
+    const sinContrato = { ...def };
+    delete sinContrato.contrato;
+    return {
+        sqlCrudo: comoTexto ? sqlDeLectura({ ...def, contrato: def.contrato || {} }, ubicacion, { crudo: true }) : sqlDeLectura(sinContrato, ubicacion),
+        sqlTipado: sqlDeLectura(sinContrato, ubicacion),
+        comoTexto,
+        serial: formato === 'xlsx',
+    };
 }
 
 // ── Lagos y buckets (C4) ────────────────────────────────────────────────────
@@ -652,20 +683,20 @@ async function explorar(db, ubicacion, { profundidad = 4 } = {}) {
  * vista: cuando llega otro, el vigilante la rehace; una ejecución de Data Flow
  * o de la línea de comandos la rehace al empezar (3.4).
  */
-function sqlDeCarpeta(def, dir) {
+function sqlDeCarpeta(def, dir, opciones = {}) {
     const { todos, leidos } = elegidos(def, dir);
     if (!leidos.length) {
         throw new Error(todos.length
             ? `the file in ${dir} is still arriving (it changed in the last seconds)`
             : `no file in ${dir} matches ${def.patron || '*'}`);
     }
-    if (def.criterio !== 'todos') return sqlDeArchivo(def, leidos[0].ruta);
+    if (def.criterio !== 'todos') return sqlDeArchivo(def, leidos[0].ruta, opciones);
     return leidos
-        .map(a => `SELECT *, ${lit(a.nombre)} AS _archivo FROM (${sqlDeArchivo(def, a.ruta)})`)
+        .map(a => `SELECT *, ${lit(a.nombre)} AS _archivo FROM (${sqlDeArchivo(def, a.ruta, opciones)})`)
         .join('\nUNION ALL BY NAME\n');
 }
 
-function sqlDeArchivo(def, ubicacion) {
+function sqlDeArchivo(def, ubicacion, { texto = false } = {}) {
     const u = lit(paraMotor(ubicacion));
     const formato = def.formato || formatoDe(ubicacion);
     switch (formato) {
@@ -677,14 +708,15 @@ function sqlDeArchivo(def, ubicacion) {
             // Las reglas viven en server/excel.js, compartidas con la importación
             // y con Data Flow.
             return REMOTA.test(ubicacion)
-                ? `SELECT * FROM read_xlsx(${u}, ${excel.opcionesDeLectura(def.excel || {}).join(', ')})`
-                : excel.sqlDeLectura(ubicacion, def.excel || {});
+                ? `SELECT * FROM read_xlsx(${u}, ${excel.opcionesDeLectura({ ...(def.excel || {}), todoTexto: texto }).join(', ')})`
+                : excel.sqlDeLectura(ubicacion, { ...(def.excel || {}), todoTexto: texto });
         case 'csv':
         default: {
             const c = def.csv || {};
             const op = [];
             if (c.delimitador) op.push(`delim = ${lit(c.delimitador)}`);
             if (c.encabezado === false) op.push('header = false');
+            if (texto) op.push('all_varchar = true');
             return `SELECT * FROM read_csv(${u}${op.length ? ', ' + op.join(', ') : ''})`;
         }
     }
@@ -712,6 +744,63 @@ function avisoSinUbicar(nombre) {
  *
  * Devuelve qué pasó con cada fuente, para que la interfaz lo enseñe.
  */
+/** Una fuente por su nombre, con dónde se lee aquí: { def, ubicacion, item } o null. */
+async function localizar({ raiz = null, workspaceId = null } = {}, nombre) {
+    const { fuentes } = (raiz || workspaceId) ? definiciones({ raiz, workspaceId }) : { fuentes: [] };
+    const item = fuentes.find(f => f.def.nombre === nombre);
+    if (!item) return null;
+    const locales = await ubicacionesLocales().catch(() => new Map());
+    return { def: item.def, ubicacion: resolver(item, locales).ubicacion, item };
+}
+
+/** Comprueba el contrato de una fuente ya localizada (5.13, Dec-38). */
+async function comprobarContrato(db, def, ubicacion) {
+    if (!def.contrato) return { ok: true, fallos: [], filas: null, ms: 0, sinContrato: true };
+    if (!ubicacion) return { ok: false, fallos: [{ tipo: 'lectura', texto: 'it has no location on this machine' }], filas: null, ms: 0, alFallar: def.contrato.alFallar };
+    const u = await ubicacionEfectiva(db, def, ubicacion);
+    let l;
+    try { l = lecturaParaContrato(def, u); } catch (e) {
+        return { ok: false, fallos: [{ tipo: 'lectura', texto: String(e.message || e) }], filas: null, ms: 0, alFallar: def.contrato.alFallar };
+    }
+    return contrato.comprobar(db, { nombre: def.nombre, contrato: def.contrato, sqlCrudo: l.sqlCrudo, comoTexto: l.comoTexto, serial: l.serial });
+}
+
+/** «Take today's columns» (Dec-40): el contrato de lo que trae hoy la fuente. */
+async function contratoDeHoy(db, def, ubicacion) {
+    if (!ubicacion) throw new Error('The source has no location on this machine: locate it first.');
+    const u = await ubicacionEfectiva(db, def, ubicacion);
+    const l = lecturaParaContrato(def, u);
+    return contrato.deHoy(db, { ...l, familiaDeCelda: l.serial ? celdaDeExcel(db, def, u) : null });
+}
+
+/**
+ * La familia de UNA celda de un Excel, por su columna (0, 1…) y su fila de datos
+ * (1 = la primera bajo el encabezado): el motor la lee sola, con su tipo. Sirve
+ * para distinguir una fecha (que en Excel es un número de serie) de un número
+ * cuando la primera fila de la columna está vacía.
+ */
+function celdaDeExcel(db, def, ubicacion) {
+    const q = (sql) => (db.systemQuery ? db.systemQuery(sql) : db.query(sql));
+    let archivo = ubicacion;
+    if (def.tipo === 'carpeta') {
+        if (def.criterio === 'todos') return null;
+        archivo = elegidos(def, ubicacion).leidos[0]?.ruta;
+    }
+    if (!archivo || REMOTA.test(archivo)) return null;
+    const x = def.excel || {};
+    const r = excel.normalizarRango(x.rango);
+    const [, colIni = 'A', filaIni = '1'] = r ? /^([A-Z]+)(\d+)/.exec(r) || [] : [];
+    const encabezado = x.encabezado === false ? 0 : 1;
+    return async (columna, filaDeDatos) => {
+        if (!Number.isFinite(filaDeDatos) || filaDeDatos < 1) return null;
+        const letra = excel.numeroAColumna(excel.columnaANumero(colIni) + columna);
+        const fila = Number(filaIni) + encabezado + filaDeDatos - 1;
+        const hoja = x.hoja ? `sheet = ${lit(x.hoja)}, ` : '';
+        const [c] = await q(`DESCRIBE SELECT * FROM read_xlsx(${lit(paraMotor(archivo))}, ${hoja}range = ${lit(`${letra}${fila}:${letra}${fila}`)}, header = false)`);
+        return c ? contrato.familiaDe(c.column_type) : null;
+    };
+}
+
 async function montar(db, { raiz = null, workspaceId = null } = {}) {
     const q = (sql) => (db.systemQuery ? db.systemQuery(sql) : db.query(sql));
     await q(`ATTACH IF NOT EXISTS ':memory:' AS ${CATALOGO}`);
@@ -742,6 +831,14 @@ async function montar(db, { raiz = null, workspaceId = null } = {}) {
                 await q(`CREATE OR REPLACE VIEW ${vista} AS ${sqlDeLectura(def, await ubicacionEfectiva(db, def, r.ubicacion))}`);
             } catch (e) {
                 estado = 'error';
+                // Con contrato, una columna que ya no está impide crear la vista
+                // convertida: se dice qué no cumple, no el error del motor.
+                if (def.contrato) {
+                    try {
+                        const rc = await comprobarContrato(db, def, r.ubicacion);
+                        if (!rc.ok) e = new Error(`it does not match its contract: ${rc.fallos.map(f => f.texto).join('; ')}`);
+                    } catch { /* el error de siempre */ }
+                }
                 // Un Excel que no es un libro (un CSV disfrazado, un .xls) dice qué
                 // es; un bucket o un lago, qué falla (credencial, permiso, ruta…).
                 error = (def.tipo === 'bucket' || def.tipo === 'lago')
@@ -852,4 +949,5 @@ module.exports = {
     sqlDeLectura, sqlDeAviso, avisoSinUbicar, montar, listar, hayEsquemaHomonimo, usadas,
     ESTABLE_MS, esTemporal, globARegex, archivosDeCarpeta, estadoDe,
     LAGOS, preparar, explicarNube, explorar, extensionesDe, aliasDeLago, rutaDeBucket, alcanceDe, ubicacionEfectiva,
+    localizar, comprobarContrato, contratoDeHoy, lecturaParaContrato,
 };

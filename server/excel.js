@@ -126,7 +126,7 @@ const ident = (s) => `"${String(s).replace(/"/g, '""')}"`;
 const paraMotor = (r) => String(r).split(path.sep).join('/');
 
 /** Las opciones de `read_xlsx` para una lectura. */
-function opcionesDeLectura({ hoja = null, rango = null, encabezado = true, normalizar = false } = {}) {
+function opcionesDeLectura({ hoja = null, rango = null, encabezado = true, normalizar = false, todoTexto = false } = {}) {
     const op = [];
     if (hoja) op.push(`sheet = ${lit(hoja)}`);
     const r = normalizarRango(rango);
@@ -136,7 +136,9 @@ function opcionesDeLectura({ hoja = null, rango = null, encabezado = true, norma
         if (abierto) op.push('stop_at_empty = true');
     }
     op.push(`header = ${encabezado === false ? 'false' : 'true'}`);
-    op.push('empty_as_varchar = true');
+    // 5.13 (Dec-37): una fuente con contrato se lee como texto y se convierte
+    // después a la familia de cada columna.
+    op.push(todoTexto ? 'all_varchar = true' : 'empty_as_varchar = true');
     if (normalizar) op.push('normalize_names = true');
     return op;
 }

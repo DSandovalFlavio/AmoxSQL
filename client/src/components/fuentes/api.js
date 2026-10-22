@@ -27,6 +27,11 @@ export const borrarFuente = (nombre, workspaceId) =>
 export const ubicarFuente = (nombre, ubicacion, workspaceId) =>
     pedir('PUT', `/api/fuentes/${encodeURIComponent(nombre)}/ubicacion`, { ubicacion, workspaceId });
 export const probarFuente = (definicion, ubicacion) => pedir('POST', '/api/fuentes/probar', { definicion, ubicacion });
+// 5.13 (E2 + E3): el contrato. `contrato` sin guardar todavía, o undefined para el guardado.
+export const comprobarContrato = (nombre, contrato, workspaceId) =>
+    pedir('POST', `/api/fuentes/${encodeURIComponent(nombre)}/comprobar`, { contrato, workspaceId });
+export const contratoDeHoy = (nombre, workspaceId) =>
+    pedir('POST', `/api/fuentes/${encodeURIComponent(nombre)}/contrato/de-hoy`, { workspaceId }).then(d => d.contrato);
 export const hojasDeExcel = (ruta) =>
     pedir('GET', `/api/files/inspect-excel?path=${encodeURIComponent(ruta)}`).then(d => d.sheets || []);
 

@@ -35,11 +35,14 @@ function duracionLegible(m) {
 async function resumir({ base, dbManager, runId, proyecto }) {
     const { run, nodeRuns } = await historial.leer({ base, dbManager, runId });
     if (!run) return null;
-    const pasos = [...nodeRuns].sort((a, b) => String(a.started_at || '').localeCompare(String(b.started_at || '')));
+    const pasos = [...nodeRuns].sort((a, b) => String(a.started_at || a.finished_at || '').localeCompare(String(b.started_at || b.finished_at || '')));
     const leidos = [];
     const guardados = [];
     let fallo = null;
+    // 5.13 (Dec-39): el contrato de una fuente que avisa en vez de parar.
+    const avisos = [];
     for (const p of pasos) {
+        if (p.node_type === 'contrato' && p.result_type === 'contrato_aviso') avisos.push(...(json(p.result_summary).avisos || []));
         const s = json(p.result_summary);
         const paso = p.node_label || p.node_id;
         if (p.status === 'failed' && !fallo) fallo = { paso, error: p.error_message || 'failed' };
@@ -59,7 +62,8 @@ async function resumir({ base, dbManager, runId, proyecto }) {
     }
     if (!fallo && run.status === 'failed') fallo = { paso: run.failed_node_id || null, error: 'failed' };
     const duracionMs = ms(run.started_at, run.finished_at);
-    const estado = ESTADO[run.status] || run.status;
+    let estado = ESTADO[run.status] || run.status;
+    if (estado === 'ok' && avisos.length) estado = 'aviso';
     const partes = [];
     if (leidos.length) partes.push(`${leidos.length} file${leidos.length === 1 ? '' : 's'} read`);
     if (guardados.length) partes.push(`${guardados.length} saved`);
@@ -67,10 +71,12 @@ async function resumir({ base, dbManager, runId, proyecto }) {
     const nombre = run.chain_name || path.basename(run.chain_file || '').replace(/\.sqlchain$/i, '') || 'Process';
     const linea = estado === 'fallo'
         ? `${nombre} failed${fallo?.paso ? ` at "${fallo.paso}"` : ''}: ${String(fallo?.error || '').split('\n')[0].slice(0, 160)}`
-        : `${nombre} · ${[cuenta || 'finished', duracionLegible(duracionMs)].filter(Boolean).join(' · ')}`;
+        : estado === 'aviso'
+            ? `${nombre} finished with a warning: ${String(avisos[0]).slice(0, 160)}`
+            : `${nombre} · ${[cuenta || 'finished', duracionLegible(duracionMs)].filter(Boolean).join(' · ')}`;
     return {
         runId, estado, nombre, proceso: run.chain_file, inicio: run.started_at, fin: run.finished_at,
-        duracionMs, leidos, guardados, fallo, pasos: pasos.length, linea,
+        duracionMs, leidos, guardados, fallo, avisos, pasos: pasos.length, linea,
     };
 }
 

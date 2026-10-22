@@ -246,16 +246,18 @@ export function BotonOperacion() {
         let vivo = true;
         const mirar = () => pedir('GET', '/api/operacion?limite=1').then(d => {
             if (!vivo) return;
-            const mal = d.hoy.corridas.filter(x => x.estado === 'fallo').length;
+            // 5.13 (Dec-45): lo que falló y nadie ha mirado, no sólo lo de hoy.
+            const mal = typeof d.atencion === 'number' ? d.atencion : d.hoy.corridas.filter(x => x.estado === 'fallo').length;
             setC({ total: d.hoy.corridas.length + d.hoy.pendientes.length, mal, hay: d.programaciones.length > 0 });
         }).catch(() => {});
         mirar();
         const t = setInterval(mirar, 120000);
-        return () => { vivo = false; clearInterval(t); };
+        window.addEventListener('amox_atencion_cambio', mirar);
+        return () => { vivo = false; clearInterval(t); window.removeEventListener('amox_atencion_cambio', mirar); };
     }, []);
     if (!c?.hay) return null;
     return (
-        <button type="button" className={`opx-boton${c.mal ? ' opx-boton--mal' : ''}`} title={c.mal ? `${c.mal} scheduled run${c.mal === 1 ? '' : 's'} failed today` : `${c.total} scheduled today`}
+        <button type="button" className={`opx-boton${c.mal ? ' opx-boton--mal' : ''}`} title={c.mal ? `${c.mal} run${c.mal === 1 ? '' : 's'} need${c.mal === 1 ? 's' : ''} attention` : `${c.total} scheduled today`}
             onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_operacion'))}>
             {c.mal ? <LuCircleAlert size={13} /> : <LuCalendarClock size={13} />}
             <span>{c.total}</span>

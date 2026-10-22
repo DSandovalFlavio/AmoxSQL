@@ -15,6 +15,7 @@ import {
     LuLoader, LuPencil, LuRotateCcw, LuTriangleAlert, LuX,
 } from 'react-icons/lu';
 import { API_BASE } from '../api.js';
+import { marcarVistas } from './operacion/Atencion';
 
 const ORIGEN = {
     interfaz: 'Run from Data Flow',
@@ -44,7 +45,8 @@ export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
             setD(x); setError(null);
         } catch (e) { setError(e.message); }
     }, []);
-    useEffect(() => { setD(null); cargar(runId); }, [runId, cargar]);
+    // 5.13 (Dec-45): abrir la ficha la da por vista en «Needs attention».
+    useEffect(() => { setD(null); cargar(runId); marcarVistas([runId]); }, [runId, cargar]);
 
     const repetir = async () => {
         setRepitiendo(true);
