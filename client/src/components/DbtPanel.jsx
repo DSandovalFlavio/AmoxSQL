@@ -514,6 +514,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
         }
         corteRef.current = null;
         setExecRunning(false);
+        window.dispatchEvent(new Event('amox_dbt_cambio'));
     };
 
     // --- Quick Actions ---
