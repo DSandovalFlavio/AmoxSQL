@@ -102,12 +102,16 @@ cada vista previa ni necesita soltar la base. Si el modelo usa algo que sólo ex
 de dbt (una macro que escribe), se cae a `dbt show --select <modelo> --limit N`. Se
 comprueba en la fase 0.
 
-**Dec-29 · Producción se marca, no se adivina.** Un *target* es de producción si el
-`project.json` lo dice (`dbt.produccion: ['prod']`); al crear el proyecto se propone
-marcar uno que se llame `prod` o `production`, pero no se decide por el nombre en silencio.
-Con un *target* de producción activo: la barra dice **PRODUCTION** en rojo, y todo comando
-que escribe (`run`, `build`, `seed`, `snapshot`, `--full-refresh`) pide confirmación
-escribiendo el nombre del *target*. Los que leen (`compile`, `show`, `test`, `docs`) no.
+**Dec-29 · Se empieza en producción; dev, sólo si el ingeniero lo crea** (respuesta del
+autor, 2026-10-21). Un proyecto dbt que crea AmoxSQL tiene **un solo *target*, `prod`**,
+marcado como producción en el `project.json` (`dbt.produccion: ['prod']`). **Create a dev
+target** en DBT Studio añade `dev` (otra base o esquema) cuando el ingeniero lo decide. Un
+proyecto que ya existía conserva lo suyo; se ofrece marcar cuál es producción, sin
+adivinarlo en silencio. Con un *target* de producción activo, la barra dice
+**PRODUCTION** en rojo. **Confirmar escribiendo el nombre del *target*** antes de un comando
+que escribe (`run`, `build`, `seed`, `snapshot`, `--full-refresh`) sólo se pide **cuando
+existe otro *target*** al que se podría haber querido apuntar: con `prod` como único, cada
+`dbt run` pidiendo confirmación sería ruido. Los comandos que leen nunca la piden.
 
 **Dec-30 · Las descripciones llegan como comentarios del motor.** El proyecto dbt que
 crea AmoxSQL lleva `+persist_docs: { relation: true, columns: true }`: dbt escribe cada
@@ -145,6 +149,16 @@ correctos y fallidos, tests que fallan con su modelo, duración. El aviso de D2 
 la tratan como a un proceso. «Avisar si falla» incluye **un test que falla** aunque dbt
 salga con 0 por `warn`.
 
+**Dec-36 · AmoxSQL crea el entorno de dbt** (respuesta del autor, 2026-10-21). **Set up
+dbt…** crea un entorno de Python **de AmoxSQL** en `<home>/entornos/dbt-<versión del
+motor>/` con versiones fijas: `duckdb` **igual al motor de AmoxSQL** (hoy 1.5.6) y una
+versión fija de `dbt-core` y `dbt-duckdb` probada con él. Necesita un Python instalado de
+una versión que dbt admita (se buscan los que haya; uno no admitido, como 3.14, se dice
+por su nombre) y red la primera vez. Uno por máquina y por versión del motor, compartido por
+todos los proyectos; un proyecto lo elige como cualquier otro entorno (Dec-27). Nunca toca
+los entornos que el usuario ya tenga. **El motor no sube a DuckDB 2.0 en este tramo**
+(respuesta del autor): todo con el motor actual.
+
 **Dec-35 · El completado de dbt no lanza dbt.** Todo sale de lo que ya está en disco o en
 memoria: el `manifest.json` (modelos, fuentes, macros con su firma y su descripción,
 columnas documentadas), `dbt_project.yml` (las `vars`), `profiles.yml` (los *targets*), y
@@ -179,6 +193,7 @@ trabajador del editor (como hoy), sin coste en cada tecla.
 | 1.1 | `server/dbt/correr.js`: lista de argumentos, entorno del proyecto, `dbtConvivir`, sin tope, cancelación por el cierre de la respuesta |
 | 1.2 | `server/dbt/resultados.js`: lee `run_results.json` y `manifest.json` → un resumen (modelos, tests, filas, duración, qué falló) |
 | 1.3 | `project.json → dbt` (entorno, *target*); DBT Studio guarda ahí lo elegido |
+| 1.3b | **Set up dbt…** (Dec-36): buscar un Python admitido, crear el entorno de AmoxSQL con versiones fijas, con el progreso a la vista; elegirlo en el proyecto |
 | 1.4 | `/api/dbt/execute` sobre el corredor (el texto se analiza a argumentos); `ejecuciones` con `tipo: 'dbt'` |
 | 1.5 | `scripts/probarDbtCorredor.mjs` (con un dbt falso para el CI y el real en `poc512`) |
 
@@ -186,7 +201,7 @@ trabajador del editor (como hoy), sin coste en cada tecla.
 
 | # | Qué |
 |---|---|
-| 2.1 | I4: los *targets* de `profiles.yml` en un selector de la barra de DBT Studio; marcar producción; **PRODUCTION** en rojo y confirmación para escribir (Dec-29) |
+| 2.1 | I4: los *targets* de `profiles.yml` en un selector de la barra de DBT Studio; el proyecto nuevo empieza con `prod` (producción); **Create a dev target**; **PRODUCTION** en rojo y la confirmación cuando hay otro *target* (Dec-29) |
 | 2.2 | I11: crear un proyecto trae una semilla de ejemplo y un modelo por capa (`stg_` → `int_` → `fct_`/`dim_`) que corren a la primera, con `persist_docs` |
 | 2.3 | I9: plantilla de *snapshot*; el incremental y el *snapshot* con una explicación corta en el diálogo de plantillas |
 
@@ -288,28 +303,20 @@ menú, no en la bienvenida.
 
 | Riesgo | Qué lo cubre |
 |---|---|
-| El entorno de dbt del usuario trae otro motor (DuckDB 2.0 desde el 2026-10-21) | El aviso de versión de I1 (ampliado en la 5.10.0); §8.1 |
+| El entorno de dbt del usuario trae otro motor (DuckDB 2.0 desde el 2026-10-21) | Dec-36: el entorno de AmoxSQL fija el mismo motor; para los demás, el aviso de versión de I1 |
 | Arrancar dbt tarda segundos y la vista previa se haría lenta | Dec-28: la vista previa corre en el motor de AmoxSQL |
 | Un comando guardado (programación, línea de comandos) acaba en un shell | Dec-26: lista de argumentos, sin shell |
 | Expirar versiones de un lago borra datos sin vuelta atrás | Dec-33 |
 | Rutas de una máquina en un archivo que viaja en git | Dec-31: `env_var` |
 | dbt-duckdb no admite algo de lo que se supone (persist_docs en vistas, frescura sobre archivos, AT TIMESTAMP en 1.5.6) | Fase 0 antes de cada fase que lo usa; si falla, la decisión se reescribe en la bitácora |
 
-## 8. Decisiones que necesitan al autor
+## 8. Decisiones del autor (respondidas el 2026-10-21)
 
-1. **El entorno de dbt.** Tu entorno conda `dbt-duckdb` está roto (Python 3.14), y uno
-   nuevo instala hoy DuckDB 2.0, que escribe bases que la 1.5 no abre. ¿AmoxSQL debería
-   **crear un entorno de dbt** para el proyecto (una carpeta de Python con dbt-duckdb y el
-   mismo motor que AmoxSQL, descargado una vez de internet), o sólo detectar el que haya y
-   avisar como ahora?
-2. **El motor 2.0 durante este tramo.** Si sale el cliente de Node de DuckDB 2.0 mientras
-   se hace la 5.12, ¿pasamos AmoxSQL a 2.0 dentro de esta versión (dbt y AmoxSQL con el
-   mismo motor nuevo) o lo dejamos para su propio tramo?
-3. **Producción.** ¿Te vale marcarla a mano en el proyecto (Dec-29), con la propuesta de
-   marcar `prod` al crear?
-4. **El orden.** Propongo empezar por el corredor (fase 1) y lo que más se ve del día a
-   día (fases 2–4), dejar el puente y la programación (6–7) en medio y DuckLake (8) al
-   final. ¿Alguna que quieras antes?
+1. **El entorno de dbt: AmoxSQL lo crea** → Dec-36.
+2. **DuckDB 2.0: no en este tramo.** Todo con el motor actual (1.5.6).
+3. **Se empieza en producción; dev sólo si el ingeniero lo crea** → Dec-29, reescrita.
+4. **El orden de las fases, como está.**
+5. **Añadido a su petición: I12, el completado de dbt** → fase 3b, Dec-35.
 
 ## 9. Lo que queda fuera de la 5.12.0
 
@@ -326,4 +333,5 @@ menú, no en la bienvenida.
 | Fecha | Fase | Qué |
 |---|---|---|
 | 2026-10-21 | — | Plan escrito leyendo `main` tras la 5.11.0. Hallazgos que lo moldean: dbt corre como texto de shell con un tope de 5 minutos; el entorno elegido vive en `localStorage`; el incremental ya existe y el *snapshot* no; nadie lee `run_results.json` ni `catalog.json`; AmoxSQL sólo lee comentarios de tabla con marca de procedencia. Decisiones Dec-26 a Dec-34; cuatro preguntas para el autor (§8) |
+| 2026-10-21 | — | **Respuestas del autor (§8):** AmoxSQL crea el entorno de dbt (Dec-36); nada de DuckDB 2.0 en este tramo; se empieza en `prod` y dev sólo si se crea (Dec-29 reescrita: la confirmación escrita, sólo cuando hay otro *target*); el orden, como está. Empieza la implementación |
 | 2026-10-21 | 3b | **Añadido a petición del autor: I12, el completado de dbt.** Hoy sólo nombres dentro de `ref`/`source` y 8 atajos que exigen que el archivo ya tenga Jinja. Fase 3b (macros con firma, `config()` con sus valores, Jinja y `target`/`this`, columnas a través de `ref()`, avisos de `ref` inexistente, ayuda al pasar el ratón, `schema.yml`) y Dec-35 (sale del manifiesto, de los YAML y del esquema que AmoxSQL ya tiene; nunca lanza dbt); prueba 0.8 en la fase 0 |
