@@ -5211,6 +5211,16 @@ app.post('/api/dbt/targets/dev', (req, res) => {
     } catch (e) { res.status(400).json({ error: e.message }); }
 });
 app.get('/api/dbt/explicaciones', (_req, res) => res.json(dbtProyecto.EXPLICACIONES));
+// El puente: las fuentes de AmoxSQL en dbt y promover una consulta (5.12, fase 6; I7, I6).
+app.get('/api/dbt/fuentes', (_req, res) => {
+    try { res.json(require('./dbt/puente').estado(ROOT_DIR)); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/api/dbt/fuentes', (req, res) => {
+    try { res.json(require('./dbt/puente').escribir(ROOT_DIR, Array.isArray(req.body?.nombres) ? req.body.nombres.map(String) : [])); } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.post('/api/dbt/promover', (req, res) => {
+    try { res.json(require('./dbt/puente').promover(ROOT_DIR, req.body || {})); } catch (e) { res.status(400).json({ error: e.message }); }
+});
 // Resultados en el linaje (5.12, fase 4; I3).
 app.get('/api/dbt/linaje/resultados', async (_req, res) => {
     try { res.json(await require('./dbt/linaje').paraElLinaje(ROOT_DIR, { dbManager })); } catch (e) { res.status(500).json({ error: e.message }); }

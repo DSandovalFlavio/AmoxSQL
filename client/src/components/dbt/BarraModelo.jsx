@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LuCode, LuEye, LuPlay, LuChevronsRight, LuChevronsLeft, LuFlaskConical, LuLoader, LuCircleAlert, LuCheck, LuX, LuTriangleAlert, LuCopy } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
+import { PromoverAModelo } from './PuenteDbt';
 
 const API = `${API_BASE}/api`;
 
@@ -13,8 +14,10 @@ const API = `${API_BASE}/api`;
  *
  * Escribir en producción pide confirmar como en DBT Studio (Dec-29).
  */
-const BarraModelo = ({ archivo, onRunSql, version = 0 }) => {
+const BarraModelo = ({ archivo, onRunSql, version = 0, contenido = '', onOpenFile }) => {
     const [info, setInfo] = useState(null);
+    const [suelto, setSuelto] = useState(false);       // 5.12 (I6): un .sql suelto en un proyecto dbt
+    const [promoviendo, setPromoviendo] = useState(false);
     const [verCompilado, setVerCompilado] = useState(false);
     const [ocupado, setOcupado] = useState(null);       // 'compilar' | 'preview' | 'run'…
     const [error, setError] = useState(null);
@@ -28,6 +31,7 @@ const BarraModelo = ({ archivo, onRunSql, version = 0 }) => {
         try {
             const r = await fetch(`${API}/dbt/modelo?archivo=${encodeURIComponent(archivo)}`).then(x => x.json());
             setInfo(r?.esDbt && r.tipo === 'modelo' ? r : null);
+            setSuelto(!!(r && !r.esDbt && r.proyectoDbt));
         } catch { setInfo(null); }
     }, [archivo]);
 
@@ -35,6 +39,20 @@ const BarraModelo = ({ archivo, onRunSql, version = 0 }) => {
     // Al guardar el archivo, el compilado deja de estar al día.
     useEffect(() => { if (version) cargar(); }, [version]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    if (!info && suelto) {
+        return (
+            <div className="dbt-modelo">
+                {promoviendo ? (
+                    <PromoverAModelo sql={contenido} origen={String(archivo || '').split(/[\\/]/).pop()} onOpenFile={onOpenFile} onCerrar={() => setPromoviendo(false)} />
+                ) : (
+                    <div className="dbt-modelo-barra">
+                        <span className="dbt-modelo-nombre">dbt project</span>
+                        <button type="button" className="dbt-modelo-btn" onClick={() => setPromoviendo(true)} title="Turn this query into a dbt model, with its ref() and source()">Promote to dbt model</button>
+                    </div>
+                )}
+            </div>
+        );
+    }
     if (!info) return null;
 
     const pedir = async (ruta, cuerpo) => {

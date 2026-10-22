@@ -12657,6 +12657,20 @@ tr:hover td {
 }
 
 /* Exit Badge */
+/* 5.12 (I7, I6): el puente con dbt */
+.dbt-puente-lista { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.dbt-puente-lista label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-primary); }
+.dbt-puente-lista label span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.dbt-puente-lista code { font-size: 10px; color: var(--text-tertiary); }
+.dbt-puente-lista em { display: block; padding-left: 22px; font-size: 10px; font-style: normal; color: var(--text-tertiary); }
+.dbt-puente-no { opacity: 0.6; }
+.dbt-promover { flex-wrap: wrap; }
+.cdn-promover { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--border-subtle); background: transparent; color: var(--text-tertiary); font-size: 10px; cursor: pointer; }
+.cdn-promover:hover { color: var(--text-primary); border-color: var(--accent-primary); }
+.dbt-promover select, .dbt-promover input { font-size: 11px; padding: 2px 6px; }
+.dbt-promover input { width: 160px; }
+.dbt-promover-error { color: var(--color-error-text, var(--color-error)); display: inline-flex; align-items: center; gap: 4px; }
+
 /* 5.12 (I3): el nodo elegido en el linaje */
 .lin-panel {
     position: absolute; right: 12px; bottom: 12px; z-index: 11;

@@ -72,7 +72,8 @@ function fresco(raiz, rel, nodo) {
 /** Lo que el editor enseña de un archivo de dbt. */
 function info(raiz, archivo) {
     const q = queEs(raiz, archivo);
-    if (!q) return { esDbt: false };
+    // 5.12 (I6): un .sql suelto en un proyecto dbt se puede promover a modelo.
+    if (!q) return { esDbt: false, proyectoDbt: !!carpetas(raiz) };
     if (q.tipo !== 'modelo') return { esDbt: true, tipo: q.tipo, rel: q.rel };
     const nodo = nodoDe(raiz, q.rel);
     const nombre = nodo?.name || path.basename(q.rel).replace(/\.(sql|py)$/i, '');

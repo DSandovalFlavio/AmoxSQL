@@ -56,6 +56,7 @@ import { celdasParaExportar, graficosQueNoSalen, planDeTablero } from './exporta
 import { buildSlideRaw } from '../../utils/deckTemplates';
 import { serializeDeck } from '../../utils/deckParser';
 import './cuaderno.css';
+import { PromoverAModelo } from '../dbt/PuenteDbt';
 
 const idNuevo = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
@@ -106,8 +107,16 @@ const CuadernoEditor = ({
     onToggleAi,
     showAiSidebar,
     onCreateNew,
+    onOpenFile,
 }) => {
     const [doc, setDoc] = useState(() => leerCuaderno(content));
+    // 5.12 (I6): ¿el cuaderno está en un proyecto dbt? Entonces una celda se puede promover a modelo.
+    const [proyectoDbt, setProyectoDbt] = useState(false);
+    const [promoviendo, setPromoviendo] = useState(null);   // la celda
+    useEffect(() => {
+        if (!filePath) return;
+        fetch(`${API_BASE}/api/dbt/modelo?archivo=${encodeURIComponent(filePath)}`).then(r => r.json()).then(d => setProyectoDbt(!!(d?.proyectoDbt || d?.esDbt))).catch(() => {});
+    }, [filePath]);
     const [resultados, setResultados] = useState({});
     const [estados, setEstados] = useState({});
     const [corriendo, setCorriendo] = useState(null);
@@ -1007,7 +1016,11 @@ const CuadernoEditor = ({
                                     onEstado={cambiarEstado}
                                     onEjecutar={ejecutar}
                                     onCreateNew={onCreateNew}
+                                    onPromover={proyectoDbt && !lectura ? () => setPromoviendo(c) : null}
                                 />
+                            )}
+                            {promoviendo?.id === c.id && (
+                                <PromoverAModelo sql={c.contenido || ''} origen={c.nombre || 'a notebook cell'} onOpenFile={onOpenFile} onCerrar={() => setPromoviendo(null)} />
                             )}
                         </div>
                     </Fragment>

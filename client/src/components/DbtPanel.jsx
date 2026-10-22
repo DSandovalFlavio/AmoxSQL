@@ -9,6 +9,7 @@ import {
 import DbtLineageGraph from './DbtLineageGraph';
 import EntornoDbt from './dbt/EntornoDbt';
 import BarraTarget from './dbt/BarraTarget';
+import { FuentesEnDbt } from './dbt/PuenteDbt';
 import { API_BASE as _API } from '../api.js';
 const API = `${_API}/api`;
 
@@ -922,6 +923,8 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                 {/* ========== SOURCES SECTION ========== */}
                 {activeSection === 'sources' && (
                     <div className="dbt-section-content">
+                        {/* 5.12 (I7): las fuentes con nombre de AmoxSQL como sources de dbt */}
+                        <FuentesEnDbt showToast={showToast} />
                         {!projectInfo?.exists ? (
                             <div className="dbt-empty-state">
                                 <LuCircleAlert size={24} />

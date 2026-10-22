@@ -25,7 +25,7 @@
  * que crecen, un cuaderno de veinte deja de poder recorrerse.
  */
 import { memo, useCallback, useRef, useState } from 'react';
-import { LuDatabase, LuLayers, LuTriangleAlert, LuHistory } from 'react-icons/lu';
+import { LuDatabase, LuLayers, LuTriangleAlert, LuHistory, LuArrowUpFromLine } from 'react-icons/lu';
 import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
 import { MODOS } from './modos.js';
@@ -87,6 +87,7 @@ const Celda = ({
     theme,
     editorSettings,
     onCambiar,        // (id, campos)
+    onPromover = null, // 5.12 (I6): () -> promover esta celda a modelo de dbt
     onEstado,         // (id, parcial)
     onEjecutar,       // (id)
     onCreateNew,
@@ -263,6 +264,11 @@ const Celda = ({
                     </span>
                 )}
                 <span className="cdn-sp" />
+                {onPromover && (
+                    <button type="button" className="cdn-promover" onClick={onPromover} title="Promote this cell to a dbt model">
+                        <LuArrowUpFromLine size={11} /> dbt
+                    </button>
+                )}
 
                 {/* Que algo esté viejo se dice con palabras, no sólo con el color
                     del punto del canalón: el punto se ve de lejos, pero no
