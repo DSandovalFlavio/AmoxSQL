@@ -83,6 +83,12 @@ El **comentario de arriba** de la consulta se convierte en la descripción de la
 
 Una celda que no se puede envolver —varias sentencias, un `INSERT`, un `COPY`— lo dice con un «no deja vista», sin tratarlo como un fallo, porque no lo es. Si además escribe en el disco, lo avisa aparte: eso no se deshace al cerrar el proyecto.
 
+### Borradores
+
+El **lápiz** del canalón marca una celda como **borrador**: sigue corriendo y dejando su vista, pero **no sale** en Word ni en el tablero. Se ve apagada, con el filo punteado y la etiqueta «draft». Antes de exportar, AmoxSQL dice cuántas se quedan fuera.
+
+En el archivo es una marca más de la directiva: `<!-- celda: prueba borrador -->` (o `<!-- celda borrador -->` sin nombre); una celda de texto lleva `<!-- texto borrador -->` delante. Un cuaderno sin borradores se guarda igual que antes.
+
 ### La celda de texto
 
 **No tiene caja**: ni borde, ni cabecera, ni tope de altura, y ocupa el mismo ancho que las

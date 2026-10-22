@@ -43,7 +43,7 @@ La bienvenida no cambia: abrir una ruta, los recientes y el pie siguen igual. Cu
 El estado y la entrega se guardan en el `project.json` de la carpeta, así que viajan con ella.
 
 ### Compartir un workspace: exportar e importar
-**Export** guarda un archivo `.amoxworkspace` con sus datos, su política de IA, su marca (con el logo), sus archivos de contexto y los **nombres** de las credenciales que usan sus proyectos —nunca sus valores—. **Import…** (en la vista) lo trae:
+**Export** guarda un archivo `.amoxworkspace` con sus datos, su política de IA, su marca (con el logo), sus archivos de contexto, sus snippets y los **nombres** de las credenciales que usan sus proyectos —nunca sus valores—. **Import…** (en la vista) lo trae:
 
 - Si no existe aquí, se crea con el **mismo id**, así que las carpetas enlazadas en otra máquina lo reconocen.
 - Si ya existe, los archivos nuevos se añaden y tú eliges cuáles de los distintos reemplazar; opcionalmente también el nombre, el color, la política y la marca. O se importa aparte, como otro workspace.

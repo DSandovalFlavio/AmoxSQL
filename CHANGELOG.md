@@ -5,6 +5,52 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.14.0] — 2026-10-22 (sin publicar)
+
+**El día a día.** El último tramo antes de la 6.0 (plan en
+`docs/dev/plan_5_14_el_dia_a_dia.md`): lo que hace falta al volver a un proyecto,
+empezar el siguiente, compartir lo que sirve en todos y saber qué cambió. No se publica.
+
+### Donde lo dejaste
+
+- Al volver a abrir un proyecto, una tarjeta cuenta lo que pasó desde la última vez:
+  su estado y su entrega, lo que falló sin nadie delante (con la razón), la última
+  ejecución de cada proceso, los commits nuevos y de quién, las fuentes que no se leen.
+  **Continue** la cierra.
+- Las pestañas se recuerdan **por proyecto**: al abrir otro ya no se intentan abrir
+  las del anterior.
+
+### Un proyecto en un archivo
+
+- **Export project…** deja un `.amoxproject` con lo del proyecto; los datos se eligen
+  (desmarcados, salvo la plantilla de Excel que llena un nodo). Nunca viajan
+  credenciales, `.git`, `.env` ni la carpeta de trabajo.
+- **Save as template…**, lo mismo sin datos; **From a package…** crea un proyecto
+  nuevo y dice lo que le falta en esta máquina.
+
+### La biblioteca del workspace
+
+- Los snippets se guardan en el proyecto o **en el workspace**, y los del workspace se
+  ven en todos sus proyectos y viajan en el `.amoxworkspace`.
+
+### El cuaderno limpio
+
+- Una celda **en borrador** sigue corriendo pero no sale en Word ni en el tablero; se
+  dice cuántas se quedan fuera.
+
+### Mirar otro proyecto
+
+- **Other projects** en el explorador adjunta la base de otro proyecto del workspace
+  **en sólo lectura** con su nombre: `"cierre_norte".main.ventas`.
+
+### Comparar
+
+- Excel, Export File y Publish guardan **la entrega anterior** antes de reemplazarla
+  (las 5 últimas, fuera de git). **Compare with the previous one**, en la ficha, dice
+  qué filas aparecen, desaparecen o cambian por una clave.
+- **Qué cambió en un proceso**, en pasos y no en JSON: en el panel de Git y en Data
+  Flow (**What changed**).
+
 ## [5.13.0] — 2026-10-22 (sin publicar)
 
 **Flujos fiables.** El primer tramo del camino recortado a la 6.0 (ver

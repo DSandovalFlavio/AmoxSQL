@@ -20,6 +20,7 @@ This page is the reference for all of them. For the technical detail of the note
 | `.amoxvis` | A chart's configuration | JSON | [Story Flow](../visualization/story-flow.md) |
 | `.amoxdeck` | Presentation deck | Markdown + front-matter | [Report Flow](../reports/report-flow.md) |
 | `.sqlchain` | Transformation pipeline | JSON (DAG) | [Data Flow](../data-flow/data-flow.md) |
+| `.amoxproject` | A project in one file, or a template | ZIP with `amoxproject.json` | [Projects](../user-guide/projects-and-connections.md) |
 | `RULES.md` | Project AI rules | Markdown | Text editor |
 | `agent/skills/<id>/SKILL.md` | AI skill | Markdown + YAML | [Skills](../ai/skills.md) |
 | `context/*` | Domain context for AI | YAML + Markdown | [Context as code](../ai/context-as-code.md) |

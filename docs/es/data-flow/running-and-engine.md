@@ -49,6 +49,14 @@ Un flujo de archivo a archivo —leer un CSV o un Excel, transformarlo y exporta
 - **History** abre el panel de ejecuciones anteriores de este chain. Desde la 5.9 el historial vive en la base propia de AmoxSQL, no en la del proyecto; las ejecuciones que la 5.8 anotó en el proyecto se siguen viendo, marcadas **before 5.9**, y no se pueden borrar.
 - Desde una ejecución que **falló** o quedó **pausada en un checkpoint**, puedes **reanudar**: el chain continúa desde el nodo que falló o desde el checkpoint, reutilizando los resultados intermedios que ya estaban materializados — no re-ejecuta todo. Con una base de trabajo funciona incluso después de cerrar y volver a abrir AmoxSQL.
 
+### La entrega anterior
+Cuando **Excel**, **Export File** o **Publish** van a escribir encima de un archivo que ya existe, el que había se guarda antes en `.amoxsql/entregas/` (las **5 últimas** de cada archivo, ninguna de más de 200 MB; nunca un archivo remoto). La carpeta se ignora sola en git y no viaja en un paquete. Si la escritura falla, la copia se descarta: el archivo sigue siendo el de antes.
+
+En la ficha de la ejecución, **Compare with the previous one** lee los dos (la primera hoja de un Excel) y, por una columna clave —se propone la primera sin repetidos—, dice qué filas **aparecen**, **desaparecen** y **cambian**, con el valor de antes. Sin clave compara filas enteras. Las columnas nuevas o que ya no están se dicen aparte.
+
+### Qué cambió en un proceso
+El diff de un `.sqlchain` habla de **pasos**, no de JSON: los añadidos, los quitados, y en los cambiados cada campo en palabras («Tiendas · conditions 1 · operator: `=` → `in`»); las conexiones, los parámetros y las variables. Mover un nodo no es un cambio. Está en el **panel de Git** al abrir un proceso (**Steps**, con **Text** a un clic) y en Data Flow, **What changed** en el menú, frente al último commit.
+
 ### Exportar, compilar y crear SQL
 | Acción | Qué produce |
 |---|---|

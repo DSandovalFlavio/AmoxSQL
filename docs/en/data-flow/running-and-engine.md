@@ -49,6 +49,14 @@ A file-to-file flow — read a CSV or an Excel file, transform it and export a P
 - **History** opens the panel of previous runs for this chain. Since 5.9 the history lives in AmoxSQL's own database, not in the project's; runs that 5.8 recorded in the project are still shown, marked **before 5.9**, and can't be deleted.
 - From a run that **failed** or was **paused at a checkpoint**, you can **resume**: the chain continues from the failed node or the checkpoint, reusing the intermediate results already materialized — it doesn't re-run everything. With a work database this works even after closing and reopening AmoxSQL.
 
+### The previous delivery
+When **Excel**, **Export File** or **Publish** are about to write over a file that already exists, the one that was there is saved first in `.amoxsql/entregas/` (the **last 5** of each file, none over 200 MB; never a remote file). The folder ignores itself in git and does not travel in a package. If the write fails, the copy is discarded: the file is still the one before.
+
+In the run record, **Compare with the previous one** reads both (the first sheet of an Excel) and, by a key column —the first one without repeats is proposed—, says which rows **appear**, **disappear** and **change**, with the value before. Without a key it compares whole rows. New or missing columns are told apart.
+
+### What changed in a process
+The diff of a `.sqlchain` talks about **steps**, not JSON: the added ones, the removed ones, and in the changed ones each field in words («Tiendas · conditions 1 · operator: `=` → `in`»); connections, parameters and variables. Moving a node is not a change. It is in the **Git panel** when you open a process (**Steps**, with **Text** one click away) and in Data Flow, **What changed** in the menu, against the last commit.
+
 ### Export, compile, and create SQL
 | Action | What it produces |
 |---|---|

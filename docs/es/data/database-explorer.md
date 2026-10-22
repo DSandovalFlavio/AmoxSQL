@@ -56,6 +56,17 @@ Si una tabla, una vista o una columna tiene descripción, el explorador la ense�
 ### Lagos
 El botón de lago de la cabecera (**New lake…**) crea un lago DuckLake. Con un lago abierto, el árbol tiene **Lake versions** y el menú de cada tabla, **As it was…**. Ver [Lagos (DuckLake)](lakes.md).
 
+### Otros proyectos
+**Other projects** cruza con los datos de otro proyecto del mismo workspace sin cerrar el tuyo. **Look at another project…** lista los que tienen base (y dice por qué no se puede mirar uno sin base o con varias); al elegir uno, su base se adjunta **en sólo lectura** con el nombre del proyecto y sus tablas salen en la sección, listas para arrastrar:
+
+```sql
+SELECT m.meta, sum(v.importe)
+FROM metas m JOIN "cierre_norte".main.ventas v USING (tienda)
+GROUP BY m.meta;
+```
+
+Nunca se escribe en ella. Dura lo que la sesión: la **X** la suelta, y cambiar de base también. Si dbt de ese proyecto la necesita, se suelta como cualquier base adjunta.
+
 ## Referencia de opciones
 
 ### Menú contextual de tabla
