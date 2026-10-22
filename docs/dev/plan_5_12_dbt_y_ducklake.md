@@ -99,8 +99,12 @@ nombre de entorno conda viaja.
 lee `compiled_code` del `manifest.json`), y **ejecuta el SQL compilado en el motor de
 AmoxSQL**, con el límite de filas de siempre. Así no paga el arranque de dbt (segundos) en
 cada vista previa ni necesita soltar la base. Si el modelo usa algo que sólo existe dentro
-de dbt (una macro que escribe), se cae a `dbt show --select <modelo> --limit N`. Se
-comprueba en la fase 0.
+de dbt (una macro que escribe), se cae a `dbt show --select <modelo> --limit N`.
+Comprobado en la fase 0: compilar un modelo tarda ~5 s y `dbt show` otros ~5 s, y el
+compilado corre tal cual en el motor. Como dbt nombra las tablas por el nombre del archivo
+(`"poc"."main"."ventas"`) y AmoxSQL adjunta la base como `user_db`, la vista previa
+cambia cada `relation_name` del manifiesto cuyo `database` es el de la base adjunta por
+`user_db`: exacto, porque el manifiesto da cada nombre completo.
 
 **Dec-29 · Se empieza en producción; dev, sólo si el ingeniero lo crea** (respuesta del
 autor, 2026-10-21). Un proyecto dbt que crea AmoxSQL tiene **un solo *target*, `prod`**,
@@ -127,9 +131,10 @@ en la fase 0 que dbt-duckdb lo escribe en tablas **y** vistas.
 `{{ env_var('AMOXSQL_FUENTE_<NOMBRE>') }}`: la ruta de cada máquina **no** se escribe en un
 archivo que viaja en git (Dec-9). AmoxSQL pone esas variables al lanzar dbt (Dec-26), y
 `AmoxSQL.exe dbt …` también; quien lance dbt por su cuenta las ve listadas en DBT Studio.
-La frescura (`dbt source freshness`) usa la fecha del archivo si dbt-duckdb la admite; si
-no, una columna que AmoxSQL añade a la vista (`_amox_modificado`). Se comprueba en la
-fase 0.
+La frescura (`dbt source freshness`) usa **la fecha del archivo** con `loaded_at_query:
+"select last_modified from read_blob('<la misma env_var>')"` (comprobado en la fase 0: sin
+eso, dbt-duckdb da error; con una columna añadida se colaba en los `select *`). Un archivo
+de hace 10 días con `warn_after: 7 days` da WARN.
 
 **Dec-32 · Promover escribe el modelo; no toca el original.** I6 crea
 `models/<capa>/<nombre>.sql` con las tablas sustituidas por `{{ ref('…') }}` (las que son
@@ -147,7 +152,10 @@ confirmación.
 (`tipo: 'dbt'`, el comando, el *target*), y su resumen sale de `run_results.json`: modelos
 correctos y fallidos, tests que fallan con su modelo, duración. El aviso de D2 y la ficha
 la tratan como a un proceso. «Avisar si falla» incluye **un test que falla** aunque dbt
-salga con 0 por `warn`.
+salga con 0 por `warn` (comprobado: `dbt build` sale con 0 con un test en `warn`).
+**dbt-duckdb no da filas** (`adapter_response` sólo trae `_message`): las filas de cada
+modelo las cuenta AmoxSQL en su motor al leer los resultados (una tabla, `count(*)`; una
+vista, sólo si se pide).
 
 **Dec-36 · AmoxSQL crea el entorno de dbt** (respuesta del autor, 2026-10-21). **Set up
 dbt…** crea un entorno de Python **de AmoxSQL** en `<home>/entornos/dbt-<versión del
@@ -333,5 +341,6 @@ menú, no en la bienvenida.
 | Fecha | Fase | Qué |
 |---|---|---|
 | 2026-10-21 | — | Plan escrito leyendo `main` tras la 5.11.0. Hallazgos que lo moldean: dbt corre como texto de shell con un tope de 5 minutos; el entorno elegido vive en `localStorage`; el incremental ya existe y el *snapshot* no; nadie lee `run_results.json` ni `catalog.json`; AmoxSQL sólo lee comentarios de tabla con marca de procedencia. Decisiones Dec-26 a Dec-34; cuatro preguntas para el autor (§8) |
+| 2026-10-21 | 0 | **Fase 0 hecha** (`scripts/poc512/p00_dbt.mjs`, `p01_ducklake.mjs`; dbt-core 1.12.6, dbt-duckdb 1.11.0, motor 1.5.6, Python 3.13). **0.1** compilar un modelo ~5 s, `dbt show` ~5 s; `compiled_code` y `relation_name` en el manifiesto; el compilado corre en el motor (Dec-28: cambiar el catálogo por `user_db`). **0.2** `run_results.json` da estado y duración por nodo y `failures` por test; **no da filas** (dbt-duckdb); `store_failures` deja tablas en `main_dbt_test__audit`; `build` sale con 0 con un test en `warn` (Dec-34). **0.3** `persist_docs` escribe el comentario en tablas, vistas y columnas (Dec-30 confirmada). **0.4** `external_location` con `env_var` funciona; la frescura sin `loaded_at_field` falla, y con `loaded_at_query` + `read_blob(...).last_modified` funciona sin ensuciar columnas (Dec-31 reescrita). **0.5** DuckLake en 1.5.6, con catálogo DuckDB y SQLite: `<lago>.snapshots()` (id, fecha, cambios), `AT (VERSION => n)`, `AT (TIMESTAMP => …)`, `ducklake_table_changes`, `ducklake_merge_adjacent_files` (6 archivos → 1), `ducklake_expire_snapshots` y `ducklake_cleanup_old_files` con `dry_run => true` que **lista** lo que se iría (Dec-33 puede decir exactamente qué); tras expirar, «No snapshot found at version 5». Los INSERT pequeños quedan dentro del catálogo (sin archivos). **0.6** dbt por `execFile` con la lista, sin shell; cancelar con `taskkill /T /F` deja la base libre en 136 ms. **0.7** el *snapshot* en YAML funciona en dbt 1.12. **0.8** el manifiesto trae las macros con `arguments` documentados (112 de 116 de `dbt_utils`) y `macro_sql` con la firma; pesa 763 KB con 617 macros (423 internas de dbt, 77 del adaptador): al editor van sólo las del proyecto y sus paquetes |
 | 2026-10-21 | — | **Respuestas del autor (§8):** AmoxSQL crea el entorno de dbt (Dec-36); nada de DuckDB 2.0 en este tramo; se empieza en `prod` y dev sólo si se crea (Dec-29 reescrita: la confirmación escrita, sólo cuando hay otro *target*); el orden, como está. Empieza la implementación |
 | 2026-10-21 | 3b | **Añadido a petición del autor: I12, el completado de dbt.** Hoy sólo nombres dentro de `ref`/`source` y 8 atajos que exigen que el archivo ya tenga Jinja. Fase 3b (macros con firma, `config()` con sus valores, Jinja y `target`/`this`, columnas a través de `ref()`, avisos de `ref` inexistente, ayuda al pasar el ratón, `schema.yml`) y Dec-35 (sale del manifiesto, de los YAML y del esquema que AmoxSQL ya tiene; nunca lanza dbt); prueba 0.8 en la fase 0 |
