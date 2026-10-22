@@ -73,7 +73,9 @@ export function resolveTone({ slideTone, deckTone } = {}) {
 }
 
 /** Los campos del pie, en el orden en que se pintan. */
-export const FOOTER_FIELDS = ['source', 'query', 'rows', 'vars', 'refreshed', 'number'];
+// 5.13 (Dec-44): `data` es de cuándo son los datos (el archivo más nuevo que leyó
+// la consulta); `refreshed`, cuándo se ejecutó. No son lo mismo.
+export const FOOTER_FIELDS = ['source', 'query', 'rows', 'vars', 'data', 'refreshed', 'number'];
 
 // Ni la portada ni el cierre llevan pie: ya enseñan fuente y fecha en grande,
 // y ahí el pie compite con ellas.

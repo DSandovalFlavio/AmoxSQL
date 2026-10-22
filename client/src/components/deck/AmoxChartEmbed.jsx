@@ -109,6 +109,12 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, 
             // La procedencia sube a la lámina para el pie: de qué archivo salió,
             // qué consulta, cuántas filas devolvió, si vino truncada y cuándo se
             // ejecutó. Todo esto ya viajaba por la red y se tiraba a la basura.
+            // 5.13 (Dec-44): de cuándo son los datos (el archivo más nuevo que leyó).
+            let datosAl = null;
+            try {
+                const f = await fetch(`${API_BASE}/api/fecha-de-los-datos`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) });
+                if (f.ok) datosAl = (await f.json()).datosAl || null;
+            } catch { /* sin fecha: el pie no la enseña */ }
             onProcedenciaRef.current?.({
                 src,
                 source: config.chartSource || null,
@@ -116,6 +122,7 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, 
                 limited: !!queryData.truncated,
                 rowLimit: queryData.rowLimit ?? null,
                 at: Date.now(),
+                datosAl,
             });
 
             // La extensión vertical de esta figura, para que quien tenga varias

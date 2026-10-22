@@ -91,6 +91,11 @@ const DeckFooter = ({ fields = [], figure = null, variables = {}, slideNumber, r
             </div>
 
             <div className="deck-foot-der">
+                {quiere('data') && figure?.datosAl && (
+                    <span className="deck-foot-dato" title="The date of the newest file this chart's data came from">
+                        Data as of {new Date(figure.datosAl).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                )}
                 {quiere('refreshed') && sello && (
                     <span className={`deck-foot-sello${rancio ? ' deck-foot-sello--rancio' : ''}`}>
                         {rancio && <LuTriangleAlert size={11} />}

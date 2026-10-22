@@ -6738,6 +6738,15 @@ app.get('/api/operacion', conCentral(async (req) => {
     };
 }));
 
+// 5.13 (Dec-44): de cuándo son los datos de una consulta (el pie de Report Flow).
+app.post('/api/fecha-de-los-datos', async (req, res) => {
+    try {
+        res.json(await require('./ejecucion/fechaDeLosDatos').deConsulta(dbManager.lane('meta'), req.body?.query || '', PROYECTO_ABIERTO ? ROOT_DIR : null));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 5.13 (Dec-42): los límites de lo que corre de fondo con la aplicación abierta.
 app.put('/api/preferencias/limites-fondo', conCentral(async (req) => require('./ejecucion/limites').guardarPreferencias(req.body || {})));
 

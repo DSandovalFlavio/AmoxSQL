@@ -74,6 +74,20 @@ const ExcelConfig = ({ node, config, onChange, onChangeMulti, chainDefinition })
             {modo === 'libro' && (
                 <Hojas config={config} onChange={onChange} entradas={entradas} />
             )}
+
+            {/* 5.13 (Dec-44): de cuándo son los datos (el archivo más nuevo que se leyó). */}
+            <label>Data date</label>
+            {modo === 'libro' ? (
+                <>
+                    <label className="chain-config-check">
+                        <input type="checkbox" checked={!!config.lineaDeFecha} onChange={(e) => onChange('lineaDeFecha', e.target.checked || undefined)} />
+                        Add a “Data as of …” line under each table
+                    </label>
+                    <p className="chain-config-hint">The date always goes into the workbook properties (File → Info). It is the date of the newest file the process read.</p>
+                </>
+            ) : (
+                <p className="chain-config-hint">Name a cell <code>datos_al</code> in the template (Formulas → Define Name) and it receives the date of the newest file the process read. Give it a date format, or it is written as text.</p>
+            )}
         </div>
     );
 };

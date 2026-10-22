@@ -37,6 +37,7 @@ const NOMBRE_CAMPO = {
     query: 'Query',
     rows: 'Rows returned',
     vars: 'Active variables',
+    data: 'Data as of',
     refreshed: 'Refreshed',
     number: 'Slide number',
 };

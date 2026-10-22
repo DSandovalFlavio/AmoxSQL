@@ -1265,7 +1265,8 @@ class ChainExecutor extends EventEmitter {
                 const countResult = await dbManager.query(`SELECT COUNT(*) AS cnt FROM "fuentes"."${nombre}"`);
                 sql = `-- Source: fuentes."${nombre}"`;
                 resultType = 'table_referenced';
-                resultSummary = { table: nombre, schema: 'fuentes', rowCount: countResult[0]?.cnt || 0 };
+                const datosAl = ctx.lecturas?.registrar(await require('./ejecucion/fechaDeLosDatos').deFuente(projectPath, nombre));
+                resultSummary = { table: nombre, schema: 'fuentes', rowCount: countResult[0]?.cnt || 0, ...(datosAl ? { datosAl: datosAl.toISOString() } : {}) };
                 break;
             }
 
@@ -1427,7 +1428,8 @@ class ChainExecutor extends EventEmitter {
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
                 const rowCount = countResult[0]?.cnt || 0;
                 resultType = 'table_created';
-                resultSummary = { table: tableName, rowCount, source: config.sourcePath };
+                const datosAl = ctx.lecturas?.registrar(require('./ejecucion/fechaDeLosDatos').deArchivo(sourcePath));
+                resultSummary = { table: tableName, rowCount, source: config.sourcePath, ...(datosAl ? { datosAl: datosAl.toISOString() } : {}) };
                 break;
             }
 
@@ -1456,7 +1458,8 @@ class ChainExecutor extends EventEmitter {
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
                 const rowCount = countResult[0]?.cnt || 0;
                 resultType = 'table_created';
-                resultSummary = { table: tableName, rowCount, folder: config.folderPath };
+                const datosAl = ctx.lecturas?.registrar(require('./ejecucion/fechaDeLosDatos').deArchivos(procedencia.expandir(path.join(folderPath, pattern))));
+                resultSummary = { table: tableName, rowCount, folder: config.folderPath, ...(datosAl ? { datosAl: datosAl.toISOString() } : {}) };
                 break;
             }
 
@@ -1500,7 +1503,7 @@ class ChainExecutor extends EventEmitter {
                 } else if ((format === 'xlsx' || format === 'excel') && !isCloud) {
                     // 5.11 (D3): el libro lo escribe AmoxSQL, con formato y sin
                     // cargar la extensión espacial.
-                    const r = await escribirLibro(dbManager, outputPath, [{ nombre: path.basename(outputPath).replace(/\.xlsx$/i, ''), consulta: query, formatos: config.formatos || {} }]);
+                    const r = await escribirLibro(dbManager, outputPath, [{ nombre: path.basename(outputPath).replace(/\.xlsx$/i, ''), consulta: query, formatos: config.formatos || {} }], { datosAl: ctx.lecturas?.masNueva || null, proceso: chainFile || null });
                     resultType = 'file_exported';
                     resultSummary = { path: outputPath, format: 'xlsx', size: `${(r.bytes / 1024).toFixed(1)} KB`, rowCount: r.hojas[0].filas, destino: config.destino || null };
                     sql = `-- Excel: ${outputPath}`;
@@ -1549,7 +1552,7 @@ class ChainExecutor extends EventEmitter {
                 const r = await publicar(dbManager, {
                     consulta: query, destino, formato,
                     esquemaRoto: config.esquemaRoto === 'avisar' ? 'avisar' : 'detener',
-                    metadatos: { fuente: nombre, proceso, proyecto: path.basename(projectPath), workspace: pj.workspace?.nombre || null },
+                    metadatos: { fuente: nombre, proceso, proyecto: path.basename(projectPath), workspace: pj.workspace?.nombre || null, ...(ctx.lecturas?.masNueva ? { datos_al: ctx.lecturas.masNueva.toISOString() } : {}) },
                 });
                 // 6.4: quien la usa la ve por su nombre.
                 let registro = null;
@@ -1598,7 +1601,7 @@ class ChainExecutor extends EventEmitter {
                         return { ...d, consulta };
                     });
                     if (!destinos.length) throw new Error('Excel node: say where each input goes in the template');
-                    const r = await rellenarPlantilla(dbManager, this.resolvePath(projectPath, config.plantilla), destino, destinos);
+                    const r = await rellenarPlantilla(dbManager, this.resolvePath(projectPath, config.plantilla), destino, destinos, { datosAl: ctx.lecturas?.masNueva || null });
                     sql = `-- Excel template ${config.plantilla} → ${destino}`;
                     resultType = 'file_exported';
                     resultSummary = {
@@ -1606,6 +1609,7 @@ class ChainExecutor extends EventEmitter {
                         rowCount: r.regiones.reduce((s, x) => s + x.filas, 0),
                         sheets: r.regiones.map(x => ({ name: x.tabla ? `${x.hoja} · ${x.tabla}` : x.hoja, rows: x.filas, range: x.rango })),
                         warnings: r.avisos,
+                        ...(r.datosAlEn ? { datosAlEn: r.datosAlEn } : {}),
                     };
                     break;
                 }
@@ -1619,7 +1623,9 @@ class ChainExecutor extends EventEmitter {
                     formatos: h.formatos || {},
                 }));
                 if (/\.xlsm$/i.test(destino)) throw new Error('Excel node: a new workbook is saved as .xlsx (.xlsm is only for a template that has macros)');
-                const r = await escribirLibro(dbManager, destino, hojas);
+                // 5.13 (Dec-44): la fecha de los datos, en las propiedades del libro y,
+                // si el nodo lo pide, en una línea bajo cada tabla.
+                const r = await escribirLibro(dbManager, destino, hojas, { datosAl: ctx.lecturas?.masNueva || null, proceso: chainFile || null, lineaDeFecha: !!config.lineaDeFecha });
                 sql = `-- Excel workbook → ${destino}`;
                 resultType = 'file_exported';
                 resultSummary = {
@@ -2513,6 +2519,15 @@ class ChainExecutor extends EventEmitter {
         const parada = await this.revisarContratos({ dbManager, anotar, runId, projectPath, activeNodes, nodeRunIds });
         if (parada) return parada;
 
+        // 5.13 (Dec-44): la fecha de los datos es la del archivo más nuevo que se
+        // lee. Las fuentes que nombran los pasos, desde ya; lo que importan, al leerlo.
+        const fechaDeLosDatos = require('./ejecucion/fechaDeLosDatos');
+        const lecturas = new fechaDeLosDatos.Lecturas();
+        try {
+            const nombres = require('./contrato').fuentesQueLee(activeNodes, { leerArchivo: (rel) => fs.readFileSync(path.resolve(projectPath || '.', rel), 'utf-8') });
+            for (const n of nombres) lecturas.registrar(await fechaDeLosDatos.deFuente(projectPath, n));
+        } catch { /* sin fecha */ }
+
         // Build adjacency for parent checking
         const parentMap = new Map();
         for (const id of activeNodeIds) parentMap.set(id, []);
@@ -2603,7 +2618,7 @@ class ChainExecutor extends EventEmitter {
                         // 5.13 (Dec-43): un paso que lee de la red reintenta un error pasajero.
                         const { reglaDe, conReintentos } = require('./ejecucion/reintentos');
                         const { resultado: result, reintentos } = await conReintentos(
-                            () => this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, parametros: param, fechaReferencia, fanout, entradas }),
+                            () => this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, parametros: param, fechaReferencia, fanout, entradas, lecturas }),
                             reglaDe(node, origen),
                             {
                                 cancelado: () => !!this.activeRuns.get(runId)?.cancelled,
@@ -2611,6 +2626,10 @@ class ChainExecutor extends EventEmitter {
                             },
                         );
                         if (reintentos && result) result.resultSummary = { ...(result.resultSummary || {}), reintentos };
+                        // 5.13 (Dec-44): lo que deja un archivo dice de cuándo son sus datos.
+                        if (result?.resultType === 'file_exported' && lecturas.masNueva) {
+                            result.resultSummary = { ...(result.resultSummary || {}), datosAl: lecturas.masNueva.toISOString() };
+                        }
                         const durationMs = Date.now() - startTime;
 
                         // Emit SQL executed
