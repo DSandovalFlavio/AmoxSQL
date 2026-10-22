@@ -50,6 +50,8 @@ async function ejecutarDbt({ base = null, dbManager = null, raiz, args, entorno,
         alLinea?.({ tipo: 'stderr', texto: e.message });
     }
     const res = resultados.leer(raiz, { desde: r.inicio });
+    // El último estado de cada nodo, para el linaje (fase 4).
+    if (res) require('./linaje').acumular(raiz, res, { comando: r.comando });
     const resumen = resultados.resumir({ comando: r.comando, codigo: r.codigo, ms: r.ms, resultados: res, cancelado: r.cancelado, error: r.error });
     // Los pasos, para la ficha (como los de un proceso de Data Flow).
     resumen.nodos = (res?.nodos || []).slice(0, 500).map(n => ({ nombre: n.nombre, tipo: n.tipo, estado: n.estado, segundos: n.segundos, mensaje: n.mensaje ? String(n.mensaje).slice(0, 300) : null }));

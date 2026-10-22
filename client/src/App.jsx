@@ -1265,6 +1265,19 @@ function App() {
     return () => window.removeEventListener('amox_create_chart', handler);
   }, [handleExportAmoxvis]);
 
+  // 5.12 (I3): una consulta nueva desde cualquier parte (las filas de un test que
+  // falla, en el linaje), y la corre si se pide.
+  useEffect(() => {
+    const handler = (e) => {
+      const { sql, ejecutar } = e.detail || {};
+      if (!sql || !layoutRef.current) return;
+      layoutRef.current.createNew('sql', sql);
+      if (ejecutar) setTimeout(() => layoutRef.current?.handleTriggerRun(), 400);
+    };
+    window.addEventListener('amox_nueva_consulta', handler);
+    return () => window.removeEventListener('amox_nueva_consulta', handler);
+  }, []);
+
 // Removed duplicated handleCloseProject
 
   const handleSidebarTabClick = (tabId) => {
