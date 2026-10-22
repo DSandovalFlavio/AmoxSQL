@@ -541,7 +541,7 @@ app.get('/api/project/scan-dbs', (req, res) => {
     try {
         const files = fs.readdirSync(ROOT_DIR, { withFileTypes: true });
         const dbFiles = files
-            .filter(file => file.isFile() && (file.name.endsWith('.duckdb') || file.name.endsWith('.db') || file.name.endsWith('.wal') || file.name.endsWith('.ducklake')))
+            .filter(file => file.isFile() && (file.name.endsWith('.duckdb') || file.name.endsWith('.db') || file.name.endsWith('.wal') || file.name.endsWith('.ducklake') || file.name.endsWith('.ducklake.sqlite')))
             .map(file => ({
                 name: file.name,
                 path: file.name // Relative path from root is enough for now
@@ -5211,6 +5211,20 @@ app.post('/api/dbt/targets/dev', (req, res) => {
     } catch (e) { res.status(400).json({ error: e.message }); }
 });
 app.get('/api/dbt/explicaciones', (_req, res) => res.json(dbtProyecto.EXPLICACIONES));
+// DuckLake de primera clase (5.12, fase 8; I8, Dec-33).
+const lagoRuta = (fn) => async (req, res) => {
+    try { res.json(await fn(req)); } catch (e) { res.status(e instanceof require('./lago').ErrorDeLago ? 400 : 500).json({ error: String(e.message || e).split('\n')[0] }); }
+};
+app.post('/api/lago/crear', lagoRuta(async (req) => {
+    if (!PROYECTO_ABIERTO) throw new (require('./lago').ErrorDeLago)('Open a project first: the lake is created in its folder.');
+    return require('./lago').crear(ROOT_DIR, req.body || {});
+}));
+app.get('/api/lago/versiones', lagoRuta(async () => ({ lago: dbManager.isDuckLake, versiones: dbManager.isDuckLake ? await require('./lago').versiones(dbManager) : [] })));
+app.post('/api/lago/como-estaba', lagoRuta(async (req) => ({ sql: require('./lago').comoEstaba(dbManager, req.body || {}) })));
+app.post('/api/lago/que-cambio', lagoRuta(async (req) => ({ sql: require('./lago').queCambio(dbManager, req.body || {}) })));
+app.post('/api/lago/mantenimiento/previsualizar', lagoRuta(async (req) => require('./lago').previsualizar(dbManager, req.body || {})));
+app.post('/api/lago/mantenimiento', lagoRuta(async (req) => require('./lago').mantener(dbManager, req.body || {})));
+
 // El puente: las fuentes de AmoxSQL en dbt y promover una consulta (5.12, fase 6; I7, I6).
 app.get('/api/dbt/fuentes', (_req, res) => {
     try { res.json(require('./dbt/puente').estado(ROOT_DIR)); } catch (e) { res.status(500).json({ error: e.message }); }

@@ -13,6 +13,8 @@ import {
 import DeleteConfirmModal from './DeleteConfirmModal';
 import FuentesExplorador from './fuentes/FuentesExplorador';
 import DestinosDeEntrega from './fuentes/DestinosDeEntrega';
+import { VersionesDelLago, NuevoLago, ComoEstaba, esLago } from './lago/Lago';
+import { LuWaves, LuHistory as LuVersiones } from 'react-icons/lu';
 
 /**
  * Builds a schema-qualified name: "schema"."table" for non-main schemas, just "table" for main.
@@ -47,6 +49,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState(null); // { x, y, tableName, schema }
+    // 5.12 (I8): DuckLake
+    const [nuevoLago, setNuevoLago] = useState(false);
+    const [comoEstaba, setComoEstaba] = useState(null);   // { tabla, schema }
 
     // Drop Modal State
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -294,6 +299,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                             <LuWorkflow size={14} />
                         </button>
                     )}
+                    <button className="db-header-btn" onClick={() => setNuevoLago(true)} title="New lake… (DuckLake: every change is a version)">
+                        <LuWaves size={14} />
+                    </button>
                     <button className="db-header-btn" onClick={fetchSchemas} title="Refresh">
                         <LuRefreshCw size={14} />
                     </button>
@@ -325,6 +333,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     />
                     {/* Y adónde se entrega (D6): las carpetas con nombre de los procesos. */}
                     {!deferredSearchQuery && <DestinosDeEntrega variante="arbol" />}
+                    {/* 5.12 (I8): las versiones del lago abierto */}
+                    {!deferredSearchQuery && esLago(currentDb) && <VersionesDelLago refresco={`${currentDb}|${onRefresh || ''}`} onSelectQuery={onSelectQuery} />}
                     {loading && <div className="db-loading">Loading...</div>}
                     {!loading && totalTables === 0 && (
                         <div className="db-empty">
@@ -437,6 +447,14 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     }}>
                         <LuShieldCheck size={14} /> Quality Check
                     </div>
+                    {esLago(currentDb) && (
+                        <div className="ctx-menu-item" onClick={() => {
+                            setComoEstaba({ tabla: contextMenu.tableName, schema: contextMenu.schema });
+                            setContextMenu(null);
+                        }}>
+                            <LuVersiones size={14} /> As it was…
+                        </div>
+                    )}
                     <div className="ctx-menu-separator" />
                     <div className="ctx-menu-item danger" onClick={() => {
                         setTableToDelete(contextMenu.tableName);
@@ -448,6 +466,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     </div>
                 </div>
             )}
+
+            {nuevoLago && <NuevoLago onClose={() => setNuevoLago(false)} />}
+            {comoEstaba && <ComoEstaba tabla={comoEstaba.tabla} schema={comoEstaba.schema || 'main'} onSelectQuery={onSelectQuery} onClose={() => setComoEstaba(null)} />}
 
             <DeleteConfirmModal
                 isOpen={deleteModalOpen}

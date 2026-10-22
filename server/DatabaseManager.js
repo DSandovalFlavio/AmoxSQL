@@ -375,7 +375,7 @@ class DatabaseManager {
             // ducklake extension with the `ducklake:` prefix, or DuckDB opens it
             // as an ordinary database and exposes the raw metadata tables instead
             // of the logical lakehouse tables.
-            const isDuckLake = fullPath.toLowerCase().endsWith('.ducklake');
+            const isDuckLake = /\.ducklake(\.sqlite)?$/i.test(fullPath);
 
             if (isDuckLake) {
                 // Best-effort install; on a machine with network this is a no-op
@@ -386,6 +386,11 @@ class DatabaseManager {
                     await this.query(`INSTALL ducklake`);
                     await this.query(`LOAD ducklake`);
                     this.rememberExtension('ducklake');
+                    if (/\.ducklake\.sqlite$/i.test(fullPath)) {
+                        await this.query(`INSTALL sqlite`);
+                        await this.query(`LOAD sqlite`);
+                        this.rememberExtension('sqlite');
+                    }
                 } catch (extErr) {
                     console.warn('[DB Manager] ducklake extension install/load warning:', extErr?.message || extErr);
                 }
@@ -441,7 +446,9 @@ class DatabaseManager {
         if (isDuckLake) {
             const opts = [`DATA_PATH '${fullPath}.files'`];
             if (options.readOnly) opts.push('READ_ONLY');
-            return `ATTACH 'ducklake:${fullPath}' AS ${this.alias} (${opts.join(', ')})`;
+            // 5.12 (I8): catálogo SQLite (`x.ducklake.sqlite`): dbt y AmoxSQL a la vez.
+            const sqlite = /\.ducklake\.sqlite$/i.test(fullPath) ? 'sqlite:' : '';
+            return `ATTACH 'ducklake:${sqlite}${fullPath}' AS ${this.alias} (${opts.join(', ')})`;
         }
         const attachMode = options.readOnly ? '(READ_ONLY)' : '';
         return `ATTACH '${fullPath}' AS ${this.alias} ${attachMode}`.trim();
