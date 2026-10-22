@@ -120,19 +120,9 @@ async function sqlDeVistaPrevia(raiz, archivo, { dbManager, env = {} } = {}) {
     const nodo = nodoDe(raiz, c.rel);
     const catalogo = nodo?.database || null;
     const t = dbtProyecto.targets(raiz);
-    const base = dbtConvivir.basesDelPerfil(raiz, { target: t.activo })[0] || null;
-    let sql = c.compilado;
-    let como = 'tal cual';
-    if (catalogo && base && dbManager?.attachedPath && igual(dbManager.attachedPath, base)) {
-        sql = cambiarCatalogo(sql, catalogo, dbManager.alias || 'user_db');
-        como = 'base adjunta';
-    } else if (catalogo && base && fs.existsSync(base) && dbManager) {
-        const ya = await dbManager.systemQuery(`SELECT 1 FROM duckdb_databases() WHERE database_name = '${String(catalogo).replace(/'/g, "''")}'`, { lane: 'meta' }).catch(() => []);
-        if (!ya?.length) await dbManager.query(`ATTACH '${unix(base).replace(/'/g, "''")}' AS "${String(catalogo).replace(/"/g, '""')}" (READ_ONLY)`);
-        como = 'adjuntada en sólo lectura';
-    } else if (catalogo && base && !fs.existsSync(base)) {
-        throw new Error(`The database of the target «${t.activo}» does not exist yet (${path.basename(base)}). Build what ${c.nombre} reads first: «+Upstream».`);
-    }
+    const p = await paraAmox(raiz, c.compilado, catalogo, { dbManager, queFalta: `Build what ${c.nombre} reads first: «+Upstream».` });
+    const sql = p.sql;
+    const como = p.como;
     // ¿Está construido lo que lee? Si no, decirlo con qué hacer, en vez del
     // «Table … does not exist» del motor.
     if (dbManager && nodo?.depends_on?.nodes?.length) {
@@ -156,6 +146,29 @@ async function sqlDeVistaPrevia(raiz, archivo, { dbManager, env = {} } = {}) {
         }
     }
     return { sql: sql.trim().replace(/;\s*$/, ''), compilado: c.compilado, nombre: c.nombre, compilo: c.compilo, como, target: t.activo };
+}
+
+/**
+ * Un SQL de dbt (con el catálogo de la base del target) listo para el motor de
+ * AmoxSQL: si esa base es la adjunta, el catálogo pasa a `user_db`; si no, se adjunta
+ * en sólo lectura con su nombre (dbtConvivir la suelta cuando dbt la necesita). Lo
+ * usan la vista previa (fase 3) y las filas de un test que falla (fase 4).
+ */
+async function paraAmox(raiz, sql, catalogo, { dbManager, queFalta = 'Run dbt first.' } = {}) {
+    const t = dbtProyecto.targets(raiz);
+    const base = dbtConvivir.basesDelPerfil(raiz, { target: t.activo })[0] || null;
+    if (catalogo && base && dbManager?.attachedPath && igual(dbManager.attachedPath, base)) {
+        return { sql: cambiarCatalogo(sql, catalogo, dbManager.alias || 'user_db'), como: 'base adjunta' };
+    }
+    if (catalogo && base && fs.existsSync(base) && dbManager) {
+        const ya = await dbManager.systemQuery(`SELECT 1 FROM duckdb_databases() WHERE database_name = '${String(catalogo).replace(/'/g, "''")}'`, { lane: 'meta' }).catch(() => []);
+        if (!ya?.length) await dbManager.query(`ATTACH '${unix(base).replace(/'/g, "''")}' AS "${String(catalogo).replace(/"/g, '""')}" (READ_ONLY)`);
+        return { sql, como: 'adjuntada en sólo lectura' };
+    }
+    if (catalogo && base && !fs.existsSync(base)) {
+        throw new Error(`The database of the target «${t.activo}» does not exist yet (${path.basename(base)}). ${queFalta}`);
+    }
+    return { sql, como: 'tal cual' };
 }
 
 /** «Ir a la definición»: el archivo de un ref('x') o de un source('a', 'b'). */
@@ -191,4 +204,4 @@ function buscarArchivo(dir, re, profundidad = 6) {
     return null;
 }
 
-module.exports = { carpetas, queEs, info, compilar, sqlDeVistaPrevia, cambiarCatalogo, definicion };
+module.exports = { carpetas, queEs, info, compilar, sqlDeVistaPrevia, cambiarCatalogo, definicion, paraAmox };

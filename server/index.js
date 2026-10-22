@@ -5197,6 +5197,13 @@ app.post('/api/dbt/targets/dev', (req, res) => {
     } catch (e) { res.status(400).json({ error: e.message }); }
 });
 app.get('/api/dbt/explicaciones', (_req, res) => res.json(dbtProyecto.EXPLICACIONES));
+// Resultados en el linaje (5.12, fase 4; I3).
+app.get('/api/dbt/linaje/resultados', async (_req, res) => {
+    try { res.json(await require('./dbt/linaje').paraElLinaje(ROOT_DIR, { dbManager })); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/dbt/linaje/filas-de-test', async (req, res) => {
+    try { res.json(await require('./dbt/linaje').filasDeTest(ROOT_DIR, String(req.body?.test || ''), { dbManager })); } catch (e) { res.status(400).json({ error: e.message }); }
+});
 // Lo que el editor sabe de dbt para completar (5.12, fase 3b; I12, Dec-35).
 app.get('/api/dbt/catalogo', async (_req, res) => {
     try { res.json(await require('./dbt/catalogo').catalogo(ROOT_DIR, { dbManager })); } catch (e) { res.status(500).json({ error: e.message }); }

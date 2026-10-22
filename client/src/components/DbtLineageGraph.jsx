@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { LuRefreshCw, LuLoader, LuCircleAlert, LuZoomIn, LuZoomOut, LuMaximize2 } from 'react-icons/lu';
 import { API_BASE as _API } from '../api.js';
+import useCorrerDbt from './dbt/useCorrerDbt';
+import { LuPlay, LuChevronsLeft, LuFileCode, LuTable, LuX, LuCheck, LuTriangleAlert } from 'react-icons/lu';
 const API = `${_API}/api`;
 
 const NODE_W = 180;
-const NODE_H = 56;
+const NODE_H = 70;   // 5.12 (I3): una línea más, con el resultado
 const GAP_X = 80;
 const GAP_Y = 28;
 
@@ -90,6 +92,29 @@ const DbtLineageGraph = ({ onFileOpen }) => {
     const [isPanning, setIsPanning] = useState(false);
     const panStart = useRef({ x: 0, y: 0 });
     const svgRef = useRef(null);
+    // 5.12 (I3): el último resultado de cada nodo, y el nodo elegido.
+    const [res, setRes] = useState(null);
+    const [elegido, setElegido] = useState(null);
+    const [texto, setTexto] = useState('');
+    const cargarResultados = useCallback(() => {
+        fetch(`${API}/dbt/linaje/resultados`).then(r => (r.ok ? r.json() : null)).then(setRes).catch(() => setRes(null));
+    }, []);
+    const dbt = useCorrerDbt();
+    useEffect(() => {
+        cargarResultados();
+        const alCambiar = () => { fetchManifestRef.current?.(); cargarResultados(); };
+        window.addEventListener('amox_dbt_cambio', alCambiar);
+        return () => window.removeEventListener('amox_dbt_cambio', alCambiar);
+    }, [cargarResultados]);
+    const fetchManifestRef = useRef(null);
+    const verFilasDeTest = async (id) => {
+        try {
+            const r = await fetch(`${API}/dbt/linaje/filas-de-test`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ test: id }) });
+            const d = await r.json();
+            if (!r.ok) throw new Error(d.error);
+            window.dispatchEvent(new CustomEvent('amox_nueva_consulta', { detail: { sql: `-- Rows that fail ${d.nombre}\n${d.sql}`, ejecutar: true } }));
+        } catch (e) { alert(e.message); }
+    };
 
     const fetchManifest = useCallback(async () => {
         setLoading(true);
@@ -117,6 +142,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
     }, []);
 
     useEffect(() => { fetchManifest(); }, [fetchManifest]);
+    useEffect(() => { fetchManifestRef.current = fetchManifest; }, [fetchManifest]);
 
     const handleMouseDown = (e) => {
         if (e.target.closest('.dag-node')) return;
@@ -246,7 +272,13 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                             const pos = positions.get(node.id);
                             if (!pos) return null;
                             const colors = TYPE_COLORS[node.resourceType] || TYPE_COLORS.model;
-                            const isHovered = hoveredNode === node.id;
+                            const isHovered = hoveredNode === node.id || elegido === node.id;
+                            const r = res?.nodos?.[node.id];
+                            const tt = res?.tests?.[node.id];
+                            const color = !r ? null : ['error', 'fail'].includes(r.estado) ? 'var(--color-error)' : r.estado === 'skipped' ? 'var(--text-tertiary)' : (tt?.fallan ? 'var(--color-error)' : tt?.avisan ? 'var(--color-warning)' : 'var(--color-success)');
+                            const lento = res?.lentos?.includes(node.id);
+                            const meta = r ? [r.estado === 'skipped' ? 'skipped' : `${r.segundos < 10 ? r.segundos.toFixed(1) : Math.round(r.segundos)} s`, r.filas != null ? `${Number(r.filas).toLocaleString()} rows` : null].filter(Boolean).join(' · ') : 'not run yet';
+                            const pruebas = tt ? (tt.fallan ? `${tt.fallan} failing` : tt.avisan ? `${tt.avisan} warning${tt.avisan === 1 ? '' : 's'}` : `${tt.total} test${tt.total === 1 ? '' : 's'}`) : null;
                             const dimmed = hoveredNode && !isHovered &&
                                 !data.edges.some(e => (e.from === hoveredNode && e.to === node.id) || (e.to === hoveredNode && e.from === node.id));
 
@@ -257,17 +289,27 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                                     transform={`translate(${pos.x}, ${pos.y})`}
                                     onMouseEnter={() => setHoveredNode(node.id)}
                                     onMouseLeave={() => setHoveredNode(null)}
-                                    onClick={() => node.path && onFileOpen && onFileOpen(node.path)}
-                                    style={{ cursor: node.path ? 'pointer' : 'default', transition: 'opacity 150ms ease' }}
+                                    onClick={() => setElegido(e => (e === node.id ? null : node.id))}
+                                    onDoubleClick={() => node.path && onFileOpen && onFileOpen(node.path)}
+                                    style={{ cursor: 'pointer', transition: 'opacity 150ms ease' }}
                                     opacity={dimmed ? 0.25 : 1}
                                 >
                                     <rect
                                         x={0} y={0} width={NODE_W} height={NODE_H}
                                         rx={8} ry={8}
                                         fill={colors.bg}
-                                        stroke={isHovered ? 'var(--accent-primary)' : colors.border}
-                                        strokeWidth={isHovered ? 2 : 1}
+                                        stroke={isHovered ? 'var(--accent-primary)' : (color || colors.border)}
+                                        strokeWidth={isHovered || (color && color !== 'var(--color-success)') ? 2 : 1}
                                     />
+                                    {/* 5.12 (I3): cómo le fue la última vez */}
+                                    {color && <circle cx={NODE_W - 12} cy={14} r={4} fill={color} />}
+                                    {lento && (
+                                        <text x={NODE_W - 22} y={17} textAnchor="end" fill="var(--color-warning)" fontSize={8} fontWeight="600" fontFamily="'JetBrains Mono', monospace">SLOW</text>
+                                    )}
+                                    <text x={10} y={60} fill="var(--text-tertiary)" fontSize={9} fontFamily="'JetBrains Mono', monospace">{meta}</text>
+                                    {pruebas && (
+                                        <text x={NODE_W - 10} y={60} textAnchor="end" fill={tt.fallan ? 'var(--color-error)' : tt.avisan ? 'var(--color-warning)' : 'var(--text-tertiary)'} fontSize={9} fontFamily="'JetBrains Mono', monospace">{pruebas}</text>
+                                    )}
                                     {/* Resource type badge */}
                                     <rect
                                         x={6} y={6} width={48} height={16}
@@ -302,7 +344,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                 </svg>
 
                 {/* Hover tooltip */}
-                {hoveredNode && (() => {
+                {hoveredNode && !elegido && (() => {
                     const node = data.nodes.find(n => n.id === hoveredNode);
                     if (!node) return null;
                     return (
@@ -327,6 +369,73 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                             {node.path && (
                                 <div style={{ marginTop: '4px', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: 'var(--accent-primary)' }}>
                                     {node.path}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })()}
+
+                {/* 5.12 (I3): el nodo elegido — su resultado, sus tests y qué correr */}
+                {elegido && (() => {
+                    const node = data.nodes.find(n => n.id === elegido);
+                    if (!node) return null;
+                    const r = res?.nodos?.[node.id];
+                    const tt = res?.tests?.[node.id];
+                    const sel = node.resourceType === 'source' ? `source:${node.name}` : node.name;
+                    return (
+                        <div className="lin-panel">
+                            <div className="lin-panel-cab">
+                                <b>{node.name}</b>
+                                <span>{node.resourceType}{node.materialized ? ` · ${node.materialized}` : ''}</span>
+                                <button type="button" onClick={() => setElegido(null)} title="Close"><LuX size={12} /></button>
+                            </div>
+                            <div className="lin-panel-estado">
+                                {!r ? 'It has not run yet.' : (
+                                    <>
+                                        {['error', 'fail'].includes(r.estado) ? <LuCircleAlert size={12} className="lin-mal" /> : <LuCheck size={12} className="lin-bien" />}
+                                        {` ${r.estado} · ${r.segundos} s${r.filas != null ? ` · ${Number(r.filas).toLocaleString()} rows` : ''} · ${new Date(r.cuando).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                                    </>
+                                )}
+                            </div>
+                            {r?.mensaje && <pre className="lin-panel-error">{r.mensaje}</pre>}
+                            {tt && (
+                                <ul className="lin-panel-tests">
+                                    {tt.lista.map(x => (
+                                        <li key={x.id} className={`lin-test--${x.estado}`}>
+                                            {['fail', 'error'].includes(x.estado) ? <LuCircleAlert size={11} /> : x.estado === 'warn' ? <LuTriangleAlert size={11} /> : <LuCheck size={11} />}
+                                            <span title={x.nombre}>{x.nombre}</span>
+                                            {x.fallos ? <em>{x.fallos} rows</em> : null}
+                                            {x.filas && <button type="button" onClick={() => verFilasDeTest(x.id)} title="Open the rows that fail it"><LuTable size={11} /> See rows</button>}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                            {node.resourceType !== 'exposure' && (
+                                <div className="lin-panel-acciones">
+                                    {node.path && <button type="button" onClick={() => onFileOpen && onFileOpen(node.path)}><LuFileCode size={12} /> Open</button>}
+                                    <button type="button" disabled={!!dbt.ocupado} onClick={() => dbt.correr(`dbt build --select ${sel}+`)} title={`This and what depends on it: dbt build --select ${sel}+`}>
+                                        {dbt.ocupado ? <LuLoader size={12} className="dbt-spin" /> : <LuPlay size={12} />} Run from here
+                                    </button>
+                                    <button type="button" disabled={!!dbt.ocupado} onClick={() => dbt.correr(`dbt build --select +${sel}`)} title={`This and everything it needs: dbt build --select +${sel}`}>
+                                        <LuChevronsLeft size={12} /> Build up to here
+                                    </button>
+                                    {dbt.ocupado && <button type="button" onClick={dbt.parar}><LuX size={12} /> Stop</button>}
+                                </div>
+                            )}
+                            {dbt.confirmar && (
+                                <div className="lin-panel-confirmar">
+                                    <span>{dbt.confirmar.motivo} Type <b>{dbt.confirmar.target}</b>:</span>
+                                    <input value={texto} onChange={e => setTexto(e.target.value)} placeholder={dbt.confirmar.target} aria-label="Target name" autoFocus
+                                        onKeyDown={e => { if (e.key === 'Enter' && texto === dbt.confirmar.target) { dbt.confirmarCon(texto); setTexto(''); } }} />
+                                    <button type="button" disabled={texto !== dbt.confirmar.target} onClick={() => { dbt.confirmarCon(texto); setTexto(''); }}>Run in {dbt.confirmar.target}</button>
+                                    <button type="button" onClick={dbt.cancelarConfirmacion}>Cancel</button>
+                                </div>
+                            )}
+                            {dbt.error && <div className="lin-panel-error">{dbt.error}</div>}
+                            {dbt.resumen && (
+                                <div className={`lin-panel-resumen lin-panel-resumen--${dbt.resumen.estado}`}>
+                                    <span>{dbt.resumen.linea}</span>
+                                    {dbt.resumen.runId && <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId: dbt.resumen.runId } }))}>Details</button>}
                                 </div>
                             )}
                         </div>
