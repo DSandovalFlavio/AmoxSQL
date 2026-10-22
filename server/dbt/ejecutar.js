@@ -52,7 +52,7 @@ async function ejecutarDbt({ base = null, dbManager = null, raiz, args, entorno,
             alLinea?.({ tipo: 'amox', texto: `Source contract: ${parada.error}` });
             r = { codigo: 1, cancelado: false, ms: 0, inicio: new Date(), comando: comandoProvisional, error: `Source contract: ${parada.error}` };
         } else {
-            r = await correr({ raiz, args, entorno, dbManager, env, alLinea, senal });
+            r = await correr({ raiz, args, entorno, dbManager, env, alLinea, senal, prioridadBaja: origen !== 'interfaz' && require('../ejecucion/limites').appAbierta() });
         }
     } catch (e) {
         r = { codigo: 1, cancelado: false, ms: 0, inicio: new Date(), comando: comandoProvisional, error: e.message };

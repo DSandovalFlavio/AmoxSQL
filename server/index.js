@@ -6732,9 +6732,14 @@ app.get('/api/operacion', conCentral(async (req) => {
         pausaGeneral: pausa,
         // 5.13 (Dec-45): lo que falló y nadie ha mirado, no sólo lo de hoy.
         atencion: (await atencion.listar(baseCentral).catch(() => [])).length,
+        // 5.13 (Dec-42): cuánto puede usar lo de fondo mientras se trabaja.
+        limites: { ...(await require('./ejecucion/limites').preferencias()), nucleos: require('os').cpus()?.length || 2, memoriaGb: Math.round(require('os').totalmem() / 1073741824) },
         sistema: { activo: (await baseCentral.preferencia('programador_sistema')) === true, soportado: process.platform === 'win32' },
     };
 }));
+
+// 5.13 (Dec-42): los límites de lo que corre de fondo con la aplicación abierta.
+app.put('/api/preferencias/limites-fondo', conCentral(async (req) => require('./ejecucion/limites').guardarPreferencias(req.body || {})));
 
 // ── Lo que falló y nadie ha mirado (5.13, Dec-45) ────────────────────────────
 // La bienvenida (todas) y la ficha de cada workspace (las suyas). Ver
@@ -6778,7 +6783,7 @@ app.get('/api/ejecuciones/:id', conCentral(async (req) => {
     const pasos = [...nodeRuns].sort((a, b) => String(a.started_at || a.finished_at || '').localeCompare(String(b.started_at || b.finished_at || ''))).map(n => {
         let s = {};
         try { s = JSON.parse(n.result_summary || '{}'); } catch { /* sin resumen */ }
-        return { nodo: n.node_label || n.node_id, tipo: n.node_type, estado: n.status, ms: n.duration_ms, filas: s.rowCount ?? null, error: n.error_message || null };
+        return { nodo: n.node_label || n.node_id, tipo: n.node_type, estado: n.status, ms: n.duration_ms, filas: s.rowCount ?? null, error: n.error_message || null, reintentos: s.reintentos || 0 };
     });
     const resumen = await require('./ejecucion/resumen').resumir({ base: baseCentral, dbManager, runId: e.id, proyecto: e.proyecto }).catch(() => null);
     let programacion = null;
@@ -6800,6 +6805,8 @@ app.get('/api/ejecuciones/:id', conCentral(async (req) => {
             inicio: e.inicio, fin: e.fin, error: e.error, parametros, prevista: horaUtc(e.prevista),
         },
         programacion, pasos, resumen, procesoEnProyecto,
+        // 5.13 (Dec-42): con qué límites corrió de fondo, si los llevó.
+        limites: (() => { try { return JSON.parse(e.resumen || 'null')?.limites || null; } catch { return null; } })(),
     };
 }));
 

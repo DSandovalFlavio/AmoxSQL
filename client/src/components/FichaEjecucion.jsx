@@ -93,6 +93,14 @@ export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
                                     {d.dbt && e.origen === 'interfaz' ? 'Run from DBT Studio' : (ORIGEN[e.origen] || e.origen)}
                                     {d.programacion && <> · {d.programacion.borrada ? 'a schedule that was removed' : d.programacion.descripcion}{e.prevista ? ` · due ${fecha(new Date(e.prevista))}` : ''}</>}
                                 </dd>
+                                {d.limites && (
+                                    <>
+                                        <dt>Limits</dt>
+                                        <dd>{d.limites.aplicados
+                                            ? `In the background while AmoxSQL was open: ${d.limites.texto}`
+                                            : 'Not limited: it ran in the project database, which the open AmoxSQL shares'}</dd>
+                                    </>
+                                )}
                                 {Object.keys(e.parametros || {}).length > 0 && (<><dt>With</dt><dd className="fej-params">{Object.entries(e.parametros).map(([k, v]) => <code key={k}>{k} = {String(v)}</code>)}</dd></>)}
                                 <dt>Process</dt><dd className="fej-ruta" title={e.proceso}>{e.proceso}</dd>
                             </dl>
@@ -129,7 +137,7 @@ export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
                                             <li key={i} className={`fej-paso fej-paso--${p.estado}`}>
                                                 <span className="fej-icono" aria-hidden="true">{p.estado === 'success' ? <LuCircleCheck size={13} /> : p.estado === 'failed' ? <LuCircleAlert size={13} /> : p.estado === 'warn' ? <LuTriangleAlert size={13} /> : <span className="lote-punto" />}</span>
                                                 <span className="fej-nodo">{p.nodo}</span>
-                                                <span className="fej-meta">{[p.filas != null ? `${Number(p.filas).toLocaleString()} rows` : null, duracion(p.ms), p.estado === 'skipped' ? 'skipped' : null].filter(Boolean).join(' · ')}</span>
+                                                <span className="fej-meta">{[p.filas != null ? `${Number(p.filas).toLocaleString()} rows` : null, duracion(p.ms), p.reintentos ? `${p.reintentos} ${p.reintentos === 1 ? 'retry' : 'retries'}` : null, p.estado === 'skipped' ? 'skipped' : null].filter(Boolean).join(' · ')}</span>
                                                 {p.error && <span className="fej-error">{String(p.error).split('\n')[0]}</span>}
                                             </li>
                                         ))}

@@ -21281,3 +21281,10 @@ tr:hover td {
 .ctr-resultado--mal { background: var(--color-error-bg); color: var(--color-error-text); }
 .ctr-resultado ul { margin: 4px 0 0; padding-left: 18px; color: var(--text-primary); }
 .fnt-contrato { flex: none; color: var(--text-tertiary); }
+
+/* 5.13 (Dec-43): reintentos de un paso de red */
+.chain-config-fila { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 12px; color: var(--text-secondary); }
+.chain-config-input.chain-config-input--corto { width: 64px; flex: none; }
+/* 5.13 (Dec-42): cuánto usa lo de fondo mientras se trabaja */
+.opx-limites { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+.opx-limites select { padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border-subtle); background: var(--surface-raised, var(--panel-bg)); color: var(--text-primary); font-size: 12px; }

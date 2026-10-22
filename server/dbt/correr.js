@@ -186,7 +186,7 @@ function terminar(hijo) {
  * @param {AbortSignal} [o.senal]   cancela
  * @returns {Promise<{ codigo, cancelado, ms, inicio, comando, lineas, noArranco }>}
  */
-async function correr({ raiz, args, entorno, dbManager = null, env = {}, alLinea = () => {}, senal = null }) {
+async function correr({ raiz, args, entorno, dbManager = null, env = {}, alLinea = () => {}, senal = null, prioridadBaja = false }) {
     if (!raiz || !fs.existsSync(path.join(raiz, 'dbt_project.yml'))) throw new ErrorDeDbt('This folder is not a dbt project (there is no dbt_project.yml).');
     const lista = [...args];
     if (!lista.some(a => a === '--profiles-dir' || String(a).startsWith('--profiles-dir=')) && fs.existsSync(path.join(raiz, 'profiles.yml'))) {
@@ -215,6 +215,11 @@ async function correr({ raiz, args, entorno, dbManager = null, env = {}, alLinea
             // Sin colores: la salida va a una ventana y al historial, no a una consola.
             hijo = spawn(c.exe, [...c.pre, ...lista], { cwd: raiz, env: { ...process.env, DBT_USE_COLORS: 'false', ...c.env, ...env }, windowsHide: true });
         } catch (e) { resolve({ codigo: 1, error: e.message }); return; }
+        // 5.13 (Dec-42): de fondo, con la aplicación abierta, por debajo de lo
+        // normal. Lo hereda lo que lance (el python.exe de dbt.exe, fase 0.5).
+        if (prioridadBaja && hijo?.pid) {
+            try { require('os').setPriority(hijo.pid, require('os').constants.priority.PRIORITY_BELOW_NORMAL); amox('Running in the background at low priority, so the computer stays usable.'); } catch { /* sin permiso: a la normal */ }
+        }
         let cancelado = false;
         const alCancelar = () => { cancelado = true; terminar(hijo); };
         if (senal) { if (senal.aborted) alCancelar(); else senal.addEventListener('abort', alCancelar, { once: true }); }

@@ -69,6 +69,7 @@ async function correrOcurrencia(prog, prevista, { perdidas = 0, origen = 'progra
     let res = null;
     if (r.runId) {
         res = await resumir({ base: baseCentral, dbManager: estado.dbManager, runId: r.runId, proyecto: prog.proyecto }).catch(() => null);
+        if (res && r.limites) res.limites = r.limites;
         if (res) await baseCentral.query(`UPDATE ejecuciones SET resumen = $2 WHERE id = $1`, [r.runId, JSON.stringify(res)]).catch(() => {});
     }
     const est = r.status === 'completed' ? 'ok' : 'fallo';

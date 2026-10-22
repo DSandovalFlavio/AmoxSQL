@@ -138,6 +138,20 @@ export default function VistaOperacion({ onClose }) {
                                     Run even when AmoxSQL is closed
                                 </label>
                             )}
+                            {d.limites && (
+                                <div className="opx-limites" title="Only while AmoxSQL is open: with it closed nobody is working, so a run uses the whole computer">
+                                    While you work, a scheduled run uses up to
+                                    <select value={d.limites.hilos} aria-label="Share of the cores"
+                                        onChange={e => accion('limites', () => pedir('PUT', '/api/preferencias/limites-fondo', { hilos: Number(e.target.value) }))}>
+                                        {[25, 50, 75, 100].map(v => <option key={v} value={v}>{Math.max(1, Math.floor(d.limites.nucleos * v / 100))} of {d.limites.nucleos} cores</option>)}
+                                    </select>
+                                    and
+                                    <select value={d.limites.memoria} aria-label="Share of the memory"
+                                        onChange={e => accion('limites', () => pedir('PUT', '/api/preferencias/limites-fondo', { memoria: Number(e.target.value) }))}>
+                                        {[10, 25, 40, 60].map(v => <option key={v} value={v}>{Math.max(1, Math.round(d.limites.memoriaGb * v / 100))} GB of memory</option>)}
+                                    </select>
+                                </div>
+                            )}
                         </div>
                     </section>
 
