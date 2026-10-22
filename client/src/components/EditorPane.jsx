@@ -670,6 +670,7 @@ const EditorPane = ({
                             onEjecutada={() => { lastRunTimeRef.current = new Date(); }}
                             onSave={() => onSave && onSave()}
                             filePath={activeTab.path || null}
+                            onOpenFile={onOpenFile}
                             theme={theme}
                             editorSettings={editorSettings}
                             onToggleAi={onToggleAi}
@@ -844,6 +845,8 @@ const EditorPane = ({
                                     archivo={activeTab.path}
                                     onRunSql={(sql) => handleRunWithTimestamp(activeTab.id, sql)}
                                     version={activeTab.dirty ? 1 : 2}
+                                    contenido={activeTab.content}
+                                    onOpenFile={onOpenFile}
                                 />
                             )}
 
