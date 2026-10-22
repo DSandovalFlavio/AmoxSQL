@@ -20316,6 +20316,30 @@ tr:hover td {
   color: var(--text-tertiary);
 }
 .db-procedencia--cambio span { color: var(--color-warning-text); }
+/* 5.12 (I8): DuckLake */
+.lago-version { padding: 6px 8px 6px 34px; border-bottom: 1px solid var(--border-subtle); font-size: 11px; display: flex; flex-direction: column; gap: 3px; }
+.lago-version-cab { display: flex; align-items: baseline; gap: 8px; color: var(--text-secondary); }
+.lago-version-cab b { color: var(--text-primary); }
+.lago-version-cab em { font-style: normal; color: var(--text-tertiary); }
+.lago-version-msj { color: var(--text-primary); }
+.lago-version-cambios { color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lago-version-tabla { display: flex; align-items: center; gap: 4px; }
+.lago-version-tabla span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-family: var(--font-mono, monospace); font-size: 10px; }
+.lago-version-tabla button { padding: 1px 6px; font-size: 10px; border-radius: 4px; border: 1px solid var(--border-subtle); background: transparent; color: var(--text-secondary); cursor: pointer; }
+.lago-version-tabla button:hover { color: var(--text-primary); border-color: var(--accent-primary); }
+.lago-modal { width: min(520px, calc(100vw - 32px)); }
+.lago-texto { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+.lago-campo { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-tertiary); margin-bottom: 12px; }
+.lago-opciones { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; font-size: 12px; color: var(--text-secondary); }
+.lago-opciones label { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; line-height: 1.4; }
+.lago-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; }
+.lago-check input[type="number"] { width: 64px; }
+.lago-vista { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; margin: 8px 0; border-radius: 6px; background: var(--surface-2, var(--panel-bg)); font-size: 12px; line-height: 1.5; color: var(--text-primary); }
+.lago-vista--borra { border: 1px solid var(--color-warning); }
+.lago-vista--borra svg { color: var(--color-warning); flex-shrink: 0; margin-top: 2px; }
+.lago-error { margin: 6px 0; color: var(--color-error-text, var(--color-error)); font-size: 12px; }
+.lago-pie { display: flex; justify-content: flex-end; margin-top: 12px; }
+.lago-peligro { background: var(--color-error) !important; border-color: var(--color-error) !important; }
 /* 5.12 (I5): la descripción de una tabla y de sus columnas */
 .db-descripcion {
   padding: 2px 8px 4px 34px;

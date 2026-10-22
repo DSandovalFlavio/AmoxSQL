@@ -133,7 +133,7 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
                 return;
             }
             let name = newDbName.trim();
-            if (!name.endsWith('.duckdb') && !name.endsWith('.db') && !name.endsWith('.ducklake')) {
+            if (!name.endsWith('.duckdb') && !name.endsWith('.db') && !name.endsWith('.ducklake') && !name.endsWith('.ducklake.sqlite')) {
                 name += '.duckdb';
             }
             onStartSession(name, false);
