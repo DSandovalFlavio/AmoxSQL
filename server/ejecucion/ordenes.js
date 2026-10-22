@@ -72,6 +72,25 @@ function leerArgumentos(argv, { desde = 1, cwd = process.cwd() } = {}) {
         }
         return r;
     }
+    // 5.12 (I10): AmoxSQL.exe dbt <acción> [--select …] [--target …] --project <carpeta>
+    if (a[primera] === 'dbt') {
+        const r = { orden: 'dbt', proceso: null, proyecto: null, args: [], informe: null };
+        const resto = a.slice(primera + 1);
+        for (let i = 0; i < resto.length; i++) {
+            const x = String(resto[i]);
+            const conIgual = (n) => x.startsWith(`${n}=`);
+            if (x === '--project' || conIgual('--project')) { r.proyecto = conIgual('--project') ? x.slice(10) : resto[++i]; continue; }
+            if (x === '--informe' || conIgual('--informe')) { const v = conIgual('--informe') ? x.slice(10) : resto[++i]; if (v) r.informe = path.resolve(cwd, v); continue; }
+            r.args.push(x);
+        }
+        const errorDbt = (t) => ({ ...r, error: `${t}\nUsage: AmoxSQL dbt <command> [dbt options] --project <folder>` });
+        if (!r.args.length) return errorDbt('Which dbt command? For example «AmoxSQL dbt build --project C:\\my-project».');
+        if (!r.proyecto) return errorDbt('--project is required: the folder of the dbt project.');
+        r.proyecto = path.resolve(cwd, r.proyecto);
+        try { r.proceso = require('../dbt/correr').textoDe(require('../dbt/correr').analizarComando(['dbt', ...r.args].map(x => (/\s/.test(x) ? `'${x}'` : x)).join(' ')).args); }
+        catch (e) { return errorDbt(e.message); }
+        return r;
+    }
     if (a[primera] !== 'run') return null;
 
     const r = { orden: 'run', proceso: null, proyecto: null, parametros: {}, informe: null, lote: null };
@@ -134,6 +153,11 @@ function leerArgumentos(argv, { desde = 1, cwd = process.cwd() } = {}) {
 /** Lo que se sabe sin arrancar nada: que existan la carpeta y el archivo. */
 function comprobarQueExiste(r) {
     if (r.orden === 'tick') return null;
+    if (r.orden === 'dbt') {
+        if (!fs.existsSync(r.proyecto) || !fs.statSync(r.proyecto).isDirectory()) return `The project folder does not exist: ${r.proyecto}`;
+        if (!fs.existsSync(path.join(r.proyecto, 'dbt_project.yml'))) return `${r.proyecto} is not a dbt project (there is no dbt_project.yml).`;
+        return null;
+    }
     if (!fs.existsSync(r.proyecto) || !fs.statSync(r.proyecto).isDirectory()) {
         return `The project folder does not exist: ${r.proyecto}`;
     }
@@ -170,6 +194,14 @@ function textoDelResultado(r) {
         for (const x of c) l.push(`  ${x.estado === 'ok' ? 'ok  ' : 'FAIL'} ${x.nombre} (due ${local(x.prevista)})${x.perdidas ? `, ${x.perdidas} missed before it` : ''}${x.error ? ` — ${x.error}` : ''}`);
         for (const x of r.saltadas || []) l.push(`  skip ${x.nombre}: ${x.motivo}`);
         if (r.proxima) l.push(`  Next: ${local(r.proxima)}`);
+        return l.join('\n') + '\n';
+    }
+    if (r.orden === 'dbt') {
+        const res = r.resumen || {};
+        const l = [`AmoxSQL: ${res.linea || r.proceso}${r.entregada ? ' (run by the open AmoxSQL)' : ''}`];
+        if (r.codigo !== 0) l.push(`  failed (exit code ${r.codigo})${r.mensaje ? `: ${r.mensaje}` : ''}`);
+        for (const f of res.fallidos || []) l.push(`  ${f.estado === 'warn' ? 'WARN' : 'FAIL'} ${f.nombre}${f.de ? ` (${f.de})` : ''}${f.fallos ? ` — ${f.fallos} rows` : f.mensaje ? ` — ${String(f.mensaje).split('\n')[0]}` : ''}`);
+        if (r.registro) l.push(`  Log: ${r.registro}`);
         return l.join('\n') + '\n';
     }
     const nombre = path.basename(r.proceso || '') || 'process';

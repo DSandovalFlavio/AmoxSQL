@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useCallback, useRef, memo, lazy, Suspense } from 'react';
 import {
     LuContainer, LuCheck, LuX, LuCopy, LuPlay, LuRefreshCw,
     LuChevronDown, LuChevronRight, LuPlus, LuTrash2,
@@ -10,6 +10,9 @@ import DbtLineageGraph from './DbtLineageGraph';
 import EntornoDbt from './dbt/EntornoDbt';
 import BarraTarget from './dbt/BarraTarget';
 import { FuentesEnDbt } from './dbt/PuenteDbt';
+import { LuCalendarClock } from 'react-icons/lu';
+// 5.12 (I10): programar un comando de dbt con el diálogo de la 5.11.
+const ChainProgramar = lazy(() => import('./chains/ChainProgramar'));
 import { API_BASE as _API } from '../api.js';
 const API = `${_API}/api`;
 
@@ -109,7 +112,8 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
     const [cmdExclude, setCmdExclude] = useState('');
     const [cmdFullRefresh, setCmdFullRefresh] = useState(false);
     const [cmdTarget, setCmdTarget] = useState('');            // 5.12 (I4): el de la barra de target
-    const [confirmar, setConfirmar] = useState(null);          // 5.12 (Dec-29): { target, motivo } antes de escribir en producción
+    const [confirmar, setConfirmar] = useState(null);
+    const [programando, setProgramando] = useState(false);   // 5.12 (I10)          // 5.12 (Dec-29): { target, motivo } antes de escribir en producción
     const [textoConfirmar, setTextoConfirmar] = useState('');
     const [explicaciones, setExplicaciones] = useState({});   // 5.12 (I9)
     const [snapRelacion, setSnapRelacion] = useState("ref('stg_orders')");
@@ -1086,6 +1090,9 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                     <button className="dbt-icon-btn" onClick={handleCopyCmd} title="Copy to clipboard">
                                         {cmdCopied ? <LuCheck size={14} style={{ color: 'var(--color-success)' }} /> : <LuClipboardCopy size={14} />}
                                     </button>
+                                    <button className="dbt-icon-btn" onClick={() => setProgramando(true)} title="Schedule this command (every night, every hour, when a file arrives…)">
+                                        <LuCalendarClock size={14} />
+                                    </button>
                                     <button
                                         className="dbt-btn dbt-btn--execute"
                                         onClick={() => handleExecute()}
@@ -1110,6 +1117,16 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                     <button className="dbt-btn dbt-btn--ghost" onClick={() => setConfirmar(null)}>Cancel</button>
                                 </div>
                             </div>
+                        )}
+
+                        {programando && (
+                            <Suspense fallback={null}>
+                                <ChainProgramar
+                                    chainDefinition={{ name: generatedCmd.replace(/\s+--profiles-dir\s+\.(?=\s|$)/, ''), parametros: [] }}
+                                    filePath={generatedCmd.replace(/\s+--profiles-dir\s+\.(?=\s|$)/, '')}
+                                    onClose={() => setProgramando(false)}
+                                />
+                            </Suspense>
                         )}
 
                         {/* Output Panel */}

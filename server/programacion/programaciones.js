@@ -65,6 +65,17 @@ function desdeFila(f) {
 /** Comprueba lo que se va a guardar: el proceso existe y sus parámetros son de su tipo. */
 function comprobar({ proceso, proyecto, regla, parametros }) {
     if (!proyecto || !fs.existsSync(proyecto)) throw new ErrorDeProgramacion(`The project folder does not exist: ${proyecto}`);
+    // 5.12 (I10): un comando de dbt. Se guarda como texto («dbt build --select x»),
+    // como en el historial; se analiza ya, para que un error salga al programarlo.
+    if (/^dbt\s/.test(String(proceso || ''))) {
+        const dbtCorrer = require('../dbt/correr');
+        let orden;
+        try { orden = dbtCorrer.analizarComando(proceso); } catch (e) { throw new ErrorDeProgramacion(e.message); }
+        if (!fs.existsSync(path.join(proyecto, 'dbt_project.yml'))) throw new ErrorDeProgramacion('This folder is not a dbt project (there is no dbt_project.yml).');
+        const r = reglas.normalizar(regla);
+        const sel = orden.args[orden.args.indexOf('--select') + 1];
+        return { abs: dbtCorrer.textoDe(orden.args), r, params: {}, nombre: `dbt ${orden.accion}${orden.args.includes('--select') && sel ? ` ${sel}` : ''}` };
+    }
     const abs = path.isAbsolute(proceso) ? proceso : path.resolve(proyecto, proceso);
     if (!fs.existsSync(abs)) throw new ErrorDeProgramacion(`The process does not exist: ${abs}`);
     const r = reglas.normalizar(regla);

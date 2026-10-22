@@ -33,6 +33,25 @@ const emitir = (evento) => { for (const f of estado.oyentes) { try { f(evento); 
 
 /** Corre una ocurrencia. Devuelve { runId, estado, resumen }. */
 async function correrOcurrencia(prog, prevista, { perdidas = 0, origen = 'programada' } = {}) {
+    // 5.12 (I10): un comando de dbt, con el corredor (Dec-26) y su historial (Dec-34).
+    if (/^dbt\s/.test(String(prog.proceso || ''))) {
+        const dbtCorrer = require('../dbt/correr');
+        const { ejecutarDbt } = require('../dbt/ejecutar');
+        emitir({ tipo: 'empieza', programacionId: prog.id, nombre: prog.nombre, prevista });
+        let r;
+        try {
+            const { args } = dbtCorrer.analizarComando(prog.proceso);
+            const env = await require('../dbt/fuentes').variables(prog.proyecto).catch(() => ({}));
+            r = await ejecutarDbt({ base: baseCentral, dbManager: estado.dbManager, raiz: prog.proyecto, args, env, origen, programacionId: prog.id, prevista });
+        } catch (e) {
+            r = { runId: null, resumen: { estado: 'fallo', linea: `${prog.nombre} could not start: ${e.message}` } };
+        }
+        const res = { ...r.resumen, runId: r.runId, nombre: prog.nombre };
+        avisar(prog, res, perdidas);
+        const est = res.estado === 'ok' || res.estado === 'aviso' ? 'ok' : 'fallo';
+        emitir({ tipo: 'termina', programacionId: prog.id, nombre: prog.nombre, prevista, runId: r.runId || null, estado: est });
+        return { runId: r.runId || null, estado: est, error: est === 'fallo' ? res.linea : null, resumen: res };
+    }
     let cadena;
     try { cadena = JSON.parse(fs.readFileSync(prog.proceso, 'utf8')); } catch (e) {
         const error = `The process could not be read: ${e.message}`;
@@ -62,6 +81,11 @@ async function correrOcurrencia(prog, prevista, { perdidas = 0, origen = 'progra
 function avisar(prog, res, perdidas) {
     if (!estado.avisar || prog.avisar === 'nunca') return;
     if (prog.avisar === 'fallo' && res.estado === 'ok') return;
+    // 5.12 (Dec-34): dbt sale con 0 con un test en warn; el aviso lo dice igual.
+    if (res.estado === 'aviso') {
+        estado.avisar({ titulo: `${prog.nombre}: tests with warnings`, texto: res.linea, runId: res.runId || null, ok: false });
+        return;
+    }
     const extra = perdidas > 0 ? ` (${perdidas === 1 ? '1 earlier run was' : `${perdidas} earlier runs were`} missed while AmoxSQL was closed; this is the latest)` : '';
     estado.avisar({
         titulo: res.estado === 'ok' ? prog.nombre : `${prog.nombre} failed`,
