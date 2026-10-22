@@ -100,6 +100,22 @@ Si falta una columna y aparece otra nueva del mismo tipo, se sugiere el cambio d
 
 **Dec-40 · Contrato desde lo que hay.** **Take today's columns** escribe el contrato con las columnas y tipos de hoy, todas obligatorias. El autor quita lo que no importa y añade reglas. Nadie escribe un contrato desde cero.
 
+**Dec-45 · Lo que falló se ve sin buscarlo: en la bienvenida y en el workspace.**
+Petición del autor (2026-10-22). Hoy el botón de Operations se pone rojo con un número,
+y la vista de workspaces lista ejecuciones, pero el **porqué** sólo está en la ficha.
+
+- **«Needs attention»** es una lista de las ejecuciones que fallaron o quedaron en aviso y que nadie ha mirado todavía. Vale para procesos, dbt o un contrato que no se cumplió.
+- Cada fila: el proceso, cuándo, **la razón en una línea** (la de Dec-39, o el error del paso), **Open** (la ficha), **Run again** y **Dismiss**.
+- Aparece en dos sitios:
+  - **la bienvenida**: una franja compacta con las de todos los workspaces, sólo si hay alguna (si no, la bienvenida queda exactamente como está);
+  - **la ficha de cada workspace**, en la vista de workspaces: arriba, las suyas.
+- **Ya vista** = la ficha se abrió, se pulsó Dismiss o se repitió y terminó bien. Se guarda en las preferencias de la base central (`fallos_vistos`, los ids de los últimos 30 días), **sin migración**.
+- El botón de Operations de la barra de título cuenta las mismas, no sólo las de hoy. Un fallo de anoche que nadie miró sigue rojo por la mañana.
+- `GET /api/operacion/atencion?workspace=<id>` y `POST /api/operacion/atencion/vista`.
+
+> La bienvenida era intocable; el autor pide expresamente este cambio. Se limita a esta
+> franja, que no aparece si no hay nada que atender.
+
 **Dec-41 · Las medidas son macros temporales con las columnas como parámetros.**
 - Cada medida de `metrics.yml` (workspace y proyecto; gana el proyecto) se convierte en `CREATE OR REPLACE TEMP MACRO <nombre>(<columnas>) AS <sql>`.
 - Las columnas salen de los identificadores de la expresión, sin las palabras del motor, las funciones ni las cadenas, en el orden en que aparecen.
@@ -117,6 +133,7 @@ Si falta una columna y aparece otra nueva del mismo tipo, se sugiere el cambio d
 - dbt lanzado de fondo corre con prioridad «por debajo de lo normal» (`os.setPriority`).
 - **Límite conocido:** un proceso con base `proyecto` comparte la instancia de la interfaz y no se puede limitar sin limitar al usuario. Se dice en la ficha («ran in the project database: not limited»), no se arregla aquí.
 - Los porcentajes se pueden cambiar en **Settings → Scheduled processes**.
+- Confirmado por el autor: el uso típico es poner procesos **muy temprano**, cada quien en su máquina. A esa hora, con la aplicación cerrada, corren sin límites. Si al llegar se abre AmoxSQL y se pone al día con lo perdido, esa puesta al día sí lleva límites: es justo cuando la persona empieza a trabajar.
 
 **Dec-43 · Reintentar sólo lo que vale la pena reintentar.**
 - Los nodos que leen de la red (`http_fetch`, `bucket_read`, `gsheet_read`, y `fuente` cuando es un *bucket*, un lago o una URL) aceptan `reintentos: { veces: 0–5, esperaSegundos }`. Por defecto `{ veces: 2, esperaSegundos: 30 }` en los procesos programados y 0 en la interfaz.
@@ -132,6 +149,7 @@ Si falta una columna y aparece otra nueva del mismo tipo, se sugiere el cambio d
   - la línea del resumen y del aviso;
   - el pie de las diapositivas de Report Flow, junto al sello de actualización que ya existe.
 - Un dato remoto sin fecha no cuenta. Si no hay ninguna fecha, no se escribe nada en vez de inventarla.
+- **En el Excel, la línea visible va apagada por defecto** (recomendación aceptada por el autor). La propiedad del documento se escribe siempre. Una línea visible mueve la hoja: en un libro del cliente o en una tabla que empieza en A1 rompería fórmulas y rangos. Se enciende por nodo (**Add "Data as of" line**). Con plantilla, si el libro tiene un nombre definido `datos_al`, esa celda se rellena: el cliente decide dónde va, sin mover nada.
 
 ## 4. Las fases
 
@@ -144,12 +162,13 @@ Cada prueba responde a una duda que puede cambiar una decisión:
 - **0.5 (Dec-42):** que `os.setPriority` funcione sobre el árbol de procesos de dbt en Windows.
 - **0.6 (Dec-43):** qué errores devuelve el motor ante un 503, un 404, un tiempo agotado y una red caída. Sólo se reintenta lo que se pueda distinguir.
 
-### Fase 1 · El contrato de la fuente (E2 + E3; Dec-37 a Dec-40)
+### Fase 1 · El contrato de la fuente y dónde se ve lo que falla (E2 + E3; Dec-37 a Dec-40, Dec-45)
 - `server/contrato.js` (puro donde se pueda): normalizar, comprobar columnas por familia, la consulta única de reglas, el texto de cada fallo y la sugerencia de cambio de nombre.
 - `fuentes.normalizarDefinicion` acepta `contrato`.
 - `ejecutarProceso` comprueba antes del primer paso las fuentes que lee el proceso; dbt, antes de correr.
 - `/api/fuentes/:nombre/comprobar` y `/api/fuentes/:nombre/contrato/de-hoy`.
 - Arreglo: `schema_validation` y `assert` usan el esquema de lo que les llega (`fuentes.x`).
+- **«Needs attention» (Dec-45):** el componente compartido, la franja de la bienvenida, el bloque en la ficha del workspace, los endpoints y el contador de Operations sobre lo no visto.
 - **Interfaz:** en la ficha de la fuente, **Contract**: columnas con su familia y «required», reglas, *strict*, al fallar, **Take today's columns**, **Check** y las últimas comprobaciones.
 - Prueba: `probarContrato.mjs`.
 
@@ -196,11 +215,11 @@ Cada prueba responde a una duda que puede cambiar una decisión:
 | Reintentar un error permanente retrasa el aviso 1 minuto | Sólo se reintenta lo pasajero (Dec-43, 0.6) |
 | «La fecha de los datos» engaña con datos remotos | Sin fecha, no se escribe nada (Dec-44) |
 
-## 6. Para el autor
+## 6. Decisiones del autor (respondidas el 2026-10-22)
 
-1. **Al fallar el contrato, ¿parar por defecto?** Propuesta: sí, `parar`. Un proceso que entrega un Excel equivocado es peor que uno que no entrega.
-2. **¿El 25 % de la memoria y la mitad de los núcleos** para lo de fondo con la aplicación abierta? En tu equipo (16 GB) son 4 GB.
-3. **La línea visible «Data as of …» en el Excel**: ¿apagada por defecto (sólo la propiedad del documento) o encendida?
+1. **Al fallar el contrato, parar:** sí. Además, que se vea fácil, con la razón, **en la bienvenida y en el workspace** → Dec-45.
+2. **25 % de la memoria y la mitad de los núcleos** para lo de fondo con la aplicación abierta: sí. El uso típico es programar flujos muy temprano, cada quien en su máquina (Dec-42).
+3. **La línea «Data as of …» en el Excel:** según la recomendación, apagada por defecto, con la propiedad del documento siempre y el nombre definido `datos_al` en las plantillas (Dec-44).
 
 ## 7. Lo que queda fuera de la 5.13.0
 
@@ -214,3 +233,4 @@ Cada prueba responde a una duda que puede cambiar una decisión:
 | Fecha | Fase | Qué |
 |---|---|---|
 | 2026-10-22 | — | Plan escrito leyendo `main` en `d0a97e8`, tras recortar las familias E–K con el autor. Hallazgos que lo moldean: `schema_validation` y `assert` no encuentran una tabla del esquema `fuentes`; una macro sin parámetros no ve las columnas (con parámetros, sí); nada limita hoy los hilos ni la memoria de lo que corre de fondo; `http_fetch` mete la URL en el SQL sin escaparla y no reintenta. Decisiones Dec-37 a Dec-44; tres preguntas para el autor (§6) |
+| 2026-10-22 | — | **Respuestas del autor (§6):** parar ante un contrato roto, con lo que falla visible y su razón en la bienvenida y en el workspace (Dec-45, nueva; la bienvenida se toca sólo con esa franja, a petición suya); límites del 25 % y la mitad de los núcleos (los flujos suelen ir muy temprano); la línea «Data as of» apagada por defecto, con el nombre `datos_al` en las plantillas |
