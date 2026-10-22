@@ -52,7 +52,7 @@ import PantallaCompleta from './PantallaCompleta.jsx';
 import { claveDeCelda, reclavar } from './claves.js';
 import { cruzarVistas, parametrosUsados, sustituirParametros } from './vistasVivas.js';
 import { construirGrafo, frescura, queActualizar, celdasEnCiclo } from './grafo.js';
-import { celdasParaExportar, graficosQueNoSalen, planDeTablero } from './exportar.js';
+import { borradores, celdasParaExportar, graficosQueNoSalen, planDeTablero } from './exportar.js';
 import { buildSlideRaw } from '../../utils/deckTemplates';
 import { serializeDeck } from '../../utils/deckParser';
 import './cuaderno.css';
@@ -730,7 +730,8 @@ const CuadernoEditor = ({
                   + `${mudas.length === 1 ? 'has' : 'have'} a chart but ${mudas.length === 1 ? 'is' : 'are'} folded to "code only", `
                   + 'so the figure cannot be captured. Open it first if you want it in the document.\n\n'
                 : '')
-                + 'Each cell contributes its text and its table or its figure.',
+                + 'Each cell contributes its text and its table or its figure.'
+                + (borradores(doc.celdas) ? `\n\n${borradores(doc.celdas)} draft cell${borradores(doc.celdas) === 1 ? ' stays' : 's stay'} out of the document.` : ''),
         });
         if (!elegido?.value) return;
 
@@ -768,6 +769,9 @@ const CuadernoEditor = ({
             );
             return;
         }
+
+        const fuera = borradores(doc.celdas);
+        if (fuera) toast.info(`${fuera} draft cell${fuera === 1 ? ' stays' : 's stay'} out of the deck.`);
 
         setSacando('tablero');
         try {
@@ -968,7 +972,7 @@ const CuadernoEditor = ({
                         <div
                             id={`cdn-${c.id}`}
                             data-cell-id={c.id}
-                            className={`cdn-fila${seleccionada === c.id ? ' cdn-fila--sel' : ''}`}
+                            className={`cdn-fila${seleccionada === c.id ? ' cdn-fila--sel' : ''}${c.borrador ? ' cdn-fila--borrador' : ''}`}
                             onFocusCapture={() => setSeleccionada(c.id)}
                             onMouseDown={() => setSeleccionada(c.id)}
                         >

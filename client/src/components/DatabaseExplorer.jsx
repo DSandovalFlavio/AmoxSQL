@@ -12,6 +12,7 @@ import {
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import FuentesExplorador from './fuentes/FuentesExplorador';
+import OtrosProyectos from './OtrosProyectos';
 import DestinosDeEntrega from './fuentes/DestinosDeEntrega';
 import { VersionesDelLago, NuevoLago, ComoEstaba, esLago } from './lago/Lago';
 import { LuWaves, LuHistory as LuVersiones } from 'react-icons/lu';
@@ -386,6 +387,13 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                             filterTables(schemaGroup.tables).map(table => renderTable(table, schemaGroup.schema))
                         )
                     )}
+                    {/* 5.14 (J1): las bases de otros proyectos del workspace, en sólo lectura. */}
+                    <OtrosProyectos
+                        onSelectQuery={onSelectQuery}
+                        refresco={`${currentDb}|${onRefresh || ''}`}
+                        busqueda={deferredSearchQuery}
+                        getTypeMeta={getTypeMeta}
+                    />
                 </div>
             </div>
 

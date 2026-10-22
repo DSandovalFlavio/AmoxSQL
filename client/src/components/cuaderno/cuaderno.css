@@ -828,3 +828,12 @@ button.cdn-vista:hover { background: var(--hover-bg); }
     .cdn-tirador { cursor: row-resize; border: none; border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle); }
     .cdn-tirador::after { width: 22px; height: 2px; }
 }
+
+/* ── borrador (5.14, J6) ────────────────────────────────────────────────── */
+/* Sigue corriendo, pero no se exporta: se ve apagado y con el filo punteado,
+   para que se note de lejos qué no va a salir en el documento. */
+.cdn-fila--borrador > :not(.cdn-canalon) { opacity: 0.55; transition: opacity var(--transition-fast); }
+.cdn-fila--borrador:hover > :not(.cdn-canalon),
+.cdn-fila--borrador.cdn-fila--sel > :not(.cdn-canalon) { opacity: 0.85; }
+.cdn-fila--borrador::before { background: repeating-linear-gradient(to bottom, var(--text-secondary) 0 4px, transparent 4px 8px); }
+.cdn-deja--borrador { color: var(--text-secondary); border-style: dashed; }

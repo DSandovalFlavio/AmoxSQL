@@ -23,7 +23,7 @@
 import { memo } from 'react';
 import {
     LuPlay, LuLoaderCircle, LuColumns2, LuCode, LuTable, LuEye, LuDatabase,
-    LuMaximize2, LuChevronUp, LuChevronDown, LuTrash2,
+    LuMaximize2, LuChevronUp, LuChevronDown, LuTrash2, LuPencilLine,
 } from 'react-icons/lu';
 import { MODOS } from './modos.js';
 
@@ -129,6 +129,16 @@ const Canalon = ({
 
                 {mando(LuMaximize2, 'Take the whole tab', () => onAmpliar?.(celda.id),
                     esSql && puedeDejarVista ? '' : ' cdn-mando--sep')}
+
+                {/* 5.14 (J6): un borrador sigue corriendo, pero no se exporta. */}
+                {mando(
+                    LuPencilLine,
+                    celda.borrador
+                        ? 'Draft: it runs, but stays out of Word and the deck. Click to include it again'
+                        : 'Mark as draft: it keeps running, but stays out of what you export',
+                    () => onCambiar(celda.id, { borrador: !celda.borrador }),
+                    celda.borrador ? ' cdn-mando--on cdn-mando--sep' : ' cdn-mando--sep',
+                )}
 
                 {mando(LuChevronUp, 'Move up', () => onSubir(celda.id), ' cdn-mando--sep')}
                 {mando(LuChevronDown, 'Move down', () => onBajar(celda.id))}
