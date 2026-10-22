@@ -150,11 +150,11 @@ Data Flow con **What changed** frente al último commit.
 | Adjuntar la base de un hermano la bloquea para su dbt | Se suelta como cualquier base adjunta (5.12, `dbtConvivir`) |
 | Pestañas de un proyecto que se abren en otro | La clave por proyecto (Dec-46) |
 
-## 6. Para el autor
+## 6. Decisiones del autor (respondidas el 2026-10-22)
 
-1. **El paquete:** ¿`.amoxproject` como extensión, y los datos desmarcados de serie (salvo las plantillas de Excel que usa un proceso)?
-2. **Las entregas anteriores:** ¿guardar las 5 últimas de cada archivo en `.amoxsql/entregas/` del proyecto, sin las de más de 200 MB?
-3. **«Donde lo dejaste»:** ¿una tarjeta en la zona del editor que se cierra con **Continue** (propuesta), o un aviso más discreto?
+1. **El paquete:** `.amoxproject`, con los datos desmarcados de serie salvo las plantillas de Excel que usa un proceso. Sí.
+2. **Las entregas anteriores:** las 5 últimas de cada archivo en `.amoxsql/entregas/`, sin las de más de 200 MB. Sí.
+3. **«Donde lo dejaste»:** la tarjeta en la zona del editor que se cierra con **Continue**. Sí.
 
 ## 7. Lo que queda fuera de la 5.14.0
 
@@ -168,3 +168,5 @@ Data Flow con **What changed** frente al último commit.
 | Fecha | Fase | Qué |
 |---|---|---|
 | 2026-10-22 | — | Plan escrito leyendo `main` en `89a0718`. Hallazgos que lo moldean: las pestañas se guardan con una clave global (al abrir otro proyecto se intenta restaurar las del anterior); el cuaderno ya admite una marca por celda (`materializada`), así que el borrador cabe igual; `dbtConvivir` ya suelta cualquier base adjunta, así que mirar otro proyecto no bloquea su dbt. Decisiones Dec-46 a Dec-53; tres preguntas para el autor (§6) |
+| 2026-10-22 | — | **Respuestas del autor (§6):** sí a las tres. Empieza la fase 1 |
+| 2026-10-22 | 1 | **Fase 1 hecha**, `probarRetomar.mjs` **11/11**. `server/retomar.js` + `GET /api/proyecto/retomar`: el estado y la entrega del proyecto, lo de «Needs attention» de ESTE proyecto (`atencion.listar` filtra ahora por `proyecto`), la última ejecución de cada proceso, lo que corrió desde la última apertura, git (commits nuevos con sus autores y archivos sin guardar) y las fuentes que aquí no se leen o llegan viejas. La apertura anterior sale de `workspaces.registrar`, que devuelve la fila de antes de anotar esta (`ultimo_abierto` en UTC; las ejecuciones, en hora local: se comparan como fechas); una fila recién creada no cuenta como apertura anterior. Las pestañas se guardan **por proyecto** (`amoxsql-layout-v1:<carpeta>`); la clave global de antes se usa una vez y se borra. `Retomar.jsx`: la tarjeta en la zona del editor, encima de lo que haya, que se cierra con **Continue** (con **Open <proceso>** del último que corrió). **Hallazgo:** lo que se corre desde la interfaz no guarda resumen, así que su nombre salía del archivo («cierre») y no del proceso («Cierre semanal»): `atencion.nombreDeProceso` lo lee del propio `.sqlchain`. **Recorrido en el navegador integrado** (demo de la 5.13): la tarjeta con Needs attention y su razón, «Your tabs are back», «Last runs · since last time: 2 runs, 1 failed»; Continue la cierra; en `localStorage` queda sólo la clave del proyecto. Las 59 suites en verde |

@@ -30,15 +30,35 @@ function razonDe(e, r) {
     return r?.linea || (e.estado === 'fallo' ? 'It failed.' : 'It finished with a warning.');
 }
 
-const nombreDe = (e, r) => r?.nombre || (/^dbt\s/.test(e.proceso || '') ? e.proceso : path.basename(e.proceso || '').replace(/\.sqlchain$/i, '')) || 'Process';
+/**
+ * El nombre de un proceso: el del resumen, el del propio `.sqlchain` (lo que se
+ * corre desde la interfaz no guarda resumen) o, si no, el del archivo.
+ */
+const nombres = new Map();
+function nombreDeProceso(proceso, r = null) {
+    if (r?.nombre) return r.nombre;
+    const p = String(proceso || '');
+    if (/^dbt\s/.test(p)) return p;
+    if (/\.sqlchain$/i.test(p)) {
+        if (!nombres.has(p)) {
+            let n = null;
+            try { n = JSON.parse(require('fs').readFileSync(p, 'utf8'))?.name || null; } catch { /* ya no está */ }
+            nombres.set(p, n);
+        }
+        if (nombres.get(p)) return nombres.get(p);
+    }
+    return path.basename(p).replace(/\.sqlchain$/i, '') || 'Process';
+}
+const nombreDe = (e, r) => nombreDeProceso(e.proceso, r);
 
 async function vistas(base) {
     const v = await base.preferencia('atencion_vistas').catch(() => undefined);
     return new Set(Array.isArray(v) ? v : []);
 }
 
-/** La lista, de la más nueva a la más vieja. `workspaceId` filtra. */
-async function listar(base, { workspaceId = null } = {}) {
+/** La lista, de la más nueva a la más vieja. `workspaceId` o `proyecto` (su carpeta) filtran. */
+async function listar(base, { workspaceId = null, proyecto = null } = {}) {
+    const deEste = (e) => !proyecto || path.resolve(String(e.proyecto || '')).toLowerCase() === path.resolve(String(proyecto)).toLowerCase();
     const marcadas = await vistas(base);
     const filas = await base.query(
         `SELECT * FROM ejecuciones
@@ -55,6 +75,7 @@ async function listar(base, { workspaceId = null } = {}) {
     const out = [];
     for (const e of ultima.values()) {
         if (workspaceId && e.workspace_id !== workspaceId) continue;
+        if (!deEste(e)) continue;
         if (marcadas.has(e.id)) continue;
         const r = json(e.resumen);
         const estado = e.estado === 'fallo' ? 'fallo' : r?.estado === 'aviso' ? 'aviso' : null;
@@ -82,4 +103,4 @@ async function marcarVistas(base, ids) {
     await base.guardarPreferencia('atencion_vistas', lista);
 }
 
-module.exports = { listar, marcarVistas, DESATENDIDAS, DIAS };
+module.exports = { listar, marcarVistas, nombreDeProceso, DESATENDIDAS, DIAS };
