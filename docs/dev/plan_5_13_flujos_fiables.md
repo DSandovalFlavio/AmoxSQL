@@ -73,6 +73,13 @@ Comprobado al escribir el plan (motor 1.5.6):
 - **«estricto»** también se para ante columnas que sobran.
 - **`alFallar`**: `parar`, el valor por defecto, o `avisar` (el proceso sigue y la ejecución queda en aviso, como un test en *warn* de dbt).
 - Sin contrato, todo funciona como hoy.
+- **Con contrato, un Excel o un CSV se lee como texto y cada columna se convierte a su familia** (fase 0.3):
+  - `numero` → `DOUBLE`;
+  - `fecha` → `DATE`, desde una fecha `AAAA-MM-DD` o `DD/MM/AAAA` escrita como texto, o desde el número de serie de Excel.
+
+  Leído con tipos, una celda vacía en la primera fila vuelve texto toda la columna (un falso fallo), y un «N/A» en medio pasa el `DESCRIBE` como número pero revienta la lectura en esa celda. Leído como texto y convertido, las dos cosas desaparecen, y lo que no convierte se cuenta y se nombra («"Importe" has 1 value that is not a number: N/A»).
+
+  Lo que llega a los pasos siguientes tiene entonces el tipo del contrato, no el que adivina el motor. Parquet y los lagos ya traen tipos: sólo se comprueban.
 
 **Dec-38 · El contrato se comprueba al correr, no al consultar.** Se comprueba:
 - en cada ejecución de Data Flow que lee la fuente (un nodo de fuente, o SQL con `fuentes."x"`), **antes del primer paso**;
@@ -81,7 +88,7 @@ Comprobado al escribir el plan (motor 1.5.6):
 
 Una consulta interactiva **no** lo comprueba: las vistas del catálogo son perezosas y comprobar en cada consulta sería releer el archivo.
 
-Las columnas se comprueban con `DESCRIBE` y las reglas con **una sola consulta** que cuenta todas las violaciones. Las reglas se escriben en una línea:
+Las columnas se comprueban con `DESCRIBE` y las reglas con **una sola consulta** que cuenta todas las violaciones. Medido en la fase 0.2, en un Excel de 50.000 filas: `DESCRIBE` tarda 21 ms; las reglas, 1,1 veces lo que cuesta leer el archivo; y leído como texto, convertido y con reglas, de 1,5 a 2,2 veces (0,3–0,7 s). Las reglas se escriben en una línea:
 
 ```sql
 SELECT count(*) FILTER (WHERE "Importe" IS NULL) AS r0,
@@ -120,7 +127,8 @@ y la vista de workspaces lista ejecuciones, pero el **porqué** sólo está en l
 - Cada medida de `metrics.yml` (workspace y proyecto; gana el proyecto) se convierte en `CREATE OR REPLACE TEMP MACRO <nombre>(<columnas>) AS <sql>`.
 - Las columnas salen de los identificadores de la expresión, sin las palabras del motor, las funciones ni las cadenas, en el orden en que aparecen.
 - Se crean al abrir la sesión y en cada contexto de ejecución. **Nunca se escriben** en la base del usuario (son `TEMP`).
-- Si una macro no compila o choca con una función del motor, se salta con un aviso en la lista de medidas, no al abrir.
+- Si una macro no compila, se salta con un aviso en la lista de medidas, no al abrir.
+- **Un nombre que ya es una función del motor o de una extensión no se crea nunca** (fase 0.1). Una medida llamada `sum` tapa a `sum()` en toda la sesión y rompe hasta las otras medidas. Se mira en `duckdb_functions()` antes de crearla.
 - El editor completa `venta_neta(` con sus parámetros y la ayuda enseña la definición y la descripción.
 - Una medida declara sus columnas a mano (`columnas: [importe, estado]`) si la extracción automática no basta.
 
@@ -133,11 +141,26 @@ y la vista de workspaces lista ejecuciones, pero el **porqué** sólo está en l
 - dbt lanzado de fondo corre con prioridad «por debajo de lo normal» (`os.setPriority`).
 - **Límite conocido:** un proceso con base `proyecto` comparte la instancia de la interfaz y no se puede limitar sin limitar al usuario. Se dice en la ficha («ran in the project database: not limited»), no se arregla aquí.
 - Los porcentajes se pueden cambiar en **Settings → Scheduled processes**.
+- Medido en la fase 0.4 (4 núcleos, 16 GB), con un análisis de 30 millones de filas en «la interfaz» mientras el fondo trabaja:
+
+  | | La interfaz (p95) | El proceso de fondo |
+  |---|---|---|
+  | Sola | 2,2 s | — |
+  | Fondo sin límites | 7,0 s | 47 s |
+  | Fondo con límites | 3,3 s | 30 s |
+
+  Con límites ganan los dos: la interfaz responde el doble de rápido y el fondo también termina antes, porque compite menos. Una consulta pequeña de la interfaz no se nota en ningún caso.
+- **`temp_directory` es imprescindible:** con poca memoria y sin él, el motor falla («Out of Memory»); con él, va a disco y termina.
+- La prioridad baja la hereda todo el árbol: `dbt.exe` y el `python.exe` que lanza (fase 0.5).
 - Confirmado por el autor: el uso típico es poner procesos **muy temprano**, cada quien en su máquina. A esa hora, con la aplicación cerrada, corren sin límites. Si al llegar se abre AmoxSQL y se pone al día con lo perdido, esa puesta al día sí lleva límites: es justo cuando la persona empieza a trabajar.
 
 **Dec-43 · Reintentar sólo lo que vale la pena reintentar.**
 - Los nodos que leen de la red (`http_fetch`, `bucket_read`, `gsheet_read`, y `fuente` cuando es un *bucket*, un lago o una URL) aceptan `reintentos: { veces: 0–5, esperaSegundos }`. Por defecto `{ veces: 2, esperaSegundos: 30 }` en los procesos programados y 0 en la interfaz.
 - Sólo se reintenta un error pasajero: tiempo agotado, conexión cortada, HTTP 429 o 5xx. Un 404, un permiso o una credencial no se reintentan.
+- **El motor ya reintenta por su cuenta** (fase 0.6): 3 veces, con 100, 400 y 1.600 ms de espera. Un fallo de un par de segundos ya no tumba nada. Lo que AmoxSQL añade es **la espera larga**, para una caída de minutos; por eso se mide en decenas de segundos.
+- Clasificación, por el mensaje del motor, comprobada con un servidor local:
+  - pasajero: `HTTP (429|5xx)`, `Timeout was reached`, `Could not connect`, `Server returned nothing`;
+  - definitivo: `HTTP 404`, `HTTP 401`.
 - Cada reintento queda en el paso («2 retries») y en el resumen.
 - De paso, `http_fetch` escapa la URL que mete en el SQL; hoy va tal cual.
 
@@ -233,4 +256,5 @@ Cada prueba responde a una duda que puede cambiar una decisión:
 | Fecha | Fase | Qué |
 |---|---|---|
 | 2026-10-22 | — | Plan escrito leyendo `main` en `d0a97e8`, tras recortar las familias E–K con el autor. Hallazgos que lo moldean: `schema_validation` y `assert` no encuentran una tabla del esquema `fuentes`; una macro sin parámetros no ve las columnas (con parámetros, sí); nada limita hoy los hilos ni la memoria de lo que corre de fondo; `http_fetch` mete la URL en el SQL sin escaparla y no reintenta. Decisiones Dec-37 a Dec-44; tres preguntas para el autor (§6) |
+| 2026-10-22 | 0 | **Fase 0 hecha** (`scripts/poc513/`). **0.1** (`p00_medidas.mjs`): las medidas como macros temporales con las columnas como parámetros salen **9 de 9** iguales a su expresión, agrupadas y sin agrupar. Las del ejemplo y seis reales: `FILTER`, `CASE`, cociente con `NULLIF`, `::DOUBLE`, una columna con espacio entre comillas. Las columnas salen quitando lo que el motor llama palabras (`duckdb_keywords()`), funciones y cadenas. Funcionan con otra base adjunta, se listan en `duckdb_functions()` para el completado, y una que no compila falla al crearla. **Hallazgo:** una medida llamada `sum` tapa a `sum()` en toda la sesión y rompe las demás → regla nueva en Dec-41. **0.2 y 0.3** (`p01_contrato.mjs`): en un Excel de 50.000 filas, `DESCRIBE` tarda 21 ms y cinco reglas en una consulta, 1,07 veces la lectura. Las familias aguantan enteros → decimales y una columna de más, y un cambio de nombre se dice con su sugerencia. **Hallazgos:** una celda vacía arriba o fechas como texto vuelven texto la columna (falso fallo), y un «N/A» en medio pasa el `DESCRIBE` y revienta la lectura en su celda → Dec-37: con contrato, leer como texto y convertir. Sin falsos fallos, y el «N/A» se cuenta y se nombra; cuesta de 1,5 a 2,2 veces la lectura. **0.4 y 0.5** (`p02_fondo.mjs`): con límites, la interfaz pasa de 7,0 s a 3,3 s de p95 y el fondo de 47 s a 30 s. Sin `temp_directory`, poca memoria es «Out of Memory»; con él, termina. `setPriority` lo hereda el `python.exe` que lanza `dbt.exe`. **0.6** (`p03_red.mjs`): el motor ya reintenta 3 veces en unos 2 s; un 404 no se reintenta. La clasificación por mensaje acierta en los 7 casos → Dec-43 se queda en la espera larga |
 | 2026-10-22 | — | **Respuestas del autor (§6):** parar ante un contrato roto, con lo que falla visible y su razón en la bienvenida y en el workspace (Dec-45, nueva; la bienvenida se toca sólo con esa franja, a petición suya); límites del 25 % y la mitad de los núcleos (los flujos suelen ir muy temprano); la línea «Data as of» apagada por defecto, con el nombre `datos_al` en las plantillas |
