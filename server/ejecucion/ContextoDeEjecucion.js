@@ -229,12 +229,16 @@ async function cargarExtensiones(ctx, dbManager) {
  * Abre el contexto donde correrá una ejecución.
  * @param {'memoria'|'trabajo'|'proyecto'} modo
  */
-async function abrirContexto(modo, { dbManager, proyecto, chainFile, fuera = false }) {
+async function abrirContexto(modo, { dbManager, proyecto, chainFile, fuera = false, limites = null }) {
     // `fuera`: la orden no viene de la interfaz (línea de comandos), así que el
     // proyecto puede no ser el que la interfaz tiene abierto. Entonces su base
     // se abre aparte; la de la interfaz no se toca.
     if (modo === 'proyecto' && (!fuera || dbManagerEsDelProyecto(dbManager, proyecto))) {
-        return contextoDelProyecto(dbManager);
+        const c = contextoDelProyecto(dbManager);
+        // 5.13 (Dec-42): comparte la instancia de la interfaz; limitarla sería
+        // limitar a quien trabaja. Se dice en la ficha.
+        if (limites) c.limites = { aplicados: false, motivo: 'proyecto' };
+        return c;
     }
 
     let ctx;
@@ -252,6 +256,15 @@ async function abrirContexto(modo, { dbManager, proyecto, chainFile, fuera = fal
         ctx = new ContextoAislado({ modo, ruta, instancia: t.instancia, conexion: t.conexion, cola: t.cola, propia: false });
     } else {
         throw new Error(`Base desconocida: ${modo}`);
+    }
+    // 5.13 (Dec-42): lo que corre de fondo con la aplicación abierta, con límites.
+    // Una base de trabajo se reutiliza: sin límites, se devuelve a lo de serie.
+    const { sentencias } = require('./limites');
+    if (limites) {
+        for (const s of sentencias(limites)) await ctx.query(s);
+        ctx.limites = { aplicados: true, hilos: limites.hilos, nucleos: limites.nucleos, memoriaMb: limites.memoriaMb, texto: limites.texto };
+    } else {
+        for (const s of ['RESET threads', 'RESET memory_limit', 'RESET temp_directory']) { try { await ctx.query(s); } catch { /* ya estaba */ } }
     }
     // Las rutas relativas del SQL se leen desde el proyecto, aunque el proceso
     // de AmoxSQL esté en otra carpeta (una orden de la línea de comandos).

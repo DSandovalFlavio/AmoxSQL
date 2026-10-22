@@ -287,6 +287,11 @@ const ChainNodeConfigPanel = ({ node, onUpdate, onCreateSqlFile, onOpenFile, sql
                     <NotificationConfig config={config} onChange={updateConfig} />
                 )}
 
+                {/* 5.13 (Dec-43): los pasos que leen de la red reintentan un error pasajero. */}
+                {['http_fetch', 'bucket_read', 'gsheet_read', 'fuente'].includes(node.data.nodeType) && (
+                    <ReintentosConfig config={config} onChange={updateConfig} />
+                )}
+
                 {/* SQL Preview — this node's own clause, from its config alone (no
                     network round-trip). The Inspector's SQL tab shows the full
                     compiled chain up to this node; this is the quick, local one. */}
@@ -2018,6 +2023,40 @@ const UnpivotConfig = ({ config, onChange, columnOptions = [] }) => {
             <label>Value Column</label>
             <input type="text" value={config.valueColumn || 'value'} onChange={e => onChange('valueColumn', e.target.value)} placeholder="value" className="chain-config-input" />
             <p className="chain-config-hint">Turns wide data (many columns) into tall data (many rows). Each selected column becomes a row with the column name in "Name Column" and the value in "Value Column".</p>
+        </div>
+    );
+};
+
+/**
+ * 5.13 (Dec-43): cuántas veces reintentar un error pasajero de red (tiempo agotado,
+ * conexión cortada, HTTP 429 o 5xx) y cuánto esperar. Sin tocar: 2 veces cada 30 s
+ * en lo que corre programado; ninguna desde aquí. Un 404 o un permiso, nunca.
+ */
+const ReintentosConfig = ({ config, onChange }) => {
+    const propia = config.reintentos && typeof config.reintentos === 'object';
+    const r = propia ? config.reintentos : { veces: 2, esperaSegundos: 30 };
+    const poner = (cambio) => onChange('reintentos', { veces: r.veces, esperaSegundos: r.esperaSegundos, ...cambio });
+    return (
+        <div className="chain-config-section">
+            <label>If the network fails</label>
+            <label className="chain-config-check">
+                <input type="checkbox" checked={propia} onChange={e => onChange('reintentos', e.target.checked ? { veces: 2, esperaSegundos: 30 } : undefined)} />
+                Choose how many retries
+            </label>
+            {propia ? (
+                <div className="chain-config-fila">
+                    <span>Retry</span>
+                    <input type="number" min="0" max="5" value={r.veces} className="chain-config-input chain-config-input--corto"
+                        onChange={e => poner({ veces: Math.min(5, Math.max(0, Number(e.target.value) || 0)) })} aria-label="Retries" />
+                    <span>times,</span>
+                    <input type="number" min="0" max="600" value={r.esperaSegundos} className="chain-config-input chain-config-input--corto"
+                        onChange={e => poner({ esperaSegundos: Math.min(600, Math.max(0, Number(e.target.value) || 0)) })} aria-label="Seconds between retries" />
+                    <span>s apart</span>
+                </div>
+            ) : (
+                <p className="chain-config-hint">When it runs scheduled, it retries twice, 30 s apart. From here, it does not retry.</p>
+            )}
+            <p className="chain-config-hint">Only a passing failure (time out, connection cut, a busy server). A missing file or a permission error is not retried.</p>
         </div>
     );
 };

@@ -35,12 +35,18 @@ async function ejecutarProceso({
         ? historialCentral(baseCentral, { proyecto, workspaceId, origen, parametros: { ...(variables || {}), ...(deFuera || {}) }, programacionId, prevista })
         : (fuera ? historialMudo() : await historialDeReserva(dbManager));
 
-    const ctx = await abrirContexto(base.resuelta, { dbManager, proyecto, chainFile, fuera });
+    // 5.13 (Dec-42): sin nadie delante y con la aplicación abierta, con límites.
+    const limites = await require('./limites').paraEjecucion({ origen });
+    const ctx = await abrirContexto(base.resuelta, { dbManager, proyecto, chainFile, fuera, limites });
     try {
         const r = await chainExecutor.run(ctx, chainDef, proyecto, {
-            mode, startNodeId, chainFile, variables, deFuera, fechaReferencia, historial, oyente,
+            mode, startNodeId, chainFile, variables, deFuera, fechaReferencia, historial, oyente, origen,
         });
-        return { ...r, base: base.resuelta, rutaBase: ctx.ruta || null };
+        // Se guardan con la ejecución, para la ficha.
+        if (ctx.limites && r.runId && baseCentral.estaAbierta()) {
+            await baseCentral.query(`UPDATE ejecuciones SET resumen = $2 WHERE id = $1 AND resumen IS NULL`, [r.runId, JSON.stringify({ limites: ctx.limites })]).catch(() => {});
+        }
+        return { ...r, base: base.resuelta, rutaBase: ctx.ruta || null, limites: ctx.limites || null };
     } finally {
         await ctx.cerrar();
         // Una orden de fuera no deja abierta su base de trabajo: el proceso

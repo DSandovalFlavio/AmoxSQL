@@ -779,8 +779,10 @@ class ChainExecutor extends EventEmitter {
             case 'http_fetch': {
                 const tbl = config.tableName || 'fetched_data';
                 const url = config.url || '';
+                // 5.13: la URL va escapada (con una comilla rompía el SQL).
+                const urlLit = `'${String(url).replace(/'/g, "''")}'`;
                 const ft = config.format || 'csv';
-                const reader = ft === 'parquet' ? `read_parquet('${url}')` : ft === 'json' ? `read_json_auto('${url}')` : `read_csv('${url}', auto_detect=true, header=true)`;
+                const reader = ft === 'parquet' ? `read_parquet(${urlLit})` : ft === 'json' ? `read_json_auto(${urlLit})` : `read_csv(${urlLit}, auto_detect=true, header=true)`;
                 return `INSTALL httpfs; LOAD httpfs;\nCREATE OR REPLACE TABLE "${tbl}" AS SELECT * FROM ${reader}`;
             }
             case 'create_table': {
@@ -2083,6 +2085,8 @@ class ChainExecutor extends EventEmitter {
             case 'http_fetch': {
                 const tableName = config.tableName || 'fetched_data';
                 const url = config.url || '';
+                // 5.13: la URL va escapada (con una comilla rompía el SQL).
+                const urlLit = `'${String(url).replace(/'/g, "''")}'`;
                 const fetchFormat = config.format || 'csv';
 
                 if (!url) throw new Error('HTTP Fetch node: URL is required');
@@ -2091,11 +2095,11 @@ class ChainExecutor extends EventEmitter {
                 try { await dbManager.query("INSTALL httpfs; LOAD httpfs;"); } catch {}
 
                 if (fetchFormat === 'parquet') {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_parquet('${url}')`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_parquet(${urlLit})`;
                 } else if (fetchFormat === 'json') {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_json_auto('${url}')`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_json_auto(${urlLit})`;
                 } else {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${url}', auto_detect=true, header=true)`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv(${urlLit}, auto_detect=true, header=true)`;
                 }
                 await dbManager.query(sql);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
@@ -2439,7 +2443,7 @@ class ChainExecutor extends EventEmitter {
         }
     }
 
-    async _run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, deFuera = {}, fechaReferencia = null, historial = null, oyente = null, alCrear = null } = {}) {
+    async _run(dbManager, chainDef, projectPath, { mode = 'full', startNodeId = null, chainFile = '', variables = {}, deFuera = {}, fechaReferencia = null, historial = null, oyente = null, alCrear = null, origen = 'interfaz' } = {}) {
         const { nodes, edges = [], name = 'Untitled Chain' } = chainDef;
         const anotar = historial || chainPersistence.ligar(dbManager);
         // Chain-level variables (from the .sqlchain) merged with run-time overrides.
@@ -2596,7 +2600,17 @@ class ChainExecutor extends EventEmitter {
                             id: pid, etiqueta: nodeMap.get(pid)?.label || pid,
                             salida: nodeOutputs.get(pid) || this.staticOutputRef(nodeMap.get(pid), chainFile),
                         }));
-                        const result = await this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, parametros: param, fechaReferencia, fanout, entradas });
+                        // 5.13 (Dec-43): un paso que lee de la red reintenta un error pasajero.
+                        const { reglaDe, conReintentos } = require('./ejecucion/reintentos');
+                        const { resultado: result, reintentos } = await conReintentos(
+                            () => this.executeNode(node, dbManager, projectPath, upstreamOutputs, { chainFile, variables: chainVars, parametros: param, fechaReferencia, fanout, entradas }),
+                            reglaDe(node, origen),
+                            {
+                                cancelado: () => !!this.activeRuns.get(runId)?.cancelled,
+                                alReintentar: (x) => this.emitLog(runId, { type: 'node_retry', nodeId, nodeLabel: node.label || node.id, intento: x.intento, de: x.de, error: x.error, esperaSegundos: x.esperaSegundos }),
+                            },
+                        );
+                        if (reintentos && result) result.resultSummary = { ...(result.resultSummary || {}), reintentos };
                         const durationMs = Date.now() - startTime;
 
                         // Emit SQL executed
