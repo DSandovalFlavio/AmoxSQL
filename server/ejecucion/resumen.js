@@ -41,7 +41,11 @@ async function resumir({ base, dbManager, runId, proyecto }) {
     let fallo = null;
     // 5.13 (Dec-39): el contrato de una fuente que avisa en vez de parar.
     const avisos = [];
+    // 5.13 (Dec-44): la fecha de los datos, la del archivo más nuevo que se leyó.
+    let datosAl = null;
     for (const p of pasos) {
+        const dAl = json(p.result_summary).datosAl;
+        if (dAl && (!datosAl || dAl > datosAl)) datosAl = dAl;
         if (p.node_type === 'contrato' && p.result_type === 'contrato_aviso') avisos.push(...(json(p.result_summary).avisos || []));
         const s = json(p.result_summary);
         const paso = p.node_label || p.node_id;
@@ -73,10 +77,10 @@ async function resumir({ base, dbManager, runId, proyecto }) {
         ? `${nombre} failed${fallo?.paso ? ` at "${fallo.paso}"` : ''}: ${String(fallo?.error || '').split('\n')[0].slice(0, 160)}`
         : estado === 'aviso'
             ? `${nombre} finished with a warning: ${String(avisos[0]).slice(0, 160)}`
-            : `${nombre} · ${[cuenta || 'finished', duracionLegible(duracionMs)].filter(Boolean).join(' · ')}`;
+            : `${nombre} · ${[cuenta || 'finished', datosAl ? `data as of ${require('./fechaDeLosDatos').texto(datosAl)}` : null, duracionLegible(duracionMs)].filter(Boolean).join(' · ')}`;
     return {
         runId, estado, nombre, proceso: run.chain_file, inicio: run.started_at, fin: run.finished_at,
-        duracionMs, leidos, guardados, fallo, avisos, pasos: pasos.length, linea,
+        duracionMs, leidos, guardados, fallo, avisos, datosAl, pasos: pasos.length, linea,
     };
 }
 

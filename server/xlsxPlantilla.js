@@ -320,7 +320,7 @@ function emparejar(columnasTabla, columnasConsulta, nombreTabla) {
  * @param destinos  [{ consulta, tabla } | { consulta, hoja, celda, encabezado? }]
  * @returns { ruta, regiones: [{ hoja, tabla?, rango, filas }], avisos }
  */
-async function rellenarPlantilla(db, plantilla, destino, destinos) {
+async function rellenarPlantilla(db, plantilla, destino, destinos, { datosAl = null } = {}) {
     if (!fs.existsSync(plantilla)) throw new ErrorDePlantilla(`The template does not exist: ${plantilla}`);
     if (!destinos?.length) throw new ErrorDePlantilla('Say where the data goes in the template (a table, or a sheet and a cell).');
     let lector;
@@ -535,6 +535,38 @@ async function rellenarPlantilla(db, plantilla, destino, destinos) {
             if (x !== antes) textos.set(n, x);
         }
 
+        // ── 5.13 (Dec-44): la fecha de los datos, donde el cliente la quiera ──
+        // Si el libro tiene un nombre definido `datos_al`, esa celda la recibe: el
+        // cliente decide dónde va y nada se mueve. Con un formato de fecha en la
+        // celda, va como fecha de Excel; si no, como texto.
+        let datosAlEn = null;
+        if (datosAl) {
+            const wbTexto = libro.texto('xl/workbook.xml') || '';
+            const def = /<definedName\b(?=[^>]*\bname="datos_al")[^>]*>([^<]+)<\/definedName>/i.exec(wbTexto);
+            const m = def ? /^(?:'((?:[^']|'')+)'|([^!]+))!(\$?[A-Za-z]{1,3}\$?\d+)$/.exec(def[1].trim()) : null;
+            if (def && !m) avisos.push('The name "datos_al" must point to one cell (for example Summary!$B$2): the data date was not written.');
+            if (m) {
+                const nombreHoja = (m[1] !== undefined ? m[1].replace(/''/g, "'") : m[2]).trim();
+                const hoja = hojas.find(x => x.nombre === nombreHoja);
+                const ref = celdaA1(m[3].replace(/\$/g, ''));
+                if (!hoja || !ref) {
+                    avisos.push(`The name "datos_al" points to a sheet that is not in the workbook (${nombreHoja}).`);
+                } else {
+                    const h = leida(hoja);
+                    const f = fila(h, ref.fila);
+                    const antes = f.celdas.get(ref.col);
+                    const r1 = `${letra(ref.col)}${ref.fila}`;
+                    const { serieDeExcel, texto } = require('./ejecucion/fechaDeLosDatos');
+                    const xml = antes?.s
+                        ? `<c r="${r1}" s="${antes.s}"><v>${serieDeExcel(datosAl)}</v></c>`
+                        : `<c r="${r1}" t="inlineStr"><is><t>${texto(datosAl)}</t></is></c>`;
+                    f.celdas.set(ref.col, { xml, s: antes?.s || null, formula: null, compartida: false, valor: true });
+                    textos.set(hoja.entrada, escribirHoja(h));
+                    datosAlEn = `${nombreHoja}!${r1}`;
+                }
+            }
+        }
+
         // ── El libro recalcula al abrir; la cadena de cálculo vieja sobra ──
         let wb = libro.texto('xl/workbook.xml');
         if (/<calcPr\b/.test(wb)) {
@@ -580,7 +612,7 @@ async function rellenarPlantilla(db, plantilla, destino, destinos) {
         lector = null;
         const { renombrarConReintentos } = require('./publicar');
         const reintentos = await renombrarConReintentos(temporal, destino);
-        return { ruta: destino, bytes: fs.statSync(destino).size, regiones, avisos, reintentos };
+        return { ruta: destino, bytes: fs.statSync(destino).size, regiones, avisos, reintentos, datosAlEn };
     } finally {
         if (lector) lector.cerrar();
         for (const p of preparadas) await p.soltar();

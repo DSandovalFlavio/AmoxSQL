@@ -287,15 +287,18 @@ async function* tandas(db, preparada) {
 }
 
 /** El XML de una hoja, a trozos. */
-async function* xmlDeHoja(db, preparada, { estilos, formatos = {}, encabezado = true }) {
+async function* xmlDeHoja(db, preparada, { estilos, formatos = {}, encabezado = true, pie = null }) {
     const { columnas, filas } = preparada;
     const codigos = columnas.map(c => codigoDeFormato(c, formatos[c.nombre]));
     const xfs = codigos.map(c => estilos.xfDe(c));
     const ultima = letra(Math.max(0, columnas.length - 1));
     const filaFinal = filas + (encabezado ? 1 : 0);
+    // 5.13 (Dec-44): «Data as of …» DEBAJO de la tabla, con una fila en blanco:
+    // la cabecera y los datos no se mueven, ni el filtro.
+    const filaPie = pie ? filaFinal + 2 : null;
 
     let x = XML + `<worksheet xmlns="${NS}" xmlns:r="${NS_R}">`;
-    x += `<dimension ref="A1:${ultima}${Math.max(1, filaFinal)}"/>`;
+    x += `<dimension ref="A1:${ultima}${Math.max(1, filaPie || filaFinal)}"/>`;
     x += '<sheetViews><sheetView workbookViewId="0"' + (encabezado ? '' : ' tabSelected="0"') + '>';
     if (encabezado && columnas.length) x += '<pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/>';
     x += '</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>';
@@ -320,7 +323,8 @@ async function* xmlDeHoja(db, preparada, { estilos, formatos = {}, encabezado = 
         }
         yield trozo;
     }
-    let fin = '</sheetData>';
+    let fin = filaPie ? `<row r="${filaPie}"><c r="A${filaPie}" t="inlineStr"><is><t xml:space="preserve">${esc(pie)}</t></is></c></row>` : '';
+    fin += '</sheetData>';
     if (encabezado && columnas.length) fin += `<autoFilter ref="A1:${ultima}${Math.max(1, filaFinal)}"/>`;
     fin += '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>';
     yield fin;
@@ -328,7 +332,22 @@ async function* xmlDeHoja(db, preparada, { estilos, formatos = {}, encabezado = 
 
 // ── El libro ────────────────────────────────────────────────────────────────
 
-function partesFijas(hojas, estilos) {
+/**
+ * 5.13 (Dec-44): las propiedades propias del libro (Archivo → Información →
+ * Propiedades → Avanzadas): de cuándo son los datos y qué proceso lo hizo.
+ */
+function propiedadesPropias({ datosAl = null, proceso = null } = {}) {
+    const props = [];
+    if (datosAl) props.push(['Data as of', `<vt:filetime>${new Date(datosAl).toISOString().replace(/\.\d+Z$/, 'Z')}</vt:filetime>`]);
+    if (proceso) props.push(['Made by', `<vt:lpwstr>${esc(`AmoxSQL · ${proceso}`)}</vt:lpwstr>`]);
+    if (!props.length) return null;
+    return XML + '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">' +
+        props.map(([n, v], i) => `<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="${i + 2}" name="${esc(n)}">${v}</property>`).join('') +
+        '</Properties>';
+}
+
+function partesFijas(hojas, estilos, opciones = {}) {
+    const propias = propiedadesPropias(opciones);
     const ct = XML + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
         '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
         '<Default Extension="xml" ContentType="application/xml"/>' +
@@ -337,11 +356,13 @@ function partesFijas(hojas, estilos) {
         '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
         '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>' +
         '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>' +
+        (propias ? '<Override PartName="/docProps/custom.xml" ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>' : '') +
         '</Types>';
     const rels = XML + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
         '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
         '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>' +
         '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>' +
+        (propias ? '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" Target="docProps/custom.xml"/>' : '') +
         '</Relationships>';
     const ahora = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
     const core = XML + '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">' +
@@ -355,7 +376,7 @@ function partesFijas(hojas, estilos) {
         hojas.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') +
         `<Relationship Id="rId${hojas.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
         '</Relationships>';
-    return { ct, rels, core, app, libro, librorels };
+    return { ct, rels, core, app, libro, librorels, propias };
 }
 
 /**
@@ -366,7 +387,7 @@ function partesFijas(hojas, estilos) {
  * @param hojas    [{ nombre, consulta, formatos?: { columna: 'moneda' | 'porcentaje' | … | código } }]
  * @returns { ruta, hojas: [{ nombre, filas, columnas, recortadas }], bytes }
  */
-async function escribirLibro(db, destino, hojas) {
+async function escribirLibro(db, destino, hojas, opciones = {}) {
     if (!hojas?.length) throw new Error('The workbook needs at least one sheet.');
     const usados = new Set();
     const preparadas = [];
@@ -385,13 +406,14 @@ async function escribirLibro(db, destino, hojas) {
         const estilos = new Estilos();
         try {
             for (let i = 0; i < preparadas.length; i++) {
-                await zip.agregarFlujo(`xl/worksheets/sheet${i + 1}.xml`, xmlDeHoja(db, preparadas[i], { estilos, formatos: preparadas[i].formatos }));
+                await zip.agregarFlujo(`xl/worksheets/sheet${i + 1}.xml`, xmlDeHoja(db, preparadas[i], { estilos, formatos: preparadas[i].formatos, pie: opciones.lineaDeFecha && opciones.datosAl ? `Data as of ${require('./ejecucion/fechaDeLosDatos').texto(opciones.datosAl)}` : null }));
             }
-            const f = partesFijas(preparadas, estilos);
+            const f = partesFijas(preparadas, estilos, opciones);
             zip.agregar('[Content_Types].xml', f.ct);
             zip.agregar('_rels/.rels', f.rels);
             zip.agregar('docProps/core.xml', f.core);
             zip.agregar('docProps/app.xml', f.app);
+            if (f.propias) zip.agregar('docProps/custom.xml', f.propias);
             zip.agregar('xl/workbook.xml', f.libro);
             zip.agregar('xl/_rels/workbook.xml.rels', f.librorels);
             zip.agregar('xl/styles.xml', estilos.xml());
