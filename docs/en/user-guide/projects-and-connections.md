@@ -37,6 +37,27 @@ Even with a database attached, you can always query loose files from disk direct
 - **Query directly:** `SELECT * FROM 'data/x.parquet'` — no import, ideal for exploration.
 - **Import:** loads the file as a table in the database (persistent in R/W mode). See [Importing data](../data/importing-data.md).
 
+## Where you left off
+
+When you open a project again and something happened since last time, a card above the editor tells you first:
+
+- its **status** and **due date**;
+- what **failed or warned with nobody watching** (scheduled, from the command line, a batch), with the reason;
+- the **last run** of each process and how many ran since last time;
+- in a repository, the **new commits** (and whose) and the unsaved files;
+- the **sources** that cannot be read here or arrive stale.
+
+Your tabs come back as they were in **this** project. **Continue** closes the card; **Open <process>** opens the last one that ran.
+
+## A project in one file (`.amoxproject`)
+
+When git is not an option —handing the project to someone, or starting the next client like this one—, in the project menu of the title bar:
+
+- **Export project…**: one file with the processes, queries, notebooks, charts, decks, the assistant's context, sources and destinations. **You choose the data**, unchecked by default except the Excel template an Excel node fills. Credentials never travel (only their names), nor `.git`, `.env`, the work folder or the previous deliveries.
+- **Save as template…**: the same without data, to start the next one from it.
+
+In the workspaces view, **From a package…** creates a new project from a package: you choose the folder and the name, it is extracted with its own id and it tells you **what it still needs on this computer** (the credential by name, the extension, the source without its file).
+
 ## Related
 - [First steps](first-steps.md) · [File explorer](../data/file-explorer.md)
 - [Database explorer](../data/database-explorer.md) · [Importing data](../data/importing-data.md)

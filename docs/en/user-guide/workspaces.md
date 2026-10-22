@@ -43,7 +43,7 @@ The welcome screen doesn't change: opening a path, the recent projects and the f
 Status and due date are saved in the folder's `project.json`, so they travel with it.
 
 ### Sharing a workspace: export and import
-**Export** saves a `.amoxworkspace` file with its details, AI policy, brand (logo included), context files and the **names** of the credentials its projects use — never their values. **Import…** (in the view) brings it in:
+**Export** saves a `.amoxworkspace` file with its details, AI policy, brand (logo included), context files, snippets and the **names** of the credentials its projects use — never their values. **Import…** (in the view) brings it in:
 
 - If it isn't here, it's created with the **same id**, so folders linked on another machine recognize it.
 - If it already exists, new files are added and you choose which different ones to replace; optionally the name, color, policy and brand too. Or import it separately, as another workspace.

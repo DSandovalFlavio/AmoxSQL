@@ -56,6 +56,17 @@ If a table, view or column has a description, the explorer shows it: the table's
 ### Lakes
 The lake button in the header (**New lake…**) creates a DuckLake lake. With a lake open, the tree has **Lake versions** and each table's menu, **As it was…**. See [Lakes (DuckLake)](lakes.md).
 
+### Other projects
+**Other projects** crosses with the data of another project of the same workspace without closing yours. **Look at another project…** lists the ones with a database (and says why one without a database, or with several, cannot be looked at); when you pick one, its database is attached **read-only** under the project's name and its tables appear in the section, ready to drag:
+
+```sql
+SELECT m.meta, sum(v.importe)
+FROM metas m JOIN "cierre_norte".main.ventas v USING (tienda)
+GROUP BY m.meta;
+```
+
+It is never written to. It lasts the session: the **X** detaches it, and so does switching databases. If that project's dbt needs it, it is released like any attached database.
+
 ## Reference
 
 ### Table context menu

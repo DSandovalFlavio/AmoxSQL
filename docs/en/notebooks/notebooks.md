@@ -85,6 +85,12 @@ The **leading comment** of the query becomes the view's description, stored in t
 
 A cell that cannot be wrapped — several statements, an `INSERT`, a `COPY` — says «no deja vista» without treating it as a failure, because it is not one. If it also writes to disk it says so separately: that does not undo itself when the project closes.
 
+### Drafts
+
+The **pencil** in the gutter marks a cell as a **draft**: it keeps running and leaving its view, but it **stays out** of Word and the deck. It looks dimmed, with a dotted edge and the «draft» label. Before exporting, AmoxSQL says how many stay out.
+
+In the file it is one more mark on the directive: `<!-- celda: prueba borrador -->` (or `<!-- celda borrador -->` without a name); a text cell gets `<!-- texto borrador -->` in front. A notebook without drafts is saved exactly as before.
+
 ### The text cell
 
 **It has no box**: no border, no header, no height cap, and it takes the same width as the

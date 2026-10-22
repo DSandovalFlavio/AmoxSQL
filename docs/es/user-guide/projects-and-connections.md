@@ -37,6 +37,27 @@ Aun con una base adjunta, siempre puedes consultar archivos sueltos del disco di
 - **Consultar directo:** `SELECT * FROM 'data/x.parquet'` — sin importar, ideal para exploración.
 - **Importar:** carga el archivo como una tabla en la base (persistente en modo R/W). Ver [Importar datos](../data/importing-data.md).
 
+## Donde lo dejaste
+
+Al volver a abrir un proyecto, si pasó algo desde la última vez, una tarjeta encima del editor lo cuenta antes de nada:
+
+- su **estado** y su **fecha de entrega**;
+- lo que **falló o avisó sin nadie delante** (programado, desde la línea de órdenes, un lote), con la razón;
+- la **última ejecución** de cada proceso y cuántas corrieron desde la última vez;
+- en un repositorio, los **commits nuevos** (y de quién) y los archivos sin guardar;
+- las **fuentes** que aquí no se leen o llegan viejas.
+
+Tus pestañas vuelven las de **este** proyecto. **Continue** cierra la tarjeta; **Open <proceso>** abre el último que corrió.
+
+## Llevar un proyecto en un archivo (`.amoxproject`)
+
+Cuando git no es opción —pasarle el proyecto a alguien, o empezar el siguiente cliente igual que éste—, en el menú del proyecto de la barra de título:
+
+- **Export project…**: un archivo con los procesos, las consultas, los cuadernos, los gráficos, los decks, el contexto del asistente, las fuentes y los destinos. **Los datos se eligen** y van desmarcados, salvo la plantilla de Excel que llena un nodo Excel. Nunca viajan las credenciales (sólo sus nombres), `.git`, `.env`, la carpeta de trabajo ni las entregas anteriores.
+- **Save as template…**: lo mismo sin datos, para empezar el siguiente desde ahí.
+
+En la vista de workspaces, **From a package…** crea un proyecto nuevo desde un paquete: eliges la carpeta y el nombre, se extrae con un id propio y te dice **lo que le falta en esta máquina** (la credencial por su nombre, la extensión, la fuente sin su archivo).
+
 ## Relacionado
 - [Primeros pasos](first-steps.md) · [Explorador de archivos](../data/file-explorer.md)
 - [Explorador de base de datos](../data/database-explorer.md) · [Importar datos](../data/importing-data.md)

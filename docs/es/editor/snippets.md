@@ -10,7 +10,7 @@ El panel de **Snippets** es una barra lateral con plantillas de SQL probadas que
 
 Cada snippet trae marcadores `${placeholder}` en los puntos que debes personalizar (nombre de tabla, columna, periodo…), de modo que al insertarlo solo tienes que reemplazar esas partes.
 
-La biblioteca integrada está agrupada por temas, y puedes guardar tus propios snippets en **"My Snippets"**, que persisten en el servidor local entre sesiones.
+La biblioteca integrada está agrupada por temas, y puedes guardar los tuyos: en el proyecto (**This project**) o, si el proyecto está en un workspace, en el workspace, donde los ven todos sus proyectos.
 
 ## Cuándo usarlo
 
@@ -36,8 +36,11 @@ Cada snippet muestra también un icono de **copiar** si prefieres llevarlo al po
 ### Guardar un snippet propio
 1. Pulsa el botón **+** de la cabecera del panel.
 2. Dale un **nombre** y pega el **SQL**.
-3. Pulsa **Save Snippet**. Aparecerá en la categoría **"My Snippets"** y quedará guardado en el servidor local.
-4. El icono de papelera de cada snippet propio lo elimina.
+3. Si el proyecto está en un workspace, **Save in** elige dónde: **This project** o **el workspace** (todos sus proyectos).
+4. Pulsa **Save Snippet**. Los del workspace salen arriba, como «<workspace> · shared»; los del proyecto, como **This project**.
+5. El icono de papelera de cada snippet propio lo elimina.
+
+Los del workspace viven en `~/.amoxsql/workspaces/<id>/snippets.json` y **viajan en el `.amoxworkspace`**: quien importa el workspace los tiene en todos sus proyectos.
 
 ## Referencia de la biblioteca integrada
 
@@ -49,7 +52,7 @@ Cada snippet muestra también un icono de **copiar** si prefieres llevarlo al po
 | **Data Quality** | Null Check, Duplicate Finder, Outlier Detection (IQR) |
 | **DuckDB Specific** | Read CSV, Read Parquet, SUMMARIZE, Export to Parquet |
 | **DBT Models** | Staging, Intermediate, Mart, Incremental, Snapshot (SCD2), Custom Test, Macro, Source Config |
-| **My Snippets** | Tus snippets guardados (aparece solo si tienes alguno) |
+| **<workspace> · shared** · **This project** | Tus snippets guardados, primero los del workspace (cada una aparece solo si tiene alguno) |
 
 ## Tips y gemas
 

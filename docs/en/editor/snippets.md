@@ -10,7 +10,7 @@ The **Snippets** panel is a sidebar of proven SQL templates you drop into the ed
 
 Each snippet ships with `${placeholder}` markers at the spots you need to customize (table name, column, period…), so inserting it leaves you only those parts to replace.
 
-The built-in library is grouped by theme, and you can save your own snippets under **"My Snippets"**, which persist on the local server across sessions.
+The built-in library is grouped by theme, and you can save your own: in the project (**This project**) or, if the project is in a workspace, in the workspace, where all its projects see them.
 
 ## When to use it
 
@@ -36,8 +36,11 @@ Each snippet also shows a **copy** icon if you'd rather send it to the clipboard
 ### Save your own snippet
 1. Click the **+** button in the panel header.
 2. Give it a **name** and paste the **SQL**.
-3. Click **Save Snippet**. It appears under the **"My Snippets"** category and is stored on the local server.
-4. The trash icon on each of your snippets deletes it.
+3. If the project is in a workspace, **Save in** chooses where: **This project** or **the workspace** (all its projects).
+4. Click **Save Snippet**. The workspace ones come first, as «<workspace> · shared»; the project ones, as **This project**.
+5. The trash icon on each of your snippets deletes it.
+
+The workspace ones live in `~/.amoxsql/workspaces/<id>/snippets.json` and **travel in the `.amoxworkspace`**: whoever imports the workspace has them in all its projects.
 
 ## Built-in library reference
 
@@ -49,7 +52,7 @@ Each snippet also shows a **copy** icon if you'd rather send it to the clipboard
 | **Data Quality** | Null Check, Duplicate Finder, Outlier Detection (IQR) |
 | **DuckDB Specific** | Read CSV, Read Parquet, SUMMARIZE, Export to Parquet |
 | **DBT Models** | Staging, Intermediate, Mart, Incremental, Snapshot (SCD2), Custom Test, Macro, Source Config |
-| **My Snippets** | Your saved snippets (appears only if you have any) |
+| **<workspace> · shared** · **This project** | Your saved snippets, the workspace ones first (each appears only if it has any) |
 
 ## Tips & gems
 

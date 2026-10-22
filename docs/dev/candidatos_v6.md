@@ -687,6 +687,8 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 
 ### F · Entregar y recordar
 
+> **5.14.0 (sin publicar):** F5 (retomar) y F3 reducida (comparar con la entrega anterior), hechas (fases 0–5 de [`plan_5_14_el_dia_a_dia.md`](plan_5_14_el_dia_a_dia.md)).
+
 #### F1 · Bitácora de entregas
 `Nueva` · **5.14** · S
 
@@ -754,6 +756,8 @@ Lo que más piden los usuarios piloto. De archivo a archivo, a la hora que toque
 ---
 
 ### G · Compartir y heredar
+
+> **5.14.0 (sin publicar):** G2+G3 (proyecto desde plantilla y paquete) y G1 reducida (el nivel del workspace), hechas (fases 0–5 de [`plan_5_14_el_dia_a_dia.md`](plan_5_14_el_dia_a_dia.md)).
 
 #### G1 · Biblioteca en tres niveles
 `Modificación` · **5.15** · S
@@ -907,6 +911,8 @@ por nodo son de Data Flow: pasan a **J** (J9, J10). La bitácora de acceso a fue
 ---
 
 ### J · Mejoras sueltas
+
+> **5.14.0 (sin publicar):** J6 (cuaderno limpio), J9 (diff legible de procesos) y J1 (mirar otro proyecto), hechas (fases 0–5 de [`plan_5_14_el_dia_a_dia.md`](plan_5_14_el_dia_a_dia.md)).
 
 Pequeñas, útiles y sin familia: no sostienen la frase de §1, pero ninguna necesita Python.
 Todas van en la 5.17.0.
