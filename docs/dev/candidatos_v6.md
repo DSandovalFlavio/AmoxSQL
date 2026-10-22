@@ -833,6 +833,8 @@ familia deja de reconstruirlo y pasa a **integrar dbt y DuckLake a fondo**.
 
 Llega en la **5.12.0**, adelantada (ver *La numeración*). I1 llega antes, con la 5.10.0.
 
+> **Plan:** [`plan_5_12_dbt_y_ducklake.md`](plan_5_12_dbt_y_ducklake.md) (2026-10-21).
+
 Lo que había hoy, leyendo la 5.9.0: detectar el entorno de dbt, crear el proyecto y su
 `profiles.yml`, plantillas de modelo, fuente, test y macro, armar y ejecutar comandos con
 la salida en vivo, y el linaje y el autocompletado leídos del `manifest.json`. Lo que
