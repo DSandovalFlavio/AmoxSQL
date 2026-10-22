@@ -23,6 +23,7 @@ const dbtCorrer        = require('./dbt/correr');
 const dbtEjecutar      = require('./dbt/ejecutar');
 const dbtEntorno       = require('./dbt/entorno');
 const dbtFuentes       = require('./dbt/fuentes');
+const dbtProyecto      = require('./dbt/proyecto');
 
 /**
  * Mientras dbt tiene la base del proyecto (fase 2b), lo que la lea no puede
@@ -5170,111 +5171,40 @@ app.get('/api/dbt/detect', (req, res) => {
 
 // Initialize a new DBT project
 app.post('/api/dbt/init', (req, res) => {
-    const { projectName = 'amox_dbt_project', profileName } = req.body;
-    const safeName = projectName.replace(/[^a-zA-Z0-9_]/g, '_');
-    const profile = profileName || safeName;
-
+    // 5.12 (I11, Dec-29): capas con un ejemplo que corre a la primera, y un solo
+    // target, prod, marcado como producción.
+    const { projectName = 'amox_dbt_project', profileName } = req.body || {};
     try {
-        // Create directory structure
-        const dirs = [
-            'models/staging',
-            'models/intermediate',
-            'models/marts',
-            'macros',
-            'tests',
-            'seeds',
-            'snapshots',
-            'analyses',
-        ];
-
-        for (const dir of dirs) {
-            const dirPath = path.join(ROOT_DIR, dir);
-            if (!fs.existsSync(dirPath)) {
-                fs.mkdirSync(dirPath, { recursive: true });
-            }
-        }
-
-        // Create dbt_project.yml
-        const projectConfig = {
-            name: safeName,
-            version: '1.0.0',
-            'config-version': 2,
-            profile: profile,
-            'model-paths': ['models'],
-            'analysis-paths': ['analyses'],
-            'test-paths': ['tests'],
-            'seed-paths': ['seeds'],
-            'macro-paths': ['macros'],
-            'snapshot-paths': ['snapshots'],
-            'clean-targets': ['target', 'dbt_packages'],
-            models: {
-                [safeName]: {
-                    staging: { '+materialized': 'view', '+schema': 'staging' },
-                    intermediate: { '+materialized': 'view', '+schema': 'intermediate' },
-                    marts: { '+materialized': 'table', '+schema': 'marts' },
-                },
-            },
-        };
-
-        const projectPath = path.join(ROOT_DIR, 'dbt_project.yml');
-        if (!fs.existsSync(projectPath)) {
-            fs.writeFileSync(projectPath, yaml.dump(projectConfig, { lineWidth: 120, quotingType: "'", forceQuotes: false }), 'utf8');
-        }
-
-        // Create profiles.yml (local, DuckDB target)
-        const profilesConfig = {
-            [profile]: {
-                target: 'dev',
-                outputs: {
-                    dev: {
-                        type: 'duckdb',
-                        path: 'dev.duckdb',
-                        schema: 'main',
-                        threads: 4,
-                    },
-                },
-            },
-        };
-
-        const profilesPath = path.join(ROOT_DIR, 'profiles.yml');
-        if (!fs.existsSync(profilesPath)) {
-            fs.writeFileSync(profilesPath, yaml.dump(profilesConfig, { lineWidth: 120 }), 'utf8');
-        }
-
-        // Create .gitignore for DBT
-        const gitignorePath = path.join(ROOT_DIR, '.gitignore');
-        const dbtIgnoreContent = '\n# DBT\ntarget/\ndbt_packages/\nlogs/\n*.duckdb\n*.duckdb.wal\n';
-        if (fs.existsSync(gitignorePath)) {
-            const existing = fs.readFileSync(gitignorePath, 'utf8');
-            if (!existing.includes('# DBT')) {
-                fs.appendFileSync(gitignorePath, dbtIgnoreContent, 'utf8');
-            }
-        } else {
-            fs.writeFileSync(gitignorePath, dbtIgnoreContent.trim(), 'utf8');
-        }
-
-        // Create a starter staging model
-        const starterModelPath = path.join(ROOT_DIR, 'models', 'staging', '.gitkeep');
-        if (!fs.existsSync(starterModelPath)) {
-            fs.writeFileSync(starterModelPath, '', 'utf8');
-        }
-
-        // Create packages.yml
-        const packagesPath = path.join(ROOT_DIR, 'packages.yml');
-        if (!fs.existsSync(packagesPath)) {
-            fs.writeFileSync(packagesPath, yaml.dump({ packages: [{ package: 'dbt-labs/dbt_utils', version: '1.1.1' }] }), 'utf8');
-        }
-
-        res.json({
-            success: true,
-            message: `DBT project "${safeName}" initialized successfully.`,
-            createdDirs: dirs,
-            createdFiles: ['dbt_project.yml', 'profiles.yml', 'packages.yml'],
-        });
+        const r = dbtProyecto.crear(ROOT_DIR, { nombre: projectName, perfil: profileName });
+        res.json({ success: true, message: `DBT project "${r.nombre}" initialized with an example in each layer.`, createdFiles: r.creados });
     } catch (err) {
         console.error('DBT Init Error:', err);
         res.status(500).json({ error: err.message });
     }
+});
+
+// Los targets del perfil, cuál está activo y cuáles son producción (I4, Dec-29).
+app.get('/api/dbt/targets', (_req, res) => {
+    try { res.json(dbtProyecto.targets(ROOT_DIR)); } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/dbt/targets/dev', (req, res) => {
+    try {
+        const t = dbtProyecto.crearDev(ROOT_DIR, { desde: req.body?.desde || null, nombre: req.body?.nombre || 'dev' });
+        const cfg = scaffolder.getProjectConfig(ROOT_DIR)?.dbt || {};
+        scaffolder.saveProjectConfig(ROOT_DIR, { dbt: { ...cfg, target: t.nombre } });
+        res.json({ creado: t, ...dbtProyecto.targets(ROOT_DIR) });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+app.get('/api/dbt/explicaciones', (_req, res) => res.json(dbtProyecto.EXPLICACIONES));
+app.post('/api/dbt/template/snapshot', (req, res) => {
+    try {
+        const p = dbtProyecto.plantillaSnapshot(req.body || {});
+        const f = path.join(ROOT_DIR, p.archivo);
+        if (fs.existsSync(f)) return res.status(409).json({ error: `${p.archivo} already exists.` });
+        fs.mkdirSync(path.dirname(f), { recursive: true });
+        fs.writeFileSync(f, p.texto, 'utf8');
+        res.json({ success: true, path: p.archivo, content: p.texto });
+    } catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 // Read profiles.yml
@@ -5609,6 +5539,11 @@ app.post('/api/dbt/execute', async (req, res) => {
     if (!command) return res.status(400).json({ error: 'Command is required' });
     let orden;
     try { orden = dbtCorrer.analizarComando(command); } catch (e) { return res.status(400).json({ error: e.message }); }
+    // Dec-29: escribir en producción, con otro target posible, pide escribir su nombre.
+    const confirmar = dbtProyecto.confirmacionNecesaria(ROOT_DIR, dbtProyecto.conTarget(ROOT_DIR, orden.args));
+    if (confirmar && req.body?.confirmarProduccion !== confirmar.target) {
+        return res.status(409).json({ necesitaConfirmar: true, ...confirmar });
+    }
 
     // El entorno: el del proyecto; si aún no lo guardó, el que manda la interfaz.
     let entorno = dbtCorrer.entornoDelProyecto(ROOT_DIR);
