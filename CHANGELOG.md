@@ -5,6 +5,61 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.13.0] — 2026-10-22 (sin publicar)
+
+**Flujos fiables.** El primer tramo del camino recortado a la 6.0 (ver
+`docs/dev/candidatos_v6.md` → «El recorte del 2026-10-22»; plan en
+`docs/dev/plan_5_13_flujos_fiables.md`): un proceso que corre solo no entrega algo
+mal sin que nadie se entere. No se publica.
+
+### El contrato de una fuente
+
+- **Lo que el archivo tiene que traer**: columnas con su tipo (texto, número, fecha,
+  sí/no) y reglas (sin vacíos, sin repetidos, rango, valores, filas mínimas).
+  **Take today's columns** lo propone; **Check now** lo comprueba.
+- **Se comprueba al correr**, antes del primer paso de un proceso que lee la fuente y
+  antes de dbt: se para (o avisa) y dice qué cambió: «the column "Importe" is missing —
+  "Monto" is new: was it renamed?».
+- Con contrato, un Excel o un CSV se lee **como texto y se convierte**: una celda
+  vacía arriba ya no vuelve texto la columna, y un «N/A» entre números se cuenta y se
+  nombra en vez de romper la lectura.
+
+### Lo que falló se ve
+
+- **Needs attention**, en la bienvenida (sólo si hay algo) y en la ficha de cada
+  workspace: lo que corrió sin nadie delante y falló o avisó, con la razón, **Open**,
+  **Run again** y **Dismiss**. El botón de Operations cuenta lo que falta por mirar.
+
+### Las medidas, usables
+
+- Cada métrica de `metrics.yml` es una **función de SQL** con sus columnas como
+  parámetros: `venta_neta(importe, estado)`, igual en todos los proyectos del
+  workspace. El editor la completa y la explica; el asistente la usa.
+
+### Lo de fondo y la red
+
+- Con AmoxSQL abierto, lo programado usa **la mitad de los núcleos y el 25 % de la
+  memoria** (se cambia en Operations) y va a disco en vez de quedarse sin memoria; con
+  AmoxSQL cerrado, sin límites. dbt de fondo, a prioridad baja.
+- Los pasos de red **reintentan un fallo pasajero** (2 veces cada 30 s en lo
+  programado); un 404 o un permiso, nunca.
+
+### La fecha de los datos
+
+- Lo que se entrega dice de cuándo son sus datos (el archivo más nuevo que se leyó):
+  en las propiedades del Excel y, si se pide, bajo cada tabla; en la celda `datos_al`
+  de una plantilla; en lo publicado; en el aviso; en un campo nuevo del pie de Report
+  Flow.
+
+### Arreglado
+
+- `schema_validation` y `assert` no encontraban una tabla detrás de un nodo de fuente.
+- «Recent runs» en la vista de workspaces enseñaba 6 horas menos.
+- Editar una fuente perdía su frescura y quién la publica.
+- La URL de un paso de descarga no se escapaba (una comilla rompía el SQL).
+- La ficha ponía los pasos saltados antes que el resto.
+- El aviso de un proceso en aviso hablaba de «tests».
+
 ## [5.12.0] — 2026-10-22 (sin publicar)
 
 **dbt y DuckLake.** El cuarto tramo del camino a la 6.0 (plan en

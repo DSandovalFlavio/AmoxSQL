@@ -52,6 +52,29 @@ A dbt command is scheduled just like a process. In [DBT Studio](../dbt/dbt-studi
 - With **Notify me: only on failure**, a test in *warn* also notifies ("…: tests with warnings"), even though dbt ends fine.
 - A command with shell syntax (`&&`, `|`…) or a folder without `dbt_project.yml` can't be scheduled.
 
+## When something fails: Needs attention
+
+What ran with nobody watching (scheduled, from the command line or in a batch) and **failed or finished with a warning** shows up in **Needs attention**, with the reason in one line:
+
+- on the **welcome screen**, from every workspace (only when there's something; otherwise the welcome screen stays as usual);
+- at the top of **each workspace's page**, only its own.
+
+Each row has **Open** (the run's record), **Run again** and **Dismiss**. It leaves the list when you open its record, click Dismiss, or when the next run of the same process finishes fine. The Operations button in the title bar turns red with what's left to look at, not just today's: a failure at 5:00 is still in sight when you arrive.
+
+## Background runs stay out of the way
+
+With AmoxSQL **open**, what runs with nobody watching uses at most **half the cores and 25% of the memory**: you can keep working meanwhile, and the process itself usually finishes sooner because it competes less. Whatever doesn't fit in that memory goes to disk instead of failing.
+
+- With AmoxSQL **closed** (the Windows task wakes it up), there are no limits: nobody is working.
+- If AmoxSQL catches up on missed runs when you open it, that catch-up does get the limits.
+- Change the percentages in **Operations** ("While you work, a scheduled run uses up to…").
+- The run's record says which limits it ran with. A process that uses the **project database** isn't limited (it would share the limits with your session), and the record says so.
+- Scheduled dbt runs at low priority.
+
+## If the network fails
+
+Steps that read from the network (a web address, a bucket, an online spreadsheet, a cloud source) **retry a passing failure**: timeout, cut connection, busy server (429, 5xx). By default, **twice, 30 seconds apart** when the process runs scheduled, and never from the interface. Each step changes it under **If the network fails**. A missing file or a permission error isn't retried: waiting doesn't fix it. The run's record counts each step's retries.
+
 ## Operations: everything in one place
 
 **Operations** shows everything scheduled on this computer, from every group. Open it from the button with today's count in the title bar (red if something failed today), from the **AmoxSQL** menu, or from the workspaces view.

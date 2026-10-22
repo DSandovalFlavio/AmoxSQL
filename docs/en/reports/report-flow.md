@@ -74,6 +74,21 @@ The control bar and the cursor withdraw after a couple of seconds of stillness a
 | `aspect` | Slide aspect ratio: `16:9` · `4:3` · `1:1` |
 | `variables` | Key/value pairs injected into queries as `{{key}}` |
 
+### Each slide's footer
+With a chart, the footer says where what you see comes from. Its fields are chosen in the inspector (or with `footer:` in the front-matter); their content isn't typed, it's derived:
+
+| Field | What it shows |
+|---|---|
+| `source` | Which source the chart comes from |
+| `query` | The chart's `.amoxvis` |
+| `rows` | How many rows it returned (and whether it was truncated) |
+| `vars` | The active variables |
+| `data` | **How old the data is**: the date of the newest file the query reads (5.13) |
+| `refreshed` | When the query ran; after a week it's flagged |
+| `number` | The slide number |
+
+`data` and `refreshed` aren't the same: a deck refreshed today on a month-old Excel says "Data as of" a month ago.
+
 ### Slide layouts
 | Layout | For |
 |---|---|

@@ -65,7 +65,7 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 | Último resultado | La tabla de resultados en pantalla |
 | Config del gráfico | El gráfico activo de Story Flow |
 | Esquema | Todas las tablas de la base local |
-| Reglas del proyecto | `RULES.md` y `.amoxsql/context/` (ver [Contexto como código](context-as-code.md)) |
+| Reglas del proyecto | `RULES.md` y `context/` (ver [Contexto como código](context-as-code.md)) |
 
 ## Tips y gemas
 

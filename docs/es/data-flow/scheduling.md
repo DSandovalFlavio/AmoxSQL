@@ -52,6 +52,29 @@ Un comando de dbt se programa igual que un proceso. En [DBT Studio](../dbt/dbt-s
 - Con **Notify me: only on failure**, un test en *warn* también avisa («…: tests with warnings»), aunque dbt termine bien.
 - Un comando con algo de consola (`&&`, `|`…) o una carpeta sin `dbt_project.yml` no se programa.
 
+## Cuando algo falla: Needs attention
+
+Lo que corrió sin nadie delante (programado, desde la línea de comandos o en lote) y **falló o terminó con un aviso** sale en **Needs attention**, con la razón en una línea:
+
+- en la **bienvenida**, de todos los workspaces (sólo si hay algo; si no, la bienvenida queda como siempre);
+- arriba de la **ficha de cada workspace**, sólo lo suyo.
+
+Cada fila tiene **Open** (la ficha de la ejecución), **Run again** y **Dismiss**. Sale de la lista al abrir su ficha, al pulsar Dismiss o cuando la siguiente ejecución del mismo proceso termina bien. El botón de Operations de la barra de título se pone rojo con lo que falta por mirar, no sólo con lo de hoy: un fallo de las 5:00 sigue a la vista cuando llegas.
+
+## Lo que corre de fondo no estorba
+
+Con AmoxSQL **abierto**, lo que corre sin nadie delante usa como mucho **la mitad de los núcleos y el 25 % de la memoria**: puedes seguir trabajando mientras tanto, y el propio proceso suele terminar antes porque compite menos. Lo que no quepa en esa memoria va a disco en vez de fallar.
+
+- Con AmoxSQL **cerrado** (la tarea de Windows lo despierta), no hay límites: nadie está trabajando.
+- Si al abrir AmoxSQL se pone al día con lo que se perdió, esa puesta al día sí lleva límites.
+- Los porcentajes se cambian en **Operations** («While you work, a scheduled run uses up to…»).
+- La ficha de la ejecución dice con qué límites corrió. Un proceso que usa la **base del proyecto** no se limita (compartiría los límites con tu sesión), y la ficha lo dice.
+- dbt programado corre con prioridad baja.
+
+## Si la red falla
+
+Los pasos que leen de la red (una dirección web, un bucket, una hoja de cálculo en línea, una fuente en la nube) **reintentan un fallo pasajero**: tiempo agotado, conexión cortada, servidor ocupado (429, 5xx). De serie, **2 veces con 30 segundos** de espera cuando el proceso corre programado, y ninguna desde la interfaz. Cada paso lo cambia en **If the network fails**. Un archivo que no existe o un permiso no se reintentan: esperar no lo arregla. La ficha cuenta los reintentos de cada paso.
+
 ## Operations: todo en un sitio
 
 **Operations** enseña todo lo programado en esta computadora, de todos los grupos. Se abre con el botón de la barra de título que dice cuántas tocan hoy (en rojo si alguna falló hoy), desde el menú **AmoxSQL** o desde la vista de workspaces.

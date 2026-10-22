@@ -74,6 +74,21 @@ La barra de control y el cursor se retiran solos tras un par de segundos de quie
 | `aspect` | Proporción de slide: `16:9` · `4:3` · `1:1` |
 | `variables` | Pares clave/valor inyectados en las queries como `{{clave}}` |
 
+### El pie de cada slide
+Con un gráfico, el pie dice de dónde sale lo que se ve. Sus campos se eligen en el inspector (o con `footer:` en el front-matter); su contenido no se teclea, se deriva:
+
+| Campo | Qué enseña |
+|---|---|
+| `source` | De qué fuente sale el gráfico |
+| `query` | El `.amoxvis` del gráfico |
+| `rows` | Cuántas filas devolvió (y si se truncó) |
+| `vars` | Las variables activas |
+| `data` | **De cuándo son los datos**: la fecha del archivo más nuevo que lee la consulta (5.13) |
+| `refreshed` | Cuándo se ejecutó la consulta; pasada una semana, se marca |
+| `number` | El número de slide |
+
+`data` y `refreshed` no son lo mismo: un deck refrescado hoy sobre un Excel de hace un mes dice «Data as of» hace un mes.
+
 ### Layouts de slide
 | Layout | Para |
 |---|---|

@@ -67,6 +67,9 @@ Al abrir un proyecto que usa una fuente que en esta máquina no está ubicada, u
 - **El asistente** ve las fuentes, con su descripción.
 - `CREATE TABLE foto AS SELECT * FROM fuentes."x"` deja una tabla que **recuerda de dónde salió** (ver más abajo).
 
+### Su contrato
+Lo que el archivo tiene que traer: columnas, tipos y reglas. Un proceso que lee la fuente lo comprueba antes de su primer paso y, si el cliente cambió algo, se para y dice qué. Clic derecho sobre la fuente → **Add a contract…** Ver [El contrato de una fuente](source-contracts.md).
+
 ### De dónde salió cada tabla
 Una tabla cargada desde un archivo —importándola, con Import File o Import Folder de Data Flow, o materializando una fuente— recuerda qué archivo era, con qué hoja y rango, cuándo se leyó y cuántas filas tenía. El explorador lo dice al desplegar la tabla y **avisa si el archivo cambió después de cargarlo**. Import Folder añade la columna `_archivo` a cada fila.
 
@@ -101,6 +104,7 @@ Un **destino** es la dirección contraria: una carpeta con nombre donde los proc
 - La primera versión que trae las fuentes (5.10) sube la base propia de AmoxSQL al esquema v3: la 5.9 ya no la abre.
 
 ## Ver también
+- [El contrato de una fuente](source-contracts.md)
 - [Importar datos](importing-data.md)
 - [Explorador de base de datos](database-explorer.md)
 - [Workspaces](../user-guide/workspaces.md)

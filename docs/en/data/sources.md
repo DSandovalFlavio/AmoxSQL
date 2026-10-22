@@ -67,6 +67,9 @@ When you open a project that uses a source with no location on this machine, a n
 - **The assistant** sees the sources, with their description.
 - `CREATE TABLE snapshot AS SELECT * FROM fuentes."x"` leaves a table that **remembers where it came from** (see below).
 
+### Its contract
+What the file has to bring: columns, types and rules. A process that reads the source checks it before its first step and, if the client changed something, stops and says what. Right-click the source → **Add a contract…** See [A source's contract](source-contracts.md).
+
 ### Where each table came from
 A table loaded from a file — by importing it, with Data Flow's Import File or Import Folder, or by materializing a source — remembers which file it was, which sheet and range, when it was read and how many rows it had. The explorer says it when you expand the table and **warns if the file changed after it was loaded**. Import Folder adds an `_archivo` column to every row.
 
@@ -101,6 +104,7 @@ A **destination** is the other direction: a folder with a name where processes l
 - The first version with sources (5.10) moves AmoxSQL's own database to schema v3: 5.9 can no longer open it.
 
 ## See also
+- [A source's contract](source-contracts.md)
 - [Importing data](importing-data.md)
 - [Database explorer](database-explorer.md)
 - [Workspaces](../user-guide/workspaces.md)

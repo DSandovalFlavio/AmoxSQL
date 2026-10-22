@@ -39,6 +39,17 @@ metrics:
     table: orders
 ```
 
+#### A metric is also a function
+Since 5.13, each metric in `metrics.yml` (the project's and its workspace's, under the workspace's `Context`; by name, the project's wins) is a **SQL function** with the columns it uses as parameters:
+
+```sql
+SELECT store, revenue(amount, status) AS sales
+FROM orders
+GROUP BY ALL
+```
+
+It gives the same result in the editor, a notebook, Data Flow and the assistant, and in every project of the workspace. The editor suggests it with its columns already filled in and, on hover, shows whose it is, its description and its SQL. If the automatic column extraction isn't enough, list them by hand: `columns: [amount, status]`. A metric doesn't become a function if its name is already an engine function (`sum`), if it isn't an identifier (it has spaces) or if its SQL doesn't compile; changes to `metrics.yml` take effect without restarting.
+
 ### Define joins — `context/joins.yml`
 The correct relationships between tables, so the AI doesn't guess columns. The `on` condition can include filters that always apply.
 

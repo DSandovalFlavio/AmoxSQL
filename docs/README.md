@@ -58,6 +58,7 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 | ER diagram | [es](es/data/er-diagram.md) | [en](en/data/er-diagram.md) | 🟢 |
 | Importing data | [es](es/data/importing-data.md) | [en](en/data/importing-data.md) | 🟢 |
 | Data sources | [es](es/data/sources.md) | [en](en/data/sources.md) | 🟢 |
+| A source's contract | [es](es/data/source-contracts.md) | [en](en/data/source-contracts.md) | 🟢 |
 | Lakes (DuckLake) | [es](es/data/lakes.md) | [en](en/data/lakes.md) | 🟢 |
 | Exporting data | [es](es/data/exporting-data.md) | [en](en/data/exporting-data.md) | 🟢 |
 | Google Sheets | [es](es/data/google-sheets.md) | [en](en/data/google-sheets.md) | 🟢 |
