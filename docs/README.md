@@ -40,6 +40,7 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 |---|---|---|---|
 | Cuadernos · Notebooks (.sqlnb) | [es](es/notebooks/notebooks.md) | [en](en/notebooks/notebooks.md) | 🟢 |
 | Sacar el cuaderno de AmoxSQL · Taking the notebook out | [es](es/notebooks/reports.md) | [en](en/notebooks/reports.md) | 🟢 |
+| Canvas (.amoxcanvas) | [es](es/notebooks/canvas.md) | [en](en/notebooks/canvas.md) | 🟢 |
 
 ## Results & analysis · Resultados
 | Page | Español | English | Status |

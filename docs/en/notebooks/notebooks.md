@@ -159,3 +159,4 @@ Changing a parameter's value also turns it amber, even though you did not touch 
 - [Taking the notebook out of AmoxSQL](reports.md) · [SQL Editor](../editor/sql-editor.md) · [Variables](../editor/variables.md)
 - [Results table](../results/results-table.md) · [Data profiler](../results/data-profiler.md)
 - [File formats](../reference/file-formats.md)
+- [Canvas](canvas.md): the same engine on a canvas, for analyses with branches

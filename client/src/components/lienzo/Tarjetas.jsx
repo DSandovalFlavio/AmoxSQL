@@ -1,10 +1,14 @@
 /**
- * Las tarjetas del Canvas (5.15, fase 1; Dec-56): Source, Query, Note, Text y
- * Frame. Chart y Number llegan en la fase 2.
+ * Las tarjetas del Canvas (5.15; Dec-56): Source, Query, Chart, Number, Note,
+ * Text y Frame.
  *
- * Lo que cambia de una tarjeta a otra vive en el contexto del lienzo (`LienzoCtx`)
- * y no en los datos del nodo: así mover una tarjeta no reconstruye las demás, y
- * un resultado nuevo sólo repinta la suya.
+ * ## Qué llega por dónde (medido: fase 4)
+ *
+ * Lo que es de UNA tarjeta —su resultado, su estado, si corre, si se edita— llega
+ * en `data`; el contexto (`LienzoCtx`) sólo lleva lo que no cambia: las acciones
+ * y el tema. Con el resultado de todas en el contexto, cada ejecución repintaba
+ * las sesenta tarjetas de un lienzo grande, gráficos incluidos: **Refresh all**
+ * de 48 consultas tardaba 8 s, de los que el servidor ponía 0,4.
  *
  * ## El editor de código, sólo en la que se edita
  *
@@ -13,7 +17,7 @@
  * verdad se monta sólo en la tarjeta que se está editando**; al salir, vuelve a
  * ser texto.
  */
-import { createContext, lazy, memo, Suspense, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, lazy, memo, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, NodeResizer } from '@xyflow/react';
 import {
     LuPlay, LuLoaderCircle, LuInbox, LuDatabase, LuStickyNote, LuType, LuFrame,
@@ -135,13 +139,13 @@ function Nombre({ tarjeta }) {
 export const TarjetaDatos = memo(({ id, data, selected }) => {
     const ctx = useContext(LienzoCtx);
     const t = data.tarjeta;
-    const res = ctx.resultados[id];
-    const estado = res?.error ? 'falla' : (ctx.estados.get(id) || (t.foto ? 'foto' : 'nunca'));
+    const res = data.resultado;
+    const estado = res?.error ? 'falla' : (data.estado || (t.foto ? 'foto' : 'nunca'));
     const [clase, ayuda] = PUNTO[estado] || PUNTO.nunca;
-    const corriendo = ctx.corriendo === id;
-    const editando = ctx.editando === id;
+    const corriendo = !!data.corriendo;
+    const editando = data.editando;
     const modo = t.modo || (t.tipo === 'source' ? 'resultado' : 'ambos');
-    const problema = ctx.problemas[id];
+    const problema = data.problema;
     const esSource = t.tipo === 'source';
     const Icono = esSource ? LuInbox : LuDatabase;
     const origen = t.origen || {};
@@ -219,7 +223,7 @@ TarjetaDatos.displayName = 'TarjetaDatos';
 export const TarjetaNota = memo(({ id, data, selected }) => {
     const ctx = useContext(LienzoCtx);
     const t = data.tarjeta;
-    const editando = ctx.editando === id;
+    const editando = data.editando;
     return (
         <div className={`lz-nota${selected ? ' lz-sel' : ''}`} style={t.color ? { '--lz-nota': t.color } : undefined} onDoubleClick={() => ctx.setEditando(id)}>
             <NodeResizer isVisible={selected} minWidth={120} minHeight={70} lineClassName="lz-resizer" handleClassName="lz-resizer-asa" onResizeEnd={(_, p) => ctx.redimensionar(id, p)} />
@@ -236,7 +240,7 @@ TarjetaNota.displayName = 'TarjetaNota';
 export const TarjetaTexto = memo(({ id, data, selected }) => {
     const ctx = useContext(LienzoCtx);
     const t = data.tarjeta;
-    const editando = ctx.editando === id;
+    const editando = data.editando;
     return (
         <div className={`lz-texto${selected ? ' lz-sel' : ''}`} onDoubleClick={() => ctx.setEditando(id)}>
             <NodeResizer isVisible={selected} minWidth={160} minHeight={40} lineClassName="lz-resizer" handleClassName="lz-resizer-asa" onResizeEnd={(_, p) => ctx.redimensionar(id, p)} />
@@ -284,7 +288,7 @@ export function filasDeVisual(resultado, foto) {
 }
 
 /** La cabecera de Chart y Number: punto, icono, nombre, de qué tarjeta lee y Run. */
-function CabeceraVisual({ id, t, Icono, estado, ctx, onEditar }) {
+function CabeceraVisual({ id, t, Icono, estado, ctx, onEditar, corriendo }) {
     const [clase, ayuda] = PUNTO[estado] || PUNTO.nunca;
     return (
         <div className="lz-cab">
@@ -294,8 +298,8 @@ function CabeceraVisual({ id, t, Icono, estado, ctx, onEditar }) {
             <span className="lz-sp" />
             {t.desde && <span className="lz-chip" title={`It shows "${t.desde}"`}>{t.desde}</span>}
             <button type="button" className="lz-modos-uno nodrag" onClick={onEditar} title="Configure"><LuPencil size={11} /></button>
-            <button type="button" className="lz-correr nodrag" disabled={ctx.corriendo === id || !t.desde} onClick={() => ctx.correr(id)} title={t.desde ? 'Run' : 'Connect a card to it first'}>
-                {ctx.corriendo === id ? <LuLoaderCircle size={12} className="spin" /> : <LuPlay size={11} />}
+            <button type="button" className="lz-correr nodrag" disabled={corriendo || !t.desde} onClick={() => ctx.correr(id)} title={t.desde ? 'Run' : 'Connect a card to it first'}>
+                {corriendo ? <LuLoaderCircle size={12} className="spin" /> : <LuPlay size={11} />}
             </button>
         </div>
     );
@@ -307,18 +311,20 @@ const sinOrigen = <div className="lz-vacio">Drag from the edge of a Source or a 
 export const TarjetaGrafico = memo(({ id, data, selected }) => {
     const ctx = useContext(LienzoCtx);
     const t = data.tarjeta;
-    const res = ctx.resultados[id];
-    const estado = res?.error ? 'falla' : (ctx.estados.get(id) || (t.foto ? 'foto' : 'nunca'));
-    const filas = filasDeVisual(res, t.foto);
+    const res = data.resultado;
+    const estado = res?.error ? 'falla' : (data.estado || (t.foto ? 'foto' : 'nunca'));
+    // Las mismas filas mientras no cambien: Story Flow es caro de repintar, y el
+    // punto de la cabecera cambia mucho más que los datos.
+    const filas = useMemo(() => filasDeVisual(res, t.foto), [res, t.foto]);
     return (
         <div className={`lz-tarjeta lz-visual${selected ? ' lz-sel' : ''}${data.resaltada ? ' lz-lit' : ''}`}>
             <NodeResizer isVisible={selected} minWidth={240} minHeight={180} lineClassName="lz-resizer" handleClassName="lz-resizer-asa" onResizeEnd={(_, p) => ctx.redimensionar(id, p)} />
             <Handle type="target" position={Position.Left} className="lz-asa lz-asa-in" />
-            <CabeceraVisual id={id} t={t} Icono={LuChartBar} estado={estado} ctx={ctx} onEditar={() => ctx.editarGrafico(id)} />
+            <CabeceraVisual id={id} t={t} Icono={LuChartBar} estado={estado} ctx={ctx} corriendo={!!data.corriendo} onEditar={() => ctx.editarGrafico(id)} />
             {!t.desde ? sinOrigen : res?.error ? <div className="lz-error nowheel nodrag">{res.error}</div> : filas.length ? (
                 <div className="lz-grafico nodrag nowheel" onDoubleClick={() => ctx.editarGrafico(id)}>
                     <Suspense fallback={<div className="lz-vacio"><LuLoaderCircle size={12} className="spin" /> Loading the chart…</div>}>
-                        <DataVisualizer key={ctx.versionDeGrafico(id)} data={filas} initialChartConfig={t.grafico || null} isReportMode chrome="none" />
+                        <DataVisualizer key={data.version} data={filas} initialChartConfig={t.grafico || null} isReportMode chrome="none" />
                     </Suspense>
                 </div>
             ) : <div className="lz-vacio">Run it to draw the chart.</div>}
@@ -340,21 +346,21 @@ export const TarjetaCifra = memo(({ id, data, selected }) => {
     const ctx = useContext(LienzoCtx);
     const t = data.tarjeta;
     const c = t.cifra || {};
-    const res = ctx.resultados[id];
-    const estado = res?.error ? 'falla' : (ctx.estados.get(id) || (t.foto ? 'foto' : 'nunca'));
+    const res = data.resultado;
+    const estado = res?.error ? 'falla' : (data.estado || (t.foto ? 'foto' : 'nunca'));
     const [editando, setEditando] = useState(false);
     const valor = res && !res.error ? res.data?.[0]?.valor : t.foto?.valor;
     const base = res && !res.error ? res.data?.[0]?.base : t.foto?.base;
     const variacion = c.comparar && Number.isFinite(Number(valor)) && Number.isFinite(Number(base)) && Number(base) !== 0
         ? (Number(valor) - Number(base)) / Math.abs(Number(base)) : null;
-    const columnas = ctx.columnasDe(t.desde);
-    const datos = ctx.tarjetasDeDatos.filter(x => x !== t.desde);
+    const columnas = data.columnas || [];
+    const datos = (data.datos || []).filter(x => x !== t.desde);
     const etiquetaPorOmision = `${(AGREGADOS.find(a => a[0] === (c.agregado || 'sum')) || [])[1] || ''} of ${c.columna || 'rows'}`;
     return (
         <div className={`lz-tarjeta lz-visual${selected ? ' lz-sel' : ''}${data.resaltada ? ' lz-lit' : ''}`}>
             <NodeResizer isVisible={selected} minWidth={170} minHeight={120} lineClassName="lz-resizer" handleClassName="lz-resizer-asa" onResizeEnd={(_, p) => ctx.redimensionar(id, p)} />
             <Handle type="target" position={Position.Left} className="lz-asa lz-asa-in" />
-            <CabeceraVisual id={id} t={t} Icono={LuHash} estado={estado} ctx={ctx} onEditar={() => setEditando(e => !e)} />
+            <CabeceraVisual id={id} t={t} Icono={LuHash} estado={estado} ctx={ctx} corriendo={!!data.corriendo} onEditar={() => setEditando(e => !e)} />
             {!t.desde ? sinOrigen : editando ? (
                 <div className="lz-cifra-form nodrag nowheel">
                     <label>Of <select value={c.columna || ''} onChange={e => ctx.cambiar(id, { cifra: { ...c, columna: e.target.value || undefined } })}>

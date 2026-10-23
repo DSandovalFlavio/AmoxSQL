@@ -158,3 +158,4 @@ Cambiar el valor de un parámetro también la pone en ámbar, aunque no hayas to
 - [Sacar el cuaderno de AmoxSQL](reports.md) · [Editor SQL](../editor/sql-editor.md) · [Variables](../editor/variables.md)
 - [Tabla de resultados](../results/results-table.md) · [Perfil de datos](../results/data-profiler.md)
 - [Formatos de archivo](../reference/file-formats.md)
+- [Canvas](canvas.md): el mismo motor en un lienzo, para análisis con ramas
