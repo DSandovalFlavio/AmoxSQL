@@ -21447,28 +21447,41 @@ tr:hover td {
   border-radius: var(--radius-lg);
 }
 
-/* Operations cubre lo de debajo con el fondo del shell, no con un plano opaco:
-   lo que tapa (bienvenida o IDE) se oculta sin desmontarse. */
+/* Operations desde el IDE cubre lo de debajo con el fondo del shell, no con un
+   plano opaco: lo que tapa se oculta sin desmontarse. Mismo marco que la vista
+   de workspaces: barra lateral (Back, título, refrescar) y el contenido al lado. */
 .app-shell:has(> .opx) > :is(.ws-root, .wsv, .app-container) { visibility: hidden; }
 .opx {
   background: transparent;
   overflow: hidden;
-  padding: 0 6px 6px;
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
   gap: 6px;
+  padding: 6px;
 }
-.opx-cabecera {
-  position: static;
+.opx-lateral {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   background: var(--surface-raised);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 10px 16px;
-  flex-shrink: 0;
 }
+.opx-lateral .opx-titulos { flex: 0 0 auto; padding: 10px 16px 0; }
+.opx-lateral .opx-titulos h1 { display: flex; align-items: center; gap: 8px; font-size: 17px; }
+.opx-lateral .opx-titulos h1 svg { color: var(--accent-primary); }
+.opx-lateral .opx-titulos p { margin-top: 6px; line-height: 1.45; }
+.opx-lateral-pie { margin-top: auto; padding: 10px 12px; border-top: 1px solid var(--border-subtle); }
 .opx-marco {
-  flex: 1;
   min-height: 0;
   overflow: auto;
   background: var(--editor-bg, var(--surface-base));
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
 }
+
+/* Dentro de la vista de workspaces: el cuerpo sin su propio relleno lateral,
+   que ya lo pone .wsv-principal. */
+.opx-incrustada .opx-cuerpo { padding: 18px 0 0; max-width: none; }
+.opx-incrustada .opx-error,
+.opx-incrustada .opx-cargando { margin: 16px 0; }

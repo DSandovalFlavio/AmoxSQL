@@ -9,7 +9,10 @@
  * "Pause everything until…" before a holiday, and the switch that lets the
  * Windows task run schedules with AmoxSQL closed.
  *
- * A view apart, like the workspaces view: it doesn't replace anything.
+ * It lives in the workspaces view, as one more entry of its sidebar
+ * (`incrustada`: no header of its own, the workspaces view frames it). From the
+ * IDE, where that view doesn't exist, it opens over everything with the same
+ * frame: a sidebar card (Back, title, refresh) and the content in another.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -42,7 +45,7 @@ function Grupo({ nombre, color }) {
     return <span className="opx-grupo"><span className="opx-punto" style={color ? { background: color } : undefined} />{nombre}</span>;
 }
 
-export default function VistaOperacion({ onClose }) {
+export default function VistaOperacion({ onClose, incrustada = false }) {
     const etq = useEtiqueta();
     const [d, setD] = useState(null);
     const [error, setError] = useState(null);
@@ -92,19 +95,9 @@ export default function VistaOperacion({ onClose }) {
         ...(hoy?.pendientes || []).map(x => ({ ...x, cuando: new Date(x.cuando), tipo: 'pendiente' })),
     ].sort((a, b) => a.cuando - b.cuando);
 
-    return (
-        <div className="opx" role="region" aria-label="Operations">
-            <header className="opx-cabecera">
-                <button type="button" className="opx-volver" onClick={onClose}><LuArrowLeft size={14} /> Back</button>
-                <div className="opx-titulos">
-                    <h1>Operations</h1>
-                    <p>Everything scheduled on this computer, from every {etq.s}.</p>
-                </div>
-                <button type="button" className="opx-icono" onClick={cargar} title="Refresh" aria-label="Refresh"><LuRefreshCw size={14} /></button>
-            </header>
-
-            {/* El contenido, en una tarjeta flotante como los paneles del editor. */}
-            <div className="opx-marco">
+    const refrescar = <button type="button" className="opx-icono" onClick={cargar} title="Refresh" aria-label="Refresh"><LuRefreshCw size={14} /></button>;
+    const contenido = (
+        <>
             {error && <p className="chain-config-hint-error opx-error">{error}</p>}
             {!d && !error && <p className="opx-cargando"><LuLoader size={14} className="lote-gira" /> Loading…</p>}
 
@@ -251,7 +244,37 @@ export default function VistaOperacion({ onClose }) {
                     </section>
                 </div>
             )}
+        </>
+    );
+
+    // Dentro de la vista de workspaces: su título, como el de las demás entradas.
+    if (incrustada) {
+        return (
+            <div className="opx-incrustada">
+                <div className="wsv-fila">
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <h2 className="wsv-h2">Operations</h2>
+                        <p className="wsv-sub">Everything scheduled on this computer, from every {etq.s}.</p>
+                    </div>
+                    {refrescar}
+                </div>
+                {contenido}
             </div>
+        );
+    }
+
+    // Desde el IDE: el mismo marco que la vista de workspaces, encima de todo.
+    return (
+        <div className="opx" role="region" aria-label="Operations">
+            <aside className="opx-lateral">
+                <button type="button" className="wsv-volver" onClick={onClose}><LuArrowLeft size={14} />Back</button>
+                <div className="opx-titulos">
+                    <h1><LuCalendarClock size={16} />Operations</h1>
+                    <p>Everything scheduled on this computer, from every {etq.s}.</p>
+                </div>
+                <div className="opx-lateral-pie">{refrescar}</div>
+            </aside>
+            <div className="opx-marco">{contenido}</div>
         </div>
     );
 }

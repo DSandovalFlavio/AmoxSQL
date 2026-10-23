@@ -660,10 +660,12 @@ function App() {
     return () => window.removeEventListener('amox_exportar_proyecto', abrir);
   }, []);
   useEffect(() => {
-    const abrir = () => setVerOperacion(true);
+    // En la bienvenida, Operations es una entrada de la vista de workspaces:
+    // la abre WelcomeScreen. En el IDE, encima de todo.
+    const abrir = () => { if (appPhase !== PHASE.WELCOME) setVerOperacion(true); };
     window.addEventListener('amox_abrir_operacion', abrir);
     return () => window.removeEventListener('amox_abrir_operacion', abrir);
-  }, []);
+  }, [appPhase]);
   useEffect(() => {
     const handler = (e) => { if (e.detail?.runId) setFichaEjecucion(e.detail.runId); };
     window.addEventListener('amox_abrir_ejecucion', handler);
@@ -1400,7 +1402,6 @@ function App() {
           onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
         />
         <WorkspacesHost />
-        {verOperacion && <VistaOperacion onClose={() => setVerOperacion(false)} />}
         {fichaEjecucion && <FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} />}
         <WelcomeScreen 
           initialPath={projectPath}
