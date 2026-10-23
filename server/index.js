@@ -6237,26 +6237,6 @@ const { seedGallery, registerGalleryRoutes } = require('./galleryManager');
 seedGallery();
 registerGalleryRoutes(app);
 
-// Serve Static Assets in Production (Electron App)
-if (process.env.NODE_ENV === 'production') {
-    // In Electron packing, __dirname might call inside asar. 
-    // We need to point to where 'client/dist' is relative to 'server/index.js'.
-    // In win-unpacked: resources/app/server/index.js -> resources/app/client/dist
-    const clientDistPath = path.join(__dirname, '../client/dist');
-
-    console.log(`[Server] Serving static files from: ${clientDistPath}`);
-    app.use(express.static(clientDistPath));
-
-    // Handle React Routing, return all requests to React app
-    app.get(/.*/, (req, res) => {
-        // Build API safety: Don't return HTML for failed API calls
-        if (req.path.startsWith('/api')) {
-            return res.status(404).json({ error: `API route not found: ${req.path}` });
-        }
-        res.sendFile(path.join(clientDistPath, 'index.html'));
-    });
-}
-
 // ─── Graceful shutdown endpoint ───────────────────────────────────────────────
 // Called by Electron's before-quit handler to close DuckDB connections cleanly
 // before the process exits, preventing write corruption on abrupt termination.
@@ -7189,6 +7169,30 @@ app.post('/api/shutdown', async (_req, res) => {
     // Give the response time to flush, then exit.
     setTimeout(() => process.exit(0), 200);
 });
+
+// Lo último antes de arrancar: el atrapa-todo de producción responde 404 a
+// cualquier /api que no conozca, así que toda ruta registrada DESPUÉS quedaba
+// tapada en la aplicación instalada (workspaces, Operations…), no en desarrollo.
+// Serve Static Assets in Production (Electron App)
+if (process.env.NODE_ENV === 'production') {
+    // In Electron packing, __dirname might call inside asar. 
+    // We need to point to where 'client/dist' is relative to 'server/index.js'.
+    // In win-unpacked: resources/app/server/index.js -> resources/app/client/dist
+    const clientDistPath = path.join(__dirname, '../client/dist');
+
+    console.log(`[Server] Serving static files from: ${clientDistPath}`);
+    app.use(express.static(clientDistPath));
+
+    // Handle React Routing, return all requests to React app
+    app.get(/.*/, (req, res) => {
+        // Build API safety: Don't return HTML for failed API calls
+        if (req.path.startsWith('/api')) {
+            return res.status(404).json({ error: `API route not found: ${req.path}` });
+        }
+        res.sendFile(path.join(clientDistPath, 'index.html'));
+    });
+}
+
 
 /**
  * Arranca el servidor, cayendo a un puerto libre si el preferido esta ocupado.

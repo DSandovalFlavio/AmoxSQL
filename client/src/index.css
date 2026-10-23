@@ -2055,6 +2055,10 @@ body {
 
 .app-shell--welcome > * { position: relative; z-index: 1; }
 
+/* La barra conserva su capa: con z-index 1, la bienvenida (hermana posterior)
+   se pintaba encima del menú de la aplicación y no se podía elegir nada. */
+.app-shell--welcome > .window-title-bar { z-index: 9999; }
+
 .app-shell--welcome::before {
   content: '';
   position: absolute;
@@ -9088,6 +9092,28 @@ tr:hover .rt-td--pinned {
 .db-copy-btn:hover {
   opacity: 1 !important;
 }
+
+/* Los tres puntos de una tabla: el menú del clic derecho, a la vista. Junto a
+   «copiar», que es el que empuja a la derecha (margin-left: auto). */
+.db-mas-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin-left: 2px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  opacity: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+.db-table-row:hover .db-mas-btn,
+.db-mas-btn:focus-visible { opacity: 0.8; }
+.db-mas-btn:hover { opacity: 1; color: var(--text-primary); background: var(--hover-bg); border: 0; }
 
 /* ── Database Explorer Columns ── */
 
@@ -21397,3 +21423,65 @@ tr:hover td {
 /* Sin resultados todavía: una franja, y el editor ocupa el resto. */
 .ep-results.ep-results--vacio { height: auto; min-height: 0; flex-shrink: 0; }
 .ep-results.vertical.ep-results--vacio { width: 220px; min-width: 0; height: 100%; }
+
+/* ── Workspaces y Operations: el mismo marco que el IDE ──
+   Sobre la bienvenida, su lienzo partido (::before de .app-shell--welcome)
+   asomaba detrás de la barra de ventana. Con estas vistas abiertas la barra deja
+   pasar sólo el resplandor del shell, como en el editor, y el contenido va en
+   tarjetas flotantes separadas por el mismo canal de 6px. */
+.app-shell--welcome:has(.wsv, .opx)::before { display: none; }
+
+.wsv {
+  background: transparent;
+  gap: 6px;
+  padding: 6px;
+}
+.wsv-lateral {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: auto;
+}
+.wsv-principal {
+  background: var(--editor-bg, var(--surface-base));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+/* Operations desde el IDE cubre lo de debajo con el fondo del shell, no con un
+   plano opaco: lo que tapa se oculta sin desmontarse. Mismo marco que la vista
+   de workspaces: barra lateral (Back, título, refrescar) y el contenido al lado. */
+.app-shell:has(> .opx) > :is(.ws-root, .wsv, .app-container) { visibility: hidden; }
+.opx {
+  background: transparent;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 236px minmax(0, 1fr);
+  gap: 6px;
+  padding: 6px;
+}
+.opx-lateral {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+.opx-lateral .opx-titulos { flex: 0 0 auto; padding: 10px 16px 0; }
+.opx-lateral .opx-titulos h1 { display: flex; align-items: center; gap: 8px; font-size: 17px; }
+.opx-lateral .opx-titulos h1 svg { color: var(--accent-primary); }
+.opx-lateral .opx-titulos p { margin-top: 6px; line-height: 1.45; }
+.opx-lateral-pie { margin-top: auto; padding: 10px 12px; border-top: 1px solid var(--border-subtle); }
+.opx-marco {
+  min-height: 0;
+  overflow: auto;
+  background: var(--editor-bg, var(--surface-base));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+/* Dentro de la vista de workspaces: el cuerpo sin su propio relleno lateral,
+   que ya lo pone .wsv-principal. */
+.opx-incrustada .opx-cuerpo { padding: 18px 0 0; max-width: none; }
+.opx-incrustada .opx-error,
+.opx-incrustada .opx-cargando { margin: 16px 0; }

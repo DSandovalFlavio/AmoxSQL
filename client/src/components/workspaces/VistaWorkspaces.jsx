@@ -25,6 +25,7 @@ import DestinosDeEntrega from '../fuentes/DestinosDeEntrega';
 import CalendarioDelWorkspace from './CalendarioDelWorkspace';
 import Atencion from '../operacion/Atencion';
 import DesdePaquete from '../paquete/DesdePaquete';
+import VistaOperacion from '../operacion/VistaOperacion';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, {
@@ -185,11 +186,17 @@ function Importar({ contenido, analisis, etiqueta, onCerrar, onHecho }) {
     );
 }
 
-export default function VistaWorkspaces({ onVolver, onAbrir }) {
+export default function VistaWorkspaces({ onVolver, onAbrir, inicial = null }) {
     const e = useEtiqueta();
     const [datos, setDatos] = useState(null);
     const [error, setError] = useState(null);
-    const [sel, setSel] = useState(null);           // id de workspace | 'sueltos' | 'archivados' | null
+    const [sel, setSel] = useState(inicial);        // id de workspace | 'sueltos' | 'archivados' | 'operacion' | null
+    // Ya abierta, el botón de Operations de la barra de ventana sólo cambia de entrada.
+    useEffect(() => {
+        const abrir = () => { setSel('operacion'); setBusca(''); };
+        window.addEventListener('amox_abrir_operacion', abrir);
+        return () => window.removeEventListener('amox_abrir_operacion', abrir);
+    }, []);
     const [busca, setBusca] = useState('');
     const [resultados, setResultados] = useState(null);
     const [contexto, setContexto] = useState(null);
@@ -355,6 +362,8 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
                 </div>
             </>
         );
+    } else if (sel === 'operacion') {
+        principal = <VistaOperacion incrustada />;
     } else if (sel === 'sueltos') {
         principal = (
             <>
@@ -452,6 +461,9 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
                     <button type="button" className={`wsv-it${sel === null && !resultados ? ' wsv-it--on' : ''}`} onClick={() => { setSel(null); setBusca(''); }}>
                         <LuHardDrive size={13} />Overview
                     </button>
+                    <button type="button" className={`wsv-it${sel === 'operacion' && !resultados ? ' wsv-it--on' : ''}`} onClick={() => { setSel('operacion'); setBusca(''); }}>
+                        <LuCalendarClock size={13} />Operations
+                    </button>
                     {ws.map(w => (
                         <button key={w.id} type="button" className={`wsv-it${sel === w.id ? ' wsv-it--on' : ''}`} onClick={() => { setSel(w.id); setBusca(''); }}>
                             <span className="wsv-punto" style={{ background: w.color || 'var(--text-tertiary)' }} />
@@ -482,7 +494,6 @@ export default function VistaWorkspaces({ onVolver, onAbrir }) {
                         {busca && <button type="button" onClick={() => setBusca('')} aria-label="Clear search"><LuX size={12} /></button>}
                     </label>
                     <span className="wsv-sep" />
-                    <button className="wsv-btn wsv-btn--fant" type="button" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_operacion'))}><LuCalendarClock size={13} />Operations</button>
                     <button className="wsv-btn wsv-btn--fant" type="button" onClick={() => setDesdePaquete(true)} title="Start a project from a .amoxproject package (or a template)"><LuFolderOpen size={13} />From a package…</button>
                     <button className="wsv-btn wsv-btn--fant" type="button" onClick={() => archivoRef.current?.click()}><LuUpload size={13} />Import…</button>
                     <input ref={archivoRef} type="file" accept=".amoxworkspace,.json" hidden onChange={elegirArchivo} />

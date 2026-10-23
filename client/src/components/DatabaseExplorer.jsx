@@ -8,8 +8,11 @@ import {
     LuRefreshCw, LuEllipsisVertical, LuHistory, LuTable,
     LuHash, LuType, LuCalendar, LuSquareCheck, LuCode,
     LuClipboard, LuInfo, LuSearch, LuChevronRight, LuChevronDown, LuEye, LuShieldCheck,
-    LuWorkflow, LuArrowLeft, LuDatabase, LuFolder, LuFileInput, LuTriangleAlert
+    LuWorkflow, LuArrowLeft, LuDatabase, LuFolder, LuFileInput, LuTriangleAlert,
+    LuPlus, LuPencil, LuCopy, LuTrash2, LuFolderPlus, LuSquarePlus,
 } from "react-icons/lu";
+import { useDialog } from './dialogs/DialogProvider';
+import { useToast } from './ToastProvider';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import FuentesExplorador from './fuentes/FuentesExplorador';
 import OtrosProyectos from './OtrosProyectos';
@@ -24,6 +27,11 @@ const qualifiedName = (schema, tableName) => {
     if (!schema || schema === 'main') return `"${tableName}"`;
     return `"${schema}"."${tableName}"`;
 };
+
+/** Un identificador entre comillas dobles, con las suyas dobladas. */
+const ident = (n) => `"${String(n).replace(/"/g, '""')}"`;
+/** `schema.tabla` calificado siempre (también `main`): para ALTER y DROP. */
+const calificado = (schema, nombre) => `${ident(schema || 'main')}.${ident(nombre)}`;
 
 /**
  * Returns a display name for drag/drop and copy operations.
@@ -49,7 +57,12 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     const [showHeaderMenu, setShowHeaderMenu] = useState(false);
 
     // Context Menu State
-    const [contextMenu, setContextMenu] = useState(null); // { x, y, tableName, schema }
+    const [contextMenu, setContextMenu] = useState(null); // { x, y, tableName, schema, esVista }
+    // El mismo menú, desde los tres puntos de un esquema y desde el «+» de la cabecera.
+    const [menuEsquema, setMenuEsquema] = useState(null); // { x, y, schema, tablas }
+    const [menuNuevo, setMenuNuevo] = useState(null);     // { x, y }
+    const dialog = useDialog();
+    const toast = useToast();
     // 5.12 (I8): DuckLake
     const [nuevoLago, setNuevoLago] = useState(false);
     const [comoEstaba, setComoEstaba] = useState(null);   // { tabla, schema }
@@ -62,6 +75,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     useEffect(() => {
         const handleClickOutside = () => {
             setContextMenu(null);
+            setMenuEsquema(null);
+            setMenuNuevo(null);
             setShowHeaderMenu(false);
         };
         document.addEventListener('click', handleClickOutside);
@@ -153,13 +168,15 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
         setExpandedSchemas(prev => ({ ...prev, [schemaName]: !prev[schemaName] }));
     };
 
+    // Lo que se borra puede ser una vista: `DROP TABLE` sobre una vista falla.
+    const [borrarEsVista, setBorrarEsVista] = useState(false);
     const confirmDrop = async () => {
         if (!tableToDelete) return;
         const qName = qualifiedName(schemaToDelete, tableToDelete);
         const res = await fetch(`${API_BASE}/api/query`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: `DROP TABLE IF EXISTS ${qName}` })
+            body: JSON.stringify({ query: `DROP ${borrarEsVista ? 'VIEW' : 'TABLE'} IF EXISTS ${qName}` })
         });
         if (res.ok) {
             fetchSchemas();
@@ -169,6 +186,100 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
             const data = await res.json();
             throw new Error(data.error || 'Drop failed');
         }
+    };
+
+    /** Ejecuta una sentencia del explorador y refresca el árbol; el error, en un aviso. */
+    const ejecutar = async (sql, hecho) => {
+        try {
+            const r = await fetch(`${API_BASE}/api/query`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: sql }),
+            });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok || d.error) throw new Error(d.error || d.details || `Failed (${r.status})`);
+            if (hecho) toast.success(hecho);
+            fetchSchemas();
+            return true;
+        } catch (e) {
+            toast.error(String(e.message || e).split('\n')[0]);
+            return false;
+        }
+    };
+
+    const nombreValido = (v) => (!String(v || '').trim() ? 'Write a name' : /["]/.test(v) ? 'It cannot contain double quotes' : null);
+
+    const renombrar = async ({ tableName, schema, esVista }) => {
+        const nuevo = await dialog.promptAsync({
+            title: `Rename ${esVista ? 'view' : 'table'} "${tableName}"`,
+            message: 'Queries, notebooks and processes that use the old name will need the new one.',
+            defaultValue: tableName, confirmLabel: 'Rename', validate: nombreValido,
+        });
+        const n = String(nuevo || '').trim();
+        if (!n || n === tableName) return;
+        await ejecutar(`ALTER ${esVista ? 'VIEW' : 'TABLE'} ${calificado(schema, tableName)} RENAME TO ${ident(n)}`, `Renamed to "${n}"`);
+    };
+
+    const duplicar = async ({ tableName, schema }) => {
+        const nuevo = await dialog.promptAsync({
+            title: `Duplicate "${tableName}"`,
+            message: 'A new table with the same columns and rows.',
+            defaultValue: `${tableName}_copy`, confirmLabel: 'Duplicate', validate: nombreValido,
+        });
+        const n = String(nuevo || '').trim();
+        if (!n) return;
+        await ejecutar(`CREATE TABLE ${calificado(schema, n)} AS SELECT * FROM ${calificado(schema, tableName)}`, `"${n}" created`);
+    };
+
+    /** Editar una vista: su definición, en una pestaña, lista para cambiar y ejecutar. */
+    const editarVista = async ({ tableName, schema }) => {
+        try {
+            const r = await fetch(`${API_BASE}/api/query`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query: `SELECT sql FROM duckdb_views() WHERE NOT temporary AND schema_name = '${String(schema || 'main').replace(/'/g, "''")}' AND view_name = '${String(tableName).replace(/'/g, "''")}' LIMIT 1` }),
+            });
+            const d = await r.json();
+            const def = d.data?.[0]?.sql;
+            if (!def) throw new Error('The view definition could not be read');
+            const cuerpo = String(def).replace(/^\s*CREATE\s+(OR\s+REPLACE\s+)?VIEW\s+/i, 'CREATE OR REPLACE VIEW ');
+            onSelectQuery?.(`-- Edit the view and run it to save the change\n${cuerpo.trim().replace(/;?\s*$/, ';')}\n`);
+        } catch (e) { toast.error(e.message); }
+    };
+
+    const nuevaTabla = (schema = 'main') => {
+        const prefijo = schema && schema !== 'main' ? `${ident(schema)}.` : '';
+        onSelectQuery?.(`CREATE TABLE ${prefijo}nueva_tabla (\n    id INTEGER PRIMARY KEY,\n    nombre VARCHAR,\n    creada TIMESTAMP DEFAULT current_timestamp\n);\n\n-- Or from a query:\n-- CREATE TABLE ${prefijo}nueva_tabla AS SELECT * FROM otra_tabla;\n`);
+    };
+    const nuevaVista = (schema = 'main') => {
+        const prefijo = schema && schema !== 'main' ? `${ident(schema)}.` : '';
+        onSelectQuery?.(`CREATE OR REPLACE VIEW ${prefijo}nueva_vista AS\nSELECT *\nFROM tabla\nWHERE true;\n`);
+    };
+    const nuevoEsquema = async () => {
+        const nombre = await dialog.promptAsync({ title: 'New schema', message: 'A schema groups tables and views inside this database.', placeholder: 'staging', confirmLabel: 'Create', validate: nombreValido });
+        const n = String(nombre || '').trim();
+        if (!n) return;
+        if (await ejecutar(`CREATE SCHEMA ${ident(n)}`, `Schema "${n}" created`)) setExpandedSchemas(p => ({ ...p, [n]: true }));
+    };
+    const borrarEsquema = async ({ schema, tablas }) => {
+        if (schema === 'main') { toast.info('The main schema cannot be dropped.'); return; }
+        const ok = await dialog.confirmAsync({
+            title: `Drop schema "${schema}"`,
+            message: tablas
+                ? `It has ${tablas} table${tablas === 1 ? '' : 's'} or view${tablas === 1 ? '' : 's'}, and they are dropped with it. This cannot be undone.`
+                : 'It is empty. This cannot be undone.',
+            confirmLabel: 'Drop schema', destructive: true,
+        });
+        if (ok) await ejecutar(`DROP SCHEMA ${ident(schema)}${tablas ? ' CASCADE' : ''}`, `Schema "${schema}" dropped`);
+    };
+
+    /** Abre un menú bajo el botón que se pulsó (los tres puntos o el «+»). */
+    // Como en el explorador de archivos: el menú nace donde se hizo clic y crece
+    // hacia la derecha; `dentro` lo devuelve a la ventana si se sale por abajo o
+    // por la derecha.
+    const bajo = (e) => ({ x: e.clientX, y: e.clientY });
+    const dentro = (el) => {
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        if (r.bottom > window.innerHeight - 8) el.style.top = `${Math.max(8, r.top - r.height)}px`;
+        if (r.right > window.innerWidth - 8) el.style.left = `${Math.max(8, window.innerWidth - r.width - 8)}px`;
     };
 
     // Determine if we need schema grouping (only if >1 schema)
@@ -209,7 +320,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     onContextMenu={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        setContextMenu({ x: e.clientX, y: e.clientY, tableName: table.name, schema });
+                        setContextMenu({ x: e.clientX, y: e.clientY, tableName: table.name, schema, esVista: table.type?.toLowerCase().includes('view') });
                     }}
                 >
                     <div className="db-chevron">
@@ -228,6 +339,19 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     >
                         <LuClipboard size={12} />
                     </span>
+                    <button
+                        type="button"
+                        className="db-mas-btn"
+                        title="More: preview, rename, duplicate, drop…"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            const p = bajo(e);
+                            setMenuEsquema(null); setMenuNuevo(null);
+                            setContextMenu({ ...p, tableName: table.name, schema, esVista: table.type?.toLowerCase().includes('view') });
+                        }}
+                    >
+                        <LuEllipsisVertical size={13} />
+                    </button>
                 </div>
 
                 {/* 5.12 (I5): lo que dice la tabla (su comentario, o dbt) */}
@@ -300,6 +424,9 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                             <LuWorkflow size={14} />
                         </button>
                     )}
+                    <button className="db-header-btn" title="New table, view or schema" onClick={(e) => { e.stopPropagation(); const p = bajo(e); setContextMenu(null); setMenuEsquema(null); setMenuNuevo(m => (m ? null : p)); }}>
+                        <LuPlus size={14} />
+                    </button>
                     <button className="db-header-btn" onClick={() => setNuevoLago(true)} title="New lake… (DuckLake: every change is a version)">
                         <LuWaves size={14} />
                     </button>
@@ -358,6 +485,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                                     <div
                                         className="db-schema-row"
                                         onClick={() => toggleSchema(schemaGroup.schema)}
+                                        onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu(null); setMenuNuevo(null); setMenuEsquema({ x: e.clientX, y: e.clientY, schema: schemaGroup.schema, tablas: schemaGroup.tables.length }); }}
                                     >
                                         <div className="db-chevron">
                                             {isSchemaExpanded ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}
@@ -371,6 +499,13 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                                             onClick={(e) => { e.stopPropagation(); if (onOpenErDiagram) onOpenErDiagram(schemaGroup.schema); }}
                                         >
                                             <LuWorkflow size={13} />
+                                        </button>
+                                        <button
+                                            className="db-schema-er-btn"
+                                            title={`More (${schemaGroup.schema}): new table, drop…`}
+                                            onClick={(e) => { e.stopPropagation(); const p = bajo(e); setContextMenu(null); setMenuNuevo(null); setMenuEsquema({ ...p, schema: schemaGroup.schema, tablas: schemaGroup.tables.length }); }}
+                                        >
+                                            <LuEllipsisVertical size={13} />
                                         </button>
                                     </div>
                                     {isSchemaExpanded && (
@@ -423,7 +558,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
             {/* Custom Context Menu */}
             {contextMenu && (
-                <div className="ctx-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
+                <div className="ctx-menu" ref={dentro} style={{ top: contextMenu.y, left: contextMenu.x }}>
                     <div className="ctx-menu-item" onClick={() => {
                         const qName = qualifiedName(contextMenu.schema, contextMenu.tableName);
                         if (onSelectQuery) onSelectQuery(`SELECT * FROM ${qName} LIMIT 100; `);
@@ -464,13 +599,67 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                         </div>
                     )}
                     <div className="ctx-menu-separator" />
+                    {contextMenu.esVista && (
+                        <div className="ctx-menu-item" onClick={() => { const c = contextMenu; setContextMenu(null); editarVista(c); }}>
+                            <LuPencil size={14} /> Edit view…
+                        </div>
+                    )}
+                    <div className="ctx-menu-item" onClick={() => { const c = contextMenu; setContextMenu(null); renombrar(c); }}>
+                        <LuPencil size={14} /> Rename…
+                    </div>
+                    {!contextMenu.esVista && (
+                        <div className="ctx-menu-item" onClick={() => { const c = contextMenu; setContextMenu(null); duplicar(c); }}>
+                            <LuCopy size={14} /> Duplicate…
+                        </div>
+                    )}
+                    <div className="ctx-menu-separator" />
                     <div className="ctx-menu-item danger" onClick={() => {
                         setTableToDelete(contextMenu.tableName);
                         setSchemaToDelete(contextMenu.schema);
+                        setBorrarEsVista(!!contextMenu.esVista);
                         setContextMenu(null);
                         setDeleteModalOpen(true);
                     }}>
-                        <LuTable size={14} /> Drop Table...
+                        <LuTrash2 size={14} /> {contextMenu.esVista ? 'Drop View...' : 'Drop Table...'}
+                    </div>
+                </div>
+            )}
+
+            {menuEsquema && (
+                <div className="ctx-menu" ref={dentro} style={{ top: menuEsquema.y, left: menuEsquema.x }} onClick={(e) => e.stopPropagation()}>
+                    <div className="ctx-menu-item" onClick={() => { const s = menuEsquema.schema; setMenuEsquema(null); nuevaTabla(s); }}>
+                        <LuSquarePlus size={14} /> New table in {menuEsquema.schema}…
+                    </div>
+                    <div className="ctx-menu-item" onClick={() => { const s = menuEsquema.schema; setMenuEsquema(null); nuevaVista(s); }}>
+                        <LuEye size={14} /> New view in {menuEsquema.schema}…
+                    </div>
+                    <div className="ctx-menu-item" onClick={() => { const s = menuEsquema.schema; setMenuEsquema(null); onOpenErDiagram?.(s); }}>
+                        <LuWorkflow size={14} /> ER Diagram
+                    </div>
+                    <div className="ctx-menu-item" onClick={() => { navigator.clipboard.writeText(menuEsquema.schema); setMenuEsquema(null); }}>
+                        <LuClipboard size={14} /> Copy Name
+                    </div>
+                    {menuEsquema.schema !== 'main' && (
+                        <>
+                            <div className="ctx-menu-separator" />
+                            <div className="ctx-menu-item danger" onClick={() => { const m = menuEsquema; setMenuEsquema(null); borrarEsquema(m); }}>
+                                <LuTrash2 size={14} /> Drop Schema…
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+
+            {menuNuevo && (
+                <div className="ctx-menu" ref={dentro} style={{ top: menuNuevo.y, left: menuNuevo.x }} onClick={(e) => e.stopPropagation()}>
+                    <div className="ctx-menu-item" onClick={() => { setMenuNuevo(null); nuevaTabla('main'); }}>
+                        <LuSquarePlus size={14} /> New table…
+                    </div>
+                    <div className="ctx-menu-item" onClick={() => { setMenuNuevo(null); nuevaVista('main'); }}>
+                        <LuEye size={14} /> New view…
+                    </div>
+                    <div className="ctx-menu-item" onClick={() => { setMenuNuevo(null); nuevoEsquema(); }}>
+                        <LuFolderPlus size={14} /> New schema…
                     </div>
                 </div>
             )}
@@ -483,7 +672,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                 onClose={() => setDeleteModalOpen(false)}
                 onConfirm={confirmDrop}
                 itemName={tableToDelete}
-                itemType="Table"
+                itemType={borrarEsVista ? 'View' : 'Table'}
             />
         </div>
     );

@@ -47,6 +47,13 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
     // workspaces, y sólo cuando hay alguno.
     const etiqueta = useEtiqueta();
     const [vista, setVista] = useState('bienvenida');      // 'bienvenida' | 'workspaces'
+    // Operations vive en la vista de workspaces: el botón de la barra lleva ahí.
+    const [inicialWorkspaces, setInicialWorkspaces] = useState(null);
+    useEffect(() => {
+        const abrir = () => { setInicialWorkspaces('operacion'); setVista('workspaces'); };
+        window.addEventListener('amox_abrir_operacion', abrir);
+        return () => window.removeEventListener('amox_abrir_operacion', abrir);
+    }, []);
     const [cuantos, setCuantos] = useState(0);
     useEffect(() => {
         const contar = () => listarWorkspaces().then(l => setCuantos(l.length)).catch(() => setCuantos(0));
@@ -159,8 +166,9 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
     if (vista === 'workspaces') {
         return (
             <VistaWorkspaces
-                onVolver={() => { setVista('bienvenida'); listarWorkspaces().then(l => setCuantos(l.length)).catch(() => {}); }}
-                onAbrir={(p) => { setVista('bienvenida'); setPath(p); processWorkspaceSelection(p); }}
+                inicial={inicialWorkspaces}
+                onVolver={() => { setVista('bienvenida'); setInicialWorkspaces(null); listarWorkspaces().then(l => setCuantos(l.length)).catch(() => {}); }}
+                onAbrir={(p) => { setVista('bienvenida'); setInicialWorkspaces(null); setPath(p); processWorkspaceSelection(p); }}
             />
         );
     }
