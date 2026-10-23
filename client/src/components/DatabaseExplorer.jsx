@@ -271,7 +271,16 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     };
 
     /** Abre un menú bajo el botón que se pulsó (los tres puntos o el «+»). */
-    const bajo = (e) => { const r = e.currentTarget.getBoundingClientRect(); return { x: Math.max(8, r.right - 200), y: r.bottom + 4 }; };
+    // Como en el explorador de archivos: el menú nace donde se hizo clic y crece
+    // hacia la derecha; `dentro` lo devuelve a la ventana si se sale por abajo o
+    // por la derecha.
+    const bajo = (e) => ({ x: e.clientX, y: e.clientY });
+    const dentro = (el) => {
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        if (r.bottom > window.innerHeight - 8) el.style.top = `${Math.max(8, r.top - r.height)}px`;
+        if (r.right > window.innerWidth - 8) el.style.left = `${Math.max(8, window.innerWidth - r.width - 8)}px`;
+    };
 
     // Determine if we need schema grouping (only if >1 schema)
     const hasMultipleSchemas = schemas.length > 1;
@@ -549,7 +558,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
 
             {/* Custom Context Menu */}
             {contextMenu && (
-                <div className="ctx-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
+                <div className="ctx-menu" ref={dentro} style={{ top: contextMenu.y, left: contextMenu.x }}>
                     <div className="ctx-menu-item" onClick={() => {
                         const qName = qualifiedName(contextMenu.schema, contextMenu.tableName);
                         if (onSelectQuery) onSelectQuery(`SELECT * FROM ${qName} LIMIT 100; `);
@@ -617,7 +626,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
             )}
 
             {menuEsquema && (
-                <div className="ctx-menu" style={{ top: menuEsquema.y, left: menuEsquema.x }} onClick={(e) => e.stopPropagation()}>
+                <div className="ctx-menu" ref={dentro} style={{ top: menuEsquema.y, left: menuEsquema.x }} onClick={(e) => e.stopPropagation()}>
                     <div className="ctx-menu-item" onClick={() => { const s = menuEsquema.schema; setMenuEsquema(null); nuevaTabla(s); }}>
                         <LuSquarePlus size={14} /> New table in {menuEsquema.schema}…
                     </div>
@@ -642,7 +651,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
             )}
 
             {menuNuevo && (
-                <div className="ctx-menu" style={{ top: menuNuevo.y, left: menuNuevo.x }} onClick={(e) => e.stopPropagation()}>
+                <div className="ctx-menu" ref={dentro} style={{ top: menuNuevo.y, left: menuNuevo.x }} onClick={(e) => e.stopPropagation()}>
                     <div className="ctx-menu-item" onClick={() => { setMenuNuevo(null); nuevaTabla('main'); }}>
                         <LuSquarePlus size={14} /> New table…
                     </div>
