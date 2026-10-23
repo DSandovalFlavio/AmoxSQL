@@ -6675,14 +6675,15 @@ app.get('/api/procesos/cambios', async (req, res) => {
     try {
         const rel = String(req.query.ruta || '');
         const abs = path.resolve(ROOT_DIR, rel);
-        if (!/\.sqlchain$/i.test(rel) || path.relative(ROOT_DIR, abs).startsWith('..')) throw new Error('Only a process of this project can be compared.');
+        // 5.15: también un Canvas, con la misma forma.
+        if (!/\.(sqlchain|amoxcanvas)$/i.test(rel) || path.relative(ROOT_DIR, abs).startsWith('..')) throw new Error('Only a process or a canvas of this project can be compared.');
         const relGit = path.relative(ROOT_DIR, abs);
         const antes = await gitManager.getFileAt(ROOT_DIR, relGit, req.query.antes === 'index' ? 'index' : 'HEAD');
         const despues = req.query.despues === 'index'
             ? await gitManager.getFileAt(ROOT_DIR, relGit, 'index')
             : (fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : null);
         const diffDeProcesos = require('./diffDeProcesos');
-        const d = diffDeProcesos.diferencias(antes, despues);
+        const d = /\.amoxcanvas$/i.test(rel) ? diffDeProcesos.diferenciasDeLienzo(antes, despues) : diffDeProcesos.diferencias(antes, despues);
         res.json({ ...d, lineas: diffDeProcesos.describir(d), nuevo: antes == null, borrado: despues == null });
     } catch (err) { res.status(400).json({ error: err.message }); }
 });

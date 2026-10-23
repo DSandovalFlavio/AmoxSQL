@@ -23,7 +23,12 @@ import '@xyflow/react/dist/style.css';
 import {
     LuInbox, LuDatabase, LuStickyNote, LuType, LuFrame, LuRefreshCw, LuSearch, LuEllipsis,
     LuFilter, LuGroup, LuMerge, LuTriangleAlert, LuX, LuEraser, LuChartBar, LuHash, LuCamera,
+    LuPresentation, LuBookOpen, LuGitBranch, LuFileCode, LuGitCompareArrows, LuChevronLeft, LuChevronRight,
 } from 'react-icons/lu';
+import { buildSlideRaw } from '../../utils/deckTemplates';
+import { serializeDeck } from '../../utils/deckParser';
+import { marcosEnOrden, planDeDeck, aCuaderno, aDataFlow, sqlAutonomo } from './salidas.js';
+import VentanaCambiosDeProceso from '../CambiosDeProceso';
 import { API_BASE } from '../../api.js';
 import { useDialog } from '../dialogs/DialogProvider';
 import { useToast } from '../ToastProvider';
@@ -105,7 +110,7 @@ function fotoDeVisual(t, r) {
     return { cuando: new Date().toISOString(), filas: datos.length, columnas, puntos: datos.slice(0, PUNTOS_DE_FOTO).map(f => columnas.map(c => limpio(f[c]))) };
 }
 
-function Interior({ content, onChange, theme, editorSettings, isActive }) {
+function Interior({ content, onChange, theme, editorSettings, isActive, filePath, onCreateNew }) {
     const dialog = useDialog();
     const toast = useToast();
     const flow = useReactFlow();
@@ -526,17 +531,83 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
     const nuevaVisual = (tipo, desde, en = null) => anadir({ id: idLibre(tipo === 'chart' ? 'grafico' : 'cifra'), tipo, ...(desde ? { desde } : {}), ...(tipo === 'number' ? { cifra: { agregado: 'count' } } : {}) }, en);
     const seleccionDeDatos = seleccion && DEJAN_VISTA.has(tarjetas.find(t => t.id === seleccion)?.tipo) ? seleccion : null;
 
+    // ── Present (Dec-60): los marcos, uno por pantalla ──────────────────────
+    const [presentando, setPresentando] = useState(null);   // índice del marco
+    const marcos = useMemo(() => (lienzo ? marcosEnOrden(lienzo) : []), [lienzo]);
+    const vistaAntes = useRef(null);
+    const presentar = () => {
+        if (!marcos.length) { toast.info('Add a Frame around what you want to show: each frame is one slide.'); return; }
+        vistaAntes.current = flow.getViewport();
+        setSeleccion(null); setEditando(null);
+        setPresentando(0);
+    };
+    const salirDePresentar = useCallback(() => {
+        setPresentando(null);
+        if (vistaAntes.current) flow.setViewport(vistaAntes.current, { duration: 300 });
+    }, [flow]);
+    useEffect(() => {
+        if (presentando === null) return;
+        const m = marcos[presentando];
+        if (m) flow.fitBounds({ x: m.x ?? 0, y: (m.y ?? 0) - 34, width: m.w ?? 640, height: (m.h ?? 420) + 34 }, { padding: 0.06, duration: 450 });
+    }, [presentando, marcos, flow]);
+    useEffect(() => {
+        if (presentando === null) return undefined;
+        const tecla = (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); setPresentando(i => Math.min(marcos.length - 1, i + 1)); }
+            if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); setPresentando(i => Math.max(0, i - 1)); }
+            if (e.key === 'Escape') salirDePresentar();
+        };
+        window.addEventListener('keydown', tecla);
+        return () => window.removeEventListener('keydown', tecla);
+    }, [presentando, marcos.length, salirDePresentar]);
+
+    // ── Exportar (Dec-60) ───────────────────────────────────────────────────
+    const [menuExportar, setMenuExportar] = useState(false);
+    const [verCambios, setVerCambios] = useState(false);
+    const aReportFlow = async () => {
+        setMenuExportar(false);
+        const plan = planDeDeck(lienzoRef.current, lienzoRef.current.titulo || 'canvas');
+        if (!plan.laminas.length) { toast.info('A deck is made from the frames (and the charts in them). Add a Frame first.'); return; }
+        try {
+            if (plan.graficos.length) {
+                await fetch(`${API_BASE}/api/folder`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: 'charts' }) });
+                for (const g of plan.graficos) {
+                    const r = await fetch(`${API_BASE}/api/file`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: g.archivo, content: g.contenido }) });
+                    if (!r.ok) throw new Error(`Could not write ${g.archivo}`);
+                }
+            }
+            const params = Object.entries(lienzoRef.current.parametros || {});
+            const cabecera = ['---', `title: ${lienzoRef.current.titulo || 'Canvas'}`, 'theme: dark', 'aspect: "16:9"',
+                ...(params.length ? ['variables:', ...params.map(([k, v]) => `  ${k}: ${JSON.stringify(String(v))}`)] : []), '---'].join('\n');
+            const laminas = plan.laminas.map(l => ({ raw: buildSlideRaw({ layout: l.layout, prose: l.prose, charts: l.charts.length ? l.charts : undefined }) }));
+            onCreateNew?.('amoxdeck', serializeDeck(cabecera, laminas));
+            toast.success(`${laminas.length === 1 ? 'One slide' : `${laminas.length} slides`}${plan.graficos.length ? `, and ${plan.graficos.length} chart file${plan.graficos.length === 1 ? '' : 's'} in charts/` : ''}`);
+        } catch (e) { toast.error(`Could not make the deck: ${e.message}`); }
+    };
+    const aUnCuaderno = () => { setMenuExportar(false); onCreateNew?.('sqlnb', aCuaderno(lienzoRef.current)); };
+    const aUnProceso = () => {
+        setMenuExportar(false);
+        if (!seleccionDeDatos) return;
+        onCreateNew?.('sqlchain', JSON.stringify(aDataFlow(lienzoRef.current, seleccionDeDatos), null, 2));
+    };
+    const aUnSql = () => {
+        setMenuExportar(false);
+        const sql = seleccion ? sqlAutonomo(lienzoRef.current, seleccion) : null;
+        if (!sql) { toast.info('Select a Source, a Query, a Chart or a Number first.'); return; }
+        onCreateNew?.('sql', sql);
+    };
+
     const [menuMas, setMenuMas] = useState(false);
     // Los menús se cierran con un clic fuera de ellos (y con Esc).
     useEffect(() => {
-        if (!menuMas && !menuFuentes && !menuConexion) return undefined;
+        if (!menuMas && !menuFuentes && !menuConexion && !menuExportar) return undefined;
         const fuera = (e) => {
             if (e.target.closest?.('.lz-menu, .lz-herr > button, .lz-mas > button')) return;
-            setMenuMas(false); setMenuFuentes(null); setMenuConexion(null);
+            setMenuMas(false); setMenuFuentes(null); setMenuConexion(null); setMenuExportar(false);
         };
         document.addEventListener('mousedown', fuera);
         return () => document.removeEventListener('mousedown', fuera);
-    }, [menuMas, menuFuentes, menuConexion]);
+    }, [menuMas, menuFuentes, menuConexion, menuExportar]);
     const ctx = useMemo(() => ({
         resultados, estados, corriendo, editando, setEditando, correr, cambiar, renombrar, redimensionar,
         problemas, theme, editorSettings, sqlDe: sqlDeTarjeta,
@@ -555,7 +626,7 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
 
     return (
         <LienzoCtx.Provider value={ctx}>
-            <div className="lz-raiz" onDragOver={e => e.preventDefault()} onDrop={alSoltar}>
+            <div className={`lz-raiz${presentando !== null ? ' lz-raiz--presentando' : ''}`} onDragOver={e => e.preventDefault()} onDrop={alSoltar}>
                 <div className="lz-barra">
                     <span className="lz-titulo">{lienzo.titulo || 'Canvas'}</span>
                     {nombresDeParametros.map(n => (
@@ -575,12 +646,34 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
                     <button type="button" className="lz-btn lz-btn--prim" disabled={!!corriendo || viejas === 0} onClick={() => refrescar(null)} title="Run what is not up to date, in dependency order">
                         <LuRefreshCw size={13} /> Refresh all
                     </button>
+                    <button type="button" className="lz-btn" onClick={presentar} title="Present: each frame is one slide (arrows to move, Esc to leave)">
+                        <LuPresentation size={13} /> Present
+                    </button>
+                    <div className="lz-mas">
+                        <button type="button" className="lz-btn" onClick={() => setMenuExportar(m => !m)} title="Take it out of the canvas">Export</button>
+                        {menuExportar && (
+                            <div className="lz-menu lz-menu--derecha">
+                                <button type="button" onClick={aReportFlow}><LuPresentation size={13} /> To Report Flow <small>frames → slides</small></button>
+                                <button type="button" onClick={aUnCuaderno}><LuBookOpen size={13} /> To a notebook</button>
+                                <hr />
+                                <button type="button" disabled={!seleccionDeDatos} onClick={aUnProceso} title={seleccionDeDatos ? '' : 'Select a Source or a Query first'}>
+                                    <LuGitBranch size={13} /> Branch to Data Flow {seleccionDeDatos && <small>{seleccionDeDatos}</small>}
+                                </button>
+                                <button type="button" disabled={!seleccion} onClick={aUnSql} title={seleccion ? '' : 'Select a card first'}>
+                                    <LuFileCode size={13} /> Card as SQL {seleccion && <small>{seleccion}</small>}
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <div className="lz-mas">
                         <button type="button" className="lz-btn" onClick={() => setMenuMas(m => !m)} title="More"><LuEllipsis size={14} /></button>
                         {menuMas && (
                             <div className="lz-menu lz-menu--derecha">
                                 {seleccion && DEJAN_VISTA.has(tarjetas.find(t => t.id === seleccion)?.tipo) && (
                                     <button type="button" onClick={() => { setMenuMas(false); refrescar(seleccion); }}><LuRefreshCw size={13} /> Refresh from “{seleccion}”</button>
+                                )}
+                                {filePath && (
+                                    <button type="button" onClick={() => { setMenuMas(false); setVerCambios(true); }}><LuGitCompareArrows size={13} /> What changed</button>
                                 )}
                                 <button type="button" onClick={() => { setMenuMas(false); actualizar(l => sinFotos(l)); toast.success('Snapshots cleared: the canvas file has no data in it now'); }}>
                                     <LuEraser size={13} /> Clear snapshots
@@ -638,6 +731,11 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
                         onMoveEnd={(_, v) => { vistaRef.current = v; }}
                         defaultViewport={lienzo.vista ? { x: lienzo.vista.x, y: lienzo.vista.y, zoom: lienzo.vista.zoom } : undefined}
                         fitView={!lienzo.vista}
+                        nodesDraggable={presentando === null}
+                        elementsSelectable={presentando === null}
+                        panOnDrag={presentando === null}
+                        zoomOnScroll={presentando === null}
+                        zoomOnDoubleClick={presentando === null}
                         minZoom={0.15}
                         maxZoom={2}
                         deleteKeyCode={['Delete', 'Backspace']}
@@ -669,6 +767,18 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
                         <button type="button" onClick={() => { const { padre, en } = menuConexion; setMenuConexion(null); nuevaVisual('number', padre, { x: en.x, y: en.y - 40 }); }}><LuHash size={13} /> Number</button>
                     </div>
                 )}
+
+                {presentando !== null && (
+                    <div className="lz-presentar">
+                        <button type="button" onClick={() => setPresentando(i => Math.max(0, i - 1))} disabled={presentando === 0} title="Previous (←)"><LuChevronLeft size={16} /></button>
+                        <span className="lz-presentar-titulo">{marcos[presentando]?.titulo || marcos[presentando]?.id}</span>
+                        <span className="lz-presentar-n">{presentando + 1} / {marcos.length}</span>
+                        <button type="button" onClick={() => setPresentando(i => Math.min(marcos.length - 1, i + 1))} disabled={presentando === marcos.length - 1} title="Next (→)"><LuChevronRight size={16} /></button>
+                        <button type="button" className="lz-presentar-salir" onClick={salirDePresentar} title="Leave (Esc)"><LuX size={15} /></button>
+                    </div>
+                )}
+
+                {verCambios && filePath && <VentanaCambiosDeProceso ruta={filePath} onClose={() => setVerCambios(false)} />}
 
                 {graficoEnEdicion && (() => {
                     const t = tarjetas.find(x => x.id === graficoEnEdicion);

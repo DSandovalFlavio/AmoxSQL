@@ -167,4 +167,65 @@ function describir(d) {
     return l;
 }
 
-module.exports = { diferencias, describir, valor };
+// ── El Canvas (5.15, fase 3) ─────────────────────────────────────────────────
+
+const TIPOS_DE_TARJETA = { source: 'Source', query: 'Query', chart: 'Chart', number: 'Number', note: 'Note', text: 'Text', frame: 'Frame' };
+/** Lo que no es del análisis sino de la pantalla o de la última ejecución. */
+const IGNORAR_TARJETA = new Set(['x', 'y', 'w', 'h', 'foto', 'modo']);
+
+function leerLienzo(def) {
+    const l = leer(def);
+    const tarjetas = (l.tarjetas || []).map(t => ({ ...t, sql: Array.isArray(t.sql) ? t.sql.join('\n') : t.sql }));
+    return { ...l, tarjetas };
+}
+
+/**
+ * Qué cambió en un `.amoxcanvas`, con la misma forma que el de un proceso (para
+ * pintarlo igual): tarjetas añadidas, quitadas y cambiadas campo a campo —el SQL,
+ * la fuente, el gráfico, la cifra, el texto—. Mover, redimensionar, la foto y el
+ * modo de ver no cuentan. Las flechas salen del SQL, así que no se comparan
+ * aparte; las etiquetas escritas a mano y los parámetros, sí.
+ */
+function diferenciasDeLienzo(antes, despues) {
+    const a = leerLienzo(antes);
+    const b = leerLienzo(despues);
+    const ta = new Map((a.tarjetas || []).map(t => [t.id, t]));
+    const tb = new Map((b.tarjetas || []).map(t => [t.id, t]));
+    const tarjeta = (t) => ({ id: t.id, etiqueta: t.titulo || t.id, tipo: TIPOS_DE_TARJETA[t.tipo] || t.tipo });
+    const sinPantalla = (t) => Object.fromEntries(Object.entries(t).filter(([k]) => !IGNORAR_TARJETA.has(k) && k !== 'id' && k !== 'tipo'));
+
+    const anadidos = [...tb.values()].filter(t => !ta.has(t.id)).map(tarjeta);
+    const quitados = [...ta.values()].filter(t => !tb.has(t.id)).map(tarjeta);
+    const cambiados = [];
+    for (const [id, t2] of tb) {
+        const t1 = ta.get(id);
+        if (!t1) continue;
+        const campos = [];
+        if (t1.tipo !== t2.tipo) campos.push({ campo: 'kind', antes: TIPOS_DE_TARJETA[t1.tipo] || t1.tipo, despues: TIPOS_DE_TARJETA[t2.tipo] || t2.tipo });
+        campos.push(...camposQueCambian(sinPantalla(t1), sinPantalla(t2)));
+        if (campos.length) cambiados.push({ ...tarjeta(t2), antes: t1.titulo || t1.id, campos });
+    }
+
+    const ea = a.etiquetas || {};
+    const eb = b.etiquetas || {};
+    const proceso = camposQueCambian({ title: a.titulo, description: a.descripcion }, { title: b.titulo, description: b.descripcion });
+    for (const k of new Set([...Object.keys(ea), ...Object.keys(eb)])) {
+        if (!igual(ea[k], eb[k])) proceso.push({ campo: `label ${k}`, antes: ea[k], despues: eb[k] });
+    }
+    const pa = a.parametros || {};
+    const pb = b.parametros || {};
+    const variables = {
+        anadidas: Object.keys(pb).filter(k => !(k in pa)).map(k => ({ nombre: k, valor: pb[k] })),
+        quitadas: Object.keys(pa).filter(k => !(k in pb)).map(k => ({ nombre: k, valor: pa[k] })),
+        cambiadas: Object.keys(pb).filter(k => k in pa && !igual(pa[k], pb[k])).map(k => ({ nombre: k, antes: pa[k], despues: pb[k] })),
+    };
+    const vacio = { anadidas: [], quitadas: [] };
+    const cuantos = anadidos.length + quitados.length + cambiados.length + proceso.length
+        + variables.anadidas.length + variables.quitadas.length + variables.cambiadas.length;
+    return {
+        nodos: { anadidos, quitados, cambiados }, conexiones: vacio, parametros: { anadidos: [], quitados: [], cambiados: [] },
+        variables, proceso, cuantos, igual: cuantos === 0,
+    };
+}
+
+module.exports = { diferencias, diferenciasDeLienzo, describir, valor };

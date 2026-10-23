@@ -621,6 +621,7 @@ const EditorPane = ({
                                 editorSettings={editorSettings}
                                 isActive={isActive}
                                 filePath={activeTab.path || null}
+                                onCreateNew={onCreateNew}
                             />
                         </Suspense>
                     </div>
