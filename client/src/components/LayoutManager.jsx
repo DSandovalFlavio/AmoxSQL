@@ -12,6 +12,7 @@ import { saveDraft, getDraft, clearDraft } from '../utils/draftSaver';
 import { DECK_STARTER_TEMPLATE } from '../utils/deckParser';
 import { conMarcaDeck, conMarcaGrafico } from './workspaces/marca';
 import { DIAGRAMA_INICIAL } from './diagram/diagramFile';
+import { escribirLienzo } from '../utils/lienzoFile';
 import { fusionar, envoltorio, MOTIVOS } from './diagram/diagramMerge';
 import { bloquesCercados } from './markdown/fencedBlocks';
 import { invalidateSchema } from '../state/sidebarCache';
@@ -1146,6 +1147,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 : normalizedType === 'md' ? 'Untitled.md'
                 : normalizedType === 'amoxdeck' ? 'Untitled.amoxdeck'
                 : normalizedType === 'amoxdiagram' ? 'Untitled.amoxdiagram'
+                : normalizedType === 'amoxcanvas' ? 'Untitled.amoxcanvas'
                 : normalizedType === 'amoxvis' ? 'Untitled.amoxvis'
                 : normalizedType === 'er-diagram' ? (initialContent ? `ER · ${initialContent}` : 'ER Diagram')
                 : normalizedType === 'datadiving' ? 'Deep Dive'
@@ -1164,6 +1166,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...'
                 : normalizedType === 'amoxdeck' ? conMarcaDeck(DECK_STARTER_TEMPLATE)
                 : normalizedType === 'amoxdiagram' ? DIAGRAMA_INICIAL
+                : normalizedType === 'amoxcanvas' ? escribirLienzo({ titulo: 'New canvas', tarjetas: [] })
                 // Blank config, no query yet — AmoxvisPane's own empty state
                 // ("No query" + Edit SQL) already guides the user from here;
                 // nothing new needed there.

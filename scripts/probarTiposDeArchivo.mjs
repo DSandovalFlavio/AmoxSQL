@@ -50,6 +50,8 @@ eq('notebook', tipoDeArchivo('a.sqlnb').tipo, 'sqlnb');
 eq('markdown', tipoDeArchivo('notas.md').tipo, 'md');
 eq('deck', tipoDeArchivo('informe.amoxdeck').tipo, 'amoxdeck');
 eq('diagrama', tipoDeArchivo('arq.amoxdiagram').tipo, 'amoxdiagram');
+eq('canvas (5.15)', tipoDeArchivo('octubre.amoxcanvas').tipo, 'amoxcanvas');
+eq('un canvas abre su editor, no el de texto', tipoDePestana('octubre.amoxcanvas'), 'amoxcanvas');
 eq('gráfico', tipoDeArchivo('v.amoxvis').tipo, 'amoxvis');
 // El .amoxdiagram es el que faltaba en la cadena de LayoutManager y llegaba
 // marcado como SQL: que esté aquí es media razón de existir de este módulo.
@@ -125,7 +127,7 @@ eq('ninguna pestaña es de tipo datos', tipoDePestana('x.parquet') === 'datos', 
 
 // ── coherencia de la tabla entera ───────────────────────────────────────────
 // Cada entrada tiene los tres campos, y ninguno se quedó a medias al escribirla.
-const TIPOS = ['sql', 'sqlnb', 'sqlchain', 'md', 'amoxdeck', 'amoxdiagram', 'amoxvis', 'datos', 'texto', 'binario'];
+const TIPOS = ['sql', 'sqlnb', 'sqlchain', 'md', 'amoxdeck', 'amoxdiagram', 'amoxcanvas', 'amoxvis', 'datos', 'texto', 'binario'];
 const malas = Object.entries(POR_EXTENSION).filter(([, v]) =>
     !TIPOS.includes(v.tipo) || typeof v.ejecutable !== 'boolean' || v.idioma === undefined);
 eq('todas las entradas están completas', malas.map(([k]) => k), []);

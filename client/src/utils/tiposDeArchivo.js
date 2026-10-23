@@ -62,6 +62,7 @@ export const POR_EXTENSION = {
     md: { tipo: 'md', idioma: 'markdown', ejecutable: false },
     amoxdeck: { tipo: 'amoxdeck', idioma: 'markdown', ejecutable: false },
     amoxdiagram: { tipo: 'amoxdiagram', idioma: 'markdown', ejecutable: false },
+    amoxcanvas: { tipo: 'amoxcanvas', idioma: 'json', ejecutable: false },
     amoxvis: { tipo: 'amoxvis', idioma: 'json', ejecutable: false },
 
     // ── Datos ───────────────────────────────────────────────────────────────
