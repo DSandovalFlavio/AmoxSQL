@@ -103,6 +103,8 @@ export default function VistaOperacion({ onClose }) {
                 <button type="button" className="opx-icono" onClick={cargar} title="Refresh" aria-label="Refresh"><LuRefreshCw size={14} /></button>
             </header>
 
+            {/* El contenido, en una tarjeta flotante como los paneles del editor. */}
+            <div className="opx-marco">
             {error && <p className="chain-config-hint-error opx-error">{error}</p>}
             {!d && !error && <p className="opx-cargando"><LuLoader size={14} className="lote-gira" /> Loading…</p>}
 
@@ -249,6 +251,7 @@ export default function VistaOperacion({ onClose }) {
                     </section>
                 </div>
             )}
+            </div>
         </div>
     );
 }
