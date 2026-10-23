@@ -5,11 +5,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
-## [5.15.0] — 2026-10-23 (sin publicar)
+## [5.15.0] — 2026-10-23
 
 **El Canvas.** Un lienzo infinito para pensar un análisis (plan en
 `docs/dev/plan_5_15_lienzo.md`): fuentes, consultas, gráficos, cifras y notas en
-tarjetas conectadas. La 6.0 queda para la subida del motor a DuckDB 2.0. No se publica.
+tarjetas conectadas. La 6.0 queda para la subida del motor a DuckDB 2.0.
+
+Es la primera versión publicada desde la 5.10.0: reúne también la 5.11 (procesos
+que corren solos), la 5.12 (dbt y DuckLake), la 5.13 (flujos fiables) y la 5.14
+(el día a día), que fueron etapas internas.
 
 ### Las tarjetas
 
@@ -41,6 +45,30 @@ tarjetas conectadas. La 6.0 queda para la subida del motor a DuckDB 2.0. No se p
   autónomo, con lo que necesita dentro.
 - **What changed** de un `.amoxcanvas`, en tarjetas y no en JSON, también en el panel
   de Git.
+
+### Ajustes
+
+- **Pantalla completa del cuaderno**: el resultado puede ir **debajo** del código
+  (se recuerda en el equipo); la celda de texto en edición usa todo su alto.
+- **El editor SQL** sin resultados todavía deja casi todo el sitio al código.
+- **Database Schema**: un botón **⋮** en cada tabla, vista y esquema con el menú del
+  clic derecho y más: **Rename…**, **Duplicate…**, **Edit view…**, **Drop…**; en un
+  esquema, tabla o vista nueva dentro de él y **Drop schema…**; el **+** de la
+  cabecera crea tabla, vista o esquema. Los menús nacen donde se hace clic.
+- **Operations** pasa a ser una entrada de la barra lateral de Workspaces; desde el IDE
+  se abre con el mismo marco, barra lateral en vez de cabecera. Workspaces y
+  Operations usan las tarjetas flotantes del editor y la barra de ventana continua.
+- Story Flow ya no pone de fábrica la cifra grande encima de cada gráfico.
+- Los botones de las tarjetas del Canvas, centrados; textos que quedaban en español,
+  en inglés.
+
+### Arreglado
+
+- **En la aplicación instalada, Workspaces, Operations y otras vistas decían «API
+  route not found»**: la ruta que atiende lo desconocido se registraba a mitad del
+  servidor y tapaba las consultas declaradas después. Ahora va la última.
+- En la bienvenida, el menú del icono de la barra de ventana quedaba debajo de la
+  pantalla y no se podía elegir nada.
 
 ## [5.14.0] — 2026-10-22 (sin publicar)
 
