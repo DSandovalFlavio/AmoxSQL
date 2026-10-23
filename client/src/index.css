@@ -21393,3 +21393,7 @@ tr:hover td {
 .cdp-error { margin: 0; color: var(--color-error-text); display: flex; gap: 6px; align-items: center; }
 .git-diff-modal .cdp { padding: 12px 16px; overflow: auto; }
 .git-diff-vista { display: flex; gap: 4px; margin-left: auto; margin-right: 8px; }
+
+/* Sin resultados todavía: una franja, y el editor ocupa el resto. */
+.ep-results.ep-results--vacio { height: auto; min-height: 0; flex-shrink: 0; }
+.ep-results.vertical.ep-results--vacio { width: 220px; min-width: 0; height: 100%; }

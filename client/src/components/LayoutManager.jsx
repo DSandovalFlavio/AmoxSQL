@@ -709,7 +709,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         },
                     ],
                     checkboxLabel: tab?.path ? 'Remember my choice for this file' : null,
-                    cancelLabel: 'Cancelar',
+                    cancelLabel: 'Cancel',
                 });
                 if (!choice || !choice.value) return { cancelled: true };
                 mode = choice.value;

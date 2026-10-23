@@ -248,7 +248,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                 title: 'Es un archivo grande',
                 message: `${file.name} ocupa ${formatBytes(file.sizeBytes)}. Abrirlo puede tardar y dejar el editor lento un rato.`,
                 confirmLabel: 'Abrir igualmente',
-                cancelLabel: 'Cancelar',
+                cancelLabel: 'Cancel',
             });
             if (!sigue) return;
         }

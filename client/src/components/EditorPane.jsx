@@ -414,6 +414,7 @@ const EditorPane = ({
      * tipo en la pestaña.
      */
     const isTexto = activeTab.type === 'texto';
+    const resultadosVacios = !activeTab.results && !activeTab.resultsError && !activeTab.scriptRun && !isRunning && !isPoppedOut;
 
     // Track last edit time on content change — ref only, no setState per keystroke
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -912,9 +913,13 @@ const EditorPane = ({
                             resizes and AI-sidebar toggles without a resize observer,
                             and so LayoutManager can drive two panes to the same
                             fraction when their results heights are linked. */}
+                        {/* Sin nada que enseñar todavía, los resultados son una
+                            franja y el editor se queda con el sitio: al abrir un
+                            .sql lo que importa es el código. Al ejecutar vuelve
+                            el reparto guardado. */}
                         <div
-                            className={`ep-results${isVertical ? ' vertical' : ''}`}
-                            style={isVertical ? { width: `${resultsRatio * 100}%` } : { height: `${resultsRatio * 100}%` }}
+                            className={`ep-results${isVertical ? ' vertical' : ''}${resultadosVacios ? ' ep-results--vacio' : ''}`}
+                            style={resultadosVacios ? undefined : (isVertical ? { width: `${resultsRatio * 100}%` } : { height: `${resultsRatio * 100}%` })}
                         >
                             {resultsContent}
                         </div>
