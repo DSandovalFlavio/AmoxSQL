@@ -13,14 +13,18 @@
  * verdad se monta sólo en la tarjeta que se está editando**; al salir, vuelve a
  * ser texto.
  */
-import { createContext, memo, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, lazy, memo, Suspense, useContext, useEffect, useRef, useState } from 'react';
 import { Handle, Position, NodeResizer } from '@xyflow/react';
 import {
     LuPlay, LuLoaderCircle, LuInbox, LuDatabase, LuStickyNote, LuType, LuFrame,
-    LuCode, LuTable, LuColumns2, LuTriangleAlert, LuHistory, LuLayers,
+    LuCode, LuTable, LuColumns2, LuTriangleAlert, LuHistory, LuLayers, LuChartBar, LuHash, LuPencil,
+    LuTrendingUp, LuTrendingDown,
 } from 'react-icons/lu';
 import SqlEditor from '../SqlEditor';
 import MarkdownPreview from '../markdown/MarkdownPreview';
+
+// Story Flow sólo se carga si el lienzo tiene un gráfico.
+const DataVisualizer = lazy(() => import('../DataVisualizer'));
 
 export const LienzoCtx = createContext(null);
 
@@ -271,3 +275,116 @@ export const TarjetaDesconocida = memo(({ data }) => (
     </div>
 ));
 TarjetaDesconocida.displayName = 'TarjetaDesconocida';
+
+/** Las filas de una tarjeta visual: las de esta sesión, o las de su foto. */
+export function filasDeVisual(resultado, foto) {
+    if (resultado && !resultado.error && Array.isArray(resultado.data)) return resultado.data;
+    const cols = foto?.columnas || [];
+    return (foto?.puntos || foto?.muestra || []).map(f => Object.fromEntries(cols.map((c, i) => [c, f[i]])));
+}
+
+/** La cabecera de Chart y Number: punto, icono, nombre, de qué tarjeta lee y Run. */
+function CabeceraVisual({ id, t, Icono, estado, ctx, onEditar }) {
+    const [clase, ayuda] = PUNTO[estado] || PUNTO.nunca;
+    return (
+        <div className="lz-cab">
+            <span className={`lz-est lz-est--${clase}`} title={ayuda} />
+            <Icono size={13} className="lz-cab-icono" />
+            <Nombre tarjeta={t} />
+            <span className="lz-sp" />
+            {t.desde && <span className="lz-chip" title={`It shows "${t.desde}"`}>{t.desde}</span>}
+            <button type="button" className="lz-modos-uno nodrag" onClick={onEditar} title="Configure"><LuPencil size={11} /></button>
+            <button type="button" className="lz-correr nodrag" disabled={ctx.corriendo === id || !t.desde} onClick={() => ctx.correr(id)} title={t.desde ? 'Run' : 'Connect a card to it first'}>
+                {ctx.corriendo === id ? <LuLoaderCircle size={12} className="spin" /> : <LuPlay size={11} />}
+            </button>
+        </div>
+    );
+}
+
+const sinOrigen = <div className="lz-vacio">Drag from the edge of a Source or a Query onto this card to show its data.</div>;
+
+/** Un gráfico de Story Flow sobre las filas de otra tarjeta. */
+export const TarjetaGrafico = memo(({ id, data, selected }) => {
+    const ctx = useContext(LienzoCtx);
+    const t = data.tarjeta;
+    const res = ctx.resultados[id];
+    const estado = res?.error ? 'falla' : (ctx.estados.get(id) || (t.foto ? 'foto' : 'nunca'));
+    const filas = filasDeVisual(res, t.foto);
+    return (
+        <div className={`lz-tarjeta lz-visual${selected ? ' lz-sel' : ''}${data.resaltada ? ' lz-lit' : ''}`}>
+            <NodeResizer isVisible={selected} minWidth={240} minHeight={180} lineClassName="lz-resizer" handleClassName="lz-resizer-asa" onResizeEnd={(_, p) => ctx.redimensionar(id, p)} />
+            <Handle type="target" position={Position.Left} className="lz-asa lz-asa-in" />
+            <CabeceraVisual id={id} t={t} Icono={LuChartBar} estado={estado} ctx={ctx} onEditar={() => ctx.editarGrafico(id)} />
+            {!t.desde ? sinOrigen : res?.error ? <div className="lz-error nowheel nodrag">{res.error}</div> : filas.length ? (
+                <div className="lz-grafico nodrag nowheel" onDoubleClick={() => ctx.editarGrafico(id)}>
+                    <Suspense fallback={<div className="lz-vacio"><LuLoaderCircle size={12} className="spin" /> Loading the chart…</div>}>
+                        <DataVisualizer key={ctx.versionDeGrafico(id)} data={filas} initialChartConfig={t.grafico || null} isReportMode chrome="none" />
+                    </Suspense>
+                </div>
+            ) : <div className="lz-vacio">Run it to draw the chart.</div>}
+            <div className="lz-pie">
+                <span>{res && !res.error ? `${filas.length.toLocaleString()} rows` : t.foto ? `as of ${cuando(t.foto.cuando)}` : ''}</span>
+            </div>
+        </div>
+    );
+});
+TarjetaGrafico.displayName = 'TarjetaGrafico';
+
+const AGREGADOS = [['sum', 'Sum'], ['avg', 'Average'], ['count', 'Count'], ['min', 'Minimum'], ['max', 'Maximum'], ['primero', 'First row']];
+const numero = (v, decimales) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v))
+    ? (v ?? '—')
+    : Number(v).toLocaleString(undefined, { maximumFractionDigits: decimales ?? 2 }));
+
+/** Una cifra (y su variación frente a otra tarjeta). */
+export const TarjetaCifra = memo(({ id, data, selected }) => {
+    const ctx = useContext(LienzoCtx);
+    const t = data.tarjeta;
+    const c = t.cifra || {};
+    const res = ctx.resultados[id];
+    const estado = res?.error ? 'falla' : (ctx.estados.get(id) || (t.foto ? 'foto' : 'nunca'));
+    const [editando, setEditando] = useState(false);
+    const valor = res && !res.error ? res.data?.[0]?.valor : t.foto?.valor;
+    const base = res && !res.error ? res.data?.[0]?.base : t.foto?.base;
+    const variacion = c.comparar && Number.isFinite(Number(valor)) && Number.isFinite(Number(base)) && Number(base) !== 0
+        ? (Number(valor) - Number(base)) / Math.abs(Number(base)) : null;
+    const columnas = ctx.columnasDe(t.desde);
+    const datos = ctx.tarjetasDeDatos.filter(x => x !== t.desde);
+    const etiquetaPorOmision = `${(AGREGADOS.find(a => a[0] === (c.agregado || 'sum')) || [])[1] || ''} of ${c.columna || 'rows'}`;
+    return (
+        <div className={`lz-tarjeta lz-visual${selected ? ' lz-sel' : ''}${data.resaltada ? ' lz-lit' : ''}`}>
+            <NodeResizer isVisible={selected} minWidth={170} minHeight={120} lineClassName="lz-resizer" handleClassName="lz-resizer-asa" onResizeEnd={(_, p) => ctx.redimensionar(id, p)} />
+            <Handle type="target" position={Position.Left} className="lz-asa lz-asa-in" />
+            <CabeceraVisual id={id} t={t} Icono={LuHash} estado={estado} ctx={ctx} onEditar={() => setEditando(e => !e)} />
+            {!t.desde ? sinOrigen : editando ? (
+                <div className="lz-cifra-form nodrag nowheel">
+                    <label>Of <select value={c.columna || ''} onChange={e => ctx.cambiar(id, { cifra: { ...c, columna: e.target.value || undefined } })}>
+                        <option value="">(rows)</option>
+                        {columnas.map(x => <option key={x} value={x}>{x}</option>)}
+                    </select></label>
+                    <label>As <select value={c.agregado || 'sum'} onChange={e => ctx.cambiar(id, { cifra: { ...c, agregado: e.target.value } })}>
+                        {AGREGADOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select></label>
+                    <label>Label <input value={c.etiqueta || ''} placeholder={etiquetaPorOmision} onChange={e => ctx.cambiar(id, { cifra: { ...c, etiqueta: e.target.value || undefined } })} /></label>
+                    <label>Compare with <select value={c.comparar || ''} onChange={e => ctx.cambiar(id, { cifra: { ...c, comparar: e.target.value || undefined } })}>
+                        <option value="">(nothing)</option>
+                        {datos.map(x => <option key={x} value={x}>{x}</option>)}
+                    </select></label>
+                    <button type="button" className="lz-btn" onClick={() => { setEditando(false); ctx.correr(id); }}>Done</button>
+                </div>
+            ) : res?.error ? <div className="lz-error nowheel nodrag">{res.error}</div> : (
+                <div className="lz-cifra" onDoubleClick={() => setEditando(true)}>
+                    <div className="lz-cifra-valor">{valor === undefined ? '—' : numero(valor, c.decimales)}</div>
+                    <div className="lz-cifra-etq">{c.etiqueta || etiquetaPorOmision}</div>
+                    {variacion !== null && (
+                        <div className={`lz-cifra-var ${variacion >= 0 ? 'sube' : 'baja'}`}>
+                            {variacion >= 0 ? <LuTrendingUp size={13} /> : <LuTrendingDown size={13} />}
+                            {variacion >= 0 ? '+' : ''}{(variacion * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}% vs {c.comparar}
+                        </div>
+                    )}
+                </div>
+            )}
+            <div className="lz-pie"><span>{res && !res.error ? 'up to date' : t.foto ? `as of ${cuando(t.foto.cuando)}` : ''}</span></div>
+        </div>
+    );
+});
+TarjetaCifra.displayName = 'TarjetaCifra';

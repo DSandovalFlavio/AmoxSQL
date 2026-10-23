@@ -337,3 +337,38 @@ export function problemaDeTarjeta(t, analisis = DEJAN_VISTA.has(t?.tipo) ? anali
     }
     return null;
 }
+
+// ── Chart y Number (fase 2) ─────────────────────────────────────────────────
+
+const AGREGAR = {
+    sum: (c) => `sum(${c})`, avg: (c) => `avg(${c})`, min: (c) => `min(${c})`, max: (c) => `max(${c})`,
+    count: (c) => (c === '*' ? 'count(*)' : `count(${c})`),
+};
+
+/**
+ * Lo que lee una tarjeta visual. Un Chart, las filas de la tarjeta que enseña;
+ * un Number, una sola fila con `valor` (y `base`, la misma cuenta sobre la tarjeta
+ * con la que se compara). No deja vista: nadie la lee.
+ */
+export function sqlDeVisual(t) {
+    if (!t?.desde) return '';
+    const de = citarIdentificador(t.desde);
+    if (t.tipo === 'chart') return `SELECT * FROM ${de}`;
+    if (t.tipo !== 'number') return '';
+    const c = t.cifra || {};
+    const col = c.columna ? citarIdentificador(c.columna) : '*';
+    const ag = c.agregado || 'sum';
+    if (ag === 'primero') {
+        return `SELECT ${col === '*' ? 'count(*)' : col} AS valor FROM ${de}${col === '*' ? '' : ' LIMIT 1'}`;
+    }
+    const f = (AGREGAR[ag] || AGREGAR.sum)(col === '*' && ag !== 'count' ? '1' : col);
+    const una = (tabla) => `(SELECT ${f} FROM ${tabla})`;
+    return c.comparar
+        ? `SELECT ${una(de)} AS valor, ${una(citarIdentificador(c.comparar))} AS base`
+        : `SELECT ${f} AS valor FROM ${de}`;
+}
+
+/** Las tarjetas de datos que lee una visual (la que enseña y, en un Number, con la que se compara). */
+export function leeVisual(t) {
+    return [t?.desde, t?.tipo === 'number' ? t?.cifra?.comparar : null].filter(Boolean);
+}

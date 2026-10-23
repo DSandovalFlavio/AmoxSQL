@@ -15,14 +15,14 @@
  * - **Moverse por el lienzo no ensucia el archivo**: el zoom y el encuadre se
  *   guardan con el siguiente cambio de verdad.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     ReactFlow, ReactFlowProvider, Background, BackgroundVariant, MiniMap, Controls, useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
     LuInbox, LuDatabase, LuStickyNote, LuType, LuFrame, LuRefreshCw, LuSearch, LuEllipsis,
-    LuFilter, LuGroup, LuMerge, LuTriangleAlert, LuX, LuEraser,
+    LuFilter, LuGroup, LuMerge, LuTriangleAlert, LuX, LuEraser, LuChartBar, LuHash, LuCamera,
 } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { useDialog } from '../dialogs/DialogProvider';
@@ -35,19 +35,35 @@ import { frescura } from '../cuaderno/grafo.js';
 import { listarFuentes } from '../fuentes/api';
 import {
     analizarLienzo, grafoDeLienzo, aristas as aristasDe, linaje, ordenDeRefresco, renombrar as renombrarEn,
-    consultaNueva, nombreParaFuente, problemaDeTarjeta, sqlDeTarjeta,
+    consultaNueva, nombreParaFuente, problemaDeTarjeta, sqlDeTarjeta, sqlDeVisual, leeVisual,
 } from './grafoLienzo.js';
 import {
     LienzoCtx, TarjetaDatos, TarjetaNota, TarjetaTexto, TarjetaMarco, TarjetaDesconocida,
+    TarjetaGrafico, TarjetaCifra, filasDeVisual,
 } from './Tarjetas.jsx';
+import { PUNTOS_DE_FOTO } from '../../utils/lienzoFile.js';
+
+const DataVisualizer = lazy(() => import('../DataVisualizer'));
 import './lienzo.css';
 
 const TIPOS_DE_NODO = {
     source: TarjetaDatos, query: TarjetaDatos, note: TarjetaNota, text: TarjetaTexto, frame: TarjetaMarco,
-    desconocida: TarjetaDesconocida,
+    chart: TarjetaGrafico, number: TarjetaCifra, desconocida: TarjetaDesconocida,
 };
-const CONOCIDOS = new Set(['source', 'query', 'note', 'text', 'frame']);
-const TAMANO = { source: [260, 170], query: [380, 300], note: [190, 120], text: [420, 110], frame: [640, 420] };
+const CONOCIDOS = new Set(['source', 'query', 'note', 'text', 'frame', 'chart', 'number']);
+const VISUALES = new Set(['chart', 'number']);
+const TAMANO = { source: [260, 170], query: [380, 300], note: [190, 120], text: [420, 110], frame: [640, 420], chart: [440, 320], number: [230, 160] };
+
+/** Los `{{parametros}}` que usan las consultas del lienzo, en orden de aparición. */
+function parametrosUsados(tarjetas, definidos) {
+    const vistos = [...Object.keys(definidos || {})];
+    for (const t of tarjetas || []) {
+        const re = /\{\{\s*([A-Za-z_][\w-]*)\s*\}\}/g;
+        let m;
+        while ((m = re.exec(String(t.sql || ''))) !== null) if (!vistos.includes(m[1])) vistos.push(m[1]);
+    }
+    return vistos;
+}
 const DATOS_DE_ARCHIVO = /\.(csv|tsv|parquet|json|jsonl|ndjson|xlsx)$/i;
 
 async function pedirJson(ruta, opciones) {
@@ -74,6 +90,19 @@ function fotoDe(r) {
         columnas,
         muestra: datos.slice(0, FILAS_DE_FOTO).map(f => columnas.map(c => limpio(f[c]))),
     };
+}
+
+/** La foto de un Chart (sus filas, hasta 2.000) o de un Number (su cifra). */
+function fotoDeVisual(t, r) {
+    const datos = Array.isArray(r?.data) ? r.data : [];
+    if (t.tipo === 'number') {
+        const f = datos[0] || {};
+        const n = (v) => (typeof v === 'bigint' ? Number(v) : v);
+        return { cuando: new Date().toISOString(), valor: n(f.valor), ...(f.base !== undefined ? { base: n(f.base) } : {}) };
+    }
+    const columnas = datos[0] ? Object.keys(datos[0]) : [];
+    const limpio = (v) => (typeof v === 'bigint' ? Number(v) : v instanceof Date ? v.toISOString() : v);
+    return { cuando: new Date().toISOString(), filas: datos.length, columnas, puntos: datos.slice(0, PUNTOS_DE_FOTO).map(f => columnas.map(c => limpio(f[c]))) };
 }
 
 function Interior({ content, onChange, theme, editorSettings, isActive }) {
@@ -138,14 +167,50 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
     const estados = useMemo(() => {
         if (!grafo) return new Map();
         const celdas = tarjetas.filter(t => DEJAN_VISTA.has(t.tipo)).map(t => ({ id: t.id, tipo: 'sql', contenido: textos[t.id] }));
-        return frescura(celdas, grafo, ejecuciones, textos);
+        const m = frescura(celdas, grafo, ejecuciones, textos);
+        // Una visual está al día si lo que enseña lo está y no ha cambiado desde.
+        for (const t of tarjetas) {
+            if (!VISUALES.has(t.tipo)) continue;
+            const e = ejecuciones[t.id];
+            if (!e) { m.set(t.id, 'nunca'); continue; }
+            if (e.sql !== sqlDeVisual(t)) { m.set(t.id, 'cambiada'); continue; }
+            const padres = leeVisual(t);
+            m.set(t.id, padres.some(p => m.get(p) !== 'dia' || (ejecuciones[p]?.en ?? 0) > e.en) ? 'arriba' : 'dia');
+        }
+        return m;
     }, [tarjetas, grafo, ejecuciones, textos]);
     const problemas = useMemo(() => Object.fromEntries(tarjetas.filter(t => DEJAN_VISTA.has(t.tipo))
         .map(t => [t.id, problemaDeTarjeta(t, analisis[t.id])]).filter(([, p]) => p)), [tarjetas, analisis]);
 
+    /** Un Chart o un Number: lee la vista de lo que enseña y guarda su foto. No deja vista. */
+    const correrVisual = useCallback(async (t) => {
+        const lector = sqlDeVisual(t);
+        if (!lector) return false;
+        setCorriendo(t.id);
+        try {
+            const r = await pedirJson('/api/cuaderno/celda', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ preparacion: '', lector, vista: null, deja: 'nada', limit: 10000 }),
+            });
+            setResultados(p => ({ ...p, [t.id]: r || {} }));
+            if (r && !r.error) {
+                setEjecuciones(p => ({ ...p, [t.id]: { en: Date.now(), sql: lector } }));
+                cambiar(t.id, { foto: fotoDeVisual(t, r) });
+                return true;
+            }
+            return false;
+        } catch (e) {
+            setResultados(p => ({ ...p, [t.id]: { error: e.message } }));
+            return false;
+        } finally {
+            setCorriendo(null);
+        }
+    }, [cambiar]);
+
     /** Ejecuta una tarjeta: deja su vista y trae sus filas. `true` si fue bien. */
     const correr = useCallback(async (id) => {
         const t = lienzoRef.current?.tarjetas.find(x => x.id === id);
+        if (t && VISUALES.has(t.tipo)) return correrVisual(t);
         if (!t || !DEJAN_VISTA.has(t.tipo)) return false;
         const texto = sustituirParametros(sqlDeTarjeta(t), lienzoRef.current.parametros || {});
         const an = analizarCelda(texto);
@@ -182,12 +247,17 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
         } finally {
             setCorriendo(null);
         }
-    }, [cambiar, dialog]);
+    }, [cambiar, dialog, correrVisual]);
 
     /** Refresh: lo que no está al día, en orden de dependencias (todo, o una rama). */
     const refrescar = useCallback(async (desde = null) => {
         const { orden, enCiclo } = ordenDeRefresco(lienzoRef.current, { desde });
-        const pendientes = orden.filter(id => estados.get(id) !== 'dia' || resultados[id]?.error);
+        const rama = new Set(orden);
+        // Las visuales, detrás de lo que enseñan (las de la rama, o todas).
+        const visuales = lienzoRef.current.tarjetas
+            .filter(t => VISUALES.has(t.tipo) && t.desde && (!desde || leeVisual(t).some(p => rama.has(p))))
+            .map(t => t.id);
+        const pendientes = [...orden, ...visuales].filter(id => estados.get(id) !== 'dia' || resultados[id]?.error);
         if (enCiclo.length) toast.error(`${enCiclo.join(', ')} read each other: there is no order to run them in.`);
         for (const id of pendientes) {
             if (enCiclo.includes(id)) continue;
@@ -232,7 +302,7 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
             height: t.h ?? h,
             zIndex: t.tipo === 'frame' ? -1 : (seleccion === t.id ? 10 : 1),
             selected: seleccion === t.id,
-            dragHandle: DEJAN_VISTA.has(t.tipo) ? '.lz-cab' : (t.tipo === 'frame' ? '.lz-marco-titulo' : undefined),
+            dragHandle: DEJAN_VISTA.has(t.tipo) || VISUALES.has(t.tipo) ? '.lz-cab' : (t.tipo === 'frame' ? '.lz-marco-titulo' : undefined),
             data: { tarjeta: t, resaltada: !!resaltadas && (resaltadas.arriba.has(t.id) || resaltadas.abajo.has(t.id)) },
         };
     }), [tarjetas, seleccion, resaltadas]);
@@ -411,6 +481,51 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
         return () => window.removeEventListener('keydown', tecla);
     }, [isActive]);
 
+    // Doble clic en una flecha: su etiqueta, escrita a mano (vacía vuelve a la deducida).
+    const editarEtiqueta = useCallback(async (_, borde) => {
+        const k = borde.id;
+        const actual = lienzoRef.current.etiquetas?.[k] ?? borde.label ?? '';
+        const v = await dialog.promptAsync({ title: 'Label of this arrow', message: 'What happens between the two cards. Leave it empty to go back to the one AmoxSQL deduces from the SQL.', defaultValue: String(actual) });
+        if (v === null || v === undefined) return;
+        actualizar(l => {
+            const etiquetas = { ...(l.etiquetas || {}) };
+            if (String(v).trim()) etiquetas[k] = String(v).trim(); else delete etiquetas[k];
+            return { ...l, etiquetas };
+        });
+    }, [actualizar, dialog]);
+
+    // Soltar una conexión sobre un Chart o un Number: enseña esa tarjeta.
+    const esConexionValida = useCallback((c) => {
+        const de = lienzoRef.current?.tarjetas.find(t => t.id === c.source);
+        const a = lienzoRef.current?.tarjetas.find(t => t.id === c.target);
+        return !!de && !!a && DEJAN_VISTA.has(de.tipo) && VISUALES.has(a.tipo);
+    }, []);
+    const alConectar = useCallback((c) => {
+        cambiar(c.target, { desde: c.source });
+        setTimeout(() => correr(c.target), 50);
+    }, [cambiar, correr]);
+
+    // Los parámetros (Dec-59): cambiar uno deja desactualizado lo que lo usa.
+    const nombresDeParametros = useMemo(() => parametrosUsados(tarjetas, parametros), [tarjetas, parametros]);
+    const ponerParametro = (nombre, valor) => actualizar(l => ({ ...l, parametros: { ...(l.parametros || {}), [nombre]: valor } }));
+
+    // El editor de Story Flow de un Chart, encima del lienzo.
+    const [graficoEnEdicion, setGraficoEnEdicion] = useState(null);
+    const [versiones, setVersiones] = useState({});
+    const cerrarGrafico = () => {
+        if (graficoEnEdicion) setVersiones(v => ({ ...v, [graficoEnEdicion]: (v[graficoEnEdicion] || 0) + 1 }));
+        setGraficoEnEdicion(null);
+    };
+    const columnasDe = useCallback((id) => {
+        const r = resultados[id];
+        if (r?.data?.[0]) return Object.keys(r.data[0]);
+        return lienzoRef.current?.tarjetas.find(t => t.id === id)?.foto?.columnas || [];
+    }, [resultados]);
+    const tarjetasDeDatos = useMemo(() => tarjetas.filter(t => DEJAN_VISTA.has(t.tipo)).map(t => t.id), [tarjetas]);
+    const fotos = useMemo(() => tarjetas.filter(t => t.foto && !ejecuciones[t.id]), [tarjetas, ejecuciones]);
+    const nuevaVisual = (tipo, desde, en = null) => anadir({ id: idLibre(tipo === 'chart' ? 'grafico' : 'cifra'), tipo, ...(desde ? { desde } : {}), ...(tipo === 'number' ? { cifra: { agregado: 'count' } } : {}) }, en);
+    const seleccionDeDatos = seleccion && DEJAN_VISTA.has(tarjetas.find(t => t.id === seleccion)?.tipo) ? seleccion : null;
+
     const [menuMas, setMenuMas] = useState(false);
     // Los menús se cierran con un clic fuera de ellos (y con Esc).
     useEffect(() => {
@@ -425,7 +540,8 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
     const ctx = useMemo(() => ({
         resultados, estados, corriendo, editando, setEditando, correr, cambiar, renombrar, redimensionar,
         problemas, theme, editorSettings, sqlDe: sqlDeTarjeta,
-    }), [resultados, estados, corriendo, editando, correr, cambiar, renombrar, redimensionar, problemas, theme, editorSettings]);
+        editarGrafico: setGraficoEnEdicion, versionDeGrafico: (id) => versiones[id] || 0, columnasDe, tarjetasDeDatos,
+    }), [resultados, estados, corriendo, editando, correr, cambiar, renombrar, redimensionar, problemas, theme, editorSettings, versiones, columnasDe, tarjetasDeDatos]);
 
     if (error) {
         return (
@@ -442,7 +558,18 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
             <div className="lz-raiz" onDragOver={e => e.preventDefault()} onDrop={alSoltar}>
                 <div className="lz-barra">
                     <span className="lz-titulo">{lienzo.titulo || 'Canvas'}</span>
+                    {nombresDeParametros.map(n => (
+                        <label key={n} className="lz-param" title={`{{${n}}} in the queries of this canvas`}>
+                            <span>{n}</span>
+                            <input value={parametros[n] ?? ''} onChange={e => ponerParametro(n, e.target.value)} placeholder="value" />
+                        </label>
+                    ))}
                     <span className="lz-sp" />
+                    {fotos.length > 0 && (
+                        <span className="lz-foto" title="What you see was saved the last time the cards ran. Refresh all brings it up to date.">
+                            <LuCamera size={12} /> Snapshot as of {new Date(fotos.map(t => t.foto.cuando).sort()[0]).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                    )}
                     {viejas > 0 && <span className="lz-aviso" title="Cards not up to date in this session">{viejas === 1 ? '1 card to refresh' : `${viejas} cards to refresh`}</span>}
                     <button type="button" className="lz-btn" onClick={() => setBuscando(b => !b)} title="Find a card (Ctrl+F)"><LuSearch size={14} /></button>
                     <button type="button" className="lz-btn lz-btn--prim" disabled={!!corriendo || viejas === 0} onClick={() => refrescar(null)} title="Run what is not up to date, in dependency order">
@@ -474,6 +601,8 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
                 <div className="lz-herr" role="toolbar" aria-label="Add to the canvas">
                     <button type="button" onClick={abrirFuentes} title="Source: a named source, a table or a file (or drag one from the explorers)"><LuInbox size={16} /></button>
                     <button type="button" onClick={nuevaQuery} title="Query"><LuDatabase size={16} /></button>
+                    <button type="button" onClick={() => nuevaVisual('chart', seleccionDeDatos)} title={seleccionDeDatos ? `Chart of "${seleccionDeDatos}"` : 'Chart (select a Source or a Query first, or connect one later)'}><LuChartBar size={16} /></button>
+                    <button type="button" onClick={() => nuevaVisual('number', seleccionDeDatos)} title={seleccionDeDatos ? `Number from "${seleccionDeDatos}"` : 'Number (select a Source or a Query first, or connect one later)'}><LuHash size={16} /></button>
                     <hr />
                     <button type="button" onClick={() => anadir({ id: idLibre('nota'), tipo: 'note', texto: '' })} title="Note"><LuStickyNote size={16} /></button>
                     <button type="button" onClick={() => anadir({ id: idLibre('texto'), tipo: 'text', texto: '' })} title="Text"><LuType size={16} /></button>
@@ -502,6 +631,9 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
                         onNodeDragStop={recolocarEnMarcos}
                         onNodesDelete={(ns) => borrar(ns.map(n => n.id))}
                         onConnectEnd={alTerminarConexion}
+                        onConnect={alConectar}
+                        isValidConnection={esConexionValida}
+                        onEdgeDoubleClick={editarEtiqueta}
                         onPaneClick={() => { setSeleccion(null); setEditando(null); setMenuConexion(null); }}
                         onMoveEnd={(_, v) => { vistaRef.current = v; }}
                         defaultViewport={lienzo.vista ? { x: lienzo.vista.x, y: lienzo.vista.y, zoom: lienzo.vista.zoom } : undefined}
@@ -532,8 +664,33 @@ function Interior({ content, onChange, theme, editorSettings, isActive }) {
                         <button type="button" onClick={() => crearDesde('agrupar')}><LuGroup size={13} /> Group by… <small>GROUP BY</small></button>
                         <button type="button" onClick={() => crearDesde('unir')}><LuMerge size={13} /> Join with… <small>JOIN</small></button>
                         <button type="button" onClick={() => crearDesde('vacia')}><LuDatabase size={13} /> Empty query <small>SELECT *</small></button>
+                        <hr />
+                        <button type="button" onClick={() => { const { padre, en } = menuConexion; setMenuConexion(null); nuevaVisual('chart', padre, { x: en.x, y: en.y - 40 }); }}><LuChartBar size={13} /> Chart</button>
+                        <button type="button" onClick={() => { const { padre, en } = menuConexion; setMenuConexion(null); nuevaVisual('number', padre, { x: en.x, y: en.y - 40 }); }}><LuHash size={13} /> Number</button>
                     </div>
                 )}
+
+                {graficoEnEdicion && (() => {
+                    const t = tarjetas.find(x => x.id === graficoEnEdicion);
+                    if (!t) return null;
+                    const filas = filasDeVisual(resultados[t.id], t.foto);
+                    return (
+                        <div className="lz-editor-grafico">
+                            <div className="lz-editor-grafico-cab">
+                                <LuChartBar size={14} /> <strong>{t.id}</strong> <span>· {t.desde ? `of "${t.desde}"` : 'not connected'}</span>
+                                <span className="lz-sp" />
+                                <button type="button" className="lz-btn lz-btn--prim" onClick={cerrarGrafico}>Done</button>
+                            </div>
+                            <div className="lz-editor-grafico-cuerpo">
+                                {filas.length ? (
+                                    <Suspense fallback={<div className="lz-vacio">Loading Story Flow…</div>}>
+                                        <DataVisualizer data={filas} initialChartConfig={t.grafico || null} onConfigChange={(cfg) => cambiar(t.id, { grafico: cfg })} isActive />
+                                    </Suspense>
+                                ) : <div className="lz-vacio">Run the card first: the chart is configured on its data.</div>}
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
         </LienzoCtx.Provider>
     );

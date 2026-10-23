@@ -136,6 +136,14 @@ try {
     comprobar('Join with…', g.consultaNueva(leido, 'por_tienda', 'unir', { otra: 'metas', columna: 'tienda' }).sql.includes('JOIN metas AS b USING (tienda)'));
     comprobar('y la conexión sale sola', g.aristas({ tarjetas: [...leido.tarjetas, nf] }).some(e => e.de === 'por_tienda' && e.a === 'paso_1'));
 
+    console.log('\nChart y Number (fase 2)');
+    comprobar('un Chart lee las filas de su tarjeta', g.sqlDeVisual({ tipo: 'chart', desde: 'por_tienda' }) === 'SELECT * FROM "por_tienda"');
+    comprobar('un Number: la cuenta de una columna', g.sqlDeVisual({ tipo: 'number', desde: 'v', cifra: { columna: 'importe', agregado: 'avg' } }) === 'SELECT avg("importe") AS valor FROM "v"');
+    comprobar('sin columna, las filas', g.sqlDeVisual({ tipo: 'number', desde: 'v', cifra: { agregado: 'count' } }) === 'SELECT count(*) AS valor FROM "v"');
+    comprobar('comparado con otra tarjeta: valor y base', g.sqlDeVisual({ tipo: 'number', desde: 'oct', cifra: { columna: 'importe', comparar: 'sep' } }) === 'SELECT (SELECT sum("importe") FROM "oct") AS valor, (SELECT sum("importe") FROM "sep") AS base');
+    comprobar('sin tarjeta que enseñar, nada', g.sqlDeVisual({ tipo: 'chart' }) === '');
+    comprobar('lo que lee: la suya y la de comparar', g.leeVisual({ tipo: 'number', desde: 'oct', cifra: { comparar: 'sep' } }).join() === 'oct,sep');
+
     // ── por el servidor ──
     console.log('\npor el motor');
     const { startServer } = require(path.join(RAIZ, 'server/index.js'));
