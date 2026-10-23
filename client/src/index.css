@@ -2055,6 +2055,10 @@ body {
 
 .app-shell--welcome > * { position: relative; z-index: 1; }
 
+/* La barra conserva su capa: con z-index 1, la bienvenida (hermana posterior)
+   se pintaba encima del menú de la aplicación y no se podía elegir nada. */
+.app-shell--welcome > .window-title-bar { z-index: 9999; }
+
 .app-shell--welcome::before {
   content: '';
   position: absolute;
@@ -9088,6 +9092,28 @@ tr:hover .rt-td--pinned {
 .db-copy-btn:hover {
   opacity: 1 !important;
 }
+
+/* Los tres puntos de una tabla: el menú del clic derecho, a la vista. Junto a
+   «copiar», que es el que empuja a la derecha (margin-left: auto). */
+.db-mas-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin-left: 2px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-tertiary);
+  opacity: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--transition-fast);
+}
+.db-table-row:hover .db-mas-btn,
+.db-mas-btn:focus-visible { opacity: 0.8; }
+.db-mas-btn:hover { opacity: 1; color: var(--text-primary); background: var(--hover-bg); border: 0; }
 
 /* ── Database Explorer Columns ── */
 
