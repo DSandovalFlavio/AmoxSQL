@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo } from 'react';
-import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2 } from "react-icons/lu";
+import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2, LuLayoutDashboard } from "react-icons/lu";
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
@@ -19,6 +19,7 @@ const AmoxvisPane = lazy(() => import('./AmoxvisPane'));
 const MarkdownEditor = lazy(() => import('./MarkdownEditor'));
 const DeckEditor = lazy(() => import('./deck/DeckEditor'));
 const DiagramEditor = lazy(() => import('./diagram/DiagramEditor'));
+const LienzoEditor = lazy(() => import('./lienzo/LienzoEditor'));
 const ChainEditor = lazy(() => import('./chains/ChainEditor'));
 const TextEditor = lazy(() => import('./TextEditor'));
 const CuadernoEditor = lazy(() => import('./cuaderno/CuadernoEditor'));
@@ -378,6 +379,12 @@ const EditorPane = ({
                             sitios del plan: es la PRIMERA pantalla de un proyecto
                             recién abierto, donde todavía no hay barra de pestañas
                             en la que buscar el «+». */}
+                        {/* 5.15: el Canvas, para pensar un análisis en un lienzo. */}
+                        <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('amoxcanvas')}>
+                            <LuLayoutDashboard size={24} />
+                            <span className="ep-empty-card-title">Canvas</span>
+                            <span className="ep-empty-card-desc">Sources, queries and notes, connected</span>
+                        </button>
                         <button className="ep-empty-card" onClick={() => onCreateNew && onCreateNew('amoxdiagram')}>
                             <LuShare2 size={24} />
                             <span className="ep-empty-card-title">Diagram</span>
@@ -398,6 +405,7 @@ const EditorPane = ({
     const isMarkdown = activeTab.type === 'md' || activeTab.name?.endsWith('.md');
     const isDeck = activeTab.type === 'amoxdeck' || activeTab.name?.endsWith('.amoxdeck');
     const isDiagram = activeTab.type === 'amoxdiagram' || activeTab.name?.endsWith('.amoxdiagram');
+    const isCanvas = activeTab.type === 'amoxcanvas' || activeTab.name?.endsWith('.amoxcanvas');
     /**
      * Texto llano. **Aquí cae todo lo que antes se declaraba SQL por descarte**:
      * un `.yml`, un `.py`, un `.json` de configuración, un archivo sin
@@ -599,6 +607,21 @@ const EditorPane = ({
                             isActive={isActive}
                             onOpenFile={onOpenFile}
                         />
+                        </Suspense>
+                    </div>
+                ) : isCanvas ? (
+                    <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`}>
+                        <Suspense fallback={<PaneLoading />}>
+                            <LienzoEditor
+                                key={activeTab.id}
+                                content={activeTab.content}
+                                onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
+                                onSave={onSave}
+                                theme={theme}
+                                editorSettings={editorSettings}
+                                isActive={isActive}
+                                filePath={activeTab.path || null}
+                            />
                         </Suspense>
                     </div>
                 ) : isDiagram ? (

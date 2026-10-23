@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LuPin, LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown, LuGitBranch, LuPresentation, LuChartBar, LuShare2 } from 'react-icons/lu';
+import { LuPin, LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown, LuGitBranch, LuPresentation, LuChartBar, LuShare2, LuLayoutDashboard } from 'react-icons/lu';
 
 const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart, onReorder, onCreateNew, onTabContextMenu, onTabRename }) => {
     const [showNewMenu, setShowNewMenu] = useState(false);
@@ -75,6 +75,9 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                             <div className="tab-bar-new-menu-separator" />
                             <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('sqlchain'); setShowNewMenu(false); }}>
                                 <LuGitBranch size={13} /> Data Flow
+                            </div>
+                            <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('amoxcanvas'); setShowNewMenu(false); }}>
+                                <LuLayoutDashboard size={13} /> Canvas
                             </div>
                             <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('amoxdiagram'); setShowNewMenu(false); }}>
                                 <LuShare2 size={13} /> Diagrama

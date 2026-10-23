@@ -1154,7 +1154,7 @@ function App() {
       // SQL. En un archivo de texto no significa nada: metido en un YAML o en
       // un Python lo rompe.
       if (pendingSaveTab?.type !== 'texto'
-          && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
+          && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram') && !filename.endsWith('.amoxcanvas')) {
         contentToSave = `/*\n * Description: ${description}\n */\n\n${contentToSave}`;
       }
     }
@@ -1171,7 +1171,7 @@ function App() {
      */
     if (pendingSaveTab?.type === 'texto') {
       // nada que añadir
-    } else if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.sqlchain') && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram')) {
+    } else if (!filename.endsWith('.sql') && !filename.endsWith('.sqlnb') && !filename.endsWith('.sqlchain') && !filename.endsWith('.md') && !filename.endsWith('.amoxdeck') && !filename.endsWith('.amoxdiagram') && !filename.endsWith('.amoxcanvas')) {
       if (pendingSaveTab && pendingSaveTab.type === 'sqlnb') {
         filename += '.sqlnb';
       } else if (pendingSaveTab && pendingSaveTab.type === 'sqlchain') {
@@ -1180,6 +1180,8 @@ function App() {
         filename += '.amoxdeck';
       } else if (pendingSaveTab && pendingSaveTab.type === 'amoxdiagram') {
         filename += '.amoxdiagram';
+      } else if (pendingSaveTab && pendingSaveTab.type === 'amoxcanvas') {
+        filename += '.amoxcanvas';
       } else if (pendingSaveTab && pendingSaveTab.type === 'md') {
         filename += '.md';
       } else {

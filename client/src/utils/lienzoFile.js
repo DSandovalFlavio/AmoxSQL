@@ -144,7 +144,20 @@ export function escribirLienzo(lienzo = LIENZO_VACIO) {
         etiquetas: Object.keys(l.etiquetas || {}).length ? ordenarClaves(l.etiquetas) : undefined,
         vista: l.vista ? ordenar({ x: redondo(l.vista.x), y: redondo(l.vista.y), zoom: l.vista.zoom }, ['x', 'y', 'zoom']) : undefined,
     }, ORDEN_LIENZO);
-    return `${JSON.stringify(raiz, null, 2)}\n`;
+    // La foto en filas, una por línea: con la sangría de siempre cada celda iría
+    // en su propia línea y un lienzo de veinte tarjetas tendría miles.
+    const compactos = [];
+    const marcar = (v) => { compactos.push(v); return `\u0000${compactos.length - 1}\u0000`; };
+    for (const t of raiz.tarjetas) {
+        if (!t.foto) continue;
+        const f = { ...t.foto };
+        if (Array.isArray(f.columnas)) f.columnas = marcar(f.columnas);
+        if (Array.isArray(f.muestra)) f.muestra = f.muestra.map(marcar);
+        if (Array.isArray(f.puntos)) f.puntos = f.puntos.map(marcar);
+        t.foto = f;
+    }
+    const texto = JSON.stringify(raiz, null, 2).replace(/"\\u0000(\d+)\\u0000"/g, (_, i) => JSON.stringify(compactos[Number(i)]));
+    return `${texto}\n`;
 }
 
 /** **Clear snapshots**: el lienzo sin ninguna foto. */

@@ -68,6 +68,7 @@ try {
     comprobar('las posiciones, redondeadas', j.tarjetas.find(t => t.id === 'ventas_limpias').x === 420 && j.vista.x === 11);
     comprobar('los parámetros en orden', Object.keys(j.parametros).join() === 'desde,hasta');
     comprobar('la foto con sus topes (50 filas, 2.000 puntos)', j.tarjetas.find(t => t.id === 'por_tienda').foto.muestra.length === 50 && j.tarjetas.find(t => t.id === 'barras').foto.puntos.length === 2000);
+    comprobar('la foto va en filas, una por línea', texto.includes('"columnas": ["tienda","venta"]') && texto.includes('          ["t0",0],'), texto.slice(texto.indexOf('"foto"'), texto.indexOf('"foto"') + 160));
     const leido = lf.leerLienzo(texto);
     comprobar('ida y vuelta: el mismo texto', lf.escribirLienzo(leido) === texto);
     comprobar('en memoria el SQL es texto', leido.tarjetas.find(t => t.id === 'por_tienda').sql === 'SELECT tienda, sum(importe) AS venta\nFROM ventas_limpias\nGROUP BY tienda');
