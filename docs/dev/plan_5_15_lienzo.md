@@ -57,24 +57,39 @@ el cómputo en la nube y, por ahora, el asistente.
 | Vistas vivas de la sesión | `/api/cuaderno/vistas`, `vistasVivas.js` | Saber qué tarjetas siguen vivas al volver |
 | Gráficos | `DataVisualizer/` (Story Flow), `.amoxvis` | La tarjeta Chart |
 | Parámetros `{{x}}` | cuaderno y deck | Los controles |
-| Archivo en markdown con directivas | `cuadernoFile.js`, `deckParser.js` | El formato del lienzo (Dec-54) |
+| Lienzo de nodos que lee y escribe JSON | Data Flow (`.sqlchain`), `diffDeProcesos.js` | El formato del lienzo y su diff legible (Dec-54) |
 | Diapositivas desde un cuaderno | `cuaderno/exportar.js → planDeTablero` | Un marco → un deck de Report Flow |
 | Fuentes con nombre | `fuentes."x"`, `FuentesExplorador` | La tarjeta Source y arrastrar desde el explorador |
 
 ## 4. Las decisiones que fija este plan
 
-**Dec-54 · El lienzo es un archivo `.amoxcanvas` en markdown.** Como el cuaderno y el
-deck: front-matter (título, parámetros) y una tarjeta por bloque, con su directiva:
+**Dec-54 · El lienzo es un archivo `.amoxcanvas` en JSON** (decisión del autor). Un
+lienzo es posiciones, tamaños, marcos, conexiones con etiqueta y la foto de cada tarjeta:
+estructura, no prosa, y es lo que el lienzo de nodos ya lee y escribe. Para que siga
+siendo revisable en git:
 
-    <!-- tarjeta: ventas_limpias consulta x=420 y=80 w=360 h=260 marco=trafico -->
-    ```sql
-    SELECT * FROM fuentes."ventas" WHERE estado <> 'devuelto'
-    ```
+- **Orden fijo** de las claves y de las tarjetas (por id), con sangría: guardar sin cambiar nada no cambia el archivo.
+- **El SQL va en líneas** (`"sql": ["SELECT *", "FROM fuentes.\"ventas\"", "WHERE estado <> 'devuelto'"]`): cambiar una línea de una consulta es un diff de una línea, y no hay `
+` escapados.
+- **El diff legible de la 5.14 se extiende al lienzo** (tarjetas añadidas, quitadas, SQL cambiado; mover no cuenta; la foto tampoco).
 
-Las posiciones **sí** se guardan (las pone la persona; en AmoxDiagram las calcula el
-dibujo). Un cambio de una línea de SQL es un diff de una línea, y el diff legible de la
-5.14 se extiende al lienzo. El estado de quien mira (zoom, qué tarjetas muestran el
-código) va aparte, en `.amoxcanvas.state.json`, como el del cuaderno.
+```json
+{
+  "formato": "amoxcanvas", "version": 1,
+  "titulo": "Ventas de octubre",
+  "parametros": { "desde": "2026-10-01", "hasta": "2026-10-31" },
+  "tarjetas": [
+    { "id": "ventas_limpias", "tipo": "query", "x": 420, "y": 80, "w": 360, "h": 260,
+      "marco": "trafico", "modo": "ambos",
+      "sql": ["SELECT * FROM fuentes.\"ventas\"", "WHERE estado <> 'devuelto'"],
+      "foto": { "cuando": "2026-10-22T09:14:00Z", "filas": 1187, "columnas": ["…"], "muestra": [["…"]] } }
+  ],
+  "etiquetas": { "ventas→ventas_limpias": "sin devoluciones" },
+  "vista": { "x": 0, "y": 0, "zoom": 0.8 }
+}
+```
+
+Todo vive en el mismo archivo, también el zoom y la foto (Dec-58): no hay `.state.json` aparte.
 
 **Dec-55 · Conectar es referenciar.** Una tarjeta de datos deja una vista con su nombre;
 la de abajo la lee por ese nombre. **Las flechas no se dibujan, se deducen**: no puede
@@ -102,13 +117,16 @@ el SQL** de la consulta nueva, editable.
 
 **Dec-57 · La etiqueta de una conexión se deduce.** Del SQL de la tarjeta de abajo:
 `GROUP BY` → «by <columnas>», `WHERE` → «where <condición corta>», `JOIN x` → «+ x»,
-`UNION` → «+ rows of x». Se puede escribir otra y queda en la directiva.
+`UNION` → «+ rows of x». Se puede escribir otra y queda en `etiquetas` del archivo.
 
-**Dec-58 · Nada corre al abrir.** El lienzo abre con **la última foto** de cada tarjeta
-(las primeras filas de una tabla, los puntos de un gráfico, la cifra) guardada en
-`.amoxcanvas.state.json`, marcada «as of <fecha>». **Refresh all** (o **Refresh** de una
-rama) vuelve a poner las vistas y recalcula. Así un lienzo de veinte tarjetas abre al
-instante y nunca dice una cifra vieja sin decir que lo es.
+**Dec-58 · Nada corre al abrir: la foto va dentro del JSON** (decisión del autor). Cada
+tarjeta guarda en `foto` lo que enseñaba: las primeras **50 filas** de una tabla, los
+puntos de un gráfico (hasta 2.000), la cifra, y cuándo se tomó. El lienzo abre al
+instante con esa foto, marcada «as of <fecha>», y **Refresh all** (o **Refresh** de una
+rama) vuelve a poner las vistas y recalcula. Los topes mantienen el archivo pequeño (un
+lienzo de veinte tarjetas, del orden de cientos de KB). Coste aceptado: refrescar cambia
+la foto y git lo ve; el diff legible la ignora, y quien no quiera versionarla puede
+**Clear snapshots** antes de un commit.
 
 **Dec-59 · Controles = parámetros.** Una barra de controles del lienzo (fecha, lista,
 texto) da valor a los `{{parametro}}` de las consultas; cambiar uno marca desactualizado
@@ -131,7 +149,7 @@ tarjetas se traba, se medirá dibujar sólo las visibles **antes** de adoptarlo.
 ## 5. Las fases
 
 ### Fase 0 · El formato y el motor (Dec-54, Dec-55)
-- `client/src/utils/lienzoFile.js`: leer y escribir `.amoxcanvas` (ida y vuelta idéntica), directivas con posición, tamaño, marco y etiqueta.
+- `client/src/utils/lienzoFile.js`: leer y escribir `.amoxcanvas` en JSON con orden fijo y el SQL en líneas (ida y vuelta idéntica), con la foto y sus topes.
 - `client/src/components/lienzo/grafoLienzo.js`: aristas deducidas (reusa `celdaSql` y `grafo.js`), etiquetas (Dec-57), ciclos.
 - El servidor no cambia: una tarjeta se ejecuta con `/api/cuaderno/celda`.
 - Prueba: `probarLienzo.mjs` (formato, aristas, etiquetas, renombrar).
@@ -144,7 +162,7 @@ tarjetas se traba, se medirá dibujar sólo las visibles **antes** de adoptarlo.
 ### Fase 2 · Ver (Dec-56 completa, Dec-57, Dec-58, Dec-59)
 - Chart (configuración de Story Flow en un panel lateral) y Number.
 - Etiquetas de las conexiones; controles de parámetros.
-- La foto al abrir (`.amoxcanvas.state.json`) y «as of».
+- La foto al abrir (dentro del `.amoxcanvas`), «as of» y **Clear snapshots**.
 
 ### Fase 3 · Sacar (Dec-60)
 - Present; marco → Report Flow; lienzo → cuaderno; rama → Data Flow; tarjeta → `.sql`.
@@ -164,11 +182,11 @@ tarjetas se traba, se medirá dibujar sólo las visibles **antes** de adoptarlo.
 | Se solapa con el cuaderno | Comparten motor y formato; el lienzo se convierte en cuaderno cuando el análisis se vuelve lineal (Dec-60) |
 | Nombres de vista que chocan entre el lienzo y un cuaderno abiertos a la vez | Las vistas son de la sesión, como hoy entre dos cuadernos; el lienzo avisa si una vista suya la redefine otro documento |
 
-## 7. Preguntas para el autor
+## 7. Decisiones del autor (respondidas el 2026-10-22)
 
-1. **El nombre.** En la interfaz, **Canvas** (archivo `.amoxcanvas`), o un nombre de la familia de Story Flow / Data Flow / Report Flow (por ejemplo **Think Flow** o **Insight Board**).
-2. **La foto al abrir (Dec-58).** ¿Guardar las primeras filas y los puntos de los gráficos en el `.state.json` (abre al instante, ocupa algo de disco y no va a git), o abrir vacío y que **Refresh all** lo llene?
-3. **Transformaciones sin código.** ¿Basta con el menú que escribe el SQL (Dec-56), o quieres tarjetas de Filtrar / Agrupar / Unir con su formulario, como los nodos de Data Flow?
+1. **El nombre:** **Canvas**, archivo `.amoxcanvas`.
+2. **El formato y la foto:** **JSON**, con todo dentro, la foto incluida (Dec-54, Dec-58).
+3. **Transformaciones sin código:** de momento, el menú que escribe el SQL (Dec-56). Una forma visual de transformar que por detrás sea código llegará después como **otro tipo de tarjeta**; el formato deja sitio (`tipo` abierto) y no se rehace nada.
 
 ## 8. Lo que queda fuera de la 5.15
 
@@ -182,3 +200,4 @@ tarjetas se traba, se medirá dibujar sólo las visibles **antes** de adoptarlo.
 | Fecha | Fase | Qué |
 |---|---|---|
 | 2026-10-22 | — | Plan escrito leyendo `main` en `d1e2083`. La 6.0 pasa a ser la subida a DuckDB 2.0; el lienzo es la 5.15. Decisiones Dec-54 a Dec-61; tres preguntas para el autor (§7). Mockup en `mockup_lienzo.html` |
+| 2026-10-22 | — | **Respuestas del autor (§7):** Canvas; JSON con la foto dentro (Dec-54 y Dec-58 reescritas: orden fijo, SQL en líneas, topes, el diff legible ignora la foto); el menú que escribe SQL basta, la transformación visual llegará como otro tipo de tarjeta |
