@@ -275,3 +275,30 @@
 .lz-presentar-titulo { font-weight: 700; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
 .lz-presentar-n { color: var(--text-tertiary); font-variant-numeric: tabular-nums; }
 .lz-presentar-salir { margin-left: 4px; color: var(--text-secondary) !important; }
+
+/* Los botones de icono del Canvas no heredan el relleno de 5×12 px ni el borde
+   de la regla global de `button`: en una caja de 20 px ese relleno empujaba el
+   icono fuera del centro. */
+.lz-raiz .lz-modos button,
+.lz-raiz .lz-modos-uno,
+.lz-raiz .lz-correr,
+.lz-raiz .lz-herr > button,
+.lz-raiz .lz-presentar button,
+.lz-raiz .lz-buscar button {
+  padding: 0;
+  min-width: 0;
+  line-height: 0;
+  border-width: 0;
+  display: inline-grid;
+  place-items: center;
+}
+.lz-raiz .lz-modos button svg,
+.lz-raiz .lz-modos-uno svg,
+.lz-raiz .lz-correr svg { display: block; }
+.lz-raiz .lz-modos { align-items: center; }
+.lz-raiz .lz-modos button:hover:not(.on) { background: var(--hover-bg); }
+.lz-raiz .lz-correr:hover:not(:disabled) { background: var(--accent-primary); color: var(--accent-ink, var(--surface-base)); }
+.lz-raiz .lz-menu button { border-width: 0; min-width: 0; }
+/* Y no se encogen: en una cabecera estrecha cede el nombre, no los botones. */
+.lz-raiz .lz-modos, .lz-raiz .lz-modos-uno, .lz-raiz .lz-correr, .lz-raiz .lz-est, .lz-raiz .lz-chip { flex-shrink: 0; }
+.lz-raiz .lz-nombre { min-width: 0; flex-shrink: 1; }

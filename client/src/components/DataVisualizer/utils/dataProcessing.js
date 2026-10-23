@@ -235,16 +235,16 @@ export const computeHeadline = (processedData, yAxisKeys, metric, compareWith, w
     } else if (esAgregada) {
         if (compareWith === 'previous' && previa.length === n && n > 0) {
             compareValue = agregar(previa);
-            compareLabel = `vs. ${n} previos`;
+            compareLabel = `vs. previous ${n}`;
         }
         // 'first' con una metrica agregada es la combinacion invalida: se ignora.
     } else if (metric === 'last') {
         if (compareWith === 'previous' && values.length > 1) {
             compareValue = values[values.length - 2];
-            compareLabel = 'vs. anterior';
+            compareLabel = 'vs. previous';
         } else if (compareWith === 'first' && values.length > 1) {
             compareValue = values[0];
-            compareLabel = 'vs. inicio';
+            compareLabel = 'vs. first';
         }
     }
 

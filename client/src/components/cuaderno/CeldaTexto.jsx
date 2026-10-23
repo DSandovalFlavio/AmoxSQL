@@ -64,7 +64,7 @@ const CeldaTexto = ({
 
     if (enFuente) {
         return (
-            <div className="cdn-celda cdn-celda--texto">
+            <div className="cdn-celda cdn-celda--texto cdn-celda--escribiendo">
                 <textarea
                     ref={caja}
                     className="cdn-texto-fuente"

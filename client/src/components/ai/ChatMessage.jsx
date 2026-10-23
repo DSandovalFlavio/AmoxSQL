@@ -73,7 +73,7 @@ export function makeMdComponents(setCiteQueryId, sqlActionsRef) {
                             )}
                             {actions.onRunSql && (
                                 <button className="ai-code-action-btn" onClick={() => actions.onRunSql(sql)} title="Ejecutar esta consulta">
-                                    <LuPlay size={12} /> Ejecutar
+                                    <LuPlay size={12} /> Run
                                 </button>
                             )}
                         </div>

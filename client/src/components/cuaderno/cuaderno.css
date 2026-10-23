@@ -614,6 +614,22 @@
     }
 }
 
+/* El resultado debajo del código: el mismo reparto, en filas. */
+.cdn-pc-cuerpo.cdn-pc-cuerpo--abajo {
+    grid-template-columns: none;
+    grid-template-rows: minmax(0, var(--cdn-izq, 1fr)) 7px minmax(0, var(--cdn-der, 1fr));
+}
+.cdn-pc-cuerpo.cdn-pc-cuerpo--abajo.cdn-cuerpo--solo { grid-template-rows: minmax(0, 1fr); }
+.cdn-pc-cuerpo--abajo > .cdn-tirador {
+    border-left: 0;
+    border-right: 0;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+    cursor: row-resize;
+}
+.cdn-pc-cuerpo--abajo > .cdn-tirador::after { width: 22px; height: 2px; }
+.cdn-btn--icono:disabled { opacity: .4; cursor: default; }
+
 /* ── la barra derecha ───────────────────────────────────────────────────── */
 .cdn-seccion {
     display: flex;
@@ -837,3 +853,10 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 .cdn-fila--borrador.cdn-fila--sel > :not(.cdn-canalon) { opacity: 0.85; }
 .cdn-fila--borrador::before { background: repeating-linear-gradient(to bottom, var(--text-secondary) 0 4px, transparent 4px 8px); }
 .cdn-deja--borrador { color: var(--text-secondary); border-style: dashed; }
+
+/* Escribiendo, la fuente ocupa al menos todo el alto de la fila (el del canalón
+   con sus mandos): un cuadro de dos líneas junto a una columna de seis botones
+   parecía un campo de formulario y no el sitio donde se escribe. Si el texto es
+   más largo, sigue creciendo con él. */
+.cdn-celda--escribiendo { display: flex; flex-direction: column; }
+.cdn-celda--escribiendo .cdn-texto-fuente { flex: 1 0 auto; min-height: 120px; }

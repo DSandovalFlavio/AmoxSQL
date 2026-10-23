@@ -1193,7 +1193,7 @@ ${snippet}` : snippet);
                                         title="Abrir o cerrar el asistente"
                                     >
                                         {showAiSidebar ? <LuX size={13} /> : <LuBot size={13} />}
-                                        <span>{showAiSidebar ? 'Cerrar' : 'Assist'}</span>
+                                        <span>{showAiSidebar ? 'Close' : 'Assist'}</span>
                                     </button>
                                 )}
                             </>

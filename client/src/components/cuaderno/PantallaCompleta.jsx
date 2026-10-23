@@ -30,16 +30,29 @@
  *
  * Lo que de verdad hacía falta para escribir prosa larga era **sitio**, y eso sí
  * está: fuente y texto compuesto, lado a lado, en toda la pantalla.
+ *
+ * ## Al lado o debajo
+ *
+ * A pantalla completa el resultado puede ir **debajo** del código en vez de al
+ * lado: una tabla ancha luce más a lo ancho de la pantalla. Es una preferencia
+ * de quien mira, no del cuaderno: se recuerda en este equipo para todas las
+ * celdas, y cada celda guarda su propio reparto en cada sentido. En la lista de
+ * celdas sigue siempre al lado, porque allí la celda tiene alto fijo.
  */
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
-    LuPlay, LuColumns2, LuCode, LuTable, LuMinimize2, LuLoaderCircle, LuEye,
+    LuPlay, LuColumns2, LuCode, LuTable, LuMinimize2, LuLoaderCircle, LuEye, LuPanelBottom, LuPanelRight,
 } from 'react-icons/lu';
 import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import { MODOS } from './modos.js';
 import '../MarkdownEditor.css';
+
+/** Dónde va el resultado a pantalla completa: preferencia de este equipo. */
+const CLAVE_DISPOSICION = 'amoxsql-cuaderno-pc-abajo';
+const leerAbajo = () => { try { return localStorage.getItem(CLAVE_DISPOSICION) === '1'; } catch { return false; } };
+const guardarAbajo = (v) => { try { localStorage.setItem(CLAVE_DISPOSICION, v ? '1' : '0'); } catch { /* sin almacenamiento */ } };
 
 const PantallaCompleta = ({
     celda,
@@ -65,7 +78,10 @@ const PantallaCompleta = ({
      * desplazarse en horizontal, que es peor que leer el SQL en líneas más
      * cortas. El tirador sigue estando: esto es sólo de dónde se parte.
      */
-    const reparto = estado.reparto ?? 0.4;
+    const [abajo, setAbajo] = useState(leerAbajo);
+    const cambiarDisposicion = () => setAbajo((v) => { guardarAbajo(!v); return !v; });
+    // Debajo, el código pide menos: unas líneas arriba y la tabla con todo el ancho.
+    const reparto = abajo ? (estado.repartoVertical ?? 0.35) : (estado.reparto ?? 0.4);
     const raiz = useRef(null);
     const [arrastrando, setArrastrando] = useState(false);
 
@@ -88,9 +104,8 @@ const PantallaCompleta = ({
         setArrastrando(true);
         const mover = (ev) => {
             const caja = cuerpo.getBoundingClientRect();
-            onEstado(celda.id, {
-                reparto: Math.min(0.85, Math.max(0.15, (ev.clientX - caja.left) / caja.width)),
-            });
+            const f = abajo ? (ev.clientY - caja.top) / caja.height : (ev.clientX - caja.left) / caja.width;
+            onEstado(celda.id, { [abajo ? 'repartoVertical' : 'reparto']: Math.min(0.85, Math.max(0.15, f)) });
         };
         const soltar = () => {
             setArrastrando(false);
@@ -99,7 +114,7 @@ const PantallaCompleta = ({
         };
         window.addEventListener('mousemove', mover);
         window.addEventListener('mouseup', soltar);
-    }, [celda.id, onEstado]);
+    }, [celda.id, onEstado, abajo]);
 
     // Mismo motivo que en `Celda`: una flecha escrita en el render re-arma el
     // avisador de Story Flow en cada pintado.
@@ -147,6 +162,18 @@ const PantallaCompleta = ({
                     {mando(MODOS.RESULTADO, esTexto ? LuEye : LuTable, esTexto ? 'Text only' : 'Result only')}
                 </div>
 
+                <div className="cdn-grupo">
+                    <button
+                        type="button"
+                        className="cdn-btn cdn-btn--icono"
+                        onClick={cambiarDisposicion}
+                        disabled={soloUno}
+                        title={abajo
+                            ? `${esTexto ? 'Text' : 'Result'} below the ${esTexto ? 'source' : 'code'}: put it beside`
+                            : `${esTexto ? 'Text' : 'Result'} beside the ${esTexto ? 'source' : 'code'}: put it below`}
+                    >{abajo ? <LuPanelRight size={13} /> : <LuPanelBottom size={13} />}</button>
+                </div>
+
                 {!esTexto && (
                     <div className="cdn-grupo">
                         <button
@@ -157,14 +184,14 @@ const PantallaCompleta = ({
                             title="Run (Ctrl+Enter)"
                         >
                             {corriendo ? <LuLoaderCircle size={12} className="spin" /> : <LuPlay size={12} />}
-                            Ejecutar
+                            Run
                         </button>
                     </div>
                 )}
             </div>
 
             <div
-                className={`cdn-pc-cuerpo${soloUno ? ' cdn-cuerpo--solo' : ''}`}
+                className={`cdn-pc-cuerpo${abajo ? ' cdn-pc-cuerpo--abajo' : ''}${soloUno ? ' cdn-cuerpo--solo' : ''}`}
                 style={soloUno ? undefined : { '--cdn-izq': `${reparto}fr`, '--cdn-der': `${1 - reparto}fr` }}
             >
                 {modo !== MODOS.RESULTADO && (

@@ -42,8 +42,9 @@ import {
     analizarLienzo, grafoDeLienzo, aristas as aristasDe, linaje, ordenDeRefresco, renombrar as renombrarEn,
     consultaNueva, nombreParaFuente, problemaDeTarjeta, sqlDeTarjeta, sqlDeVisual, leeVisual,
 } from './grafoLienzo.js';
+import { LienzoCtx } from './contexto.js';
 import {
-    LienzoCtx, TarjetaDatos, TarjetaNota, TarjetaTexto, TarjetaMarco, TarjetaDesconocida,
+    TarjetaDatos, TarjetaNota, TarjetaTexto, TarjetaMarco, TarjetaDesconocida,
     TarjetaGrafico, TarjetaCifra, filasDeVisual,
 } from './Tarjetas.jsx';
 import { PUNTOS_DE_FOTO } from '../../utils/lienzoFile.js';
