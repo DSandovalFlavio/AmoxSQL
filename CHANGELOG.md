@@ -5,6 +5,43 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.15.0] — 2026-10-23 (sin publicar)
+
+**El Canvas.** Un lienzo infinito para pensar un análisis (plan en
+`docs/dev/plan_5_15_lienzo.md`): fuentes, consultas, gráficos, cifras y notas en
+tarjetas conectadas. La 6.0 queda para la subida del motor a DuckDB 2.0. No se publica.
+
+### Las tarjetas
+
+- **Source, Query, Chart, Number, Note, Text y Frame** en un archivo `.amoxcanvas`
+  (JSON con orden fijo y el SQL en líneas, para que se lea en git).
+- Cada tarjeta de datos deja una **vista con su nombre** y las demás la leen por ese
+  nombre: **las flechas salen de lo que lee cada consulta**, con su etiqueta deducida
+  («by tienda», «+ metas»), que se puede escribir a mano.
+- Arrastrar desde el borde de una tarjeta a un hueco crea la siguiente —**Filter…,
+  Group by…, Join with…**, un gráfico o una cifra— ya conectada.
+- **Chart** es Story Flow dentro de la tarjeta, con su editor completo encima del
+  lienzo; **Number**, una cifra con su variación frente a otra tarjeta.
+
+### Trabajar en el lienzo
+
+- El punto de estado y **Refresh all** del cuaderno: en orden de dependencias, todo o
+  una rama; se para en el primer fallo.
+- **La foto**: al abrir, cada tarjeta enseña lo último que dio, marcado «as of», sin
+  ejecutar nada; **Clear snapshots** la quita.
+- Los `{{parámetros}}` en la barra; renombrar reescribe a quien lee la tarjeta;
+  marcos que arrastran lo de dentro; buscar con Ctrl+F; soltar fuentes, tablas y
+  archivos desde los exploradores.
+
+### Lo que sale del lienzo
+
+- **Present**: los marcos, uno por pantalla.
+- **Export**: un marco por lámina a **Report Flow**, el lienzo a un **cuaderno**, una
+  rama a **Data Flow** (lista para programarse) y una tarjeta a **SQL**; todo
+  autónomo, con lo que necesita dentro.
+- **What changed** de un `.amoxcanvas`, en tarjetas y no en JSON, también en el panel
+  de Git.
+
 ## [5.14.0] — 2026-10-22 (sin publicar)
 
 **El día a día.** El último tramo antes de la 6.0 (plan en

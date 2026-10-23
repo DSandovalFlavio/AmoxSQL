@@ -21,6 +21,7 @@ Esta página es la referencia de todos ellos. Para el detalle técnico del parse
 | `.amoxdeck` | Deck de presentación | Markdown + front-matter | [Report Flow](../reports/report-flow.md) |
 | `.sqlchain` | Pipeline de transformación | JSON (DAG) | [Data Flow](../data-flow/data-flow.md) |
 | `.amoxproject` | Un proyecto en un archivo, o una plantilla | ZIP con `amoxproject.json` | [Proyectos](../user-guide/projects-and-connections.md) |
+| `.amoxcanvas` | Canvas: tarjetas conectadas, con su foto | JSON | [Canvas](../notebooks/canvas.md) |
 | `RULES.md` | Reglas de IA del proyecto | Markdown | Editor de texto |
 | `agent/skills/<id>/SKILL.md` | Skill de IA | Markdown + YAML | [Skills](../ai/skills.md) |
 | `context/*` | Contexto de dominio para IA | YAML + Markdown | [Contexto como código](../ai/context-as-code.md) |

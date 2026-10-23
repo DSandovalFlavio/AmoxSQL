@@ -294,23 +294,63 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
         return true;
     }, [actualizar, dialog, toast]);
 
+    const [graficoEnEdicion, setGraficoEnEdicion] = useState(null);
+    const [versiones, setVersiones] = useState({});
+    const columnasDe = useCallback((id) => {
+        const r = resultados[id];
+        if (r?.data?.[0]) return Object.keys(r.data[0]);
+        return lienzoRef.current?.tarjetas.find(t => t.id === id)?.foto?.columnas || [];
+    }, [resultados]);
+    // Estable mientras no cambie la lista de nombres (la usa el selector de Number).
+    const firmaDatos = tarjetas.filter(t => DEJAN_VISTA.has(t.tipo)).map(t => t.id).join('\u0001');
+    const tarjetasDeDatos = useMemo(() => (firmaDatos ? firmaDatos.split('\u0001') : []), [firmaDatos]);
+
     // ── Los nodos y las flechas ─────────────────────────────────────────────
     const resaltadas = useMemo(() => (seleccion ? linaje(lienzo, seleccion, flechas) : null), [lienzo, seleccion, flechas]);
-    const nodos = useMemo(() => tarjetas.map(t => {
-        const tipo = CONOCIDOS.has(t.tipo) ? t.tipo : 'desconocida';
-        const [w, h] = TAMANO[t.tipo] || [260, 160];
-        return {
-            id: t.id,
-            type: tipo,
-            position: { x: t.x ?? 0, y: t.y ?? 0 },
-            width: t.w ?? w,
-            height: t.h ?? h,
-            zIndex: t.tipo === 'frame' ? -1 : (seleccion === t.id ? 10 : 1),
-            selected: seleccion === t.id,
-            dragHandle: DEJAN_VISTA.has(t.tipo) || VISUALES.has(t.tipo) ? '.lz-cab' : (t.tipo === 'frame' ? '.lz-marco-titulo' : undefined),
-            data: { tarjeta: t, resaltada: !!resaltadas && (resaltadas.arriba.has(t.id) || resaltadas.abajo.has(t.id)) },
-        };
-    }), [tarjetas, seleccion, resaltadas]);
+
+    /**
+     * Los nodos, **reutilizados** si nada suyo cambió. Un nodo nuevo es una
+     * tarjeta que se vuelve a pintar; con sesenta, y doce gráficos entre ellas,
+     * rehacerlos todos en cada ejecución era lo que hacía lento a Refresh all.
+     */
+    const cacheNodos = useRef(new Map());
+    const nodos = useMemo(() => {
+        const anterior = cacheNodos.current;
+        const nuevo = new Map();
+        const lista = tarjetas.map(t => {
+            const tipo = CONOCIDOS.has(t.tipo) ? t.tipo : 'desconocida';
+            const [w, h] = TAMANO[t.tipo] || [260, 160];
+            const columnas = t.tipo === 'number' ? columnasDe(t.desde) : null;
+            const entrada = {
+                t, sel: seleccion === t.id,
+                lit: !!resaltadas && (resaltadas.arriba.has(t.id) || resaltadas.abajo.has(t.id)),
+                res: resultados[t.id], est: estados.get(t.id), run: corriendo === t.id, ed: editando === t.id,
+                prob: problemas[t.id], ver: versiones[t.id] || 0,
+                cols: columnas ? columnas.join('\u0001') : '', datos: t.tipo === 'number' ? tarjetasDeDatos : null,
+            };
+            const viejo = anterior.get(t.id);
+            if (viejo && Object.keys(entrada).every(k => entrada[k] === viejo.entrada[k])) { nuevo.set(t.id, viejo); return viejo.nodo; }
+            const nodo = {
+                id: t.id,
+                type: tipo,
+                position: { x: t.x ?? 0, y: t.y ?? 0 },
+                width: t.w ?? w,
+                height: t.h ?? h,
+                zIndex: t.tipo === 'frame' ? -1 : (entrada.sel ? 10 : 1),
+                selected: entrada.sel,
+                dragHandle: DEJAN_VISTA.has(t.tipo) || VISUALES.has(t.tipo) ? '.lz-cab' : (t.tipo === 'frame' ? '.lz-marco-titulo' : undefined),
+                data: {
+                    tarjeta: t, resaltada: entrada.lit, resultado: entrada.res, estado: entrada.est,
+                    corriendo: entrada.run, editando: entrada.ed, problema: entrada.prob, version: entrada.ver,
+                    columnas, datos: entrada.datos,
+                },
+            };
+            nuevo.set(t.id, { entrada, nodo });
+            return nodo;
+        });
+        cacheNodos.current = nuevo;
+        return lista;
+    }, [tarjetas, seleccion, resaltadas, resultados, estados, corriendo, editando, problemas, versiones, columnasDe, tarjetasDeDatos]);   // eslint-disable-line react-hooks/exhaustive-deps
 
     const bordes = useMemo(() => flechas.map(e => {
         const lit = !!resaltadas && ((e.a === seleccion || resaltadas.abajo.has(e.a)) && (e.de === seleccion || resaltadas.abajo.has(e.de))
@@ -515,18 +555,12 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
     const ponerParametro = (nombre, valor) => actualizar(l => ({ ...l, parametros: { ...(l.parametros || {}), [nombre]: valor } }));
 
     // El editor de Story Flow de un Chart, encima del lienzo.
-    const [graficoEnEdicion, setGraficoEnEdicion] = useState(null);
-    const [versiones, setVersiones] = useState({});
+
     const cerrarGrafico = () => {
         if (graficoEnEdicion) setVersiones(v => ({ ...v, [graficoEnEdicion]: (v[graficoEnEdicion] || 0) + 1 }));
         setGraficoEnEdicion(null);
     };
-    const columnasDe = useCallback((id) => {
-        const r = resultados[id];
-        if (r?.data?.[0]) return Object.keys(r.data[0]);
-        return lienzoRef.current?.tarjetas.find(t => t.id === id)?.foto?.columnas || [];
-    }, [resultados]);
-    const tarjetasDeDatos = useMemo(() => tarjetas.filter(t => DEJAN_VISTA.has(t.tipo)).map(t => t.id), [tarjetas]);
+
     const fotos = useMemo(() => tarjetas.filter(t => t.foto && !ejecuciones[t.id]), [tarjetas, ejecuciones]);
     const nuevaVisual = (tipo, desde, en = null) => anadir({ id: idLibre(tipo === 'chart' ? 'grafico' : 'cifra'), tipo, ...(desde ? { desde } : {}), ...(tipo === 'number' ? { cifra: { agregado: 'count' } } : {}) }, en);
     const seleccionDeDatos = seleccion && DEJAN_VISTA.has(tarjetas.find(t => t.id === seleccion)?.tipo) ? seleccion : null;
@@ -608,11 +642,18 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
         document.addEventListener('mousedown', fuera);
         return () => document.removeEventListener('mousedown', fuera);
     }, [menuMas, menuFuentes, menuConexion, menuExportar]);
+    // El contexto no cambia al ejecutar: las acciones van por referencia.
+    const acciones = useRef({});
+    acciones.current = { correr, cambiar, renombrar, redimensionar };
     const ctx = useMemo(() => ({
-        resultados, estados, corriendo, editando, setEditando, correr, cambiar, renombrar, redimensionar,
-        problemas, theme, editorSettings, sqlDe: sqlDeTarjeta,
-        editarGrafico: setGraficoEnEdicion, versionDeGrafico: (id) => versiones[id] || 0, columnasDe, tarjetasDeDatos,
-    }), [resultados, estados, corriendo, editando, correr, cambiar, renombrar, redimensionar, problemas, theme, editorSettings, versiones, columnasDe, tarjetasDeDatos]);
+        setEditando,
+        correr: (...x) => acciones.current.correr(...x),
+        cambiar: (...x) => acciones.current.cambiar(...x),
+        renombrar: (...x) => acciones.current.renombrar(...x),
+        redimensionar: (...x) => acciones.current.redimensionar(...x),
+        editarGrafico: setGraficoEnEdicion,
+        theme, editorSettings, sqlDe: sqlDeTarjeta,
+    }), [theme, editorSettings]);
 
     if (error) {
         return (
