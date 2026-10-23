@@ -17,7 +17,7 @@
  * verdad se monta sólo en la tarjeta que se está editando**; al salir, vuelve a
  * ser texto.
  */
-import { createContext, lazy, memo, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, memo, Suspense, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Handle, Position, NodeResizer } from '@xyflow/react';
 import {
     LuPlay, LuLoaderCircle, LuInbox, LuDatabase, LuStickyNote, LuType, LuFrame,
@@ -30,7 +30,9 @@ import MarkdownPreview from '../markdown/MarkdownPreview';
 // Story Flow sólo se carga si el lienzo tiene un gráfico.
 const DataVisualizer = lazy(() => import('../DataVisualizer'));
 
-export const LienzoCtx = createContext(null);
+import { LienzoCtx } from './contexto.js';
+
+export { LienzoCtx };
 
 const PALABRAS = /\b(SELECT|FROM|WHERE|GROUP|BY|ORDER|HAVING|LIMIT|JOIN|LEFT|RIGHT|INNER|FULL|OUTER|CROSS|ON|USING|AS|AND|OR|NOT|IN|IS|NULL|CASE|WHEN|THEN|ELSE|END|WITH|UNION|ALL|DISTINCT|BETWEEN|LIKE|ILIKE|DESC|ASC|QUALIFY|OVER|PARTITION|EXCLUDE|REPLACE)\b/gi;
 

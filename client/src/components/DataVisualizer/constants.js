@@ -460,7 +460,10 @@ export const DEFAULT_CONFIG = {
     /* `position` dice DÓNDE cae la cifra, y es una elección tuya, no algo que
        decida la maqueta: 'below' debajo del subtítulo (por defecto) o
        'header-right' a la derecha del título, en su misma línea. */
-    headline: { visible: true, metric: 'last', compareWith: 'previous', window: 'all', position: 'below', size: 'auto', customSize: 28 },
+    /* Apagado de fábrica (decisión del autor, 2026-10-23): una cifra grande encima
+       de CADA gráfico, con una comparación que no siempre significa algo, es ruido.
+       Quien la quiera la enciende en Story → Show Headline KPI. */
+    headline: { visible: false, metric: 'last', compareWith: 'previous', window: 'all', position: 'below', size: 'auto', customSize: 28 },
 
     // Composición de la tarjeta
     /* Apilado por defecto, y no 'auto'. Con auto la tarjeta se reorganizaba sola
