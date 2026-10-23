@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canvas de análisis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  /* Tokens copiados de client/src/index.css (tema obsidian), como en los demás mockups. */
+  --surface-base:    oklch(0.145 0.012 270);
+  --surface-raised:  oklch(0.175 0.014 270);
+  --surface-overlay: oklch(0.195 0.014 270);
+  --surface-inset:   oklch(0.160 0.013 270);
+  --border-subtle:  rgba(255,255,255,0.085);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong:  rgba(255,255,255,0.16);
+  --text-primary:   rgba(255,255,255,0.92);
+  --text-secondary: rgba(255,255,255,0.56);
+  --text-tertiary:  rgba(255,255,255,0.36);
+  --acc-l: 0.730; --acc-c: 0.155; --acc-h: 195;
+  --accent-primary: oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+  --accent-muted:  color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle: color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --accent-ink: oklch(0.145 0.012 270);
+  --hover-bg:  rgba(255,255,255,0.06);
+  --ok:   oklch(0.78 0.17 155);
+  --warn: oklch(0.80 0.14 70);
+  --err:  oklch(0.72 0.18 25);
+  --note: oklch(0.88 0.11 95);
+  --note-ink: oklch(0.30 0.05 90);
+  --syntax-keyword:  oklch(0.72 0.12 280);
+  --syntax-string:   oklch(0.76 0.10 70);
+  --syntax-function: oklch(0.80 0.09 200);
+  --sans: 'Manrope','Inter',system-ui,-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono: 'JetBrains Mono','Consolas','Courier New',monospace;
+  --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--surface-base);color:var(--text-primary);font-family:var(--sans);font-size:13px;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible{outline:2px solid var(--accent-primary);outline-offset:2px}
+svg.i{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+
+/* ── la barra de título de la app (abreviada) ── */
+.app{display:grid;grid-template-rows:38px 40px 1fr;height:100vh}
+.titulo{display:flex;align-items:center;gap:10px;padding:0 12px;border-bottom:1px solid var(--border-subtle);background:var(--surface-raised);font-size:12px;color:var(--text-secondary)}
+.titulo b{color:var(--text-primary);font-weight:600}
+.punto-ws{width:7px;height:7px;border-radius:50%;background:oklch(0.65 0.15 255)}
+.pestanas{display:flex;align-items:flex-end;gap:2px;margin-left:18px;height:100%}
+.pestana{padding:9px 14px 8px;border-radius:6px 6px 0 0;color:var(--text-secondary)}
+.pestana.on{background:var(--surface-base);color:var(--text-primary);box-shadow:inset 0 2px 0 var(--accent-primary)}
+
+/* ── la barra del lienzo: controles (parámetros) y acciones ── */
+.barra{display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--border-subtle);background:var(--surface-base)}
+.barra .nombre{font-weight:700;font-size:13px;margin-right:6px}
+.control{display:flex;align-items:center;gap:6px;height:26px;padding:0 8px;border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--surface-inset);font-size:12px}
+.control span{color:var(--text-tertiary);font-family:var(--mono);font-size:11px}
+.control b{font-weight:600}
+.sep{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:var(--radius-md);border:1px solid var(--border-default);color:var(--text-primary)}
+.btn:hover{background:var(--hover-bg)}
+.btn.prim{background:var(--accent-primary);color:var(--accent-ink);border-color:transparent;font-weight:700}
+.btn.prim:hover{filter:brightness(1.06)}
+.aviso-viejo{font-size:11px;color:var(--warn);display:flex;align-items:center;gap:5px}
+
+/* ── el lienzo ── */
+.lienzo{position:relative;overflow:hidden;background-color:var(--surface-base);
+  background-image:radial-gradient(rgba(255,255,255,0.07) 1px,transparent 1px);background-size:22px 22px;cursor:default}
+.lienzo.mano{cursor:grab}
+.mundo{position:absolute;left:0;top:0;transform-origin:0 0}
+svg.aristas{position:absolute;left:0;top:0;width:3000px;height:2000px;overflow:visible;pointer-events:none}
+.arista{fill:none;stroke:var(--border-strong);stroke-width:1.6}
+.arista.lit{stroke:var(--accent-primary);stroke-width:2}
+.arista.fantasma{stroke:var(--accent-primary);stroke-dasharray:5 5}
+.etq{font-family:var(--mono);font-size:10.5px;fill:var(--text-secondary)}
+.etq-bg{fill:var(--surface-base);stroke:var(--border-default);rx:4}
+.etq.lit{fill:var(--accent-primary)}
+
+/* marcos */
+.marco{position:absolute;border:1px solid color-mix(in oklch, var(--accent-primary) 30%, transparent);background:color-mix(in oklch, var(--accent-primary) 4%, transparent);border-radius:var(--radius-xl)}
+.marco h3{margin:0;position:absolute;top:-24px;left:2px;font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--accent-primary);display:flex;align-items:center;gap:6px}
+
+/* tarjetas */
+.tarjeta{position:absolute;background:var(--surface-raised);border:1px solid var(--border-default);border-radius:var(--radius-lg);box-shadow:0 6px 18px rgba(0,0,0,.28);display:flex;flex-direction:column;overflow:hidden}
+.tarjeta.sel{border-color:var(--accent-primary);box-shadow:0 0 0 1px var(--accent-primary),0 8px 22px rgba(0,0,0,.35)}
+.tarjeta.lit{border-color:color-mix(in oklch, var(--accent-primary) 55%, transparent)}
+.tarjeta.apagada{opacity:.45}
+.cab{display:flex;align-items:center;gap:7px;padding:7px 10px;border-bottom:1px solid var(--border-subtle);cursor:grab;user-select:none}
+.cab:active{cursor:grabbing}
+.cab .nom{font-family:var(--mono);font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cab .tipo{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-tertiary)}
+.cab .sp{flex:1}
+.est{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.est.dia{background:var(--ok)}.est.vieja{background:var(--warn)}.est.nunca{background:var(--text-tertiary)}
+.chip{font-size:10.5px;padding:1px 6px;border-radius:999px;border:1px solid var(--border-default);color:var(--text-secondary);display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.chip.vieja{color:var(--warn);border-color:color-mix(in oklch,var(--warn) 40%,transparent)}
+.cuerpo{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.sql{margin:0;padding:8px 10px;font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--text-primary);background:var(--surface-inset);border-bottom:1px solid var(--border-subtle);white-space:pre-wrap}
+.kw{color:var(--syntax-keyword)}.st{color:var(--syntax-string)}.fn{color:var(--syntax-function)}
+table.res{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums}
+table.res th{text-align:left;font-weight:600;color:var(--text-secondary);padding:5px 10px;border-bottom:1px solid var(--border-subtle);font-size:10.5px}
+table.res td{padding:4px 10px;border-bottom:1px solid var(--border-subtle);white-space:nowrap}
+table.res td.n{text-align:right}
+.barrita{display:inline-block;height:9px;border-radius:2px;background:var(--accent-muted);vertical-align:middle;margin-right:6px}
+.pie{display:flex;align-items:center;gap:8px;padding:5px 10px;font-size:10.5px;color:var(--text-tertiary);border-top:1px solid var(--border-subtle);margin-top:auto}
+.asas{position:absolute;right:-6px;top:50%;width:11px;height:11px;margin-top:-5px;border-radius:50%;background:var(--surface-base);border:2px solid var(--accent-primary);opacity:0;transition:opacity .12s}
+.entrada{left:-6px;right:auto;border-color:var(--border-strong)}
+.tarjeta:hover .asas,.tarjeta.sel .asas{opacity:1}
+.fuente-meta{padding:10px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-secondary)}
+.fuente-meta code{font-family:var(--mono);color:var(--text-primary);font-size:11.5px}
+.contrato{color:var(--ok);display:flex;align-items:center;gap:5px}
+.cifra{padding:12px 14px 6px}
+.cifra .v{font-size:30px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.cifra .l{color:var(--text-secondary);font-size:12px;margin-top:2px}
+.cifra .d{margin-top:8px;font-size:12px;color:var(--ok);display:flex;align-items:center;gap:4px}
+.nota{background:var(--note);color:var(--note-ink);border:0;border-radius:3px;box-shadow:0 8px 18px rgba(0,0,0,.3);transform:rotate(-1.2deg)}
+.nota .cab{border:0;padding:6px 10px 0}
+.nota p{margin:0;padding:6px 12px 12px;font-size:14px;font-weight:600;line-height:1.35}
+.texto{background:transparent;border:0;box-shadow:none}
+.texto h2{margin:0 0 6px;font-size:22px;font-weight:800;letter-spacing:-.01em;text-wrap:balance}
+.texto p{margin:0;color:var(--text-secondary);font-size:13px;line-height:1.5;max-width:58ch}
+.texto .cab{display:none}
+
+/* la barra de herramientas de la izquierda */
+.herr{position:absolute;left:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:2px;padding:5px;border-radius:var(--radius-xl);background:var(--surface-overlay);border:1px solid var(--border-default);box-shadow:0 8px 24px rgba(0,0,0,.35);z-index:5}
+.herr button{width:34px;height:34px;border-radius:var(--radius-md);display:grid;place-items:center;color:var(--text-secondary);position:relative}
+.herr button:hover{background:var(--hover-bg);color:var(--text-primary)}
+.herr button.on{background:var(--accent-muted);color:var(--accent-primary)}
+.herr hr{border:0;border-top:1px solid var(--border-subtle);margin:4px 3px}
+.herr button[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:42px;top:50%;transform:translateY(-50%);white-space:nowrap;background:var(--surface-overlay);border:1px solid var(--border-default);padding:3px 8px;border-radius:5px;font-size:11.5px;color:var(--text-primary)}
+
+/* el menú al soltar una conexión en un hueco */
+.menu-con{position:absolute;width:210px;background:var(--surface-overlay);border:1px solid var(--border-default);border-radius:var(--radius-lg);box-shadow:0 12px 30px rgba(0,0,0,.45);padding:5px;z-index:6}
+.menu-con h4{margin:4px 8px 6px;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--text-tertiary);font-weight:600}
+.menu-con button{display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;border-radius:5px;text-align:left;font-size:12.5px}
+.menu-con button:hover{background:var(--hover-bg)}
+.menu-con small{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--text-tertiary)}
+
+/* zoom y minimapa */
+.esquina{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;align-items:flex-end;gap:8px;z-index:5}
+.mini{width:180px;height:110px;border-radius:var(--radius-md);background:var(--surface-overlay);border:1px solid var(--border-default);position:relative;overflow:hidden}
+.mini i{position:absolute;background:var(--border-strong);border-radius:1px}
+.mini i.f{background:transparent;border:1px solid color-mix(in oklch, var(--accent-primary) 50%, transparent)}
+.mini .vista{position:absolute;border:1.5px solid var(--accent-primary);border-radius:2px}
+.zoom{display:flex;align-items:center;gap:2px;background:var(--surface-overlay);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:2px}
+.zoom button{width:26px;height:24px;border-radius:4px}
+.zoom button:hover{background:var(--hover-bg)}
+.zoom span{min-width:44px;text-align:center;font-size:12px;font-variant-numeric:tabular-nums;color:var(--text-secondary)}
+
+/* el panel de linaje (al seleccionar) */
+.linaje{position:absolute;left:62px;bottom:12px;z-index:5;background:var(--surface-overlay);border:1px solid var(--border-default);border-radius:var(--radius-lg);padding:8px 12px;font-size:12px;display:flex;gap:14px;align-items:center;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:calc(100% - 300px)}
+.linaje b{font-family:var(--mono);font-weight:600}
+.linaje .k{color:var(--text-tertiary);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;margin-right:4px}
+.linaje code{font-family:var(--mono);font-size:11.5px;color:var(--accent-primary)}
+
+/* la leyenda del mockup (no es parte de la app) */
+.leyenda{position:fixed;right:12px;top:90px;width:300px;background:var(--surface-overlay);border:1px dashed var(--border-strong);border-radius:var(--radius-lg);padding:12px 14px;font-size:12px;line-height:1.5;color:var(--text-secondary);z-index:9}
+.leyenda h5{margin:0 0 6px;color:var(--text-primary);font-size:12px}
+.leyenda ol{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px}
+.leyenda b{color:var(--text-primary)}
+.leyenda .cerrar{position:absolute;right:8px;top:6px;color:var(--text-tertiary)}
+/* ventanas estrechas: la barra no se parte y la leyenda se recoge */
+.barra,.btn,.control,.aviso-viejo{white-space:nowrap}
+.barra{overflow:hidden}
+.leyenda{max-height:calc(100vh - 110px);overflow:auto}
+@media (max-width:1150px){.aviso-viejo{display:none}.leyenda{width:240px;font-size:11.5px}}
+@media (max-width:820px){.barra .control:nth-of-type(n+3){display:none}.leyenda{display:none}}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="titulo">
+    <span class="punto-ws"></span><span>Cliente Norte</span><span>/</span><b>cierre-mensual</b>
+    <div class="pestanas">
+      <div class="pestana">cierre.sqlchain</div>
+      <div class="pestana on">octubre.amoxcanvas</div>
+      <div class="pestana">analisis.sqlnb</div>
+    </div>
+  </div>
+
+  <div class="barra">
+    <span class="nombre">Ventas de octubre</span>
+    <div class="control" title="Parameter {{desde}}"><span>desde</span><b>2026-10-01</b></div>
+    <div class="control" title="Parameter {{hasta}}"><span>hasta</span><b>2026-10-31</b></div>
+    <div class="control" title="Parameter {{tienda}}"><span>tienda</span><b>All</b>
+      <svg class="i" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="m6 9 6 6 6-6"/></svg></div>
+    <div class="sep"></div>
+    <span class="aviso-viejo" id="avisoViejo"><svg class="i" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>2 cards stale · as of today 09:14</span>
+    <button class="btn" id="refrescar"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 15.4-6.4L21 8"/><path d="M21 3v5h-5"/></svg>Refresh all</button>
+    <button class="btn"><svg class="i" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Present</button>
+    <button class="btn prim"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Export</button>
+  </div>
+
+  <div class="lienzo" id="lienzo">
+    <div class="mundo" id="mundo">
+      <svg class="aristas" id="aristas"></svg>
+
+      <div class="marco" id="marco-tienda" style="left:900px;top:70px;width:640px;height:420px">
+        <h3><svg class="i" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3"/></svg>Por tienda</h3>
+      </div>
+      <div class="marco" id="marco-dia" style="left:900px;top:560px;width:640px;height:330px">
+        <h3><svg class="i" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3"/></svg>Día a día</h3>
+      </div>
+    </div>
+
+    <div class="herr" role="toolbar" aria-label="Canvas tools">
+      <button class="on" data-tip="Select (V)" data-herr="sel"><svg class="i" viewBox="0 0 24 24"><path d="m4 4 7 17 2.5-7.5L21 11z"/></svg></button>
+      <button data-tip="Pan (H)" data-herr="mano"><svg class="i" viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8a8 8 0 0 0 16 0v-3a2 2 0 0 0-4 0"/></svg></button>
+      <hr>
+      <button data-tip="Source — a named source, a file or a table"><svg class="i" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/></svg></button>
+      <button data-tip="Query (Q)"><svg class="i" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></button>
+      <button data-tip="Chart (C)"><svg class="i" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg></button>
+      <button data-tip="Number (N)"><svg class="i" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg></button>
+      <hr>
+      <button data-tip="Note (S)"><svg class="i" viewBox="0 0 24 24"><path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z"/><path d="M15 3v6h6"/></svg></button>
+      <button data-tip="Text (T)"><svg class="i" viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg></button>
+      <button data-tip="Frame (F)"><svg class="i" viewBox="0 0 24 24"><path d="M22 6H2M22 18H2M6 2v20M18 2v20"/></svg></button>
+    </div>
+
+    <div class="linaje" id="linaje">
+      <span><span class="k">Selected</span><b id="lSel">—</b></span>
+      <span><span class="k">Reads</span><span id="lLee">—</span></span>
+      <span><span class="k">Read by</span><span id="lLeen">—</span></span>
+    </div>
+
+    <div class="esquina">
+      <div class="mini" id="mini"></div>
+      <div class="zoom">
+        <button id="zMenos" aria-label="Zoom out">−</button>
+        <span id="zVal">81%</span>
+        <button id="zMas" aria-label="Zoom in">+</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<aside class="leyenda" id="leyenda">
+  <button class="cerrar" onclick="this.parentNode.remove()" aria-label="Close">×</button>
+  <h5>Mockup del lienzo (5.15) — qué mirar</h5>
+  <ol>
+    <li><b>Las flechas no se dibujan</b>: salen de lo que lee cada consulta. Arrastra una tarjeta y se mueven con ella.</li>
+    <li><b>Haz clic en una tarjeta</b>: se resalta lo que lee y lo que la lee (abajo a la izquierda).</li>
+    <li>Cada tarjeta deja <b>una vista con su nombre</b>; la etiqueta de la flecha se deduce del SQL («by tienda», «+ metas»).</li>
+    <li><code>avance</code> lee <b>otro proyecto</b> del workspace, en sólo lectura (5.14).</li>
+    <li>El menú a la derecha de <code>por_tienda</code> es lo que sale al <b>soltar una conexión en un hueco</b>: escribe el SQL de la consulta nueva.</li>
+    <li><b>Refresh all</b> recalcula lo desactualizado (punto naranja).</li>
+    <li>Cada marco es una diapositiva al presentar o al exportar a Report Flow.</li>
+  </ol>
+</aside>
+
+<script>
+// ── Los datos del mockup: las tarjetas y lo que lee cada una ─────────────────
+const T = [
+  { id:'titulo', tipo:'texto', x:40, y:-10, w:520, h:110,
+    html:`<h2>¿Por qué cayó el Sur en octubre?</h2><p>De la fuente del cliente a dos ramas: por tienda y día a día. La nota de abajo es la hipótesis que hay que comprobar.</p>` },
+  { id:'ventas', tipo:'source', x:40, y:150, w:230, h:150, lee:[], est:'dia',
+    html:`<div class="fuente-meta"><code>fuentes."ventas"</code><span>ventas_oct.xlsx · Hoja1 · A4:F</span><span>1,240 rows · updated today 07:02</span><span class="contrato"><svg class="i" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="M20 6 9 17l-5-5"/></svg>Contract OK</span></div>` },
+  { id:'ventas_limpias', tipo:'query', x:500, y:120, w:360, h:250, lee:['ventas'], est:'dia',
+    etq:{ ventas:`where estado <> 'devuelto'` },
+    html:`<pre class="sql"><span class="kw">SELECT</span> * <span class="kw">FROM</span> fuentes."ventas"
+<span class="kw">WHERE</span> estado &lt;&gt; <span class="st">'devuelto'</span>
+  <span class="kw">AND</span> fecha <span class="kw">BETWEEN</span> {{desde}} <span class="kw">AND</span> {{hasta}}</pre>
+<table class="res"><tr><th>folio</th><th>tienda</th><th>fecha</th><th>importe</th></tr>
+<tr><td>1042</td><td>norte</td><td>10-01</td><td class="n">120.50</td></tr>
+<tr><td>1043</td><td>sur</td><td>10-01</td><td class="n">80.00</td></tr>
+<tr><td>1044</td><td>este</td><td>10-02</td><td class="n">55.30</td></tr></table>
+<div class="pie">1,187 rows · 38 ms<span style="margin-left:auto">view</span></div>` },
+  { id:'por_tienda', tipo:'query', x:930, y:110, w:300, h:230, lee:['ventas_limpias'], est:'vieja', marco:'marco-tienda',
+    etq:{ ventas_limpias:'by tienda' },
+    html:`<pre class="sql"><span class="kw">SELECT</span> tienda, <span class="fn">sum</span>(importe) <span class="kw">AS</span> venta
+<span class="kw">FROM</span> ventas_limpias <span class="kw">GROUP BY</span> tienda</pre>
+<table class="res"><tr><th>tienda</th><th style="text-align:right">venta</th></tr>
+<tr><td><span class="barrita" style="width:70px"></span>norte</td><td class="n">10,450</td></tr>
+<tr><td><span class="barrita" style="width:52px"></span>este</td><td class="n">7,960</td></tr>
+<tr><td><span class="barrita" style="width:31px"></span>sur</td><td class="n">4,397</td></tr></table>
+<div class="pie"><span class="chip vieja">edited</span>3 rows<span style="margin-left:auto">view</span></div>` },
+  { id:'metas', tipo:'source', x:930, y:370, w:300, h:100, lee:[], est:'dia', marco:'marco-tienda',
+    html:`<div class="fuente-meta"><code>"cierre_norte".main.metas</code><span>From the project cierre-norte · read-only</span></div>` },
+  { id:'avance', tipo:'query', x:1270, y:200, w:250, h:200, lee:['por_tienda','metas'], est:'vieja', marco:'marco-tienda',
+    etq:{ metas:'+ metas' },
+    html:`<table class="res"><tr><th>tienda</th><th style="text-align:right">vs meta</th></tr>
+<tr><td>norte</td><td class="n" style="color:var(--ok)">104%</td></tr>
+<tr><td>este</td><td class="n" style="color:var(--ok)">99%</td></tr>
+<tr><td>sur</td><td class="n" style="color:var(--err)">73%</td></tr></table>
+<div class="pie">result only · <span style="font-family:var(--mono)">avance</span><span style="margin-left:auto">view</span></div>` },
+  { id:'por_dia', tipo:'query', x:500, y:600, w:300, h:160, lee:['ventas_limpias'], est:'dia',
+    etq:{ ventas_limpias:'by fecha, tienda' },
+    html:`<pre class="sql"><span class="kw">SELECT</span> fecha, tienda, <span class="fn">sum</span>(importe) <span class="kw">AS</span> venta
+<span class="kw">FROM</span> ventas_limpias
+<span class="kw">GROUP BY ALL</span></pre><div class="pie">93 rows · code only<span style="margin-left:auto">view</span></div>` },
+  { id:'linea', tipo:'chart', x:930, y:600, w:380, h:270, lee:['por_dia'], est:'dia', marco:'marco-dia', nombre:'Venta diaria por tienda',
+    html:`<svg viewBox="0 0 360 200" style="width:100%;height:100%;padding:8px 10px 4px">
+      <g stroke="rgba(255,255,255,.07)"><line x1="34" y1="20" x2="350" y2="20"/><line x1="34" y1="70" x2="350" y2="70"/><line x1="34" y1="120" x2="350" y2="120"/><line x1="34" y1="170" x2="350" y2="170"/></g>
+      <g font-family="JetBrains Mono" font-size="9" fill="rgba(255,255,255,.4)"><text x="4" y="23">600</text><text x="4" y="73">400</text><text x="4" y="123">200</text><text x="12" y="173">0</text>
+      <text x="34" y="190">10-01</text><text x="150" y="190">10-11</text><text x="266" y="190">10-21</text></g>
+      <polyline fill="none" stroke="oklch(0.73 0.155 195)" stroke-width="2" points="34,60 64,52 94,66 124,48 154,58 184,44 214,62 244,50 274,56 304,46 334,54 350,50"/>
+      <polyline fill="none" stroke="oklch(0.75 0.13 300)" stroke-width="2" points="34,90 64,96 94,88 124,94 154,86 184,98 214,92 244,88 274,96 304,90 334,94 350,90"/>
+      <polyline fill="none" stroke="oklch(0.78 0.14 60)" stroke-width="2.4" points="34,110 64,104 94,112 124,108 154,140 184,150 214,146 244,118 274,112 304,116 334,110 350,108"/>
+      <circle cx="184" cy="150" r="4" fill="oklch(0.78 0.14 60)"/>
+      <text x="190" y="164" font-family="Manrope" font-size="10" font-weight="700" fill="oklch(0.78 0.14 60)">sur · semana 3</text>
+    </svg>` },
+  { id:'total', tipo:'number', x:1340, y:600, w:180, h:140, lee:['ventas_limpias'], est:'dia', marco:'marco-dia', nombre:'Venta total',
+    html:`<div class="cifra"><div class="v">22,807</div><div class="l">Total sales · October</div><div class="d"><svg class="i" viewBox="0 0 24 24" style="width:13px;height:13px"><path d="m7 7 10 10M17 7v10H7"/></svg>−6.2% vs September</div></div>` },
+  { id:'nota', tipo:'note', x:1350, y:770, w:180, h:110, lee:[],
+    html:`<p>El Sur cayó la semana 3: ¿devoluciones o la tienda cerrada?</p>` },
+];
+
+const mundo = document.getElementById('mundo');
+const svg = document.getElementById('aristas');
+const porId = Object.fromEntries(T.map(t => [t.id, t]));
+const ICONOS = {
+  source:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.7 1.1z"/>',
+  query:'<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/>',
+  chart:'<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+  number:'<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
+  note:'<path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8.5z"/>',
+};
+const TIPO = { source:'Source', query:'Query', chart:'Chart', number:'Number', note:'Note' };
+
+for (const t of T) {
+  const el = document.createElement('div');
+  el.className = `tarjeta${t.tipo === 'note' ? ' nota' : ''}${t.tipo === 'texto' ? ' texto' : ''}`;
+  el.id = `t-${t.id}`;
+  Object.assign(el.style, { left:`${t.x}px`, top:`${t.y}px`, width:`${t.w}px`, height:`${t.h}px` });
+  const titulo = t.nombre || t.id;
+  el.innerHTML = `
+    <div class="cab">
+      ${t.est ? `<span class="est ${t.est}" title="${t.est === 'vieja' ? 'Edited after it ran' : 'Up to date'}"></span>` : ''}
+      ${ICONOS[t.tipo] ? `<svg class="i" viewBox="0 0 24 24" style="width:13px;height:13px;color:var(--text-secondary)">${ICONOS[t.tipo]}</svg>` : ''}
+      <span class="nom" ${t.nombre ? 'style="font-family:var(--sans)"' : ''}>${titulo}</span>
+      <span class="sp"></span><span class="tipo">${TIPO[t.tipo] || ''}</span>
+    </div>
+    <div class="cuerpo">${t.html}</div>
+    ${['source','query'].includes(t.tipo) ? '<span class="asas" title="Drag to a gap: a new card that reads this one"></span>' : ''}
+    ${t.lee?.length ? '<span class="asas entrada"></span>' : ''}`;
+  mundo.appendChild(el);
+  t.el = el;
+}
+
+// El menú que sale al soltar una conexión en un hueco (Dec-56): escribe el SQL.
+const menu = document.createElement('div');
+menu.className = 'menu-con';
+menu.style.left = '1290px'; menu.style.top = '-40px';
+menu.innerHTML = `<h4>New card reading por_tienda</h4>
+  <button><svg class="i" viewBox="0 0 24 24"><path d="M22 3H2l8 9.5V19l4 2v-8.5z"/></svg>Filter…<small>WHERE</small></button>
+  <button><svg class="i" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>Group by…<small>GROUP BY</small></button>
+  <button><svg class="i" viewBox="0 0 24 24"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg>Join with…<small>JOIN</small></button>
+  <button><svg class="i" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/></svg>Empty query<small>SELECT *</small></button>
+  <button><svg class="i" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Chart</button>
+  <button><svg class="i" viewBox="0 0 24 24"><path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/></svg>Number</button>`;
+mundo.appendChild(menu);
+
+// ── Las aristas: de lo que lee cada tarjeta, nunca dibujadas a mano ─────────
+let seleccion = null;
+function familia(id) {
+  const arriba = new Set(), abajo = new Set();
+  const subir = (x) => (porId[x].lee || []).forEach(p => { if (!arriba.has(p)) { arriba.add(p); subir(p); } });
+  const bajar = (x) => T.filter(t => t.lee?.includes(x)).forEach(h => { if (!abajo.has(h.id)) { abajo.add(h.id); bajar(h.id); } });
+  subir(id); bajar(id);
+  return { arriba, abajo };
+}
+function pintar() {
+  const fam = seleccion ? familia(seleccion) : null;
+  let s = '';
+  for (const t of T) for (const p of (t.lee || [])) {
+    const a = porId[p], b = t;
+    const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
+    const dx = Math.max(60, (x2 - x1) / 2);
+    const d = `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+    const lit = fam && ((fam.arriba.has(p) || p === seleccion) && (b.id === seleccion || fam.arriba.has(b.id))
+      || (fam.abajo.has(b.id) && (p === seleccion || fam.abajo.has(p))));
+    s += `<path class="arista${lit ? ' lit' : ''}" d="${d}"/>`;
+    const etq = b.etq?.[p];
+    if (etq) {
+      const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, w = etq.length * 6.3 + 14;
+      s += `<rect class="etq-bg" x="${mx - w / 2}" y="${my - 10}" width="${w}" height="19" rx="4"/><text class="etq${lit ? ' lit' : ''}" x="${mx}" y="${my + 3.5}" text-anchor="middle">${etq}</text>`;
+    }
+  }
+  // La conexión fantasma: por_tienda → el menú.
+  const pt = porId.por_tienda;
+  s += `<path class="arista fantasma" d="M${pt.x + pt.w},${pt.y + 60} C${pt.x + pt.w + 30},${pt.y + 60} 1262,-10 1288,-10"/>`;
+  svg.innerHTML = s;
+  for (const t of T) {
+    t.el.classList.toggle('sel', t.id === seleccion);
+    t.el.classList.toggle('lit', !!fam && (fam.arriba.has(t.id) || fam.abajo.has(t.id)));
+  }
+  pintarMini();
+}
+
+// ── Arrastrar tarjetas; seleccionar resalta el linaje ────────────────────────
+let zoom = 0.7, px = 70, py = 90, herr = 'sel';
+const aplicar = () => { mundo.style.transform = `translate(${px}px,${py}px) scale(${zoom})`; document.getElementById('zVal').textContent = `${Math.round(zoom * 100)}%`; pintarMini(); };
+for (const t of T) {
+  const cab = t.el.querySelector('.cab') || t.el;
+  t.el.addEventListener('pointerdown', (e) => {
+    if (herr !== 'sel') return;
+    e.stopPropagation();
+    elegir(t.id);
+    if (!e.target.closest('.cab') && t.tipo !== 'note' && t.tipo !== 'texto') return;
+    const ox = e.clientX, oy = e.clientY, x0 = t.x, y0 = t.y;
+    const mover = (ev) => { t.x = x0 + (ev.clientX - ox) / zoom; t.y = y0 + (ev.clientY - oy) / zoom; t.el.style.left = `${t.x}px`; t.el.style.top = `${t.y}px`; pintar(); };
+    const soltar = () => { removeEventListener('pointermove', mover); removeEventListener('pointerup', soltar); };
+    addEventListener('pointermove', mover); addEventListener('pointerup', soltar);
+  });
+}
+function elegir(id) {
+  seleccion = id;
+  const t = porId[id];
+  document.getElementById('lSel').textContent = t ? (t.nombre || t.id) : '—';
+  const fam = t ? familia(id) : null;
+  const lista = (s) => s.size ? [...s].map(x => `<code>${porId[x].nombre || x}</code>`).join(', ') : '<span style="color:var(--text-tertiary)">nothing</span>';
+  document.getElementById('lLee').innerHTML = fam ? lista(fam.arriba) : '—';
+  document.getElementById('lLeen').innerHTML = fam ? lista(fam.abajo) : '—';
+  pintar();
+}
+
+// ── Desplazar y hacer zoom ───────────────────────────────────────────────────
+const lienzo = document.getElementById('lienzo');
+lienzo.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.herr,.esquina,.linaje,.menu-con')) return;
+  elegir(null);
+  const ox = e.clientX, oy = e.clientY, x0 = px, y0 = py;
+  const mover = (ev) => { px = x0 + ev.clientX - ox; py = y0 + ev.clientY - oy; aplicar(); };
+  const soltar = () => { removeEventListener('pointermove', mover); removeEventListener('pointerup', soltar); };
+  addEventListener('pointermove', mover); addEventListener('pointerup', soltar);
+});
+lienzo.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const r = lienzo.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
+  const z = Math.min(1.6, Math.max(0.35, zoom * (e.deltaY < 0 ? 1.08 : 1 / 1.08)));
+  px = mx - (mx - px) * (z / zoom); py = my - (my - py) * (z / zoom); zoom = z; aplicar();
+}, { passive: false });
+document.getElementById('zMas').onclick = () => { zoom = Math.min(1.6, zoom * 1.15); aplicar(); };
+document.getElementById('zMenos').onclick = () => { zoom = Math.max(0.35, zoom / 1.15); aplicar(); };
+document.querySelectorAll('[data-herr]').forEach(b => b.onclick = () => {
+  herr = b.dataset.herr;
+  document.querySelectorAll('[data-herr]').forEach(x => x.classList.toggle('on', x === b));
+  lienzo.classList.toggle('mano', herr === 'mano');
+});
+
+// ── Refresh all: lo desactualizado vuelve a estar al día ────────────────────
+document.getElementById('refrescar').onclick = () => {
+  for (const t of T) if (t.est === 'vieja') {
+    t.est = 'dia';
+    t.el.querySelector('.est').className = 'est dia';
+    t.el.querySelector('.chip.vieja')?.remove();
+  }
+  document.getElementById('avisoViejo').innerHTML = '<span style="color:var(--ok)">All cards up to date · just now</span>';
+};
+
+// ── El minimapa ─────────────────────────────────────────────────────────────
+function pintarMini() {
+  const m = document.getElementById('mini');
+  const minX = -20, minY = -80, W = 1600, H = 1000, k = Math.min(180 / W, 110 / H);
+  let h = '';
+  for (const f of document.querySelectorAll('.marco')) h += `<i class="f" style="left:${(f.offsetLeft - minX) * k}px;top:${(f.offsetTop - minY) * k}px;width:${f.offsetWidth * k}px;height:${f.offsetHeight * k}px"></i>`;
+  for (const t of T) h += `<i style="left:${(t.x - minX) * k}px;top:${(t.y - minY) * k}px;width:${t.w * k}px;height:${t.h * k}px${t.tipo === 'note' ? ';background:var(--note)' : ''}"></i>`;
+  const r = lienzo.getBoundingClientRect();
+  h += `<div class="vista" style="left:${(-px / zoom - minX) * k}px;top:${(-py / zoom - minY) * k}px;width:${r.width / zoom * k}px;height:${r.height / zoom * k}px"></div>`;
+  m.innerHTML = h;
+}
+
+aplicar();
+elegir('por_tienda');
+</script>
+</body>
+</html>

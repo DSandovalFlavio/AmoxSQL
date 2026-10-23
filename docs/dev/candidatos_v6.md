@@ -127,7 +127,8 @@ resumen de cada ejecución y la 5.12 el linaje de dbt.
 |---|---|
 | **5.13.0** · Flujos fiables | E2+E3 (contrato y reglas de la fuente), E1 reducida (medidas como macros), H1 (lo de fondo con límites), J10 (reintentos), F4 (la fecha de los datos). Plan: [`plan_5_13_flujos_fiables.md`](plan_5_13_flujos_fiables.md) |
 | **5.14.0** · El día a día | F5 (retomar), G2+G3 (proyecto desde plantilla y exportar sin datos), G1 reducida (el nivel del workspace), F3 reducida (comparar con la entrega anterior), J6 (cuaderno limpio), J9 (diff legible de procesos), J1 (mirar otro proyecto en sólo lectura). Plan: [`plan_5_14_el_dia_a_dia.md`](plan_5_14_el_dia_a_dia.md) |
-| **6.0.0** | **Una funcionalidad nueva: un lienzo para el análisis de datos** (como una pizarra infinita, con datos vivos). Se plantea después de la 5.14.0. **Sin Python** |
+| **5.15.0** · El lienzo | **Una funcionalidad nueva: un lienzo para el análisis de datos** (fuentes, consultas, gráficos, cifras y notas conectadas; sin asistente). Plan: [`plan_5_15_lienzo.md`](plan_5_15_lienzo.md). **Sin Python** |
+| **6.0.0** | La subida del motor a **DuckDB 2.0**, cuando tenga cliente para Node (decisión del autor, 2026-10-22) |
 
 **Lo que se quita, y por qué:**
 
