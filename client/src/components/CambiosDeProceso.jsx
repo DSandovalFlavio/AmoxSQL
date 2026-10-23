@@ -45,7 +45,13 @@ export function CambiosDeProceso({ ruta, antes = 'HEAD', despues = 'disco' }) {
 
     if (error) return <p className="cdp-error"><LuTriangleAlert size={13} /> {error}</p>;
     if (!d) return <p className="cdp-nada">Reading the two versions…</p>;
-    if (d.igual) return <p className="cdp-nada">{d.nuevo ? 'This process is not in any commit yet, and it is empty.' : 'Nothing changed in the process (moving steps on the canvas does not count).'}</p>;
+    // 5.15: también un Canvas; cambian las palabras, no la forma.
+    const lienzo = /\.amoxcanvas$/i.test(ruta);
+    if (d.igual) {
+        return <p className="cdp-nada">{d.nuevo
+            ? `This ${lienzo ? 'canvas' : 'process'} is not in any commit yet, and it is empty.`
+            : lienzo ? 'Nothing changed in the canvas (moving cards and their snapshots do not count).' : 'Nothing changed in the process (moving steps on the canvas does not count).'}</p>;
+    }
 
     const { nodos, conexiones, parametros, variables, proceso } = d;
     return (
@@ -54,13 +60,13 @@ export function CambiosDeProceso({ ruta, antes = 'HEAD', despues = 'disco' }) {
             {d.borrado && <p className="cdp-nota">The file was deleted.</p>}
             {proceso.length > 0 && (
                 <section>
-                    <h4 className="cdp-h"><LuSlidersHorizontal size={12} /> Process</h4>
+                    <h4 className="cdp-h"><LuSlidersHorizontal size={12} /> {lienzo ? 'Canvas' : 'Process'}</h4>
                     <ul className="cdp-campos">{proceso.map((c, i) => <Campo key={i} c={c} />)}</ul>
                 </section>
             )}
             {(nodos.anadidos.length + nodos.quitados.length + nodos.cambiados.length) > 0 && (
                 <section>
-                    <h4 className="cdp-h">Steps</h4>
+                    <h4 className="cdp-h">{lienzo ? 'Cards' : 'Steps'}</h4>
                     <ul className="cdp-lista">
                         {nodos.anadidos.map(n => <li key={`a${n.id}`} className="cdp-paso cdp-paso--mas"><LuPlus size={12} /> <strong>{n.etiqueta}</strong> <small>{n.tipo} · added</small></li>)}
                         {nodos.quitados.map(n => <li key={`q${n.id}`} className="cdp-paso cdp-paso--menos"><LuMinus size={12} /> <strong>{n.etiqueta}</strong> <small>{n.tipo} · removed</small></li>)}
@@ -107,7 +113,7 @@ export default function VentanaCambiosDeProceso({ ruta, onClose }) {
                     <div className="ww-header-icon"><LuGitCompareArrows size={20} /></div>
                     <div className="ww-header-text">
                         <h2 className="ww-title" id="cdp-titulo">What changed</h2>
-                        <p className="ww-subtitle">This process as it is now, against its last commit.</p>
+                        <p className="ww-subtitle">{/\.amoxcanvas$/i.test(ruta || '') ? 'This canvas' : 'This process'} as it is now, against its last commit.</p>
                     </div>
                     <button className="ww-close-btn" type="button" onClick={onClose} title="Close"><LuX size={16} /></button>
                 </div>

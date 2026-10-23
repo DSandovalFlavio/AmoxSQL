@@ -144,6 +144,54 @@ try {
     comprobar('sin tarjeta que enseñar, nada', g.sqlDeVisual({ tipo: 'chart' }) === '');
     comprobar('lo que lee: la suya y la de comparar', g.leeVisual({ tipo: 'number', desde: 'oct', cifra: { comparar: 'sep' } }).join() === 'oct,sep');
 
+    console.log('\nlo que sale del lienzo (fase 3)');
+    const sal = await imp('client/src/components/lienzo/salidas.js');
+    const conMarcos = {
+        ...leido,
+        tarjetas: [...leido.tarjetas,
+            { id: 'marco_b', tipo: 'frame', x: 380, y: 900, w: 600, h: 300, titulo: 'Segundo' },
+            { id: 'cifra', tipo: 'number', x: 400, y: 950, w: 200, h: 120, marco: 'marco_b', desde: 'ventas_limpias', cifra: { columna: 'importe', etiqueta: 'Venta' }, foto: { cuando: 'x', valor: 175 } },
+        ],
+    };
+    comprobar('los marcos, en orden de lectura', sal.marcosEnOrden(conMarcos).map(m => m.id).join() === 'trafico,marco_b');
+    comprobar('lo que tiene dentro un marco', sal.tarjetasDeMarco(conMarcos, 'trafico').map(t => t.id).join() === 'ventas_limpias');
+    comprobar('la rama hasta una tarjeta, en orden', sal.ramaHasta(leido, 'por_tienda').join() === 'ventas_src,ventas_limpias,por_tienda');
+    const auto = sal.sqlAutonomo(leido, 'por_tienda');
+    comprobar('el SQL autónomo lleva lo de arriba como CTE', auto.startsWith('WITH ventas_src AS (\nSELECT * FROM "ventas"\n),\nventas_limpias AS (') && auto.trim().endsWith('GROUP BY tienda'), auto);
+    comprobar('el de un gráfico, su lectura al final', sal.sqlAutonomo(leido, 'barras').trim().endsWith('SELECT * FROM "por_tienda"'));
+    comprobar('una nota no tiene SQL', sal.sqlAutonomo(leido, 'nota_1') === null);
+    const nb = sal.aCuaderno(leido);
+    const lc = await imp('client/src/utils/cuadernoFile.js');
+    const celdasNb = lc.leerCuaderno(nb).celdas;
+    const sqlNb = celdasNb.filter(c => c.tipo === 'sql').map(c => c.nombre);
+    comprobar('al cuaderno: las consultas en orden de dependencias, con su nombre', sqlNb.join() === 'ventas_src,ventas_limpias,por_tienda', JSON.stringify(sqlNb));
+    comprobar('y la nota como texto', celdasNb.some(c => c.tipo === 'texto' && c.contenido.includes('El Sur cayó la semana 3')));
+    const df = sal.aDataFlow({ ...leido, parametros: { desde: '2026-10-01' }, tarjetas: leido.tarjetas.map(t => (t.id === 'ventas_limpias' ? { ...t, sql: "SELECT * FROM ventas_src WHERE fecha >= '{{desde}}'" } : t)) }, 'por_tienda');
+    comprobar('a Data Flow: un paso por tarjeta, que deja su tabla', df.nodes.length === 3 && df.nodes[2].config.query.startsWith('CREATE OR REPLACE TABLE por_tienda AS') && df.edges.length === 2, JSON.stringify(df.nodes.map(n => n.config.query)));
+    comprobar('los parámetros pasan a ${x}, con su valor', df.nodes[1].config.query.includes("'${desde}'") && df.variables.desde === '2026-10-01', JSON.stringify(df.variables));
+    const deck = sal.planDeDeck(conMarcos, 'Ventas de octubre');
+    comprobar('a Report Flow: una lámina por marco', deck.laminas.length === 2 && deck.laminas[0].prose.startsWith('## Tráfico') && deck.laminas[1].prose.includes('**175** — Venta'), JSON.stringify(deck.laminas));
+    const conGrafico = { ...conMarcos, tarjetas: conMarcos.tarjetas.map(t => (t.id === 'barras' ? { ...t, marco: 'trafico' } : t)) };
+    const deck2 = sal.planDeDeck(conGrafico, 'Ventas de octubre');
+    comprobar('un gráfico del marco va con su .amoxvis autónomo', deck2.graficos.length === 1 && deck2.laminas[0].layout === 'chart-full' && JSON.parse(deck2.graficos[0].contenido).query.startsWith('WITH ventas_src AS'), JSON.stringify(deck2.graficos.map(x => x.archivo)));
+
+    console.log('\nel diff legible de un .amoxcanvas');
+    const dp = require(path.join(RAIZ, 'server/diffDeProcesos.js'));
+    const movido = JSON.parse(texto);
+    movido.tarjetas.forEach(t => { t.x += 40; if (t.foto) t.foto.cuando = 'otro'; t.modo = 'codigo'; });
+    comprobar('mover tarjetas, la foto o el modo de ver no son cambios', dp.diferenciasDeLienzo(texto, JSON.stringify(movido)).igual === true);
+    const v2 = JSON.parse(texto);
+    v2.tarjetas.find(t => t.id === 'por_tienda').sql = ['SELECT tienda, avg(importe) AS venta', 'FROM ventas_limpias', 'GROUP BY tienda'];
+    v2.tarjetas.push({ id: 'nueva', tipo: 'note', texto: 'hola' });
+    v2.tarjetas = v2.tarjetas.filter(t => t.id !== 'futuro');
+    v2.etiquetas = {};
+    v2.parametros.hasta = '2026-11-30';
+    const dl = dp.diferenciasDeLienzo(texto, JSON.stringify(v2));
+    comprobar('una tarjeta añadida y una quitada', dl.nodos.anadidos.map(n => n.id).join() === 'nueva' && dl.nodos.quitados.map(n => n.id).join() === 'futuro', JSON.stringify(dl.nodos));
+    comprobar('el SQL que cambió', dl.nodos.cambiados.find(n => n.id === 'por_tienda')?.campos.some(c => c.campo === 'sql'), JSON.stringify(dl.nodos.cambiados));
+    comprobar('la etiqueta escrita a mano y el parámetro', dl.proceso.some(c => c.campo.startsWith('label ventas_src→ventas_limpias')) && dl.variables.cambiadas[0]?.nombre === 'hasta', JSON.stringify([dl.proceso, dl.variables]));
+    comprobar('en líneas que se leen', dp.describir(dl).some(l => l.startsWith('por_tienda · sql:')), dp.describir(dl).join('\n'));
+
     // ── por el servidor ──
     console.log('\npor el motor');
     const { startServer } = require(path.join(RAIZ, 'server/index.js'));
@@ -156,6 +204,7 @@ try {
     await post('/api/query', { query: "CREATE TABLE ventas AS SELECT * FROM (VALUES (1,'norte',100,'ok'), (2,'sur',80,'devuelto'), (3,'sur',55,'ok'), (4,'norte',20,'ok')) t(folio, tienda, importe, estado)" });
     const porId = Object.fromEntries(leido.tarjetas.map(t => [t.id, t]));
     let ultimo = null;
+    let r;
     for (const id of g.ordenDeRefresco(leido).orden) {
         const t = porId[id];
         const sql = g.sqlDeTarjeta(t);
@@ -167,6 +216,30 @@ try {
     comprobar('las tarjetas dejan sus vistas en orden, y la última lee a las de arriba', !ultimo?.error && filas.norte === 120 && filas.sur === 55, JSON.stringify(ultimo));
     const vistas = await post('/api/query', { query: "SELECT view_name FROM duckdb_views() WHERE temporary AND view_name IN ('ventas_src','ventas_limpias','por_tienda') ORDER BY 1" });
     comprobar('son vistas temporales con el nombre de cada tarjeta', (vistas.data || []).map(v => v.view_name).join() === 'por_tienda,ventas_limpias,ventas_src', JSON.stringify(vistas));
+    console.log('\nlo que sale, ejecutado');
+    r = await post('/api/query', { query: sal.sqlAutonomo(leido, 'por_tienda') });
+    const autoFilas = Object.fromEntries((r.data || []).map(f => [f.tienda, Number(f.venta)]));
+    comprobar('el SQL autónomo corre solo, sin las vistas del lienzo', autoFilas.norte === 120 && autoFilas.sur === 55, JSON.stringify(r).slice(0, 300));
+    const { ejecutarProceso } = require(path.join(RAIZ, 'server/ejecucion/ejecutarProceso.js'));
+    const dbManager = require(path.join(RAIZ, 'server/DatabaseManager.js'));
+    const proc = sal.aDataFlow(leido, 'por_tienda');
+    proc.config = { base: 'proyecto' };
+    proc.nodes.push({ id: 'salida', type: 'export_file', label: 'Salida', position: { x: 1000, y: 120 }, config: { outputPath: 'salida/por_tienda.csv', format: 'csv' } });
+    proc.edges.push({ id: 'e_fin', source: proc.nodes[2].id, target: 'salida' });
+    const ej = await ejecutarProceso({ dbManager, chainDef: proc, proyecto: P, chainFile: 'rama.sqlchain', origen: 'interfaz' });
+    const csv = fs.existsSync(path.join(P, 'salida', 'por_tienda.csv')) ? fs.readFileSync(path.join(P, 'salida', 'por_tienda.csv'), 'utf8') : '';
+    comprobar('la rama, como proceso de Data Flow, corre y entrega', ej.status === 'completed' && /norte,120/.test(csv) && /sur,55/.test(csv), JSON.stringify(ej).slice(0, 300) + ' ' + csv);
+    // What changed de un .amoxcanvas, frente al último commit.
+    try {
+        const { execFileSync } = await import('node:child_process');
+        const git = (...x) => execFileSync('git', ['-C', P, ...x], { stdio: 'pipe' });
+        git('init', '-q'); git('config', 'user.email', 'ana@example.com'); git('config', 'user.name', 'Ana');
+        fs.writeFileSync(path.join(P, 'octubre.amoxcanvas'), texto);
+        git('add', 'octubre.amoxcanvas'); git('commit', '-q', '-m', 'canvas');
+        fs.writeFileSync(path.join(P, 'octubre.amoxcanvas'), JSON.stringify(v2, null, 2));
+        const cambios = await fetch(`http://localhost:${port}/api/procesos/cambios?ruta=octubre.amoxcanvas`).then(x => x.json());
+        comprobar('What changed de un canvas, frente al último commit', cambios.igual === false && cambios.nodos?.anadidos?.[0]?.id === 'nueva' && cambios.lineas?.length > 0, JSON.stringify(cambios).slice(0, 300));
+    } catch (e) { console.log('  (sin git: se salta)', e.message); }
     await baseCentral.cerrar();
 } catch (e) {
     fallos++;

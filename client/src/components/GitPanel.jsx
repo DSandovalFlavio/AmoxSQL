@@ -221,7 +221,7 @@ function GitPanel({ projectPath, onFileClick }) {
             const res = await fetch(`${API}/api/git/diff?file=${encodeURIComponent(file.path)}&staged=${!!staged}`);
             const data = await res.json();
             // 5.14 (J9): un proceso se lee en pasos; el texto queda a un clic.
-            setDiffModal({ file, diff: data.diff || '(no diff available)', staged, pasos: /\.sqlchain$/i.test(file.path) });
+            setDiffModal({ file, diff: data.diff || '(no diff available)', staged, pasos: /\.(sqlchain|amoxcanvas)$/i.test(file.path) });
         } catch { setError('Failed to load diff'); }
     }
 
@@ -539,7 +539,7 @@ function GitPanel({ projectPath, onFileClick }) {
                     <div className="git-diff-modal" onClick={e => e.stopPropagation()}>
                         <div className="git-diff-modal-header">
                             <span>{diffModal.file.path.split(/[/\\]/).pop()} — {diffModal.staged ? 'Staged' : 'Working Tree'} Diff</span>
-                            {/\.sqlchain$/i.test(diffModal.file.path) && (
+                            {/\.(sqlchain|amoxcanvas)$/i.test(diffModal.file.path) && (
                                 <span className="git-diff-vista">
                                     <button className={`cpe-pestana${diffModal.pasos ? ' cpe-pestana--on' : ''}`} onClick={() => setDiffModal(m => ({ ...m, pasos: true }))}>Steps</button>
                                     <button className={`cpe-pestana${!diffModal.pasos ? ' cpe-pestana--on' : ''}`} onClick={() => setDiffModal(m => ({ ...m, pasos: false }))}>Text</button>
