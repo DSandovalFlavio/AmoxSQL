@@ -282,10 +282,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(t.path)}`);
                         const data = await res.json();
                         if (data.error) return null;
+                        const tipo = t.type || tipoDePestana(t.path);
                         return {
                             id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
                             path: t.path,
                             name: t.name,
+                            // Un gráfico restaurado necesita su configuración leída
+                            // del archivo: sin ella abría «No query».
+                            ...(tipo === 'amoxvis' ? { initialChartConfig: leerAmoxvis(data.content) } : {}),
                             // Lo guardado manda, pero el descarte es la tabla y
                             // no `'sql'`: una pestaña guardada por una versión
                             // anterior a este cambio no trae `type`, y volvía

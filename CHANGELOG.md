@@ -5,6 +5,47 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [Unreleased] — 5.16 «Vega-Lite por dentro»
+
+Los gráficos de Story Flow se dibujan con **Vega-Lite** y el `.amoxvis` pasa a ser un
+Vega-Lite válido: un gráfico de AmoxSQL ya no queda encerrado en AmoxSQL. Plan en
+`docs/dev/plan_graficos_vega_lite.md`.
+
+### Nuevo
+
+- **El `.amoxvis` es Vega-Lite (v6).** Los datos llegan por nombre (`dataset`) y lo que
+  es de AmoxSQL —la consulta, el `.sql` de origen, el estado de los paneles— va en
+  `usermeta.amoxsql`, que el resto de herramientas ignora. El formato anterior se sigue
+  abriendo y se guarda en el nuevo. El mapa de rectángulos se guarda como spec de Vega.
+- **Paneles o código.** Un interruptor en la cabecera de Story Flow cambia la barra
+  lateral por un editor del Vega-Lite de la figura, con validación y autocompletado del
+  esquema. Al editar el código, el código manda; un error deja la última figura buena y
+  se explica debajo.
+- **Las capas de referencia funcionan en todos los gráficos con ejes**: meta, línea de
+  referencia, banda y anotaciones son capas de Vega-Lite; la tendencia se dibuja también
+  en dispersión y en barras horizontales.
+- La figura sigue al tema claro u oscuro y al acento al cambiarlos, sin recargar.
+
+### Arreglado
+
+- **La dispersión sumaba los puntos que compartían X** (100 filas se dibujaban como 41) y
+  el límite de 50 filas por defecto cortaba también series diarias y dispersiones; ahora
+  solo los rankings tienen límite.
+- **El mapa de calor** usa una escala divergente centrada en 0 cuando hay valores de los
+  dos signos.
+- Con la misma columna en X y en Y, la figura sumaba la X sobre sí misma; la Y por
+  defecto ya no repite la X.
+- Una pestaña de gráfico restaurada al abrir el proyecto salía «No query».
+
+### Interno
+
+- Recharts sale de Story Flow, del chat del asistente y de la galería (queda en el Data
+  Profiler). Las miniaturas de la galería salen directamente de Vega.
+- `scripts/probarGraficos.mjs` (71 comprobaciones): cada tipo, cada capa, la galería y
+  la ida y vuelta del archivo.
+
+---
+
 ## [5.15.1] — 2026-10-25
 
 Arreglos encontrados al documentar la 5.15 con un proyecto real, la documentación con capturas nuevas y un mockup de la página web (`docs/dev/sitio-web/`).

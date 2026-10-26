@@ -19,7 +19,7 @@ Las seis etapas son pestañas en la barra lateral del panel:
 5. **Story** — "Hazlo hablar." Título/subtítulo/takeaway, KPI destacado, anotaciones, líneas de meta/referencia, tendencia y foco (ver [Narrativa y overlays](storytelling-and-overlays.md)).
 6. **Export** — "Envíalo." PNG en varios tamaños, copiar al portapapeles y guardar la configuración como `.amoxvis` (ver [Exportar gráficos](exporting-charts.md)).
 
-La configuración de un gráfico se guarda como archivo **`.amoxvis`**, que **lleva su propia query** dentro. Por eso un `.amoxvis` puede volver a ejecutarse por sí solo (al abrirlo) o dentro de un deck de [Report Flow](../reports/report-flow.md), refrescando el gráfico con datos actuales sin rehacer el análisis.
+La figura se dibuja con **Vega-Lite**, la gramática de gráficos abierta, y se guarda como archivo **`.amoxvis`**: un Vega-Lite válido que **lleva su propia query** dentro. Por eso un `.amoxvis` puede volver a ejecutarse por sí solo (al abrirlo) o dentro de un deck de [Report Flow](../reports/report-flow.md), refrescando el gráfico con datos actuales sin rehacer el análisis.
 
 ## Cuándo usarlo
 
@@ -44,6 +44,19 @@ La configuración de un gráfico se guarda como archivo **`.amoxvis`**, que **ll
 1. Empieza en **Type** y elige la forma; luego avanza por **Data → Format → Style → Story → Export**.
 2. No es obligatorio seguir el orden: cada pestaña es independiente y los cambios se reflejan en vivo.
 3. El pie de cada pestaña muestra una pista corta ("What goes where?", etc.) para orientarte.
+
+### Paneles o código
+En la cabecera de la barra lateral hay un interruptor **Panels | Code**:
+
+- **Panels** (por defecto) — trabajas con las seis etapas. Cada cambio genera el Vega-Lite de la figura.
+- **Code** — la barra lateral se vuelve un editor con el **Vega-Lite** de la figura. Puedes escribirlo o pegar uno; la figura se redibuja al dejar de teclear. El editor valida contra el esquema de Vega-Lite y autocompleta mientras escribes.
+
+Reglas para que no haya sorpresas:
+
+- **En cuanto editas el código, el código manda.** Las etapas Type, Data y Format dejan de cambiar la figura (lo dice un aviso). Style, Story y Export siguen funcionando: el título, la conclusión, la fuente, la paleta y la tarjeta valen igual en los dos modos.
+- **Un error no borra la figura.** Si el JSON está a medio escribir o Vega-Lite no lo entiende, se queda la última figura buena y el error aparece debajo del editor.
+- **Volver a los paneles** se hace desde el aviso, con **Use the panels again**. Pide confirmación porque descarta el código.
+- Los datos llegan con el nombre `dataset` (`"data": {"name": "dataset"}`). El título y la conclusión no van en el código: viven en **Story**.
 
 ### La guía y el tour
 - El botón **?** (icono de info) en la cabecera del panel abre un cajón con la **guía de Story Flow**: explica las seis etapas y los principios de narrativa. La misma guía vive en Ajustes → Story Flow.
@@ -80,14 +93,15 @@ El botón de maximizar (esquina superior derecha del área del gráfico) lleva e
 
 ## Tips y gemas
 
-- **El `.amoxvis` es autónomo:** guarda la configuración *y* la query, así que el gráfico puede regenerarse solo — la base de un deck de Report Flow que se refresca.
+- **El `.amoxvis` es autónomo:** guarda la figura *y* la query, así que el gráfico puede regenerarse solo — la base de un deck de Report Flow que se refresca.
+- **El `.amoxvis` no es privativo:** es un Vega-Lite válido. Lo que es de AmoxSQL (la query, el estado de los paneles) va en `usermeta`, un campo que Vega-Lite reserva para eso y que cualquier otra herramienta ignora.
 - **Tus ejes sobreviven a re-consultas:** al re-ejecutar una query con columnas distintas, Story Flow solo rellena los ejes que faltan o que dejaron de ser válidos; tu elección manual se respeta mientras la columna exista.
 - **La IA no pisa tu trabajo:** una propuesta de la IA se fusiona sobre tu config actual, no la reemplaza.
 - **El tema sigue tu configuración:** el gráfico adopta el tema y el color de acento activos.
 
 ## Formatos relacionados
 
-- `.amoxvis` — configuración de gráfico con query embebida (ver [Formatos de archivo](../reference/file-formats.md)).
+- `.amoxvis` — un Vega-Lite con la query embebida (ver [Formatos de archivo](../reference/file-formats.md)).
 
 ## Relacionado
 

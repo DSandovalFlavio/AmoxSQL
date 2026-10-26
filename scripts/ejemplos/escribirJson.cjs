@@ -16,21 +16,27 @@ const w = (r, o) => {
     fs.writeFileSync(path.join(B, r), JSON.stringify(o, null, 2) + '\n');
 };
 const p = (x, y) => ({ x, y });
+// Un gráfico se escribe como lo escribe AmoxSQL: Vega-Lite con los paneles en usermeta.
+const amoxvis = require('../../server/amoxvis');
+const g = (r, plano) => {
+    fs.mkdirSync(path.dirname(path.join(B, r)), { recursive: true });
+    fs.writeFileSync(path.join(B, r), amoxvis.texto(plano) + '\n');
+};
 
-// ── Gráficos (.amoxvis): lo esencial; Story Flow completa el resto al abrir ──
-w('charts/venta_mensual.amoxvis', {
+// ── Gráficos (.amoxvis): lo esencial; Story Flow completa el resto al abrir y lo reescribe al guardar ──
+g('charts/venta_mensual.amoxvis', {
     chartType: 'area', xAxisKey: 'mes', yAxisKeys: ['venta'], numberFormat: 'compact', colorTheme: 'ocean',
     chartTitle: 'Venta mensual', chartSubtitle: 'Enero 2023 a octubre 2024 (octubre incompleto)',
     chartFootnote: 'Fuente: archivos mensuales de ventas · tienda.duckdb',
     query: "SELECT date_trunc('month', fecha)::DATE AS mes, round(sum(importe), 2) AS venta FROM ventas GROUP BY ALL ORDER BY mes",
 });
-w('charts/mezcla_categorias.amoxvis', {
+g('charts/mezcla_categorias.amoxvis', {
     chartType: 'donut', xAxisKey: 'categoria', yAxisKeys: ['venta'], numberFormat: 'compact', colorTheme: 'ocean',
     chartTitle: 'Mezcla por categoría, 2024',
     chartSubtitle: 'Portátiles y teléfonos son más de la mitad de la venta',
     query: "SELECT categoria, round(sum(importe), 2) AS venta FROM ventas WHERE fecha >= DATE '2024-01-01' GROUP BY ALL ORDER BY venta DESC",
 });
-w('charts/top_productos.amoxvis', {
+g('charts/top_productos.amoxvis', {
     chartType: 'bar-horizontal', xAxisKey: 'producto', yAxisKeys: ['venta'], numberFormat: 'compact', colorTheme: 'ocean',
     sortMode: 'desc', showLabels: true, highlightConfig: { type: 'max', value: '', color: '#22c55e' },
     chartTitle: 'Los 10 productos que más venden', chartSubtitle: '2024, en pesos',

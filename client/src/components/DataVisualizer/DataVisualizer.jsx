@@ -158,7 +158,7 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false }) => {
     /**
      * Sin mandos, pero NO empotrada.
      *
@@ -226,10 +226,13 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         const yValid = state.yAxisKeys?.length > 0 && state.yAxisKeys.every(k => columns.includes(k));
         const spInvalid = state.splitByKey && !columns.includes(state.splitByKey);
         if (xValid && yValid && !spInvalid) return;
-        const numericCols = columns.filter(c => !isNaN(Number(data[0][c])));
-        const fallbackY = numericCols.length > 0 ? [numericCols[0]] : [columns[Math.min(1, columns.length - 1)]];
+        const x = xValid ? state.xAxisKey : columns[0];
+        // La Y por defecto es la primera columna numérica que NO es la X: con
+        // «mes» (1..12) primero, X e Y salían iguales y la figura sumaba el mes.
+        const numericCols = columns.filter(c => c !== x && !isNaN(Number(data[0][c])));
+        const fallbackY = numericCols.length > 0 ? [numericCols[0]] : [columns.find(c => c !== x) || columns[0]];
         const patch = {
-            xAxisKey:  xValid ? state.xAxisKey  : columns[0],
+            xAxisKey:  x,
             yAxisKeys: yValid ? state.yAxisKeys : fallbackY,
         };
         if (spInvalid) patch.splitByKey = '';
@@ -344,11 +347,17 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     ]);
 
     // ── Config change notification ──
-    // Con el spec que se está viendo: quien guarde el archivo escribe el mismo
-    // Vega-Lite que dibujó la figura, ya con los tipos de las columnas resueltos.
+    // En modo código el spec ES la figura y siempre viaja. El generado por los
+    // paneles solo lo pide quien escribe un .amoxvis (`incluirSpec`): así el
+    // archivo lleva el mismo Vega-Lite que se dibujó, con los tipos de columna ya
+    // resueltos, y el estado de un cuaderno o un lienzo no carga con él.
     const alCambiarConfig = useMemo(() => (onConfigChange
-        ? (cfg) => onConfigChange({ ...cfg, spec: cfg.modo === 'codigo' ? cfg.spec : specRef.current })
-        : null), [onConfigChange]);
+        ? (cfg) => {
+            const { spec, ...resto } = cfg;
+            if (cfg.modo === 'codigo') onConfigChange({ ...resto, spec });
+            else onConfigChange(incluirSpec ? { ...resto, spec: specRef.current } : resto);
+        }
+        : null), [onConfigChange, incluirSpec]);
     useConfigChangeNotifier(alCambiarConfig);
 
     // ── External chart config updates from AI (update_chart_config tool) ──

@@ -52,6 +52,7 @@ const scaffolder       = require('./projectScaffolder');
 const { applyRowLimit } = require('./_sqlUtils');
 const { detectResultType } = require('./_sqlClassify');
 const { crearVigilante, firmaDe } = require('./vigilanteArchivos');
+const amoxvis = require('./amoxvis');
 
 const app = express();
 const PORT = 3001;
@@ -3840,7 +3841,7 @@ app.get('/api/charts/using-source', (req, res) => {
         for (const f of amoxvisFiles) {
             try {
                 const fullPath = path.join(ROOT_DIR, f.path);
-                const config = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+                const config = amoxvis.leer(fs.readFileSync(fullPath, 'utf8'));
                 if ((config.source || '').replace(/\\/g, '/') === normalized) {
                     matches.push({ name: f.name, path: f.path });
                 }

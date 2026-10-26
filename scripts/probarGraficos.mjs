@@ -94,6 +94,7 @@ const casos = [
         trendLine: { type: 'linear', color: '#fbbf24', windowSize: 3 },
         highlightConfig: { type: 'max', value: '', color: '#ef4444' },
     }, categorias, 'bar', 6],
+    ['la misma columna en X y en Y', { chartType: 'bar', xAxisKey: 'margen', yAxisKeys: ['margen'] }, categorias, 'bar', 6],
     ['línea con media móvil y punto resaltado', { chartType: 'line', xAxisKey: 'dia', yAxisKeys: ['cvr'], trendLine: { type: 'moving-average', windowSize: 7 }, highlightConfig: { type: 'exact', value: '2025-06-15', color: '#ef4444' } }, diarios, 'line mark', 2],
 ];
 

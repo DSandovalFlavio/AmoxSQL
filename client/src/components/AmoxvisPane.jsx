@@ -398,6 +398,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange, onC
                         initialChartConfig={config}
                         onConfigChange={handleConfigChange}
                         onCreateNew={onCreateNew}
+                        incluirSpec
                     />
                 )}
 

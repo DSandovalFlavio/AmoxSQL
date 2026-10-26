@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const { homeAmox } = require('./rutas');
+const amoxvis = require('./amoxvis');
 
 const GALLERY_DIR = path.join(homeAmox(), 'gallery');
 const THUMBS_DIR = path.join(GALLERY_DIR, 'thumbnails');
@@ -69,8 +70,7 @@ function seedGallery() {
         let seeded = 0;
         for (const def of GALLERY_DEFINITIONS) {
             const filePath = path.join(GALLERY_DIR, `${def.id}.amoxvis`);
-            const payload = { ...def.config, query: def.query };
-            fs.writeFileSync(filePath, JSON.stringify(payload, null, 2));
+            fs.writeFileSync(filePath, amoxvis.texto({ ...def.config, query: def.query }));
             seeded++;
         }
         if (seeded > 0) {

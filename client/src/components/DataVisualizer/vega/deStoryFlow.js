@@ -111,13 +111,16 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
 
     // ── Series: partir por una columna, varias Y plegadas, o una sola ──
     const plegado = !c.splitByKey && Ys.length > 1;
-    const valor = c.splitByKey ? Ys[0] : (plegado ? 'valor' : Ys[0]);
+    // La misma columna en X y en Y: se suma una copia, si no la agregación pisa la X.
+    const copiaDeX = !plegado && Ys[0] === X;
+    const valor = c.splitByKey ? Ys[0] : (plegado ? 'valor' : (copiaDeX ? `${X} (valor)` : Ys[0]));
     const serie = c.splitByKey || (plegado ? 'serie' : null);
     const series = seriesDe(c, filas, plegado);
     const colorUnico = c.seriesConfig?.[Ys[0]]?.color || colores[0];
 
     const T = [];
     if (plegado) T.push({ fold: Ys, as: ['serie', 'valor'] });
+    if (copiaDeX) T.push({ calculate: dato(X), as: valor });
 
     // ── Transformaciones comunes ──
     const agrega = !['scatter', 'heatmap'].includes(tipo);
@@ -242,10 +245,12 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
     if (tipo === 'line' || tipo === 'area') {
         const interpolate = c.lineType === 'step' ? 'step-after' : (c.lineType || 'monotone');
         const puntos = c.showDots && nPuntos <= MAX_PUNTOS * Math.max(1, series.length || 1);
-        if (tipo === 'area') {
+        // Un área de UNA serie se ha dibujado siempre como línea con su degradado
+        // debajo; apilar solo tiene sentido con varias.
+        if (tipo === 'area' && serie) {
             capas.push({ mark: { type: 'area', interpolate, opacity: 0.85, ...(serie ? {} : { color: colorUnico }) }, encoding: { ...enc, [val]: { ...encVal, stack: 'zero' } } });
         } else {
-            if (c.lineAreaFill) {
+            if (c.lineAreaFill || tipo === 'area') {
                 const relleno = serie
                     ? { type: 'area', interpolate, opacity: 0.12 }
                     : {

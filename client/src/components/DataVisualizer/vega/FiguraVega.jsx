@@ -75,10 +75,30 @@ const FiguraVega = ({ spec, filas, c, colores, fuente, escala = 1, onEstado = nu
         return () => { clearTimeout(t); ro.disconnect(); };
     }, []);
 
+    /* El tema vive en los tokens CSS: al cambiar de claro a oscuro (o de acento)
+       cambia una clase o un estilo en <html>/<body>, y la figura se vuelve a
+       dibujar con los colores nuevos. */
+    const [versionTema, setVersionTema] = useState(0);
+    useEffect(() => {
+        if (typeof MutationObserver === 'undefined') return undefined;
+        // Solo cuenta si cambió un color: un estilo en <body> también cambia al
+        // arrastrar o al hacer zoom, y redibujar cada figura por eso se notaría.
+        const firma = () => { const cs = getComputedStyle(document.body); return ['--text-primary', '--border-color', '--chart-bg'].map(t => cs.getPropertyValue(t)).join('|'); };
+        let ultima = firma();
+        const mo = new MutationObserver(() => {
+            const ahora = firma();
+            if (ahora !== ultima) { ultima = ahora; setVersionTema(v => v + 1); }
+        });
+        const opciones = { attributes: true, attributeFilter: ['class', 'style', 'data-theme'] };
+        mo.observe(document.documentElement, opciones);
+        mo.observe(document.body, opciones);
+        return () => mo.disconnect();
+    }, []);
+
     // El tamaño entra por señales cuando solo cambia el tamaño: recompilar en
     // cada píxel de un arrastre se nota; mover dos señales no.
     const clave = useMemo(() => JSON.stringify(spec ?? null), [spec]);
-    const temaClave = JSON.stringify([fuente, escala, colores, c?.axisLabelSize, c?.axisLabelOpacity, c?.axisLabelGap, c?.dataLabelSize]);
+    const temaClave = JSON.stringify([fuente, escala, colores, c?.axisLabelSize, c?.axisLabelOpacity, c?.axisLabelGap, c?.dataLabelSize, versionTema]);
 
     const tooltipRef = useRef(null);
     if (!tooltipRef.current) tooltipRef.current = crearTooltip();

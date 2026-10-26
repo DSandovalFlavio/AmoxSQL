@@ -1,19 +1,47 @@
 {
-  "chartType": "bar-horizontal",
-  "xAxisKey": "producto",
-  "yAxisKeys": [
-    "venta"
-  ],
-  "numberFormat": "compact",
-  "colorTheme": "ocean",
-  "sortMode": "desc",
-  "showLabels": true,
-  "highlightConfig": {
-    "type": "max",
-    "value": "",
-    "color": "#22c55e"
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "title": {
+    "text": "Los 10 productos que más venden",
+    "subtitle": "2024, en pesos"
   },
-  "chartTitle": "Los 10 productos que más venden",
-  "chartSubtitle": "2024, en pesos",
-  "query": "SELECT producto, round(sum(importe), 2) AS venta FROM ventas WHERE fecha >= DATE '2024-01-01' GROUP BY ALL ORDER BY venta DESC LIMIT 10"
+  "data": {
+    "name": "dataset"
+  },
+  "mark": "bar",
+  "encoding": {
+    "y": {
+      "field": "producto",
+      "type": "nominal"
+    },
+    "x": {
+      "aggregate": "sum",
+      "field": "venta",
+      "type": "quantitative"
+    }
+  },
+  "usermeta": {
+    "amoxsql": {
+      "version": 2,
+      "modo": "interfaz",
+      "consulta": "SELECT producto, round(sum(importe), 2) AS venta FROM ventas WHERE fecha >= DATE '2024-01-01' GROUP BY ALL ORDER BY venta DESC LIMIT 10",
+      "interfaz": {
+        "chartType": "bar-horizontal",
+        "xAxisKey": "producto",
+        "yAxisKeys": [
+          "venta"
+        ],
+        "numberFormat": "compact",
+        "colorTheme": "ocean",
+        "sortMode": "desc",
+        "showLabels": true,
+        "highlightConfig": {
+          "type": "max",
+          "value": "",
+          "color": "#22c55e"
+        },
+        "chartTitle": "Los 10 productos que más venden",
+        "chartSubtitle": "2024, en pesos"
+      }
+    }
+  }
 }

@@ -19,7 +19,7 @@ The six stages are tabs in the panel's sidebar:
 5. **Story** — "Make it speak." Title/subtitle/takeaway, headline KPI, annotations, goal/reference lines, trend and focus (see [Storytelling & overlays](storytelling-and-overlays.md)).
 6. **Export** — "Ship it." PNG at several sizes, copy to clipboard, and save the configuration as `.amoxvis` (see [Exporting charts](exporting-charts.md)).
 
-A chart's configuration is saved as an **`.amoxvis`** file, which **carries its own query** inside. That's why an `.amoxvis` can re-run on its own (when you open it) or inside a [Report Flow](../reports/report-flow.md) deck, refreshing the chart with current data without redoing the analysis.
+The figure is drawn with **Vega-Lite**, the open grammar of graphics, and saved as an **`.amoxvis`** file: a valid Vega-Lite spec that **carries its own query** inside. That's why an `.amoxvis` can re-run on its own (when you open it) or inside a [Report Flow](../reports/report-flow.md) deck, refreshing the chart with current data without redoing the analysis.
 
 ## When to use it
 
@@ -44,6 +44,19 @@ A chart's configuration is saved as an **`.amoxvis`** file, which **carries its 
 1. Start at **Type** and pick the shape; then move through **Data → Format → Style → Story → Export**.
 2. The order isn't mandatory: each tab is independent and changes render live.
 3. Each tab's footer shows a short hint ("What goes where?", etc.) to orient you.
+
+### Panels or code
+The sidebar header has a **Panels | Code** switch:
+
+- **Panels** (the default) — you work through the six stages. Each change generates the figure's Vega-Lite.
+- **Code** — the sidebar becomes an editor holding the figure's **Vega-Lite**. Write one or paste one; the figure redraws when you stop typing. The editor validates against the Vega-Lite schema and completes as you type.
+
+Rules so nothing surprises you:
+
+- **Once you edit the code, the code is in charge.** The Type, Data and Format stages stop changing the figure (a notice says so). Style, Story and Export keep working: the title, takeaway, source, palette and card apply in both modes.
+- **An error doesn't wipe the figure.** If the JSON is half written or Vega-Lite can't read it, the last good figure stays and the error shows under the editor.
+- **Going back to the panels** is done from the notice, with **Use the panels again**. It asks first because it discards the code.
+- The data arrives under the name `dataset` (`"data": {"name": "dataset"}`). The title and takeaway are not in the code: they live in **Story**.
 
 ### The guide and the tour
 - The **?** button (info icon) in the panel header opens a drawer with the **Story Flow guide**: it explains the six stages and the storytelling principles. The same guide lives in Settings → Story Flow.
@@ -80,14 +93,15 @@ The maximize button (top-right of the chart area) takes the chart full-screen; i
 
 ## Tips & gems
 
-- **The `.amoxvis` is self-contained:** it stores the configuration *and* the query, so the chart can regenerate itself — the basis of a Report Flow deck that refreshes.
+- **The `.amoxvis` is self-contained:** it stores the figure *and* the query, so the chart can regenerate itself — the basis of a Report Flow deck that refreshes.
+- **The `.amoxvis` isn't locked in:** it is a valid Vega-Lite spec. What belongs to AmoxSQL (the query, the state of the panels) goes in `usermeta`, a field Vega-Lite reserves for that and every other tool ignores.
 - **Your axes survive re-queries:** when you re-run a query with different columns, Story Flow only fills axes that are missing or no longer valid; your manual pick is kept as long as its column still exists.
 - **The AI doesn't clobber your work:** an AI proposal is merged onto your current config, not replaced.
 - **The theme follows your settings:** the chart adopts the active theme and accent color.
 
 ## Related formats
 
-- `.amoxvis` — chart configuration with an embedded query (see [File formats](../reference/file-formats.md)).
+- `.amoxvis` — a Vega-Lite spec with an embedded query (see [File formats](../reference/file-formats.md)).
 
 ## Related
 
