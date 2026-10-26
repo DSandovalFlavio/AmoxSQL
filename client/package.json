@@ -45,6 +45,8 @@
     "remark-parse": "^11.0.0",
     "sql-formatter": "^15.7.1",
     "unified": "^11.0.5",
+    "vega": "6.4.0",
+    "vega-lite": "6.5.0",
     "web-tree-sitter": "^0.26.7"
   },
   "devDependencies": {

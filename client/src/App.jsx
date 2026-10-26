@@ -59,6 +59,7 @@ import './index.css';
 
 // Pop-out Results Page (standalone view for child window)
 import PopoutResultsPage from './components/PopoutResultsPage';
+import { escribirAmoxvis } from './components/DataVisualizer/vega/figura';
 
 // App Phases
 const PHASE = {
@@ -1241,13 +1242,9 @@ function App() {
   const handleExportAmoxvis = useCallback(async (title, query, config) => {
     const safeTitle = (title || 'chart').replace(/[^a-z0-9]/gi, '_').toLowerCase();
     const filename = `AI_${safeTitle}_${Date.now()}.amoxvis`;
-    // Flat format (canonical): chart fields at top level + query, matching what
-    // Story Flow's own "Save as .amoxvis" writes and what the loader expects.
-    // (A nested { config } shape would make DataVisualizer auto-detect defaults.)
-    const amoxvisContent = {
-      ...(config || {}),
-      query: query || '',
-    };
+    // El mismo archivo que escribe Story Flow: Vega-Lite con la consulta y los
+    // paneles en usermeta (plan_graficos_vega_lite.md, Dec-69).
+    const amoxvisContent = escribirAmoxvis({ ...(config || {}), query: query || '' });
 
     try {
       const response = await fetch(`${API_BASE}/api/file`, {

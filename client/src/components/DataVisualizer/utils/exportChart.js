@@ -3,6 +3,7 @@
  */
 import { API_BASE } from '../../../api.js';
 import html2canvas from 'html2canvas-pro';
+import { textoAmoxvis } from '../vega/figura';
 
 /**
  * Export a DOM element as PNG at a specific resolution.
@@ -290,8 +291,8 @@ export const saveChartConfig = async (filename, config, query = '', source = nul
         filename += '.amoxvis';
     }
 
-    const payload = { ...config, query };
-    if (source) payload.source = source;
+    const plano = { ...config, query };
+    if (source) plano.source = source;
 
     try {
         const response = await fetch(`${API_BASE}/api/file`, {
@@ -299,7 +300,7 @@ export const saveChartConfig = async (filename, config, query = '', source = nul
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 path: filename,
-                content: JSON.stringify(payload, null, 2)
+                content: textoAmoxvis(plano)
             })
         });
         const result = await response.json();

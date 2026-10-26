@@ -5,12 +5,12 @@
  */
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useCallback, useRef, memo } from 'react';
-import { createRoot } from 'react-dom/client';
 import { GALLERY_CHARTS } from '../data/galleryChartDefinitions';
-import ChartRenderer from './DataVisualizer/renderers/ChartRenderer';
-import { processChartData } from './DataVisualizer/utils/dataProcessing';
+import * as vega from 'vega';
 import { COLOR_PALETTES } from './DataVisualizer/constants';
-import html2canvas from 'html2canvas-pro';
+import { deStoryFlow } from './DataVisualizer/vega/deStoryFlow';
+import { compilarFigura, prepararFilas } from './DataVisualizer/vega/motor';
+import { temaVega } from './DataVisualizer/vega/tema';
 import {
     LuRefreshCw, LuLoader, LuImage, LuChevronRight,
     LuLayoutGrid, LuCopy, LuExternalLink
@@ -302,108 +302,36 @@ const ChartGallery = memo(({ onOpenChart, onClose }) => {
 
 // ─── Thumbnail Generation Helper ─────────────────────────────────────────────
 
+/* La miniatura sale directamente de Vega: la vista se dibuja sin pantalla y se
+   pide su PNG. Ya no hace falta montar un componente fuera de la vista, esperar
+   a que se mida y fotografiarlo, que era lo que obligaba a traducir los colores
+   oklch() a hexadecimal para la captura. */
+const TEMA_MINIATURA = { '--text-primary': '#f0f0f0', '--text-secondary': '#a0a0a0', '--border-color': '#2a2b2f', '--grid-color': '#2a2b2f' };
+
 async function generateSingleThumbnail(chartDef) {
-    return new Promise((resolve, reject) => {
-        const container = document.createElement('div');
-        container.style.position = 'absolute';
-        container.style.left = '0px';
-        container.style.top = '0px';
-        container.style.zIndex = '-9999';
-        container.style.width = '700px';
-        container.style.height = '450px';
-        document.body.appendChild(container);
-
-        const root = createRoot(container);
-
-        // Process data for ChartRenderer
-        const config = chartDef.amoxvis;
-        const data = chartDef.data;
-        const activeTheme = config.colorTheme || 'default';
-        const activeColors = COLOR_PALETTES[activeTheme] || COLOR_PALETTES.default;
-
-        // Apply hex fallbacks for CSS variables to the container to prevent html2canvas
-        // from crashing when trying to parse oklch() colors defined in index.css.
-        Object.assign(container.style, {
-            '--surface-base': '#111214',
-            '--surface-raised': '#191b1f',
-            '--surface-overlay': '#1f2125',
-            '--border-default': '#2a2b2f',
-            '--border-color': '#2a2b2f',
-            '--text-primary': '#f0f0f0',
-            '--text-secondary': '#a0a0a0',
-            '--text-muted': '#6b6e75',
-            '--accent-primary': '#00d4ff',
-            '--hover-bg': '#222327'
+    const config = chartDef.amoxvis;
+    const colores = COLOR_PALETTES[config.colorTheme || 'default'] || COLOR_PALETTES.default;
+    const muestra = document.createElement('div');
+    Object.assign(muestra.style, TEMA_MINIATURA);
+    document.body.appendChild(muestra);
+    let vista = null;
+    try {
+        const tema = { ...temaVega(muestra, { fuente: 'Manrope, Inter, system-ui, sans-serif', colores, c: config }), background: '#111214', padding: 16 };
+        const spec = deStoryFlow({ ...config, chartTitle: '', chartSubtitle: '' }, { filas: chartDef.data, colores });
+        const vg = compilarFigura(spec, { tema, ancho: 668, alto: 418 });
+        vista = new vega.View(vega.parse(vg), { renderer: 'none', logLevel: vega.Error });
+        vista.data('dataset', prepararFilas(chartDef.data));
+        await vista.runAsync();
+        const dataUrl = await vista.toImageURL('png', 1);
+        await fetch(`${API_BASE}/api/gallery/thumbnail`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: chartDef.id, imageData: dataUrl }),
         });
-        const { processedData, finalSeriesKeys } = processChartData({
-            data,
-            xAxisKey: config.xAxisKey,
-            yAxisKeys: config.yAxisKeys,
-            splitByKey: config.splitByKey || '',
-            isDate: false,
-            dateAggregation: 'none',
-            bubbleSizeKey: config.bubbleSizeKey || '',
-            chartType: config.chartType,
-            isCumulative: config.isCumulative || false,
-            sortMode: config.sortMode || 'none',
-            limit: config.limit || 0,
-        });
-
-
-
-        // Render chart
-        root.render(
-            <div style={{
-                width: '100%', height: '100%',
-                background: 'var(--surface-base, #111214)',
-                padding: '16px',
-                boxSizing: 'border-box',
-            }}>
-                <ChartRenderer
-                    config={config}
-                    processedData={processedData}
-                    finalSeriesKeys={finalSeriesKeys}
-                    trendData={[]}
-                    headline={{ value: null }}
-                    activeColors={activeColors}
-                    forceDimensions={{ width: 668, height: 418 }}
-                />
-            </div>
-        );
-
-        // Wait for Recharts to render and ResizeObserver to fire (ResponsiveContainer)
-        setTimeout(async () => {
-            try {
-                const canvas = await html2canvas(container, {
-                    backgroundColor: '#111214',
-                    scale: 1,
-                    logging: false,
-                    useCORS: true
-                });
-                
-                const dataUrl = canvas.toDataURL('image/png');
-
-                // Send to backend
-                await fetch(`${API_BASE}/api/gallery/thumbnail`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: chartDef.id, imageData: dataUrl }),
-                });
-
-                root.unmount();
-                if (document.body.contains(container)) {
-                    document.body.removeChild(container);
-                }
-                resolve();
-            } catch (err) {
-                root.unmount();
-                if (document.body.contains(container)) {
-                    document.body.removeChild(container);
-                }
-                reject(err);
-            }
-        }, 1500);
-    });
+    } finally {
+        vista?.finalize();
+        muestra.remove();
+    }
 }
 
 ChartGallery.displayName = 'ChartGallery';

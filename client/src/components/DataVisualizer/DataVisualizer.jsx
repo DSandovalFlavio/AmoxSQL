@@ -4,7 +4,7 @@
  * This is the slim entry point that composes all sub-modules:
  * - useChartState for state management
  * - Panel components for the sidebar UI
- * - ChartRenderer for chart rendering
+ * - FiguraVega: the figure, drawn from a Vega-Lite spec (vega/)
  * - HeadlineOverlay for KPI display
  * - Export utilities for PNG/config saving
  *
@@ -17,7 +17,7 @@
  */
 import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { API_BASE } from '../../api';
-import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste } from 'react-icons/lu';
+import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste, LuSlidersHorizontal, LuCode } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
 import AlertDialog from '../AlertDialog';
 
@@ -43,7 +43,9 @@ import ExportPanel from './panels/ExportPanel';
 import PasteJsonModal from './panels/PasteJsonModal';
 
 // Renderers & Overlays
-import ChartRenderer from './renderers/ChartRenderer';
+import FiguraVega from './vega/FiguraVega';
+import EditorCodigo from './vega/EditorCodigo';
+import { deStoryFlow } from './vega/deStoryFlow';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
 import { StoryFlowGuide } from './StoryFlowGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
@@ -259,6 +261,25 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         [state.colorTheme, state.brandColors]
     );
 
+    /* ── La figura, en Vega-Lite (5.16) ──
+       En modo interfaz el spec sale de los paneles; en modo código es el que
+       escribió el usuario. Se genera SIN título: el título lo pone la tarjeta, y
+       así teclearlo no vuelve a dibujar la figura en cada letra. */
+    const especInterfaz = useMemo(
+        () => (state.modo === 'codigo' ? null
+            : deStoryFlow({ ...state, chartTitle: '', chartSubtitle: '' }, { filas: data || [], colores: activeColors })),
+        [state, data, activeColors]);
+    const specActual = state.modo === 'codigo' && state.spec ? state.spec : especInterfaz;
+    const specRef = useRef(specActual);
+    specRef.current = specActual;
+    const [estadoFigura, setEstadoFigura] = useState(null);
+    /* Barra lateral: los paneles o el editor de código. Es solo la vista; quién
+       manda en la figura lo dice `state.modo`. */
+    const [lateral, setLateral] = useState(() => (state.modo === 'codigo' ? 'codigo' : 'paneles'));
+    const [confirmarPaneles, setConfirmarPaneles] = useState(false);
+    const aplicarCodigo = useCallback((obj) => setFields({ modo: 'codigo', spec: obj }), [setFields]);
+    const volverAPaneles = useCallback(() => { setFields({ modo: 'interfaz', spec: null }); setConfirmarPaneles(false); }, [setFields]);
+
     // ── Inline legend items (legendPosition 'inline' — Sterling-style, woven
     // into the subtitle). Built from the series that actually render; series
     // color overrides win, label text uses the palette's legend twin. Donut/pie
@@ -323,7 +344,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     ]);
 
     // ── Config change notification ──
-    useConfigChangeNotifier(onConfigChange);
+    // Con el spec que se está viendo: quien guarde el archivo escribe el mismo
+    // Vega-Lite que dibujó la figura, ya con los tipos de las columnas resueltos.
+    const alCambiarConfig = useMemo(() => (onConfigChange
+        ? (cfg) => onConfigChange({ ...cfg, spec: cfg.modo === 'codigo' ? cfg.spec : specRef.current })
+        : null), [onConfigChange]);
+    useConfigChangeNotifier(alCambiarConfig);
 
     // ── External chart config updates from AI (update_chart_config tool) ──
     // Merges AI changes into the current state via setFields, preserving
@@ -411,7 +437,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         if (isExportingPptx) return;
         setIsExportingPptx(true);
         try {
-            await exportChartAsPptx(chartRef.current, getConfigForSave(), processedData, state.chartType, state.chartTitle, activeColors);
+            // En modo código no hay tipo de Story Flow que traducir a un gráfico nativo: va como imagen.
+            await exportChartAsPptx(chartRef.current, getConfigForSave(), processedData, state.modo === 'codigo' ? 'vega' : state.chartType, state.chartTitle, activeColors);
         } catch (err) {
             setAlertData({ isOpen: true, title: 'PowerPoint', type: 'error', message: err.message || 'Could not export chart as PowerPoint.' });
         } finally {
@@ -468,7 +495,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         // go to that file instead of a copy embedded in the chart. Only set
         // for charts built from a saved .sql tab — an ad-hoc/notebook query
         // has no such file to point at.
-        const result = await saveChartConfig(filename, getConfigForSave(), query, sourcePath);
+        const result = await saveChartConfig(filename, { ...getConfigForSave(), spec: specRef.current }, query, sourcePath);
         if (result.success) {
             setIsSaveModalOpen(false);
             if (saveIntent === 'presentation' && onCreateNew) {
@@ -702,15 +729,15 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                 it always measures the real, visible size. (Config state lives
                 on DataVisualizer, which stays mounted — nothing is lost.) */}
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '10px', minWidth: '10px', width: '100%', height: '100%' }}>
-                {(isActive || isReportMode) && (
-                    <ChartRenderer
-                        config={state}
-                        processedData={processedData}
-                        finalSeriesKeys={finalSeriesKeys}
-                        activeColors={activeColors}
-                        columns={columns}
-                        isDateColumn={isDateCol}
-                        textScale={escalaTexto}
+                {(isActive || isReportMode) && specActual && (
+                    <FiguraVega
+                        spec={specActual}
+                        filas={data}
+                        c={state}
+                        colores={activeColors}
+                        fuente={fontFamily}
+                        escala={escalaTexto}
+                        onEstado={setEstadoFigura}
                     />
                 )}
             </div>
@@ -795,7 +822,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
             {/* ━━━ Controls Panel ━━━ */}
             {!sinMandos && (
                 <div style={{
-                    width: '320px', flexShrink: 0, borderRight: '1px solid var(--border-color)',
+                    width: lateral === 'codigo' ? '440px' : '320px', flexShrink: 0, borderRight: '1px solid var(--border-color)',
                     padding: '12px', overflowY: 'auto',
                     backgroundColor: 'var(--panel-bg)',
                     display: 'flex', flexDirection: 'column',
@@ -807,11 +834,33 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                             color: 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px'
                         }}>Story Flow</h3>
                         <input type="file" accept=".json,.amoxvis" ref={fileInputRef} style={{ display: 'none' }} onChange={handleLoadConfig} />
-                        <button onClick={() => setShowGuide(true)} title="What is Story Flow?"
-                            style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '3px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                            <LuInfo size={13} />
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {/* Interfaz | Código (Dec-76): la barra lateral cambia de paneles a editor. */}
+                            <div className="seg sf-interruptor" role="tablist" aria-label="How to edit the chart">
+                                <button type="button" role="tab" aria-selected={lateral === 'paneles'} title="Edit with the panels"
+                                    className={`seg-item${lateral === 'paneles' ? ' seg-item--active' : ''}`} onClick={() => setLateral('paneles')}>
+                                    <LuSlidersHorizontal size={13} /> <span>Panels</span>
+                                </button>
+                                <button type="button" role="tab" aria-selected={lateral === 'codigo'} title="Edit the Vega-Lite spec"
+                                    className={`seg-item${lateral === 'codigo' ? ' seg-item--active' : ''}`} onClick={() => setLateral('codigo')}>
+                                    <LuCode size={13} /> <span>Code</span>
+                                </button>
+                            </div>
+                            <button onClick={() => setShowGuide(true)} title="What is Story Flow?"
+                                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '3px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                                <LuInfo size={13} />
+                            </button>
+                        </div>
                     </div>
+
+                    {lateral === 'codigo' ? (
+                        <EditorCodigo
+                            spec={specActual}
+                            onAplicar={aplicarCodigo}
+                            estado={estadoFigura}
+                            editado={state.modo === 'codigo'}
+                        />
+                    ) : (<>
 
                     {/* ── Tab Navigation — segmented control ── */}
                     <div className="seg seg--fill" style={{ marginBottom: '12px' }}>
@@ -840,6 +889,26 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
 
                     {/* ── Tab Content ── */}
                     <div style={{ flex: 1, overflowY: 'auto', scrollbarGutter: 'stable', paddingRight: '4px' }}>
+                        {state.modo === 'codigo' && ['type', 'data', 'format'].includes(activeTab) && (
+                            <div className="sf-aviso-codigo">
+                                <LuCode size={14} />
+                                <div>
+                                    <p>This chart is written in code, so these panels don't change it. Style, Story and Export still apply.</p>
+                                    {confirmarPaneles ? (
+                                        <div className="sf-aviso-codigo-acciones">
+                                            <span>Discard the code and rebuild the chart from the panels?</span>
+                                            <button type="button" className="sf-aviso-btn sf-aviso-btn--peligro" onClick={volverAPaneles}>Discard code</button>
+                                            <button type="button" className="sf-aviso-btn" onClick={() => setConfirmarPaneles(false)}>Cancel</button>
+                                        </div>
+                                    ) : (
+                                        <div className="sf-aviso-codigo-acciones">
+                                            <button type="button" className="sf-aviso-btn" onClick={() => setLateral('codigo')}>Open the code</button>
+                                            <button type="button" className="sf-aviso-btn" onClick={() => setConfirmarPaneles(true)}>Use the panels again</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                         {activeTab === 'type' && (() => {
                             // Compute the effective visual type including stack mode
                             let effectiveType = state.chartType;
@@ -917,6 +986,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                             />
                         )}
                     </div>
+                    </>)}
                 </div>
             )}
 

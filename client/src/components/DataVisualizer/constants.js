@@ -305,6 +305,13 @@ export const NUMBER_FORMAT_OPTIONS = [
 
 // ─── Default Chart Config ────────────────────────────────────
 export const DEFAULT_CONFIG = {
+    /* Quién define la figura (Dec-76, plan_graficos_vega_lite.md): 'interfaz' —
+       los paneles, que generan el spec de Vega-Lite— o 'codigo' —el spec que el
+       usuario escribió, en `spec`—. En modo interfaz `spec` no se guarda en el
+       estado: se vuelve a generar desde los paneles. */
+    modo: 'interfaz',
+    spec: null,
+
     // Core
     chartType: 'bar',
     xAxisKey: '',

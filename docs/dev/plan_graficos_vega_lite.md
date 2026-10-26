@@ -1,6 +1,6 @@
 # Gráficos en Vega-Lite — análisis y plan (5.16 → 5.18)
 
-> Estado: propuesta, sin código. 2026-10-26.
+> Estado: **aprobado por el autor (2026-10-26), en implementación** — §8 respondido; se hace 5.16 → 5.18 y la 6.0 va en otra sesión.
 > Prueba: [`graficos-vega-lite/`](graficos-vega-lite/) — las 12 figuras de referencia escritas en Vega-Lite,
 > compiladas y renderizadas (abre `galeria.html`).
 > Relacionado: [`plan_6_0_duckdb_2.md`](plan_6_0_duckdb_2.md) (rama `claude/plan-6-0`), `sistema_graficos.html`, `plan_story_flow.md`.
@@ -260,6 +260,23 @@ Para exportar:
 Para importar: se pega un Vega-Lite (`PasteJsonModal` ya existe para el formato viejo), y si trae
 `data.values` se ofrece guardarlo como consulta.
 
+### Dec-76 — Interfaz o código: un interruptor en Story Flow
+
+Por defecto se trabaja con los paneles. Un interruptor **Interfaz | Código** en la barra lateral izquierda
+de Story Flow la cambia por un editor (Monaco, JSON con el esquema de Vega-Lite): el usuario escribe o
+pega el spec directamente y la figura se redibuja al vuelo; un error de compilación se muestra debajo
+del editor sin borrar la última figura buena.
+
+- **Quién manda.** En modo interfaz el spec se **genera** desde los paneles (su estado viaja en
+  `usermeta.amoxsql.interfaz`). En cuanto el usuario edita el código, el spec pasa a ser la fuente
+  (`usermeta.amoxsql.modo = "codigo"`) y los paneles dejan de reescribirlo.
+- **Volver a la interfaz** no destruye nada sin avisar: si el código fue editado, se pregunta
+  «Regenerar desde la interfaz (se pierden los cambios del código)».
+- **La tarjeta** (título, subtítulo, conclusión, fuente, firma) sigue en ambos modos: título y subtítulo
+  salen de `title` del spec, el resto de `usermeta.amoxsql.tarjeta`.
+- Sustituye a la pestaña «Spec» de Dec-72 y adelanta su llegada a la 5.16: es la salida de escape
+  desde el primer día.
+
 ### Dec-75 — El PowerPoint nativo sigue
 
 `officeChartMapper` pasa a leer un subconjunto del spec: una sola vista, `bar`, `line`, `area` o
@@ -276,7 +293,7 @@ necesitamos para la galería, el proyecto de ejemplo y nuestras propias figuras.
 - **donut y pie:** `arc`.
 - **heatmap:** `rect`.
 - **funnel y waterfall:** con `window` y `bar` con `y`/`y2`.
-- **treemap:** no existe en Vega-Lite (solo en Vega), y por eso es una pregunta del §8.
+- **treemap:** no existe en Vega-Lite; se escribe como **spec de Vega** (decisión del autor, §8.2). El archivo sigue siendo estándar: Deneb también lee Vega.
 
 Al abrir un archivo viejo, se convierte, y se reescribe al guardar.
 
@@ -287,10 +304,11 @@ Al abrir un archivo viejo, se convierte, y se reescribe al guardar.
 La 6.0 (DuckDB 2) va después y no se mezcla con esto: cambiar el motor y el formato de los gráficos a
 la vez haría imposible saber qué rompió qué.
 
-### Fase 0 — Arreglos y prueba dentro de la app (sin versión, o 5.15.2)
+### Fase 0 — Prueba dentro de la app
 
-- Arreglar los fallos §3.1 y §3.2: la dispersión no agrega, y `limit` solo se aplica a rankings y
-  categorías.
+- Los fallos del §3 **no se arreglan** en el sistema viejo (decisión del autor): desaparecen con el
+  conversor, que solo agrega cuando el tipo lo pide (la dispersión dibuja cada fila) y solo limita
+  rankings.
 - Rama con `vega-lite` + `vega`:
   - Renderizar las 12 figuras **dentro de la app**, con el tema generado desde los tokens en claro y en
     oscuro.
@@ -309,6 +327,7 @@ la vez haría imposible saber qué rompió qué.
   igual, encima.
 - Todas las superficies: el editor, Report Flow, el Lienzo, el cuaderno, el chat y el nodo `chart` de
   Data Flow.
+- El interruptor **Interfaz | Código** (Dec-76).
 - Los paneles de Story Flow escriben el spec, pero con la misma interfaz de hoy. El usuario no nota el
   cambio salvo que ahora las cosas funcionan (dispersión, histograma, umbral).
 - Exportar PNG/SVG desde la vista y PowerPoint nativo desde el subconjunto (Dec-75).
@@ -320,7 +339,7 @@ la vez haría imposible saber qué rompió qué.
 - Recetas nuevas: histograma, caja, barras con error, dispersión con recta, rampa, matriz divergente,
   tramo resaltado.
 - Estantes de codificación y capas analíticas como capas reales (Dec-72).
-- La pestaña «Spec» con el esquema.
+- El editor de código gana autocompletado por el esquema y fragmentos de capas.
 - El asistente con `spec` y con `recipe` (Dec-73). Las reglas del prompt se reescriben sobre
   mark/encoding.
 - Documentación: la guía de Story Flow, una página «Tu gráfico es Vega-Lite» y capturas nuevas.
@@ -345,23 +364,19 @@ la vez haría imposible saber qué rompió qué.
   También se mide en la fase 0.
 - **Modelos locales.** Pueden escribir specs inválidos. Para eso están la compilación con corrección y
   el camino `recipe`.
-- **Treemap.** Requiere Vega completo; ver §8.
+- **Treemap.** Es un spec de Vega, no de Vega-Lite: el editor de código lo muestra, pero las
+  recetas y estantes no lo tocan.
 - **Nombres.** La regla del proyecto prohíbe nombrar tecnologías ajenas. Al adoptarlo, **Vega-Lite pasa
   a ser una dependencia** y se puede nombrar. En la documentación de usuario, Deneb y Altair se
   mencionan solo como ejemplos de «programas que leen Vega-Lite», en la página de exportación.
 
-## 8. Decisiones para el autor
+## 8. Decisiones del autor (2026-10-26)
 
-1. **¿El archivo es Vega-Lite puro con `usermeta` (Dec-69, recomendado), o un formato propio que solo
-   exporta a Vega-Lite?** El segundo es más trabajo y nunca queda igual de compatible.
-2. **¿Treemap?** Hay tres opciones:
-   - (a) se guarda como spec de Vega, que Deneb también lee;
-   - (b) se quita;
-   - (c) se cambia por una barra apilada al 100 %.
-   Recomiendo (a) si se usa, y (b) si no.
-3. **¿Orden de versiones?** Mi recomendación: 5.16–5.18 para los gráficos y después la 6.0 con
-   DuckDB 2.
-4. **¿Los arreglos §3.1 y §3.2 salen ya como 5.15.2?** Hoy dibujan datos equivocados sin avisar.
+1. **Vega-Lite puro con `usermeta`.** Sí.
+2. **Treemap.** Se lleva a Vega.
+3. **Orden.** 5.16 → 5.18 en esta sesión; DuckDB 2 (6.0) en otra.
+4. **Arreglos del §3 en el sistema viejo.** No: todo se reemplaza; no se arregla lo que se va.
+5. **Nuevo:** el interruptor interfaz/código en la barra lateral de Story Flow (Dec-76).
 
 ## 9. Fuentes
 
@@ -376,3 +391,4 @@ la vez haría imposible saber qué rompió qué.
 
 - 2026-10-26 — Análisis del sistema actual, prueba de las 12 figuras (`graficos-vega-lite/`), fallos
   §3 reproducidos con `processChartData` y 100 filas sintéticas.
+- 2026-10-26 — Decisiones del autor (§8). Se añade Dec-76 (interruptor interfaz/código). Empieza la 5.16.

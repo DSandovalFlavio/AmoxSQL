@@ -4,6 +4,7 @@
  */
 import { useReducer, useCallback, useRef, useEffect } from 'react';
 import { DEFAULT_CONFIG } from './constants';
+import { esSpecVega, leerAmoxvis } from './vega/figura';
 
 // ─── Action Types ────────────────────────────────────────────
 export const ACTIONS = {
@@ -23,7 +24,9 @@ function chartReducer(state, action) {
             return { ...state, ...action.fields };
 
         case ACTIONS.LOAD_CONFIG: {
-            const cfg = action.config;
+            // Un .amoxvis nuevo (o un Vega-Lite pegado) llega como spec: se pasa
+            // al objeto plano de siempre.
+            const cfg = esSpecVega(action.config) ? leerAmoxvis(action.config) : action.config;
             const newState = { ...DEFAULT_CONFIG };
 
             // Map all known keys, preserving legacy migrations
@@ -66,6 +69,9 @@ function chartReducer(state, action) {
                 newState.chartType = 'bar-horizontal';
                 newState.barStackMode = 'expand';
             }
+
+            // El spec generado por los paneles no se guarda: se rehace desde ellos.
+            if (newState.modo !== 'codigo') { newState.modo = 'interfaz'; newState.spec = null; }
 
             return newState;
         }

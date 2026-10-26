@@ -24,16 +24,16 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
 
     const isLine = chartType === 'line' || chartType === 'area';
     const isBar = chartType.startsWith('bar');
-    const isHorizontal = chartType.startsWith('bar-horizontal');
     const isCombo = chartType === 'combo';
     const isScatter = chartType === 'scatter' || chartType === 'bubble';
     const isWaterfall = chartType === 'waterfall';
-    // Feature support per chart type — MUST match what ChartRenderer actually draws,
-    // so the panel never offers a control that does nothing.
+    // Feature support per chart type — MUST match what vega/deStoryFlow.js draws,
+    // so the panel never offers a control that does nothing. With Vega-Lite the
+    // reference layers are real layers, so every chart with axes gets them.
     const supportsRef = isLine || isBar || isCombo || isScatter || isWaterfall;   // Goal / Reference line & area
-    const supportsTrend = isLine || (isBar && !isHorizontal);                     // Trend / moving average
+    const supportsTrend = isLine || isBar || isScatter;                           // Trend / moving average (one series)
     const supportsHighlight = isLine || isBar;                                    // Highlight rule
-    const supportsAnnotations = isLine || isBar || isCombo;                       // Free-form annotations
+    const supportsAnnotations = supportsRef;                                      // Free-form annotations
 
     const applyTexts = () => {
         if (titleRef.current) setField('chartTitle', titleRef.current.value);

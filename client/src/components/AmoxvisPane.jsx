@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { LuCode, LuLoader, LuChevronDown, LuChevronRight, LuSquare, LuRefreshCw, LuBookOpen, LuSave, LuGitBranch, LuUnlink } from 'react-icons/lu';
 import DataVisualizer from './DataVisualizer';
 import { useToast } from './ToastProvider';
+import { leerAmoxvis } from './DataVisualizer/vega/figura';
 
 
 const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange, onCreateNew }) => {
@@ -118,7 +119,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange, onC
             const data = await response.json();
             if (data.error) throw new Error(data.error);
 
-            const diskConfig = JSON.parse(data.content);
+            const diskConfig = leerAmoxvis(data.content);
             const diskQuery = diskConfig.query || '';
             
             setCurrentQuery(diskQuery);

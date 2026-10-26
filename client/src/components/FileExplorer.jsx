@@ -20,6 +20,7 @@ import { useDialog } from './dialogs/DialogProvider';
 import { comoAbrir, recordarApertura, olvidarApertura, moverPreferencia } from '../utils/preferenciaApertura';
 import { tipoDeArchivo } from '../utils/tiposDeArchivo';
 import { vigilar } from '../state/vigilante';
+import { leerAmoxvis } from './DataVisualizer/vega/figura';
 
 /**
  * A partir de aquí se pregunta antes de abrir en el editor.
@@ -717,7 +718,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                 const id = Date.now().toString() + Math.random().toString(36).slice(2, 8);
                 if (f.name.toLowerCase().endsWith('.amoxvis')) {
                     let config = {};
-                    try { config = JSON.parse(data.content); } catch { /* malformed — falls through with empty query */ }
+                    config = leerAmoxvis(data.content); // un archivo ilegible queda en {} y la celda sin consulta
                     const { query, ...chartConfig } = config;
                     cells.push({ id, type: 'code', content: query || '', state: { chartConfig, viewMode: 'chart' } });
                 } else if (f.name.toLowerCase().endsWith('.md')) {

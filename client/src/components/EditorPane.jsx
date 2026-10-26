@@ -25,6 +25,7 @@ const TextEditor = lazy(() => import('./TextEditor'));
 const CuadernoEditor = lazy(() => import('./cuaderno/CuadernoEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
 import BarraModelo from './dbt/BarraModelo';
+import { textoAmoxvis } from './DataVisualizer/vega/figura';
 
 // Discreet fallback while a lazy pane chunk loads (matches ChainEditor's style)
 const PaneLoading = ({ label = 'Loading…' }) => (
@@ -548,7 +549,7 @@ const EditorPane = ({
                                 onRunQuery={onRunQuery}
                                 onSave={onSave}
                                 onOpenAsSql={(tab) => onOpenAmoxvisAsSql && onOpenAmoxvisAsSql(tab)}
-                                onConfigChange={(config) => onContentChange(activeTab.id, JSON.stringify(config, null, 2))}
+                                onConfigChange={(config) => onContentChange(activeTab.id, textoAmoxvis(config))}
                                 onCreateNew={onCreateNew}
                             />
                         </Suspense>

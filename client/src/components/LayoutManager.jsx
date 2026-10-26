@@ -21,6 +21,7 @@ import { tipoDePestana } from '../utils/tiposDeArchivo';
 import { decidirAviso, decidirGuardado, ACCIONES } from '../utils/conflictoArchivo';
 import { vigilar } from '../state/vigilante';
 import Retomar from './Retomar';
+import { leerAmoxvis, textoAmoxvis } from './DataVisualizer/vega/figura';
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
 // 5.14 (F5): las pestañas, por proyecto. Con la clave global, al abrir otro
@@ -1016,8 +1017,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             let saveContent = tab.content;
             if (tab.path && tab.path.endsWith('.amoxvis') && tab.type === 'sql') {
                 const config = tab.chartConfig || tab.initialChartConfig || {};
-                const newConfig = { ...config, query: tab.content };
-                saveContent = JSON.stringify(newConfig, null, 2);
+                saveContent = textoAmoxvis({ ...config, query: tab.content });
             }
 
             /**
@@ -1170,7 +1170,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 // Blank config, no query yet — AmoxvisPane's own empty state
                 // ("No query" + Edit SQL) already guides the user from here;
                 // nothing new needed there.
-                : normalizedType === 'amoxvis' ? JSON.stringify(conMarcaGrafico({ chartType: 'bar', query: '' }), null, 2)
+                : normalizedType === 'amoxvis' ? textoAmoxvis(conMarcaGrafico({ chartType: 'bar', query: '' }))
                 // En blanco a propósito: un borrador de texto no sabe para qué
                 // es, y cualquier plantilla habría que borrarla antes de usarlo.
                 : normalizedType === 'texto' ? ''
@@ -1183,7 +1183,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             // Un .amoxvis creado con contenido ya trae su query y su origen
             // (ver openChartFor): se respeta en vez de pisarlo con el blanco.
             initialChartConfig: normalizedType === 'amoxvis'
-                ? (() => { try { return JSON.parse(initialContent); } catch { return { chartType: 'bar', query: '' }; } })()
+                ? (() => { const c = leerAmoxvis(initialContent); return Object.keys(c).length ? c : { chartType: 'bar', query: '' }; })()
                 : undefined,
         };
         const pane = targetPane || stateRef.current.activePane;
@@ -1259,7 +1259,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const config = conMarcaGrafico(eleccion
             ? { chartType: 'bar', query: eleccion.query || '', source: eleccion.path }
             : { chartType: 'bar', query: '' });
-        spawnTab('amoxvis', JSON.stringify(config, null, 2), targetPane);
+        spawnTab('amoxvis', textoAmoxvis(config), targetPane);
     }, [chartSourceFor, spawnTab]);
 
     // Fase 4 — historial a archivo: creates a real new .sql tab for this
@@ -1545,7 +1545,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
 
-                const config = JSON.parse(data.content);
+                const config = leerAmoxvis(data.content);
 
                 const newTab = {
                     id: Date.now().toString(),
@@ -1579,7 +1579,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
 
-                const config = JSON.parse(data.content);
+                const config = leerAmoxvis(data.content);
 
                 // Fase 3 — procedencia: same routing as opening the chart tab
                 // and hitting "Edit SQL" — a linked chart opens its actual
@@ -1733,7 +1733,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             let initialChartConfig = null;
             if (type === 'amoxvis' || path.endsWith('.amoxvis')) {
                 try {
-                    initialChartConfig = JSON.parse(finalContent);
+                    initialChartConfig = leerAmoxvis(finalContent);
                 } catch (e) {
                     console.warn('Failed to parse amoxvis content:', e);
                 }

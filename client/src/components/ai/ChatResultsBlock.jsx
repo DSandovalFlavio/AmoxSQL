@@ -1,13 +1,12 @@
 import { memo, useMemo, useState, Component } from 'react';
 import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn, LuMessageSquareQuote } from 'react-icons/lu';
 import html2canvas from 'html2canvas-pro';
-import ChartRenderer from '../DataVisualizer/renderers/ChartRenderer';
-import { processChartData, isDateColumn } from '../DataVisualizer/utils/dataProcessing';
+import FiguraVega from '../DataVisualizer/vega/FiguraVega';
+import { deStoryFlow } from '../DataVisualizer/vega/deStoryFlow';
 import { COLOR_PALETTES } from '../DataVisualizer/constants';
 
 /**
- * Catches Recharts' internal infinite-update crash (LegendSizeDispatcher bug in v3.x)
- * so a single broken chart doesn't take down the whole chat UI.
+ * Un gráfico roto no se lleva por delante el chat entero.
  */
 class ChartErrorBoundary extends Component {
     constructor(props) {
@@ -18,7 +17,7 @@ class ChartErrorBoundary extends Component {
         return { crashed: true };
     }
     componentDidCatch(err) {
-        console.warn('[ChartErrorBoundary] Recharts error caught:', err?.message || err);
+        console.warn('[ChartErrorBoundary] chart error caught:', err?.message || err);
     }
     render() {
         if (this.state.crashed) {
@@ -34,7 +33,7 @@ class ChartErrorBoundary extends Component {
 
 /**
  * ChatResultsBlock — Renders an inline chart visualization for the AI chat.
- * Finds the data from previous messages using queryId and renders ChartRenderer.
+ * Finds the data from previous messages using queryId and draws it with Vega-Lite.
  */
 const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook, onExportAmoxvis, onApplyChart, onAskAbout }) => {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -61,26 +60,6 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
         return { data: null, sourceQuery: null, executionTime: null };
     }, [allMessages, chartConfig]);
 
-    // Memoized BEFORE the early return (hook order) and, critically, with
-    // stable identity: a fresh `columns` array every render used to break
-    // ChartRenderer's memo — every Recharts chart re-rendered on every stream
-    // token while its host re-rendered.
-    const columns = useMemo(
-        () => (data && data.length > 0 ? Object.keys(data[0]) : []),
-        [data]
-    );
-    const isDateCol = useMemo(
-        () => (data && data.length > 0 ? isDateColumn(data, chartConfig.xAxisKey) : false),
-        [data, chartConfig.xAxisKey]
-    );
-
-    if (!data || data.length === 0) {
-        return (
-            <div className="ai-chart ai-chart--empty">
-                [Chart: Waiting for data {chartConfig?.queryId}]
-            </div>
-        );
-    }
 
     // Merge LLM config with defaults. AI-supplied values always win over defaults.
     const fullConfig = useMemo(() => {
@@ -176,24 +155,22 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
         };
     }, [chartConfig]);
 
-    // Process data for ChartRenderer
-    const { processedData, finalSeriesKeys } = useMemo(() => {
-        return processChartData({
-            data,
-            xAxisKey: fullConfig.xAxisKey,
-            yAxisKeys: fullConfig.yAxisKeys,
-            splitByKey: fullConfig.splitByKey,
-            isDate: isDateCol,
-            dateAggregation: fullConfig.dateAggregation,
-            bubbleSizeKey: fullConfig.bubbleSizeKey,
-            chartType: fullConfig.chartType,
-            isCumulative: fullConfig.isCumulative,
-            sortMode: fullConfig.sortMode,
-            limit: fullConfig.limit || 0,
-        });
-    }, [data, fullConfig, isDateCol]);
-
     const activeColors = COLOR_PALETTES[fullConfig.colorTheme] || COLOR_PALETTES.default;
+    // Sin título: el bloque ya lo pone en su cabecera. Con identidad estable para
+    // que el flujo de tokens del chat no vuelva a dibujar la figura.
+    const spec = useMemo(
+        () => (data && data.length ? deStoryFlow({ ...fullConfig, chartTitle: '', chartSubtitle: '' }, { filas: data, colores: activeColors }) : null),
+        [data, fullConfig, activeColors]);
+
+    // Después de todos los hooks: con datos que llegan más tarde, un return antes
+    // de ellos cambiaba su número entre renders.
+    if (!data || data.length === 0) {
+        return (
+            <div className="ai-chart ai-chart--empty">
+                [Chart: Waiting for data {chartConfig?.queryId}]
+            </div>
+        );
+    }
     const isExpandedMode = isExpanded || isDiving;
 
     const handleDownloadImage = async () => {
@@ -261,15 +238,16 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             {/* Chart Area */}
             <div id={`${chartDOMId}-area`} className={`ai-chart-area${isExpandedMode ? ' ai-chart-area--expanded' : ''}`} style={{ padding: '10px 0' }}>
                 <ChartErrorBoundary>
-                    <ChartRenderer
-                        config={fullConfig}
-                        processedData={processedData}
-                        finalSeriesKeys={finalSeriesKeys}
-                        activeColors={activeColors}
-                        columns={columns}
-                        isDateColumn={isDateCol}
-                        textScale={isExpandedMode ? 1 : 0.8}
-                    />
+                    {spec && (
+                        <FiguraVega
+                            spec={spec}
+                            filas={data}
+                            c={fullConfig}
+                            colores={activeColors}
+                            fuente="Manrope, Inter, system-ui, sans-serif"
+                            escala={isExpandedMode ? 1 : 0.85}
+                        />
+                    )}
                 </ChartErrorBoundary>
             </div>
 
