@@ -5,7 +5,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
-## [Sin publicar]
+## [5.15.1] — 2026-10-25
+
+Arreglos encontrados al documentar la 5.15 con un proyecto real, la documentación con capturas nuevas y un mockup de la página web (`docs/dev/sitio-web/`).
 
 ### Documentación y ejemplos
 
