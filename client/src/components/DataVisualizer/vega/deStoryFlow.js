@@ -28,6 +28,8 @@ export const FORMATO_AMOX = 'amoxNumero';
 const UNIDAD = { day: 'yearmonthdate', week: 'yearweek', month: 'yearmonth', quarter: 'yearquarter', year: 'year' };
 const FORMATO_FECHA = { yearmonthdate: '%d %b %Y', yearweek: '%d %b %Y', yearmonth: '%b %Y', yearquarter: 'Q%q %Y', year: '%Y' };
 const MAX_PUNTOS = 60;
+const ZOOM = { name: 'zoom', select: 'interval', bind: 'scales' };
+const ZOOM_X = { name: 'zoom', select: { type: 'interval', encodings: ['x'] }, bind: 'scales' };
 
 /** En Vega-Lite un punto o un corchete en `field` significa anidado. */
 export const campo = (n) => String(n).replace(/([.[\]\\])/g, '\\$1');
@@ -278,6 +280,8 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
                 capas.push({ mark: relleno, encoding: { ...enc, [val]: { ...encVal, stack: null }, tooltip: undefined } });
             }
             capas.push({
+                // Una serie larga sobre un eje continuo se puede acercar en X.
+                ...(continuo && encCat.type === 'temporal' && nPuntos > MAX_PUNTOS ? { params: [ZOOM_X] } : {}),
                 mark: { type: 'line', interpolate, strokeWidth: 2, ...(serie ? {} : { color: colorUnico }), ...(puntos ? { point: { filled: true, size: 28 } } : {}) },
                 encoding: { ...enc, [val]: { ...encVal, stack: null } },
             });
@@ -348,7 +352,8 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         const e = { ...enc, [val]: { ...encVal } };
         if (!serie) e.color = undefined;
         if ((burbuja || c.bubbleSizeKey) && c.bubbleSizeKey) e.size = { field: campo(c.bubbleSizeKey), type: 'quantitative', scale: { range: [60, 600] }, legend: null };
-        capas.push({ mark: { type: 'circle', opacity: 0.85, size: 60, ...(serie ? {} : { color: colorUnico }) }, encoding: e });
+        // Rueda para acercar, arrastrar para moverse; doble clic vuelve (5.18).
+        capas.push({ params: [ZOOM], mark: { type: 'circle', opacity: 0.85, size: 60, ...(serie ? {} : { color: colorUnico }) }, encoding: e });
         if (c.scatterQuadrants) {
             capas.push({ mark: { type: 'rule', strokeDash: [5, 5], color: '#888' }, encoding: { x: { aggregate: 'mean', field: campo(X), type: 'quantitative' } } });
             capas.push({ mark: { type: 'rule', strokeDash: [5, 5], color: '#888' }, encoding: { y: { aggregate: 'mean', field: campo(valor), type: 'quantitative' } } });

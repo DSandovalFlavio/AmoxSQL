@@ -46,6 +46,11 @@ import PasteJsonModal from './panels/PasteJsonModal';
 import FiguraVega from './vega/FiguraVega';
 import EditorCodigo from './vega/EditorCodigo';
 import { deStoryFlow } from './vega/deStoryFlow';
+import { sqlDeAgregado } from './vega/agregar';
+import { specDeSalida, scriptDePython } from './vega/salida';
+import { escribirAmoxvis } from './vega/figura';
+import { prepararFilas } from './vega/motor';
+import { temaVega, TOKENS_CLAROS } from './vega/tema';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
 import { StoryFlowGuide } from './StoryFlowGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
@@ -158,7 +163,7 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false }) => {
     /**
      * Sin mandos, pero NO empotrada.
      *
@@ -243,15 +248,35 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     // ── Derived data ──
     const isDateCol = useMemo(() => isDateColumn(data, state.xAxisKey), [data, state.xAxisKey]);
 
+    /* ── La suma la hace DuckDB (5.18) ──
+       Si el resultado llegó recortado (o es muy grande) y el tipo suma por X, se
+       pide a DuckDB la misma agregación sobre la consulta entera. Mientras llega,
+       y si falla, la figura dibuja las filas que hay. */
+    const sqlMotor = useMemo(
+        () => ((truncado || (data?.length || 0) > 20000) ? sqlDeAgregado(state, query, { xEsFecha: isDateCol }) : null),
+        [truncado, data, state, query, isDateCol]);
+    const [agregadas, setAgregadas] = useState(null);
+    useEffect(() => {
+        if (!sqlMotor) return undefined;
+        let vivo = true;
+        fetch(`${API_BASE}/api/query`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: sqlMotor, limit: 100000 }) })
+            .then(r => (r.ok ? r.json() : null))
+            .then(r => { if (vivo && r?.data && !r.truncated) setAgregadas({ sql: sqlMotor, filas: r.data }); })
+            .catch(() => { /* se queda con las filas del resultado */ });
+        return () => { vivo = false; };
+    }, [sqlMotor]);
+    const filasFigura = (agregadas && agregadas.sql === sqlMotor) ? agregadas.filas : data;
+    const enMotor = filasFigura !== data;
+
     const { processedData, finalSeriesKeys } = useMemo(() =>
         processChartData({
-            data, xAxisKey: state.xAxisKey, yAxisKeys: state.yAxisKeys,
+            data: filasFigura, xAxisKey: state.xAxisKey, yAxisKeys: state.yAxisKeys,
             splitByKey: state.splitByKey, isDate: isDateCol,
             dateAggregation: state.dateAggregation, bubbleSizeKey: state.bubbleSizeKey,
             chartType: state.chartType, isCumulative: state.isCumulative,
             sortMode: state.sortMode, limit: state.limit,
         }),
-        [data, state.xAxisKey, state.yAxisKeys, state.splitByKey, isDateCol,
+        [filasFigura, state.xAxisKey, state.yAxisKeys, state.splitByKey, isDateCol,
             state.dateAggregation, state.bubbleSizeKey, state.chartType,
             state.isCumulative, state.sortMode, state.limit]
     );
@@ -270,8 +295,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
        así teclearlo no vuelve a dibujar la figura en cada letra. */
     const especInterfaz = useMemo(
         () => (state.modo === 'codigo' ? null
-            : deStoryFlow({ ...state, chartTitle: '', chartSubtitle: '' }, { filas: data || [], colores: activeColors })),
-        [state, data, activeColors]);
+            : deStoryFlow({ ...state, chartTitle: '', chartSubtitle: '' }, { filas: filasFigura || [], colores: activeColors })),
+        [state, filasFigura, activeColors]);
     const specActual = state.modo === 'codigo' && state.spec ? state.spec : especInterfaz;
     const specRef = useRef(specActual);
     specRef.current = specActual;
@@ -492,6 +517,30 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         a.click();
         URL.revokeObjectURL(url);
     }, [processedData, state.chartTitle]);
+
+    /* ── Sal con tu gráfico (5.18) ──
+       Vega-Lite con los datos dentro, la plantilla con los datos por nombre, o un
+       script de Python. `conAspecto` lleva el aspecto de AmoxSQL como `config`,
+       con los colores de un fondo claro (fuera, casi siempre es blanco). */
+    const descargar = useCallback((texto, nombre, tipo) => {
+        const blob = new Blob([texto], { type: tipo });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+    }, []);
+    const handleExportarFuera = useCallback((formato, { conAspecto = true } = {}) => {
+        const archivo = escribirAmoxvis({ ...state, query, spec: specRef.current }, { filas: filasFigura });
+        const config = conAspecto ? temaVega(null, { fuente: fontFamily, colores: activeColors, c: state, tokens: TOKENS_CLAROS }) : null;
+        const base = (state.chartTitle || 'chart').replace(/[^\p{L}\d]+/gu, '-').toLowerCase().replace(/^-|-$/g, '').slice(0, 40) || 'chart';
+        if (formato === 'python') {
+            const py = scriptDePython(archivo, { config });
+            if (py) descargar(py, `${base}.py`, 'text/x-python;charset=utf-8');
+            return;
+        }
+        const spec = specDeSalida(archivo, { datos: formato === 'plantilla' ? 'nombre' : 'valores', filas: prepararFilas(filasFigura), config });
+        descargar(JSON.stringify(spec, null, 2), `${base}${formato === 'plantilla' ? '.template' : ''}.vl.json`, 'application/json;charset=utf-8');
+    }, [state, query, filasFigura, fontFamily, activeColors, descargar]);
 
     // 'save' — the plain "Save as .amoxvis" flow. 'presentation' — Fase 4:
     // "Add to new presentation" reuses the same save step (a deck slide has
@@ -743,7 +792,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                 {(isActive || isReportMode) && specActual && (
                     <FiguraVega
                         spec={specActual}
-                        filas={data}
+                        filas={filasFigura}
                         c={state}
                         colores={activeColors}
                         fuente={fontFamily}
@@ -993,6 +1042,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                                 onCopy={handleCopy}
                                 onPasteJson={() => setIsPasteJsonOpen(true)}
                                 onExportData={handleExportData}
+                                onExportarFuera={handleExportarFuera}
+                                esVega={specActual?.$schema?.includes('/vega/v')}
                                 chartRef={chartRef}
                             />
                         )}
@@ -1109,6 +1160,11 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                     display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
                     padding: '6px 16px 10px', flex: 'none',
                 }}>
+                    {enMotor && (
+                        <span className="sf-en-motor" title="The result was cut at the row limit, so DuckDB added up the whole query for this chart">
+                            Totals from all rows (DuckDB)
+                        </span>
+                    )}
                     <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Size</span>
                     <div style={{ display: 'flex', gap: '3px' }}>
                         {CANVAS_SIZES.map(c => (

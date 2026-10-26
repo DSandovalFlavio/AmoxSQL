@@ -6,7 +6,7 @@ import {
     LuDownload, LuChartColumnBig,
 } from 'react-icons/lu';
 import { useModalA11y } from '../hooks/useModalA11y';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import FiguraVega from './DataVisualizer/vega/FiguraVega';
 
 /**
  * DataProfiler — storytelling-driven EDA report for a query result.
@@ -194,6 +194,24 @@ const ColumnDetail = ({ col, onPlot }) => {
             return { name: String(t.value) || '(empty)', count, pct: Number.isFinite(pct) ? pct : null };
         });
     }, [col]);
+    /* La distribución, en Vega-Lite como el resto de figuras (5.18). La etiqueta
+       del tooltip va ya escrita: la cuenta y su porcentaje. */
+    const filas = useMemo(() => chartData.map(d => ({
+        ...d, cuenta: d.pct != null ? `${fmt(d.count)} (${d.pct.toFixed(1)}%)` : fmt(d.count),
+    })), [chartData]);
+    const spec = useMemo(() => {
+        const numerica = col.dtype === 'numeric';
+        const cat = { field: 'name', type: 'ordinal', sort: null, axis: { title: null, labelAngle: 0, labelFontSize: numerica ? 10 : 11, ...(numerica ? {} : { labelLimit: 110 }) } };
+        const val = { field: 'count', type: 'quantitative', axis: numerica ? { title: null, format: '~s', labelFontSize: 10, grid: false } : null };
+        return {
+            data: { name: 'dataset' },
+            mark: { type: 'bar', cornerRadius: 3, color: 'var(--accent-primary)', opacity: 0.85 },
+            encoding: {
+                ...(numerica ? { x: cat, y: val } : { y: cat, x: val }),
+                tooltip: [{ field: 'name', type: 'nominal', title: numerica ? 'Bin' : 'Value' }, { field: 'cuenta', type: 'nominal', title: 'Count' }],
+            },
+        };
+    }, [col.dtype]);
     return (
         <div style={{ padding: '18px 20px', display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '28px', borderTop: '1px solid var(--border-subtle)', background: 'var(--surface-base)' }}>
             <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -212,28 +230,7 @@ const ColumnDetail = ({ col, onPlot }) => {
                     )}
                 </div>
                 <div style={{ flex: 1, minHeight: 150 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={chartData} layout={col.dtype === 'numeric' ? 'horizontal' : 'vertical'} margin={{ top: 4, right: 12, bottom: 4, left: col.dtype === 'numeric' ? 4 : 8 }}>
-                            {col.dtype === 'numeric'
-                                ? <><XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} /><YAxis width={42} tickFormatter={fmtAxis} tick={{ fontSize: 10, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} /></>
-                                : <><XAxis type="number" hide /><YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} axisLine={false} tickLine={false} /></>}
-                            <Tooltip
-                                contentStyle={{ background: 'var(--surface-overlay)', border: '1px solid var(--border-default)', borderRadius: 6, fontSize: 12 }}
-                                /* Recharts defaults these to near-black, which is
-                                   unreadable on a dark overlay — pin them to theme tokens. */
-                                labelStyle={{ color: 'var(--text-primary)', fontWeight: 600, marginBottom: 2 }}
-                                itemStyle={{ color: 'var(--text-secondary)' }}
-                                formatter={(value, _n, entry) => {
-                                    const pct = entry?.payload?.pct;
-                                    return [pct != null ? `${fmt(value)} (${pct.toFixed(1)}%)` : fmt(value), 'Count'];
-                                }}
-                                cursor={{ fill: 'var(--hover-bg)' }}
-                            />
-                            <Bar dataKey="count" radius={[3, 3, 3, 3]}>
-                                {chartData.map((_, i) => <Cell key={i} fill="var(--accent-primary)" fillOpacity={0.85} />)}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
+                    <FiguraVega spec={spec} filas={filas} fuente="Manrope, Inter, system-ui, sans-serif" />
                 </div>
             </div>
             <div>

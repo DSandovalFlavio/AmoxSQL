@@ -9906,8 +9906,7 @@ tr:hover td {
   }
 
   /* Prevent charts from being split across pages */
-  .recharts-responsive-container,
-  .recharts-wrapper,
+  .figura-vega,
   .notebook-code-cell-content>div:last-child {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
@@ -9964,7 +9963,7 @@ tr:hover td {
   }
 
   /* ===== CHARTS: ensure SVG prints with colors ===== */
-  .recharts-surface {
+  .figura-vega svg {
     overflow: visible !important;
   }
 
@@ -21589,4 +21588,8 @@ tr:hover td {
 .sf-codigo-capa {
   height: 24px; font-size: 11px; padding: 0 6px; border-radius: var(--radius-sm);
   background: var(--input-bg, transparent); color: var(--text-secondary); border: 1px solid var(--border-color);
+}
+.sf-en-motor {
+  font-size: 10px; letter-spacing: .04em; color: var(--accent-primary);
+  background: var(--accent-muted); border-radius: var(--radius-sm); padding: 2px 7px;
 }

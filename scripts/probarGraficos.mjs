@@ -11,6 +11,7 @@
 import path from 'node:path';
 import { register } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
 
 const CLIENTE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'client');
 // El código del cliente importa sin extensión (lo resuelve Vite) y sus paquetes
@@ -34,6 +35,8 @@ const { leerAmoxvis, escribirAmoxvis, esSpecVega } = await import(url('component
 const { compilarFigura, prepararFilas, resolverVariables } = await import(url('components/DataVisualizer/vega/motor.js'));
 const { temaVega } = await import(url('components/DataVisualizer/vega/tema.js'));
 const { anadirCapa, capaPosible } = await import(url('components/DataVisualizer/vega/capas.js'));
+const { paraFuera, specDeSalida, scriptDePython, formatoD3 } = await import(url('components/DataVisualizer/vega/salida.js'));
+const { sqlDeAgregado, consultaEnvolvible } = await import(url('components/DataVisualizer/vega/agregar.js'));
 const { COLOR_PALETTES } = await import(url('components/DataVisualizer/constants.js'));
 const { GALLERY_CHARTS } = await import(url('data/galleryChartDefinitions.js'));
 const vega = await import(pathToFileURL(path.join(CLIENTE, 'node_modules/vega/build/vega.module.js')).href).catch(() => import('vega'));
@@ -191,6 +194,51 @@ console.log('Capas del modo Código');
     const conMedia = anadirCapa(barras, 'media');
     const r2 = await dibujar(conMedia, ventas);
     bien('media sobre barras agrupadas de Story Flow: una sola regla', r2.avisos.length === 0 && marcas(r2.svg, 'rule mark') === 1, `${marcas(r2.svg, 'rule mark')} · ${r2.avisos.join(' | ')}`);
+}
+
+console.log('Salir con el gráfico');
+{
+    const anillo = deStoryFlow({ chartType: 'donut', xAxisKey: 'categoria', yAxisKeys: ['venta'], showLabels: true, donutLabelContent: 'name_value' }, { filas: categorias, colores });
+    const fuera = paraFuera(anillo);
+    bien('fuera de AmoxSQL no queda ningún formato propio', !JSON.stringify(fuera).includes('amoxNumero'));
+    const r = await dibujar(fuera, categorias);
+    bien('…y la figura sigue compilando y dibujando', r.avisos.length === 0 && marcas(r.svg, 'arc mark') === 6, r.avisos.join(' | '));
+    bien('formatos d3: compacto, moneda, decimales fijos', formatoD3('compact|-1') === '.3~s' && formatoD3('currency|-1') === '$,.0f' && formatoD3('standard|2') === ',.2f');
+
+    const archivo = escribirAmoxvis({ chartType: 'bar', xAxisKey: 'categoria', yAxisKeys: ['venta'], chartTitle: 'Ventas', query: 'SELECT * FROM ventas', goalLine: { enabled: true, value: 5000, label: 'Meta', color: '#22c55e', style: 'dashed' } }, { filas: categorias });
+    const conValores = specDeSalida(archivo, { datos: 'valores', filas: prepararFilas(categorias) });
+    bien('Vega-Lite con los datos dentro', conValores.data.values?.length === 6 && !conValores.usermeta && /SQL: SELECT/.test(conValores.description));
+    const rv2 = await dibujar(conValores, []);
+    bien('…dibuja solo, sin AmoxSQL que le pase datos', rv2.avisos.length === 0 && marcas(rv2.svg, 'bar') === 6, rv2.avisos.join(' | '));
+    const plantilla = specDeSalida(archivo, { datos: 'nombre' });
+    bien('plantilla con los datos por nombre «dataset»', plantilla.data?.name === 'dataset' && !plantilla.data.values);
+    const py = scriptDePython(archivo, { base: 'tienda.duckdb' });
+    bien('script de Python: la consulta, la base y la clase de Altair', py.includes('SELECT * FROM ventas') && py.includes('"tienda.duckdb"') && py.includes('alt.LayerChart.from_dict'));
+    const arbol = escribirAmoxvis({ chartType: 'treemap', xAxisKey: 'categoria', yAxisKeys: ['venta'], query: 'SELECT 1' });
+    bien('un treemap (Vega) sale con sus datos y sin script de Python', specDeSalida(arbol, { filas: [{ a: 1 }] }).data[0].values?.length === 1 && scriptDePython(arbol) === null);
+}
+
+console.log('La suma la hace DuckDB');
+{
+    const { DuckDBInstance } = createRequire(import.meta.url)('@duckdb/node-api');
+    const db = await DuckDBInstance.create(':memory:');
+    const con = await db.connect();
+    const q = async (sql) => (await con.runAndReadAll(sql)).getRowObjectsJson();
+    await con.run(`CREATE TABLE ventas AS SELECT DATE '2024-01-01' + (i % 365)::INTEGER AS fecha, ['Norte','Sur','Este'][1 + i % 3] AS region, (i % 97)::DECIMAL(10,2) AS importe FROM range(30000) t(i)`);
+    const consulta = 'SELECT * FROM ventas -- todas las filas\n;';
+    const sql = sqlDeAgregado({ chartType: 'bar', xAxisKey: 'fecha', yAxisKeys: ['importe'], splitByKey: 'region', dateAggregation: 'month' }, consulta, { xEsFecha: true });
+    const filas = await q(sql);
+    const total = (await q('SELECT sum(importe) AS t FROM ventas'))[0].t;
+    const suma = filas.reduce((a, f) => a + Number(f.importe), 0);
+    bien('la agregación corre en DuckDB: un mes por región', filas.length === 12 * 3, `${filas.length} filas`);
+    bien('…y suma TODAS las filas, no las primeras 10 000', Math.abs(suma - Number(total)) < 0.01, `${suma} vs ${total}`);
+    const spec = deStoryFlow({ chartType: 'bar', xAxisKey: 'fecha', yAxisKeys: ['importe'], splitByKey: 'region', dateAggregation: 'month' }, { filas, colores });
+    const r = await dibujar(spec, filas);
+    bien('el mismo spec dibuja las filas agregadas', r.avisos.length === 0 && marcas(r.svg, 'bar') === 36, `${marcas(r.svg, 'bar')} barras`);
+    bien('modo código: no se agrega (el spec es del usuario)', sqlDeAgregado({ chartType: 'bar', modo: 'codigo', xAxisKey: 'x', yAxisKeys: ['y'] }, 'SELECT 1') === null);
+    bien('dispersión: no se agrega (cada fila es un punto)', sqlDeAgregado({ chartType: 'scatter', xAxisKey: 'x', yAxisKeys: ['y'] }, 'SELECT 1') === null);
+    bien('una consulta con variables o con dos sentencias no se envuelve', consultaEnvolvible('SELECT * FROM t WHERE a = ${x}') === null && consultaEnvolvible('SELECT 1; SELECT 2') === null && consultaEnvolvible("SELECT ';' AS s;") !== null);
+    con.closeSync?.(); db.closeSync?.();
 }
 
 console.log('La galería');

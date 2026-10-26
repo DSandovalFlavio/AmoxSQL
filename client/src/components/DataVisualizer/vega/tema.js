@@ -22,11 +22,13 @@ function token(el, nombre, porDefecto) {
  * @param {string[]} op.colores La paleta activa.
  * @param {object}  op.c        El estado de Story Flow (tamaños y opacidad de etiquetas).
  */
-export function temaVega(el, { fuente, escala = 1, colores, c = {} } = {}) {
-    const texto = token(el, '--text-primary', '#e6e6e6');
-    const textoSuave = token(el, '--text-secondary', '#9aa0aa');
-    const borde = token(el, '--border-color', '#3a3f4b');
-    const rejilla = token(el, '--grid-color', borde);
+export function temaVega(el, { fuente, escala = 1, colores, c = {}, tokens = null } = {}) {
+    // `tokens` fija los colores a mano (al exportar, para un fondo claro fuera de AmoxSQL).
+    const leer = (n, d) => (tokens && tokens[n]) || token(el, n, d);
+    const texto = leer('--text-primary', '#e6e6e6');
+    const textoSuave = leer('--text-secondary', '#9aa0aa');
+    const borde = leer('--border-color', '#3a3f4b');
+    const rejilla = leer('--grid-color', borde);
     const tam = (n) => Math.round(n * escala * 10) / 10;
     const etiqueta = tam(Number(c.axisLabelSize) || 11);
     const opacidad = Number(c.axisLabelOpacity ?? 0.8);
@@ -61,6 +63,9 @@ export function temaVega(el, { fuente, escala = 1, colores, c = {} } = {}) {
         style: { 'guide-label': { fill: texto }, 'guide-title': { fill: texto } },
     };
 }
+
+/** El aspecto de AmoxSQL sobre un fondo claro: lo que viaja al exportar con «aspecto». */
+export const TOKENS_CLAROS = { '--text-primary': '#1f2228', '--text-secondary': '#5f6570', '--border-color': '#c9ccd2', '--grid-color': '#e2e4e8' };
 
 /** Une dos `config`: lo del spec gana, objeto a objeto (un nivel basta en `config`). */
 export function unirConfig(tema, propio) {
