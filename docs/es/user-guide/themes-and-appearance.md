@@ -9,7 +9,7 @@
 ## Dónde se ajusta
 **Ajustes → Appearance** (icono de engranaje en la barra de actividad, o Ctrl+,).
 
-<!-- 📷 CAPTURE: docs/images/user-guide/theme-gallery.png — galería de temas y acentos en Ajustes -->
+<img src="../../images/user-guide/theme-gallery.png" alt="galería de temas y acentos en Ajustes" width="100%" />
 
 ## Temas (10)
 

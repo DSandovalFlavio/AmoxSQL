@@ -4,7 +4,7 @@
 
 > La capa semántica de tu proyecto: unos archivos versionables que le enseñan a la IA qué significan tus datos, cómo se unen tus tablas y qué quiere decir "revenue" en tu negocio — para que responda con exactitud a *tu* realidad, no a una genérica.
 
-<!-- 📷 CAPTURE: docs/images/ai/context-folder.png — Ajustes → IA, tab de contexto: estado de la carpeta context/ con metrics.yml, joins.yml, glossary.md y examples marcados -->
+<img src="../../images/ai/context-folder.png" alt="Ajustes → IA, tab de contexto: estado de la carpeta context/ con metrics.yml, joins.yml, glossary.md y examples marcados" width="100%" />
 
 ## Qué es
 

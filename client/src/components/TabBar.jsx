@@ -80,7 +80,7 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                                 <LuLayoutDashboard size={13} /> Canvas
                             </div>
                             <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('amoxdiagram'); setShowNewMenu(false); }}>
-                                <LuShare2 size={13} /> Diagrama
+                                <LuShare2 size={13} /> Diagram
                             </div>
                             <div className="tab-bar-new-menu-item" onClick={() => { onCreateNew('amoxdeck'); setShowNewMenu(false); }}>
                                 <LuPresentation size={13} /> Report Flow

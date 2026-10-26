@@ -14,7 +14,7 @@ import { LuShare2, LuBox, LuBoxes, LuLayers, LuMoveRight, LuCopy, LuTrash2, LuPl
 import { FORMAS, ESTILOS_ARISTA, DIRECCIONES, capasDe } from '../markdown/mermaidFlow';
 
 const DIRECCION_FLECHA = { LR: '→', TB: '↓', TD: '↓', BT: '↑', RL: '←' };
-const DIRECCION_NOMBRE = { LR: 'Izquierda a derecha', TB: 'Arriba abajo', BT: 'Abajo arriba', RL: 'Derecha a izquierda' };
+const DIRECCION_NOMBRE = { LR: 'Left to right', TB: 'Top to bottom', BT: 'Bottom to top', RL: 'Right to left' };
 // `LR` primero porque es la dirección por defecto y la que dibuja casi todo el
 // mundo; `TD` no se lista porque es el mismo sitio que `TB` con otro nombre.
 const VISIBLES = ['LR', 'TB', 'RL', 'BT'].filter((d) => DIRECCIONES.includes(d));
@@ -319,7 +319,7 @@ const DiagramInspector = ({
             )}
             <div className="dgm-campo dgm-campo--acciones">
                 <button type="button" className="dgm-btn" onClick={() => onAnadir()}>
-                    <LuPlus size={12} strokeWidth={2.3} /> Añadir una caja
+                    <LuPlus size={12} strokeWidth={2.3} /> Add a box
                 </button>
             </div>
         </div>

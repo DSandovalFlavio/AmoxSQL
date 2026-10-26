@@ -4,6 +4,8 @@
 
 > Un workspace agrupa los proyectos de un mismo cliente, equipo, marca o producto. Vive en AmoxSQL, no en una carpeta: tus carpetas de proyecto se le enlazan.
 
+<img src="../../images/user-guide/workspaces.png" alt="La vista de Workspaces con dos clientes, sus proyectos y las últimas ejecuciones" width="100%" />
+
 ## Qué es
 
 Hasta la 5.8, la interfaz llamaba *workspace* a la carpeta que abrías. Desde la 5.9 esa carpeta es un **project**, y *workspace* es lo que agrupa varios proyectos. Nada se movió en disco: cada carpeta que tenías sigue ahí, como proyecto.

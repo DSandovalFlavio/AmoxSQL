@@ -4,6 +4,8 @@
 
 > A workspace groups the projects of one client, team, brand or product. It lives in AmoxSQL, not in a folder: your project folders are linked to it.
 
+<img src="../../images/user-guide/workspaces.png" alt="The Workspaces view with two clients, their projects and the latest runs" width="100%" />
+
 ## What it is
 
 Up to 5.8, the interface called the folder you opened a *workspace*. Since 5.9 that folder is a **project**, and a *workspace* is what groups several projects. Nothing moved on disk: every folder you had is still there, as a project.

@@ -4,6 +4,8 @@
 
 > Cells that leave their query in the session under a name, so the next one can read it. With an outline, parameters, and one button that refreshes only what went stale.
 
+<img src="../../images/notebooks/notebook.png" alt="The example project notebook analisis_2024.sqlnb: named cells, parameters and results" width="100%" />
+
 ## What it is
 
 A **notebook** (`.sqlnb`) is an analysis broken into **cells**. When a SQL cell runs, it leaves its query in the session under the cell's name; the cell below can then write `FROM that_name`. In between, text cells carry the reasoning.

@@ -1210,7 +1210,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const nueva = {
             id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
             path: '',
-            name: `Diagrama · ${nombre}`,
+            name: `Diagram · ${nombre}`,
             type: 'amoxdiagram',
             content: envoltorio(mermaid),
             procedencia: { archivo, indice, original },
@@ -2343,7 +2343,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                             className="lm-splitter"
                             onMouseDown={startSplitResize}
                             onDoubleClick={() => setSplitRatio(0.5)}
-                            title="Arrastra para redimensionar · doble clic para 50/50"
+                            title="Drag to resize · double-click for 50/50"
                         />
                         <div ref={splitGhostRef} className="lm-splitter-ghost" />
 

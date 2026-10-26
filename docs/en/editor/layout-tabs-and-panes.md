@@ -25,7 +25,7 @@ Each open file is a tab in the pane. The active tab is highlighted; a **dot** ne
 - **Switch tabs:** click, or use **Ctrl+Tab** / **Ctrl+Shift+Tab**.
 - **Close:** the tab's X or **Ctrl+W**.
 
-<!-- 📷 CAPTURE: docs/images/editor/tab-bar.png — tab bar with the + button and the new-file menu -->
+<img src="../../images/editor/tab-bar.png" alt="tab bar with the + button and the new-file menu" width="100%" />
 
 ### Split into two panes
 Drag a tab toward the **right edge** (or left) of the window to open a second pane and drop it there. With the split view, each pane has its own tab bar and active tab. When the right pane runs **out of tabs**, the split **collapses by itself** and you're back to a single pane.

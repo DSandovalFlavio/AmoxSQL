@@ -4,7 +4,7 @@
 
 > How a [Data Flow](data-flow.md) pipeline runs: full or partial execution, live per-node status, logs, history, and the export/compile options — plus the engine ideas that make resume and partial runs possible.
 
-<!-- 📷 CAPTURE: docs/images/data-flow/running-status.png — A chain mid-run: nodes with status badges (success in green, running in blue, pending dimmed), the bottom progress bar, and the logs panel open with execution lines. -->
+<img src="../../images/data-flow/running-status.png" alt="A chain mid-run: nodes with status badges (success in green, running in blue, pending dimmed), the bottom progress bar, and the logs panel open with execution lines." width="100%" />
 
 ## What it is
 

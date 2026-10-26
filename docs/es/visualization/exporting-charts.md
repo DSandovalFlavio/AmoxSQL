@@ -4,7 +4,7 @@
 
 > La etapa Export de Story Flow: saca el gráfico como PNG en tamaños listos para slides o redes, cópialo al portapapeles, o guárdalo como `.amoxvis` para reutilizarlo y refrescarlo.
 
-<!-- 📷 CAPTURE: docs/images/visualization/export-stage.png — La pestaña Export con las secciones Clipboard, Canvas size (presets PowerPoint 16:9, 4:3, Square, Phone Story, Wide Banner, Original) y Configuration file. -->
+<img src="../../images/visualization/export-stage.png" alt="La pestaña Export con las secciones Clipboard, Canvas size (presets PowerPoint 16:9, 4:3, Square, Phone Story, Wide Banner, Original) y Configuration file." width="100%" />
 
 ## Qué es
 

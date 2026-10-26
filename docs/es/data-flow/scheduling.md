@@ -4,7 +4,7 @@
 
 > Un proceso corre solo a la hora que le toca: «el cierre mensual, el primer día hábil de cada mes a las 7:00». Si la computadora estaba apagada, AmoxSQL se pone al día cuando vuelve.
 
-<!-- 📷 CAPTURE: docs/images/data-flow/schedule-dialog.png — el diálogo Schedule con «Every month · the first business day · 07:00» y sus próximas cinco fechas -->
+<img src="../../images/data-flow/schedule-dialog.png" alt="el diálogo Schedule con «Every month · the first business day · 07:00» y sus próximas cinco fechas" width="100%" />
 
 ## Qué es
 
@@ -97,6 +97,8 @@ Los pasos que leen de la red (una dirección web, un bucket, una hoja de cálcul
   - Si corrió con AmoxSQL cerrado, la ejecución está en el historial al abrirlo.
 - **Pausar todo antes de un puente:** pausa cada programación, o la tarea de Windows sigue despertando a AmoxSQL pero no corre nada mientras dure la pausa general.
 - **Desde la línea de comandos:** `AmoxSQL.exe tick` corre lo que toca ahora mismo; es lo que llama la tarea de Windows.
+
+<img src="../../images/data-flow/operations.png" alt="Operations: lo programado de hoy y mañana, las programaciones por cliente y la bitácora" width="100%" />
 
 ## Relacionado
 

@@ -97,7 +97,7 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
         <div className="sp-panel">
             <div className="sp-head">
                 <LuSearch size={13} />
-                <span>Buscar en el proyecto</span>
+                <span>Search in project</span>
             </div>
 
             <div className="sp-caja">

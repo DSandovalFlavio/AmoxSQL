@@ -2283,7 +2283,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         <div className="stg-card stg-card--transparent">
                                             <h4 className="stg-card-title stg-card-title--mb12">
                                                 <LuSparkles size={14} style={{ marginRight: 6, verticalAlign: '-2px' }} />
-                                                Rendimiento AI local
+                                                Local AI performance
                                             </h4>
 
                                             {/* Runtime: keep_alive + num_ctx */}
@@ -2329,20 +2329,20 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                                     value={memoryExtraction}
                                                     onChange={(e) => setMemoryExtraction(e.target.value)}
                                                 >
-                                                    <option value="cloud-only">Solo en la nube</option>
-                                                    <option value="always">Siempre</option>
-                                                    <option value="off">Desactivada</option>
+                                                    <option value="cloud-only">Cloud only</option>
+                                                    <option value="always">Always</option>
+                                                    <option value="off">Off</option>
                                                 </select>
                                             </div>
 
                                             {/* Per-model thinking control */}
                                             <div style={{ marginTop: 10 }}>
-                                                <h4 className="stg-section-heading stg-section-heading--mb4">Razonamiento (thinking) por modelo</h4>
+                                                <h4 className="stg-section-heading stg-section-heading--mb4">Reasoning (thinking) per model</h4>
                                                 <p className="stg-row-desc" style={{ marginBottom: 8 }}>
-                                                    El "pensamiento" mejora respuestas complejas pero añade latencia (el modelo escribe antes de responderte). <strong>Auto</strong> usa el default recomendado por modelo.
+                                                    "Thinking" improves complex answers but adds latency (the model writes before it answers you). <strong>Auto</strong> uses the recommended default for each model.
                                                 </p>
                                                 {installedModels.filter(m => thinkMechanism(m.name) !== 'none').length === 0 ? (
-                                                    <p className="stg-row-desc" style={{ opacity: 0.7 }}>No hay modelos con control de razonamiento instalados.</p>
+                                                    <p className="stg-row-desc" style={{ opacity: 0.7 }}>No installed model lets you control its reasoning.</p>
                                                 ) : (
                                                     installedModels.filter(m => thinkMechanism(m.name) !== 'none').map(m => {
                                                         const mech = thinkMechanism(m.name);
@@ -2384,10 +2384,10 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         <div className="stg-card stg-card--transparent">
                                             <h4 className="stg-card-title stg-card-title--mb12">
                                                 <LuGlobe size={14} style={{ marginRight: 6, verticalAlign: '-2px' }} />
-                                                Documentación de DuckDB (offline)
+                                                DuckDB documentation (offline)
                                             </h4>
                                             <p className="stg-card-desc" style={{ marginBottom: 12 }}>
-                                                La IA puede consultar la documentación oficial de DuckDB (empaquetada, sin conexión) para acertar la sintaxis específica (EXCLUDE, QUALIFY, PIVOT, list comprehensions…). Siempre funciona con la copia base; puedes mantenerla al día.
+                                                The AI can look up the official DuckDB documentation (bundled, offline) to get specific syntax right (EXCLUDE, QUALIFY, PIVOT, list comprehensions…). It always works with the bundled copy; you can keep it up to date.
                                             </p>
 
                                             <div className="stg-row stg-row--separator">

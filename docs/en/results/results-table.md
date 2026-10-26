@@ -4,7 +4,7 @@
 
 > Where your results land: an explorable table, chart, or profile — with search, filters, sorting, and smart formatting.
 
-<!-- 📷 CAPTURE: docs/images/results/results-table.png — Results panel in Table mode showing the view switcher, search, filter row, and pagination. -->
+<img src="../../images/results/results-table.png" alt="Results panel in Table mode showing the view switcher, search, filter row, and pagination." width="100%" />
 
 ## What it is
 

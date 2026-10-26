@@ -4,7 +4,7 @@
 
 > El estudio visual de pipelines de AmoxSQL: construye una transformación de datos como un diagrama de nodos conectados, sin escribir SQL para cada paso — y ejecútala de principio a fin.
 
-<!-- 📷 CAPTURE: docs/images/data-flow/data-flow-editor.png — El editor de Data Flow con la paleta de nodos a la izquierda, un DAG de varios nodos en el lienzo (Import File → Filter → Group & Aggregate → Export File) y el panel de configuración del nodo seleccionado a la derecha. -->
+<img src="../../images/data-flow/data-flow-editor.png" alt="El editor de Data Flow con la paleta de nodos a la izquierda, un DAG de varios nodos en el lienzo (Import File → Filter → Group & Aggregate → Export File) y el panel de configuración del nodo seleccionado a la derecha." width="100%" />
 
 ## Qué es
 
@@ -103,6 +103,8 @@ El panel de IA del lienzo convierte una descripción en lenguaje natural en un p
 | **Ctrl+S** | Guardar el chain |
 | `.sqlchain` | El pipeline, como JSON (auto-guardado con retardo) |
 | YAML | Formato de intercambio para exportar/importar chains |
+
+<img src="../../images/data-flow/what-changed.png" alt="What changed en un proceso: los pasos y campos que cambiaron, no el JSON" width="100%" />
 
 ## Relacionado
 

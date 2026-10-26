@@ -1,0 +1,10 @@
+joins:
+  - name: ventas_productos
+    on: "ventas.producto = productos.producto"
+    type: many_to_one
+  - name: productos_categorias
+    on: "productos.categoria = categorias.categoria"
+    type: many_to_one
+  - name: metas_categorias
+    on: "metas_2024.categoria = categorias.categoria"
+    type: many_to_one

@@ -4,6 +4,8 @@
 
 > AmoxSQL organizes your work by **projects** (folders) and connects to DuckDB databases in three modes. Here's how to open, switch, and connect.
 
+<img src="../../images/user-guide/db-selection-modal.png" alt="Opening a project: choose an existing, new or in-memory database and the access mode" width="100%" />
+
 ## Projects (work folders)
 
 A **project** is simply a folder on your disk. Everything you create — `.sql` queries, notebooks, `.amoxvis` charts, decks, chains, AI context — lives inside that folder. When you open a project, the [file explorer](../data/file-explorer.md) shows its contents.

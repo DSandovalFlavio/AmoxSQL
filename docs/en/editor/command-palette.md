@@ -24,7 +24,7 @@ Actions are **grouped by category** (AI Analysis, Query, File, Navigation, Setti
 4. Press **Enter** to run the highlighted action, or click it.
 5. **Esc** closes the palette without doing anything.
 
-<!-- 📷 CAPTURE: docs/images/editor/command-palette.png — command palette open with actions grouped by category -->
+<img src="../../images/editor/command-palette.png" alt="command palette open with actions grouped by category" width="100%" />
 
 ## Category reference
 

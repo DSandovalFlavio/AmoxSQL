@@ -23,7 +23,7 @@ La biblioteca integrada está agrupada por temas, y puedes guardar los tuyos: en
 ### Abrir el panel
 Abre la barra lateral de Snippets. Verás un buscador arriba y las categorías desplegables debajo, cada una con su contador de snippets.
 
-<!-- 📷 CAPTURE: docs/images/editor/snippets-panel.png — panel de snippets con categorías desplegadas -->
+<img src="../../images/editor/snippets-panel.png" alt="panel de snippets con categorías desplegadas" width="100%" />
 
 ### Insertar un snippet
 1. (Opcional) Escribe en el buscador para filtrar por nombre, descripción o contenido del SQL.

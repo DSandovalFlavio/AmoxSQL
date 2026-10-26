@@ -5,6 +5,37 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [Sin publicar]
+
+### Documentación y ejemplos
+
+- **El proyecto de ejemplo** (`scripts/ejemplos/`): tres proyectos de dos clientes con
+  datos reales —una tienda con sus CSV mensuales y las metas de Finanzas en Excel, una
+  agencia de marketing y un proyecto de dbt— que usan todos los tipos de archivo.
+  `crearEjemplos.mjs` los crea en el escritorio con una casa temporal de AmoxSQL. Nueva
+  página **Proyecto de ejemplo** (ES/EN).
+- **Capturas nuevas** en toda la documentación (44) y en el README, sacadas de ese
+  proyecto; el README, al día con la 5.15.
+
+### Arreglado
+
+- **El autocompletado tras `alias.`** ofrecía funciones en vez de columnas: con la
+  consulta a medio escribir el árbol no daba los alias, y ahora se leen del texto.
+- **El diagrama ER no dibujaba ninguna relación** aunque hubiera llaves foráneas, y
+  mezclaba las vistas temporales del cuaderno.
+- **Compare** contaba como «Unchanged» una fila con la misma clave y otras cifras; ahora
+  hay **Changed**, con el valor anterior tachado.
+- **Las tarjetas de la pantalla vacía** se salían del panel en una ventana estrecha o con
+  la vista dividida; ahora bajan de fila.
+- **Un cuaderno guardado con saltos de línea de Windows** perdía su título y sus
+  parámetros al abrirse.
+- Con algo programado, **los botones de la ventana** bajaban a una segunda fila de la
+  barra de título.
+- Al exportar un Canvas a Report Flow, los gráficos se llamaban `_C_mo_va_2024_…`; ahora
+  `como_va_2024_…`.
+- Textos que quedaban en español en la interfaz (Report Flow Studio, AmoxDiagram,
+  ajustes de IA, la paleta, el explorador de archivos).
+
 ## [5.15.0] — 2026-10-23
 
 **El Canvas.** Un lienzo infinito para pensar un análisis (plan en

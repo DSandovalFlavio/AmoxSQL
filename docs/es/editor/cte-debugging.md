@@ -36,9 +36,9 @@ Funciona igual en el [editor SQL](sql-editor.md) y en las celdas de un [Notebook
 4. AmoxSQL ejecuta la query cortada justo después del cierre de esa CTE y le añade `SELECT * FROM <cte> LIMIT 100`. Las filas aparecen en una ventana modal, con su tiempo de ejecución.
 5. Cierra la ventana y sigue editando. Puedes probar otra CTE inmediatamente.
 
-<!-- 📷 CAPTURE: docs/images/editor/cte-debug-glyph.png — glifo ▶ en el margen junto a una definición de CTE -->
+<img src="../../images/editor/cte-debug-glyph.png" alt="glifo ▶ en el margen junto a una definición de CTE" width="100%" />
 
-<!-- 📷 CAPTURE: docs/images/editor/cte-debug-modal.png — ventana con el resultado intermedio de una CTE -->
+<img src="../../images/editor/cte-debug-modal.png" alt="ventana con el resultado intermedio de una CTE" width="100%" />
 
 ### En celdas de Notebook
 En un Notebook, cada celda de código con CTEs muestra los mismos glifos ▶. El resultado se abre en la misma ventana, sin afectar el resultado guardado de la celda.

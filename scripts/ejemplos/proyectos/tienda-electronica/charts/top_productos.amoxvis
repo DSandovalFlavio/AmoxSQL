@@ -1,0 +1,19 @@
+{
+  "chartType": "bar-horizontal",
+  "xAxisKey": "producto",
+  "yAxisKeys": [
+    "venta"
+  ],
+  "numberFormat": "compact",
+  "colorTheme": "ocean",
+  "sortMode": "desc",
+  "showLabels": true,
+  "highlightConfig": {
+    "type": "max",
+    "value": "",
+    "color": "#22c55e"
+  },
+  "chartTitle": "Los 10 productos que más venden",
+  "chartSubtitle": "2024, en pesos",
+  "query": "SELECT producto, round(sum(importe), 2) AS venta FROM ventas WHERE fecha >= DATE '2024-01-01' GROUP BY ALL ORDER BY venta DESC LIMIT 10"
+}

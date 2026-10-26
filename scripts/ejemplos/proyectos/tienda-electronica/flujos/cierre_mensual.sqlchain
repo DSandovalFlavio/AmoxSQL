@@ -1,0 +1,227 @@
+{
+  "name": "Cierre mensual",
+  "description": "Lee los archivos de ventas, calcula la venta por mes y categoría y los productos líderes, y deja el libro para Dirección.",
+  "variables": {
+    "desde": "2024-01-01"
+  },
+  "parametros": [
+    {
+      "nombre": "desde",
+      "tipo": "fecha",
+      "etiqueta": "Desde qué fecha"
+    }
+  ],
+  "config": {
+    "base": "memoria"
+  },
+  "nodes": [
+    {
+      "id": "fuente",
+      "type": "fuente",
+      "label": "Ventas mensuales",
+      "position": {
+        "x": 0,
+        "y": 150
+      },
+      "config": {
+        "fuente": "ventas-mensuales"
+      }
+    },
+    {
+      "id": "importe",
+      "type": "add_column",
+      "label": "Importe y mes",
+      "position": {
+        "x": 300,
+        "y": 150
+      },
+      "config": {
+        "newColumns": [
+          {
+            "name": "importe",
+            "expression": "round(\"Quantity Ordered\" * \"Price Each\", 2)::DECIMAL(12,2)"
+          },
+          {
+            "name": "mes",
+            "expression": "date_trunc('month', \"Order Date\")::DATE"
+          }
+        ]
+      }
+    },
+    {
+      "id": "periodo",
+      "type": "filter",
+      "label": "Desde ${desde}",
+      "position": {
+        "x": 600,
+        "y": 150
+      },
+      "config": {
+        "conditions": [
+          {
+            "column": "Order Date",
+            "operator": ">=",
+            "value": "${desde}"
+          }
+        ]
+      }
+    },
+    {
+      "id": "por_mes",
+      "type": "group_aggregate",
+      "label": "Por mes y categoría",
+      "position": {
+        "x": 900,
+        "y": 30
+      },
+      "config": {
+        "groupColumns": [
+          "mes",
+          "Category"
+        ],
+        "aggregations": [
+          {
+            "column": "importe",
+            "func": "SUM",
+            "alias": "venta"
+          },
+          {
+            "column": "Quantity Ordered",
+            "func": "SUM",
+            "alias": "unidades"
+          }
+        ]
+      }
+    },
+    {
+      "id": "orden_mes",
+      "type": "sort",
+      "label": "Por fecha",
+      "position": {
+        "x": 1200,
+        "y": 30
+      },
+      "config": {
+        "sortColumns": [
+          {
+            "column": "mes",
+            "direction": "ASC"
+          },
+          {
+            "column": "venta",
+            "direction": "DESC"
+          }
+        ]
+      }
+    },
+    {
+      "id": "por_producto",
+      "type": "group_aggregate",
+      "label": "Por producto",
+      "position": {
+        "x": 900,
+        "y": 270
+      },
+      "config": {
+        "groupColumns": [
+          "Product",
+          "Category"
+        ],
+        "aggregations": [
+          {
+            "column": "importe",
+            "func": "SUM",
+            "alias": "venta"
+          },
+          {
+            "column": "Quantity Ordered",
+            "func": "SUM",
+            "alias": "unidades"
+          }
+        ]
+      }
+    },
+    {
+      "id": "orden_producto",
+      "type": "sort",
+      "label": "Mayor primero",
+      "position": {
+        "x": 1200,
+        "y": 270
+      },
+      "config": {
+        "sortColumns": [
+          {
+            "column": "venta",
+            "direction": "DESC"
+          }
+        ]
+      }
+    },
+    {
+      "id": "libro",
+      "type": "excel",
+      "label": "Libro para Dirección",
+      "position": {
+        "x": 1500,
+        "y": 150
+      },
+      "config": {
+        "outputPath": "cierre_{fecha:AAAA-MM}.xlsx",
+        "destino": "entregas-direccion",
+        "hojas": [
+          {
+            "desde": "orden_mes",
+            "nombre": "Por mes y categoría"
+          },
+          {
+            "desde": "orden_producto",
+            "nombre": "Productos"
+          }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "fuente",
+      "target": "importe"
+    },
+    {
+      "id": "e2",
+      "source": "importe",
+      "target": "periodo"
+    },
+    {
+      "id": "e3",
+      "source": "periodo",
+      "target": "por_mes"
+    },
+    {
+      "id": "e4",
+      "source": "por_mes",
+      "target": "orden_mes"
+    },
+    {
+      "id": "e5",
+      "source": "periodo",
+      "target": "por_producto"
+    },
+    {
+      "id": "e6",
+      "source": "por_producto",
+      "target": "orden_producto"
+    },
+    {
+      "id": "e7",
+      "source": "orden_mes",
+      "target": "libro"
+    },
+    {
+      "id": "e8",
+      "source": "orden_producto",
+      "target": "libro"
+    }
+  ]
+}

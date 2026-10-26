@@ -1,0 +1,12 @@
+{
+  "chartType": "donut",
+  "xAxisKey": "categoria",
+  "yAxisKeys": [
+    "venta"
+  ],
+  "numberFormat": "compact",
+  "colorTheme": "ocean",
+  "chartTitle": "Mezcla por categoría, 2024",
+  "chartSubtitle": "Portátiles y teléfonos son más de la mitad de la venta",
+  "query": "SELECT categoria, round(sum(importe), 2) AS venta FROM ventas WHERE fecha >= DATE '2024-01-01' GROUP BY ALL ORDER BY venta DESC"
+}

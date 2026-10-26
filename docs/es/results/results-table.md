@@ -4,7 +4,7 @@
 
 > El panel donde aterrizan tus resultados: tabla explorable, gráfico o perfil, con búsqueda, filtros, orden y formato inteligente.
 
-<!-- 📷 CAPTURE: docs/images/results/results-table.png — Panel de resultados en modo Tabla mostrando el conmutador de vista, la búsqueda, la fila de filtros y la paginación. -->
+<img src="../../images/results/results-table.png" alt="Panel de resultados en modo Tabla mostrando el conmutador de vista, la búsqueda, la fila de filtros y la paginación." width="100%" />
 
 ## Qué es
 

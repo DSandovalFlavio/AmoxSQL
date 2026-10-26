@@ -753,6 +753,7 @@ app.get('/api/db/er-schema', async (req, res) => {
              LEFT JOIN information_schema.columns c
                     ON c.table_schema = t.table_schema AND c.table_name = t.table_name
              WHERE ${userTablesWhereClause('t.table_schema', 't.table_name')}${schemaFilter}
+               AND t.table_catalog <> 'temp'   -- las vistas que deja cada celda del cuaderno no son el modelo
              ORDER BY t.table_schema, t.table_name, c.ordinal_position`
         );
 
@@ -778,19 +779,29 @@ app.get('/api/db/er-schema', async (req, res) => {
             }
         }
 
-        // 2. Constraints per table (PK/FK — optional, DuckDB support varies)
+        // 2. PK/FK de todas las tablas en una consulta. information_schema no trae la
+        //    tabla a la que apunta una FK en DuckDB (constraint_column_usage sale vacía),
+        //    así que el diagrama nunca dibujaba una relación; duckdb_constraints() sí.
+        let todas = [];
+        try {
+            todas = await dbManager.systemQuery(
+                `SELECT schema_name, table_name, constraint_type, constraint_column_names AS cols,
+                        referenced_table, referenced_column_names AS ref_cols
+                 FROM duckdb_constraints()
+                 WHERE constraint_type IN ('PRIMARY KEY', 'FOREIGN KEY')`
+            );
+        } catch (e) { /* sin restricciones: el diagrama sale sin llaves */ }
         const result = [];
         for (const entry of Object.values(tableMap)) {
-            let constraints = [];
-            try {
-                constraints = await dbManager.systemQuery(
-                    `SELECT tc.constraint_type, kcu.column_name, ccu.table_name AS foreign_table_name, ccu.column_name AS foreign_column_name
-                     FROM information_schema.table_constraints tc
-                     JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
-                     LEFT JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name AND ccu.table_name != tc.table_name
-                     WHERE tc.table_name = '${entry.name}' AND tc.table_schema = '${entry.schema}'`
-                );
-            } catch (e) { /* constraints not available in this DuckDB version */ }
+            const constraints = [];
+            for (const c of todas.filter(x => x.table_name === entry.name && x.schema_name === entry.schema)) {
+                const cols = Array.isArray(c.cols) ? c.cols : [];
+                const refs = Array.isArray(c.ref_cols) ? c.ref_cols : [];
+                cols.forEach((col, i) => constraints.push({
+                    constraint_type: c.constraint_type, column_name: col,
+                    foreign_table_name: c.referenced_table || null, foreign_column_name: refs[i] || refs[0] || null,
+                }));
+            }
 
             const pkColumns = new Set(constraints.filter(c => c.constraint_type === 'PRIMARY KEY').map(c => c.column_name));
             const fkMap = {};

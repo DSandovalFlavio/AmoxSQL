@@ -4,6 +4,8 @@
 
 > A dbt model open in AmoxSQL is compiled, previewed and run from its own bar. The editor completes `ref()`, `source()`, macros and columns, flags what doesn't exist and goes to the definition with Ctrl+click.
 
+<img src="../../images/dbt/model-bar.png" alt="The dbt model bar above a model: Compiled, Preview, Run, +Upstream, +Downstream, Test" width="100%" />
+
 ## What it is
 
 When you open a `.sql` inside a dbt project's model, seed, snapshot, test or macro folders, AmoxSQL knows it is dbt. **The model bar** appears above the editor, and completion understands Jinja and the project.

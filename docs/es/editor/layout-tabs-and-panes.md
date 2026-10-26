@@ -25,7 +25,7 @@ Cada archivo abierto es una pestaña en el panel. La pestaña activa está resal
 - **Cambiar de pestaña:** haz clic, o usa **Ctrl+Tab** / **Ctrl+Shift+Tab**.
 - **Cerrar:** la X de la pestaña o **Ctrl+W**.
 
-<!-- 📷 CAPTURE: docs/images/editor/tab-bar.png — barra de pestañas con el botón + y el menú de nuevo archivo -->
+<img src="../../images/editor/tab-bar.png" alt="barra de pestañas con el botón + y el menú de nuevo archivo" width="100%" />
 
 ### Dividir en dos paneles
 Arrastra una pestaña hacia el **borde derecho** (o izquierdo) de la ventana para abrir un segundo panel y soltarla ahí. Con la vista dividida, cada panel tiene su propia barra de pestañas y su pestaña activa. Cuando el panel derecho se queda **sin pestañas**, la división **se colapsa sola** y vuelves a un único panel.

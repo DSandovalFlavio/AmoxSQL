@@ -9,12 +9,13 @@
 **🌐 [English](./README.en.md) · Español**
 
 [![Built for DuckDB](https://img.shields.io/badge/Built%20for-DuckDB-fff000?logo=duckdb&logoColor=black)](https://duckdb.org/)
+[![Latest release](https://img.shields.io/github/v/release/dsandovalflavio/amoxsql)](https://github.com/dsandovalflavio/amoxsql/releases/latest)
 [![License: Source Available](https://img.shields.io/badge/License-Source%20Available-blue)](./LICENSE)
 [![Maintainer](https://img.shields.io/badge/maintainer-@dsandovalflavio-blue)](https://github.com/dsandovalflavio)
 
-**AmoxSQL** es un IDE de datos de escritorio, profesional y de alto rendimiento, construido específicamente para [DuckDB](https://duckdb.org/). Para analistas e ingenieros que necesitan velocidad, privacidad y herramientas avanzadas — sin la sobrecarga de la nube. Tus datos, el motor y hasta la IA viven en tu máquina.
+**AmoxSQL** es un IDE de datos de escritorio construido para [DuckDB](https://duckdb.org/): una mesa de trabajo local donde entran archivos, se analizan y se explican, y salen como un Excel, una presentación o un proceso que corre solo. Para analistas e ingenieros de datos que necesitan velocidad y privacidad: tus datos, el motor y hasta la IA viven en tu máquina.
 
-<img src="./images/02_main_ide.png" alt="AmoxSQL IDE" width="100%" />
+<img src="./images/02_main_ide.png" alt="AmoxSQL: un Canvas con la fuente de ventas, dos ramas con sus gráficos, una cifra y una nota" width="100%" />
 
 ---
 
@@ -22,14 +23,51 @@
 
 | | Qué hace | Guía |
 |---|---|---|
-| **Editor SQL** | Monaco con autocompletado que entiende tu esquema real (incluidas columnas de CTEs), depuración de CTEs, formato y ejecución en un atajo. | [→](./docs/es/editor/sql-editor.md) |
-| **Notebooks** | Cuadernos `.sqlnb` tipo Jupyter para análisis narrados, con celdas de entrada reactivas y export a HTML/Word/PDF. | [→](./docs/es/notebooks/notebooks.md) |
-| **Story Flow** | Visualización con storytelling: 17 tipos de gráfico en un flujo de 6 etapas, anotaciones, KPIs y narrativa. | [→](./docs/es/visualization/story-flow.md) |
-| **Report Flow** | Presentaciones `.amoxdeck` con gráficos refrescables; export a PowerPoint (editable) y Word. | [→](./docs/es/reports/report-flow.md) |
-| **Data Flow** | Constructor visual de canalizaciones (DAG) con 33 tipos de nodo, ejecución por pasos y enriquecimiento con IA. | [→](./docs/es/data-flow/data-flow.md) |
-| **IA agéntica** | Asistente en el editor + **Deep Dive** que explora tu BD solo. Corre 100% local (Ollama) o en la nube. | [→](./docs/es/ai/introduction.md) |
-| **DBT Studio** | Desarrolla con dbt + DuckDB: modelos, sources, comandos y grafo de linaje. | [→](./docs/es/dbt/dbt-studio.md) |
-| **Perfilado & Plan** | EDA con storytelling y plan de ejecución real (`EXPLAIN ANALYZE`) con pistas de optimización. | [→](./docs/es/results/data-profiler.md) |
+| **Editor SQL** | Monaco con autocompletado que conoce tu esquema real (las columnas de cada alias, las CTE, tus métricas como funciones), depuración de CTE, variables, historial y snippets. | [→](./docs/es/editor/sql-editor.md) |
+| **Cuadernos** | `.sqlnb` en markdown: cada celda deja una vista con su nombre, la siguiente la lee y **Refresh** las corre en orden de dependencias. Parámetros, borradores, exporta a Word y HTML. | [→](./docs/es/notebooks/notebooks.md) |
+| **Canvas** | Un lienzo infinito para pensar un análisis: fuentes, consultas, gráficos, cifras y notas conectadas por lo que lee cada consulta. Se presenta por marcos y sale a un deck, un cuaderno o un proceso. | [→](./docs/es/notebooks/canvas.md) |
+| **Story Flow** | Gráficos que dicen algo: 17 tipos en 6 etapas (tipo, datos, formato, estilo, historia, exportar), con conclusión, anotaciones y líneas de meta. | [→](./docs/es/visualization/story-flow.md) |
+| **Report Flow** | Presentaciones `.amoxdeck` con gráficos que se refrescan contra los datos; exporta a PowerPoint editable y Word. | [→](./docs/es/reports/report-flow.md) |
+| **Los datos donde están** | **Fuentes con nombre** sobre un archivo, una carpeta de archivos mensuales, un bucket o un lago, con un **contrato** que detiene un proceso si el cliente cambia una columna. | [→](./docs/es/data/sources.md) |
+| **Data Flow** | Procesos visuales (37 tipos de paso): de la fuente a un Excel con formato, a la plantilla del cliente o a un Parquet publicado. Parámetros con tipo, formularios y lotes. | [→](./docs/es/data-flow/data-flow.md) |
+| **Que corra solo** | **Programación** (días hábiles, el N-ésimo hábil, al llegar un archivo), avisos, ficha de cada ejecución y el panel de **Operations**. | [→](./docs/es/data-flow/scheduling.md) |
+| **Workspaces** | Agrupa proyectos por cliente, equipo o marca: contexto, métricas y snippets compartidos, política de IA por cliente y lo que necesita atención. | [→](./docs/es/user-guide/workspaces.md) |
+| **dbt y DuckLake** | dbt dentro del editor (barra del modelo, vista previa, completado, linaje con resultados) y lagos DuckLake con versiones y «como estaba». | [→](./docs/es/dbt/dbt-studio.md) |
+| **IA agéntica** | Asistente en el editor y **Deep Dive**, con tu contexto (métricas, uniones, glosario). 100 % local con Ollama o en la nube. | [→](./docs/es/ai/introduction.md) |
+| **Perfil y plan** | Perfilado con hallazgos (duplicados, atípicos, huecos) y el plan de ejecución real con pistas. | [→](./docs/es/results/data-profiler.md) |
+
+---
+
+## 🧭 Un caso real: el cierre de ventas
+
+El [**proyecto de ejemplo**](./docs/es/user-guide/example-project.md) recorre un caso completo con datos reales: una tienda en línea manda un CSV de ventas cada mes y Finanzas sus metas en Excel. En un solo proyecto: una fuente con nombre y su contrato, una base modelada, ocho consultas, un cuaderno, gráficos, un Canvas, la presentación del comité y un cierre en Data Flow programado para el tercer día hábil que entrega un Excel de dos hojas.
+
+<table>
+  <tr>
+    <td><img src="./docs/images/notebooks/notebook.png" alt="Cuaderno con celdas con nombre y parámetros" /></td>
+    <td><img src="./docs/images/visualization/story-stage.png" alt="Story Flow con la conclusión resaltada" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Cuaderno: cada celda es una vista que lee la siguiente</sub></td>
+    <td align="center"><sub>Story Flow: el gráfico y lo que significa</sub></td>
+  </tr>
+  <tr>
+    <td><img src="./docs/images/data-flow/running-status.png" alt="Proceso de Data Flow después de correr" /></td>
+    <td><img src="./docs/images/reports/report-flow-studio.png" alt="Presentación en Report Flow Studio" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Data Flow: de la carpeta de archivos al Excel de Dirección</sub></td>
+    <td align="center"><sub>Report Flow: la presentación del comité, refrescable</sub></td>
+  </tr>
+  <tr>
+    <td><img src="./docs/images/data-flow/schedule-dialog.png" alt="Programar un proceso" /></td>
+    <td><img src="./docs/images/user-guide/workspaces.png" alt="Vista de Workspaces" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Programación: el 3er día hábil de cada mes</sub></td>
+    <td align="center"><sub>Workspaces: cada cliente, sus proyectos y ejecuciones</sub></td>
+  </tr>
+</table>
 
 ---
 
@@ -37,22 +75,22 @@
 
 La guía completa (bilingüe ES/EN) vive en **[`docs/`](./docs/README.md)**:
 
-- **Empezar:** [Introducción](./docs/es/user-guide/introduction.md) · [Instalación](./docs/es/user-guide/installation.md) · [Primeros pasos](./docs/es/user-guide/first-steps.md) · [La interfaz](./docs/es/user-guide/interface.md)
-- **Editor y datos:** [Editor SQL](./docs/es/editor/sql-editor.md) · [Explorador de archivos](./docs/es/data/file-explorer.md) · [Importar](./docs/es/data/importing-data.md) · [Exportar](./docs/es/data/exporting-data.md)
-- **Análisis:** [Tabla de resultados](./docs/es/results/results-table.md) · [Data Profiler](./docs/es/results/data-profiler.md) · [Plan de ejecución](./docs/es/results/execution-plan.md)
-- **Studios:** [Story Flow](./docs/es/visualization/story-flow.md) · [Report Flow](./docs/es/reports/report-flow.md) · [Data Flow](./docs/es/data-flow/data-flow.md) · [DBT](./docs/es/dbt/dbt-studio.md)
-- **IA:** [Introducción](./docs/es/ai/introduction.md) · [Deep Dive](./docs/es/ai/deep-dive.md) · [Proveedores y modelos](./docs/es/ai/providers-and-models.md) · [Skills](./docs/es/ai/skills.md)
+- **Empezar:** [Introducción](./docs/es/user-guide/introduction.md) · [Instalación](./docs/es/user-guide/installation.md) · [Primeros pasos](./docs/es/user-guide/first-steps.md) · [Proyecto de ejemplo](./docs/es/user-guide/example-project.md) · [La interfaz](./docs/es/user-guide/interface.md) · [Workspaces](./docs/es/user-guide/workspaces.md)
+- **Editor y datos:** [Editor SQL](./docs/es/editor/sql-editor.md) · [Fuentes con nombre](./docs/es/data/sources.md) · [Contratos](./docs/es/data/source-contracts.md) · [Importar](./docs/es/data/importing-data.md) · [Exportar](./docs/es/data/exporting-data.md)
+- **Análisis:** [Cuadernos](./docs/es/notebooks/notebooks.md) · [Canvas](./docs/es/notebooks/canvas.md) · [Tabla de resultados](./docs/es/results/results-table.md) · [Data Profiler](./docs/es/results/data-profiler.md) · [Plan de ejecución](./docs/es/results/execution-plan.md)
+- **Studios:** [Story Flow](./docs/es/visualization/story-flow.md) · [Report Flow](./docs/es/reports/report-flow.md) · [Data Flow](./docs/es/data-flow/data-flow.md) · [Programar procesos](./docs/es/data-flow/scheduling.md) · [dbt](./docs/es/dbt/dbt-studio.md)
+- **IA:** [Introducción](./docs/es/ai/introduction.md) · [Deep Dive](./docs/es/ai/deep-dive.md) · [Proveedores y modelos](./docs/es/ai/providers-and-models.md) · [Contexto como código](./docs/es/ai/context-as-code.md)
 - **Referencia:** [Formatos de archivo](./docs/es/reference/file-formats.md) · [Configuración](./docs/es/reference/configuration.md) · [Atajos](./docs/es/reference/keyboard-shortcuts.md) · [Glosario](./docs/es/reference/glossary.md)
 
 ---
 
 ## ⬇️ Instalación
 
-**Descargar:** los instaladores pre-construidos están en **[GitHub Releases](https://github.com/dsandovalflavio/amoxsql/releases/latest)**.
-- **Windows** — `AmoxSQL Setup <versión>.exe` (NSIS).
+**Descargar:** los instaladores están en **[GitHub Releases](https://github.com/dsandovalflavio/amoxsql/releases/latest)**.
+- **Windows** — `AmoxSQL Setup <versión>.exe` (NSIS, sin firmar: Windows puede pedirte confirmación).
 - **macOS (Apple Silicon · M1–M4)** — `AmoxSQL-<versión>-arm64.dmg`. ⚠️ **Beta sin verificar en hardware Mac real** — pruébalo y [danos feedback](https://github.com/dsandovalflavio/amoxsql/issues). Primer arranque: `xattr -cr /Applications/AmoxSQL.app` (ver [guía](./docs/es/user-guide/installation.md)).
 
-**Compilar desde fuente** (siempre gratis): requiere Node.js 20+, pnpm 11+ y herramientas de C++.
+**Compilar desde fuente** (siempre gratis): requiere Node.js 22.13+, pnpm 11+ y herramientas de C++.
 ```bash
 git clone https://github.com/dsandovalflavio/amoxsql.git && cd amoxsql
 pnpm install && pnpm --dir client install
@@ -60,13 +98,11 @@ pnpm start
 ```
 Guía completa: [Instalación](./docs/es/user-guide/installation.md).
 
-> Los instaladores pre-construidos continuos están disponibles para [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio). Compilar desde fuente es siempre gratis.
-
 ---
 
 ## 🆕 Novedades
 
-La versión actual es **v3.8.3**. Lo más reciente: el export ahora pertenece a la query (WYSIWYG), Excel exportado que abre de verdad, metadata de archivos casi instantánea, y una auditoría de ubicación de botones en toda la UI. Antes: Deep Dive reimaginado (narrativa, gráficos con teoría del color, razonamiento MiniMax), Report Flow y export a Office, y el rediseño del sistema de temas.
+La versión actual es **v5.15.0 — El Canvas**: un lienzo infinito para pensar un análisis, con tarjetas conectadas por lo que lee cada consulta, una foto que abre sin ejecutar nada y salida a un deck, un cuaderno o un proceso. Reúne además todo lo hecho desde la 5.10: los datos donde están (fuentes con nombre, carpetas, buckets, lagos), procesos que corren solos (programación, Excel y plantillas, parámetros, Operations), dbt y DuckLake dentro del editor, flujos fiables (contratos de fuente, «Needs attention», métricas como funciones) y el día a día (donde lo dejaste, proyectos en un archivo, comparar entregas).
 
 > Historial completo en **[CHANGELOG.md](./CHANGELOG.md)**.
 
@@ -80,7 +116,7 @@ La versión actual es **v3.8.3**. Lo más reciente: el export ahora pertenece a 
 
 ## 🛠️ Tech Stack
 
-Escritorio (Electron) · Frontend [React](https://reactjs.org/) + [Vite](https://vitejs.dev/) + [Monaco](https://microsoft.github.io/monaco-editor/) + [Recharts](https://recharts.org/) · Backend [Node.js](https://nodejs.org/) + [Express](https://expressjs.com/) · Motor [DuckDB](https://duckdb.org/) · IA [Ollama](https://ollama.ai/) (local) + nube (Google Gemini, Anthropic, OpenAI, Google Vertex, MiniMax) vía [Vercel AI SDK](https://sdk.vercel.ai/).
+Escritorio (Electron) · Frontend [React](https://reactjs.org/) + [Vite](https://vitejs.dev/) + [Monaco](https://microsoft.github.io/monaco-editor/) + [Recharts](https://recharts.org/) · Backend [Node.js](https://nodejs.org/) + [Express](https://expressjs.com/) · Motor [DuckDB](https://duckdb.org/) · IA [Ollama](https://ollama.ai/) (local) + nube (Google Gemini, Anthropic, OpenAI, Google Vertex) vía [Vercel AI SDK](https://sdk.vercel.ai/).
 
 Más en [Arquitectura](./docs/es/concepts/architecture.md).
 

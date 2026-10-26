@@ -596,7 +596,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
 
     const tamCarta = useMemo(() => {
         const prop = CANVAS_SIZES.find(c => c.label === (state.canvasSize || '4:3'));
-        if (!prop || !prop.w || !prop.h) return null;          // 'Libre': ocupa el hueco
+        if (!prop || !prop.w || !prop.h) return null;          // 'Free': ocupa el hueco
         const razon = prop.w / prop.h;
         const base = anchoBase(razon);
         const w = base * zoomEfectivo;
@@ -1028,7 +1028,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                     display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
                     padding: '6px 16px 10px', flex: 'none',
                 }}>
-                    <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Lienzo</span>
+                    <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Size</span>
                     <div style={{ display: 'flex', gap: '3px' }}>
                         {CANVAS_SIZES.map(c => (
                             <button key={c.label} onClick={() => setField('canvasSize', c.label)}

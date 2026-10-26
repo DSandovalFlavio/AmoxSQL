@@ -74,7 +74,7 @@ const CommandPalette = ({
                 id: `reciente:${r.path}`,
                 label: r.name,
                 detail: r.path,
-                category: 'Recientes',
+                category: 'Recent',
                 icon: LuHistory,
                 action: () => onOpenFile?.(r.path),
             })));

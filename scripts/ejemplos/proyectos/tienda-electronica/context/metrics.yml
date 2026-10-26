@@ -1,0 +1,12 @@
+# Métricas del negocio. AmoxSQL convierte cada una en una función de SQL
+# (venta_total(importe), ticket_promedio(importe)) y el asistente las usa.
+metrics:
+  - name: venta_total
+    sql: "SUM(importe)"
+    description: Venta en dinero (cantidad × precio unitario), sin impuestos.
+  - name: ticket_promedio
+    sql: "SUM(importe) / NULLIF(COUNT(*), 0)"
+    description: Importe promedio por línea de venta.
+  - name: unidades
+    sql: "SUM(cantidad)"
+    description: Piezas vendidas.

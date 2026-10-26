@@ -4,7 +4,7 @@
 
 > El catálogo completo de los 33 tipos de nodo de [Data Flow](data-flow.md), organizados por intención tal como aparecen en la paleta.
 
-<!-- 📷 CAPTURE: docs/images/data-flow/node-palette.png — La paleta de nodos de Data Flow expandida, mostrando los grupos por intención (Data Sources, SQL, Filter & Order, Columns, Clean & Format, Reshape & Aggregate, Combine & Enrich, Output, Quality & Control) con sus nodos. -->
+<img src="../../images/data-flow/node-palette.png" alt="La paleta de nodos de Data Flow expandida, mostrando los grupos por intención (Data Sources, SQL, Filter & Order, Columns, Clean & Format, Reshape & Aggregate, Combine & Enrich, Output, Quality & Control) con sus nodos." width="100%" />
 
 ## Qué es
 

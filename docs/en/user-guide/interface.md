@@ -11,12 +11,12 @@
 ### Title bar (top)
 Shows the **active project** (name · connection mode MEM/RO/RW · database) and window controls. The project widget expands to show recent projects and the option to close it.
 
-<!-- 📷 CAPTURE: docs/images/user-guide/title-bar-workspace.png — title bar with the project widget expanded -->
+<img src="../../images/user-guide/title-bar-workspace.png" alt="title bar with the project widget expanded" width="100%" />
 
 ### Activity bar (far left)
 Icons that swap the side panel's content:
 
-<!-- 📷 CAPTURE: docs/images/user-guide/activity-bar.png — the activity bar with its icons highlighted -->
+<img src="../../images/user-guide/activity-bar.png" alt="the activity bar with its icons highlighted" width="100%" />
 
 | Icon | Panel |
 |---|---|
@@ -47,7 +47,7 @@ Appears when you run a query. Toggle between **Table**, **Chart**, and **Profile
 
 **Ctrl+Shift+P** opens the palette: search and run any action (run query, save, switch theme, open panels, zoom, tours…). It's the fastest way to reach any feature without remembering where it lives. See [Command palette](../editor/command-palette.md).
 
-<!-- 📷 CAPTURE: docs/images/user-guide/command-palette.png — command palette open -->
+<img src="../../images/user-guide/command-palette.png" alt="command palette open" width="100%" />
 
 ## Appearance
 

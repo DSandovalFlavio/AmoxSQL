@@ -4,7 +4,7 @@
 
 > Cómo se ejecuta un pipeline de [Data Flow](data-flow.md): ejecución total o parcial, estado en vivo por nodo, logs, historial y las opciones de exportar/compilar — más las ideas del motor que hacen posible reanudar y correr por partes.
 
-<!-- 📷 CAPTURE: docs/images/data-flow/running-status.png — Un chain ejecutándose: nodos con insignias de estado (success en verde, running en azul, pending atenuado), la barra de progreso inferior y el panel de logs abierto con las líneas de ejecución. -->
+<img src="../../images/data-flow/running-status.png" alt="Un chain ejecutándose: nodos con insignias de estado (success en verde, running en azul, pending atenuado), la barra de progreso inferior y el panel de logs abierto con las líneas de ejecución." width="100%" />
 
 ## Qué es
 

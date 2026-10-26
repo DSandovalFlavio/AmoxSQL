@@ -4,7 +4,7 @@
 
 > El nodo **Excel** deja el resultado como lo espera el cliente: un libro con formato, con una hoja por paso, o su propia plantilla con los datos de este mes.
 
-<!-- 📷 CAPTURE: docs/images/data-flow/excel-node.png — los ajustes del nodo Excel con «A new workbook», tres hojas y un formato de columna -->
+<img src="../../images/data-flow/excel-node.png" alt="los ajustes del nodo Excel con «A new workbook», tres hojas y un formato de columna" width="100%" />
 
 ## Qué es
 

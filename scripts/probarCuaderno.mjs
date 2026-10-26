@@ -152,5 +152,11 @@ eq('el # de dentro de un bloque no cuenta',
     indiceDe(leerCuaderno(`texto\n\n${F}python\n# esto es un comentario\n${F}\n`)).length, 0);
 eq('el #### no llega', indiceDe(leerCuaderno('#### muy hondo\n')).length, 0);
 
+// ── guardado en Windows (\r\n) ───────────────────────────────────────────────
+const crlf = leerCuaderno(escribirCuaderno(c).replace(/\n/g, '\r\n'));
+eq('con \\r\\n conserva el título', crlf.meta.titulo, c.meta.titulo);
+eq('y los parámetros', crlf.meta.parametros, c.meta.parametros);
+eq('y las mismas celdas', escribirCuaderno(crlf), escribirCuaderno(c));
+
 console.log(`\n${ok} bien, ${mal} mal`);
 process.exit(mal ? 1 : 0);

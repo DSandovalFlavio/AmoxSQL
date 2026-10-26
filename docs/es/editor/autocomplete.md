@@ -34,7 +34,7 @@ Si hay varias tablas a la vista, el editor prefija las columnas con su alias (`u
 ### Columnas por dot-access
 Escribe `alias.` o `tabla.` y aparecerán solo las columnas de esa tabla resuelta. El punto es un carácter disparador, así que la lista se abre sola.
 
-<!-- 📷 CAPTURE: docs/images/editor/autocomplete-dot-access.png — popup de columnas tras escribir un alias con punto -->
+<img src="../../images/editor/autocomplete-dot-access.png" alt="popup de columnas tras escribir un alias con punto" width="100%" />
 
 ### Columnas de CTEs y subconsultas (la gema)
 Un analizador puramente sintáctico no puede saber qué columnas produce `SELECT a + b AS total`. AmoxSQL sí: cuando escribes `mi_cte.` o pides completado dentro de una query que usa una CTE, el editor le pide a DuckDB un `DESCRIBE` de esa expresión y te devuelve sus columnas reales — nombres derivados, expresiones y renombrados incluidos.
@@ -54,7 +54,7 @@ Escribe una comilla (`'` o `"`) en un `FROM` y el editor completa **rutas de arc
 ### Hover de funciones
 Pasa el mouse sobre una función de DuckDB para ver una tarjeta con su **firma**, **categoría** y **descripción**, más una tabla de parámetros cuando aplica.
 
-<!-- 📷 CAPTURE: docs/images/editor/autocomplete-hover-doc.png — tarjeta de hover con firma y descripción de una función -->
+<img src="../../images/editor/autocomplete-hover-doc.png" alt="tarjeta de hover con firma y descripción de una función" width="100%" />
 
 ### Snippets y ayudas dbt/Jinja
 El popup también incluye snippets inteligentes (por ejemplo `LEFT JOIN`, plantilla de CTE). Las ayudas de dbt/Jinja nunca ensucian un `.sql` plano.

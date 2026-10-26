@@ -214,7 +214,9 @@ export const CUADERNO_INICIAL = { meta: {}, celdas: [{ id: 'c0', tipo: 'sql', no
  * archivo de alguien por no reconocer su forma sería el peor fallo posible aquí.
  */
 export function leerCuaderno(texto) {
-    const s = String(texto == null ? '' : texto);
+    // Un archivo guardado en Windows llega con \r\n: sin normalizar, el \r se
+    // quedaba pegado a cada línea y el front-matter (título, parámetros) se perdía.
+    const s = String(texto == null ? '' : texto).replace(/\r\n?/g, '\n');
     if (!s.trim()) return { ...CUADERNO_INICIAL, celdas: [{ ...CUADERNO_INICIAL.celdas[0], id: idNuevo() }] };
 
     // ── los formatos viejos ──

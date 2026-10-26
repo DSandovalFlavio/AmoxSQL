@@ -155,7 +155,10 @@ export function aDataFlow(lienzo, id) {
  * y quien llama escribe los `.amoxvis` y compone el deck.
  */
 export function planDeDeck(lienzo, base = 'canvas') {
-    const nombre = String(base || 'canvas').replace(/[^\w-]+/g, '_');
+    // «¿Cómo va 2024?» → como_va_2024: sin acentos ni signos sueltos en el nombre
+    // del archivo (antes salía «_C_mo_va_2024_»).
+    const nombre = String(base || 'canvas').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+        .replace(/[^\w-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'canvas';
     const graficos = [];
     const grafico = (t) => {
         const consulta = sqlAutonomo(lienzo, t.id);

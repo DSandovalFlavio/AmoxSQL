@@ -4,7 +4,7 @@
 
 > Elige quién piensa por ti: un modelo local con Ollama (privado) o uno en la nube. El *tier* del modelo decide qué puede hacer la IA.
 
-<!-- 📷 CAPTURE: docs/images/ai/settings-ai-providers.png — La pestaña Ajustes → IA con el selector de proveedor, la clave de API y el modelo por defecto. -->
+<img src="../../images/ai/settings-ai-providers.png" alt="La pestaña Ajustes → IA con el selector de proveedor, la clave de API y el modelo por defecto." width="100%" />
 
 ## Qué es
 

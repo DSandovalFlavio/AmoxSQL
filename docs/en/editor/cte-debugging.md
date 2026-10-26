@@ -36,9 +36,9 @@ It works the same in the [SQL editor](sql-editor.md) and in [Notebook](../notebo
 4. AmoxSQL runs the query cut right after that CTE's closing parenthesis, appending `SELECT * FROM <cte> LIMIT 100`. The rows appear in a modal window, with the execution time.
 5. Close the window and keep editing. You can try another CTE right away.
 
-<!-- 📷 CAPTURE: docs/images/editor/cte-debug-glyph.png — ▶ glyph in the gutter next to a CTE definition -->
+<img src="../../images/editor/cte-debug-glyph.png" alt="▶ glyph in the gutter next to a CTE definition" width="100%" />
 
-<!-- 📷 CAPTURE: docs/images/editor/cte-debug-modal.png — window showing a CTE's intermediate result -->
+<img src="../../images/editor/cte-debug-modal.png" alt="window showing a CTE's intermediate result" width="100%" />
 
 ### In Notebook cells
 In a Notebook, every code cell with CTEs shows the same ▶ glyphs. The result opens in the same window, without affecting the cell's saved result.

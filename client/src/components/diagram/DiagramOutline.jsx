@@ -75,7 +75,7 @@ const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAn
             </div>
 
             <div className="dgm-col-cab">
-                Esquema <span className="dgm-spacer" />
+                Outline <span className="dgm-spacer" />
                 <span className="dgm-col-n">{grafo.nodos.length}</span>
             </div>
 
@@ -84,7 +84,7 @@ const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAn
                 <input
                     className="dgm-buscador-inp"
                     value={consulta}
-                    placeholder="Buscar una caja…"
+                    placeholder="Find a box…"
                     onChange={(e) => onConsulta(e.target.value)}
                 />
                 {consulta && (
@@ -115,7 +115,7 @@ const DiagramOutline = ({ grafo, seleccion, consulta, onConsulta, onElegir, onAn
                 )}
                 {encontrados.length === 0 && (
                     <p className="dgm-lista-vacia">
-                        {grafo.nodos.length ? 'Ninguna caja con ese texto.' : 'The diagram is empty.'}
+                        {grafo.nodos.length ? 'No box with that text.' : 'The diagram is empty.'}
                     </p>
                 )}
             </div>

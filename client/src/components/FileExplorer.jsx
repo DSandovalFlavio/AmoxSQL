@@ -40,7 +40,7 @@ const AVISO_TAMANO = 5 * 1024 * 1024;
  */
 function haceCuanto(ms) {
     const seg = Math.max(0, Math.floor((Date.now() - ms) / 1000));
-    if (seg < 60) return 'ahora';
+    if (seg < 60) return 'now';
     const min = Math.floor(seg / 60);
     if (min < 60) return `${min} min`;
     const hor = Math.floor(min / 60);
@@ -1112,7 +1112,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                             className="context-menu-item"
                             title="It will open this way from now on"
                         >
-                            <LuFileText size={14} /> Abrir como texto
+                            <LuFileText size={14} /> Open as text
                         </div>
                     )}
                     {contextMenu.file.name.match(/\.(csv|tsv|parquet|json|xlsx|xls)$/i) && (

@@ -34,7 +34,7 @@ When several tables are in scope, the editor prefixes columns with their alias (
 ### Dot-access columns
 Type `alias.` or `table.` and only the columns of that resolved table appear. The dot is a trigger character, so the list opens by itself.
 
-<!-- 📷 CAPTURE: docs/images/editor/autocomplete-dot-access.png — column popup after typing an alias followed by a dot -->
+<img src="../../images/editor/autocomplete-dot-access.png" alt="column popup after typing an alias followed by a dot" width="100%" />
 
 ### CTE and subquery columns (the gem)
 A purely syntactic analyzer can't know which columns `SELECT a + b AS total` produces. AmoxSQL can: when you type `my_cte.` or request completion inside a query that uses a CTE, the editor asks DuckDB to `DESCRIBE` that expression and returns its real columns — derived names, expressions, and renames included.
@@ -54,7 +54,7 @@ Type a quote (`'` or `"`) in a `FROM` and the editor completes **file paths** fr
 ### Function hover
 Hover over a DuckDB function to see a card with its **signature**, **category**, and **description**, plus a parameter table where applicable.
 
-<!-- 📷 CAPTURE: docs/images/editor/autocomplete-hover-doc.png — hover card with a function's signature and description -->
+<img src="../../images/editor/autocomplete-hover-doc.png" alt="hover card with a function's signature and description" width="100%" />
 
 ### Snippets and dbt/Jinja helpers
 The popup also includes smart snippets (for example `LEFT JOIN`, a CTE template). dbt/Jinja helpers never clutter a plain `.sql`.

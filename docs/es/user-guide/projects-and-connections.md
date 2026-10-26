@@ -4,6 +4,8 @@
 
 > AmoxSQL organiza tu trabajo por **proyectos** (carpetas) y se conecta a bases DuckDB en tres modos. Aquí verás cómo abrir, cambiar y conectar.
 
+<img src="../../images/user-guide/db-selection-modal.png" alt="Abrir un proyecto: elegir base existente, nueva o en memoria, y el modo de lectura" width="100%" />
+
 ## Proyectos (carpetas de trabajo)
 
 Un **proyecto** es simplemente una carpeta en tu disco. Todo lo que creas —queries `.sql`, notebooks, gráficos `.amoxvis`, decks, chains, contexto de IA— vive dentro de esa carpeta. Al abrir un proyecto, el [explorador de archivos](../data/file-explorer.md) muestra su contenido.

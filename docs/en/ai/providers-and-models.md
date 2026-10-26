@@ -4,7 +4,7 @@
 
 > Choose who thinks for you: a local model with Ollama (private) or a cloud one. The model's *tier* decides what the AI can do.
 
-<!-- 📷 CAPTURE: docs/images/ai/settings-ai-providers.png — The Settings → AI tab with the provider selector, API key, and default model. -->
+<img src="../../images/ai/settings-ai-providers.png" alt="The Settings → AI tab with the provider selector, API key, and default model." width="100%" />
 
 ## What it is
 

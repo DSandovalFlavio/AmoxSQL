@@ -877,6 +877,12 @@ svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
 }
 
 /* ── Window Controls (right side) ── */
+.window-title-bar .wtb-right {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
 .window-title-bar .window-controls {
   display: flex;
   height: 100%;
@@ -3786,9 +3792,17 @@ tr:hover .rt-td--pinned {
   margin: 0;
 }
 
+/* Seis tarjetas en una fila miden ~1400px: en una ventana estrecha o con la
+   vista dividida se salían del panel (que recorta) y parecían no estar. Ahora
+   bajan a la fila siguiente. */
 .ep-empty-cards {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
+  max-width: 100%;
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 
 .ep-empty-card {
@@ -16879,6 +16893,10 @@ tr:hover td {
   color: var(--text-tertiary);
   font-style: italic;
 }
+
+/* Una celda que cambió: el valor de A tachado y el de B al lado. */
+.cr-cambio { color: var(--feedback-warning-text, var(--text-primary)); }
+.cr-cambio s { color: var(--text-tertiary); }
 
 .cr-empty {
   padding: 24px;

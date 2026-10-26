@@ -24,7 +24,7 @@ Las acciones vienen **agrupadas por categoría** (Análisis con IA, Query, Archi
 4. Pulsa **Enter** para ejecutar la acción resaltada, o haz clic sobre ella.
 5. **Esc** cierra la paleta sin hacer nada.
 
-<!-- 📷 CAPTURE: docs/images/editor/command-palette.png — paleta de comandos abierta con acciones agrupadas por categoría -->
+<img src="../../images/editor/command-palette.png" alt="paleta de comandos abierta con acciones agrupadas por categoría" width="100%" />
 
 ## Referencia de categorías
 

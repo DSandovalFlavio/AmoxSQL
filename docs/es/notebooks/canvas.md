@@ -4,6 +4,8 @@
 
 > Un lienzo infinito para pensar un análisis: fuentes, consultas, gráficos, cifras y notas en cajas, conectadas por lo que cada consulta lee. Cuando el análisis toma forma, sale a un deck, a un cuaderno o a un proceso que corre solo.
 
+<img src="../../images/notebooks/canvas.png" alt="Un Canvas con una fuente, dos ramas en marcos, gráficos, una cifra y una nota" width="100%" />
+
 ## Qué es
 
 Un **Canvas** (`.amoxcanvas`) es el sitio para **averiguar**, antes de entregar. Donde el [cuaderno](notebooks.md) se lee de arriba abajo, el Canvas deja tener dos ramas a la vez («por tienda» y «por día» desde la misma base), una nota al lado del número que la motiva y el camino entero a la vista.

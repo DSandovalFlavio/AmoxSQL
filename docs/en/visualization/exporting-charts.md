@@ -4,7 +4,7 @@
 
 > Story Flow's Export stage: get the chart out as a PNG in slide- or social-ready sizes, copy it to the clipboard, or save it as `.amoxvis` to reuse and refresh.
 
-<!-- 📷 CAPTURE: docs/images/visualization/export-stage.png — The Export tab with the Clipboard, Canvas size (PowerPoint 16:9, 4:3, Square, Phone Story, Wide Banner, Original presets), and Configuration file sections. -->
+<img src="../../images/visualization/export-stage.png" alt="The Export tab with the Clipboard, Canvas size (PowerPoint 16:9, 4:3, Square, Phone Story, Wide Banner, Original presets), and Configuration file sections." width="100%" />
 
 ## What it is
 

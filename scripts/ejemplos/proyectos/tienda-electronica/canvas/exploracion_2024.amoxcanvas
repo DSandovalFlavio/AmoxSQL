@@ -1,0 +1,150 @@
+{
+  "formato": "amoxcanvas",
+  "version": 1,
+  "titulo": "¿Cómo va 2024?",
+  "parametros": {
+    "anio": "2024"
+  },
+  "tarjetas": [
+    {
+      "id": "texto_1",
+      "tipo": "text",
+      "x": 20,
+      "y": -170,
+      "w": 560,
+      "h": 120,
+      "texto": "# ¿Cómo va 2024?\n\nDe la tabla de ventas a dos ramas: por categoría y por mes."
+    },
+    {
+      "id": "ventas_src",
+      "tipo": "source",
+      "x": 20,
+      "y": 40,
+      "w": 260,
+      "h": 220,
+      "origen": {
+        "tipo": "tabla",
+        "nombre": "ventas"
+      }
+    },
+    {
+      "id": "ventas_anio",
+      "tipo": "query",
+      "x": 330,
+      "y": 40,
+      "w": 360,
+      "h": 260,
+      "sql": [
+        "SELECT * FROM ventas_src",
+        "WHERE year(fecha) = {{anio}}"
+      ]
+    },
+    {
+      "id": "marco_categorias",
+      "tipo": "frame",
+      "x": 740,
+      "y": -20,
+      "w": 820,
+      "h": 380,
+      "titulo": "Por categoría"
+    },
+    {
+      "id": "por_categoria",
+      "tipo": "query",
+      "x": 770,
+      "y": 30,
+      "w": 360,
+      "h": 300,
+      "marco": "marco_categorias",
+      "sql": [
+        "SELECT categoria, round(sum(importe), 0) AS venta",
+        "FROM ventas_anio",
+        "GROUP BY categoria",
+        "ORDER BY venta DESC"
+      ]
+    },
+    {
+      "id": "grafico_categorias",
+      "tipo": "chart",
+      "x": 1170,
+      "y": 30,
+      "w": 360,
+      "h": 300,
+      "marco": "marco_categorias",
+      "desde": "por_categoria",
+      "grafico": {
+        "chartType": "bar-horizontal",
+        "xAxisKey": "categoria",
+        "yAxisKeys": [
+          "venta"
+        ],
+        "numberFormat": "compact"
+      }
+    },
+    {
+      "id": "marco_meses",
+      "tipo": "frame",
+      "x": 740,
+      "y": 400,
+      "w": 820,
+      "h": 380,
+      "titulo": "Por mes"
+    },
+    {
+      "id": "por_mes",
+      "tipo": "query",
+      "x": 770,
+      "y": 450,
+      "w": 360,
+      "h": 300,
+      "marco": "marco_meses",
+      "sql": [
+        "SELECT date_trunc('month', fecha)::DATE AS mes, round(sum(importe), 0) AS venta",
+        "FROM ventas_anio",
+        "GROUP BY mes",
+        "ORDER BY mes"
+      ]
+    },
+    {
+      "id": "grafico_meses",
+      "tipo": "chart",
+      "x": 1170,
+      "y": 450,
+      "w": 360,
+      "h": 300,
+      "marco": "marco_meses",
+      "desde": "por_mes",
+      "grafico": {
+        "chartType": "line",
+        "xAxisKey": "mes",
+        "yAxisKeys": [
+          "venta"
+        ],
+        "numberFormat": "compact"
+      }
+    },
+    {
+      "id": "cifra_total",
+      "tipo": "number",
+      "x": 360,
+      "y": 360,
+      "w": 300,
+      "h": 170,
+      "desde": "ventas_anio",
+      "cifra": {
+        "columna": "importe",
+        "agregado": "sum",
+        "etiqueta": "Venta del año"
+      }
+    },
+    {
+      "id": "nota_1",
+      "tipo": "note",
+      "x": 380,
+      "y": 580,
+      "w": 260,
+      "h": 150,
+      "texto": "Octubre está incompleto: el archivo llega el día 5 del mes siguiente."
+    }
+  ]
+}

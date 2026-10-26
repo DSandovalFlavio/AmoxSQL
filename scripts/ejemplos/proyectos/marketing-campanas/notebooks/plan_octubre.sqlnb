@@ -1,0 +1,28 @@
+---
+titulo: Plan de medios de octubre
+parametros:
+  presupuesto: 500000
+---
+
+# Plan de medios de octubre
+
+¿El plan cabe en el presupuesto y dónde rinde más cada peso?
+
+<!-- celda: resumen -->
+```sql
+SELECT round(sum(costo), 2)                         AS costo_total,
+       {{presupuesto}}::DECIMAL                      AS presupuesto,
+       round(100 * sum(costo) / {{presupuesto}}::DECIMAL, 1) AS uso_pct,
+       count(DISTINCT nombre_campania)               AS campanias
+FROM plan_octubre
+```
+
+<!-- celda: por_region -->
+```sql
+SELECT r.region, round(sum(p.costo), 0) AS costo, sum(p.clicks) AS clicks
+FROM plan_octubre AS p JOIN catalogo_regiones AS r ON r.estado = p.region
+GROUP BY ALL ORDER BY costo DESC
+```
+
+La región **Centro** se lleva la mayor parte del presupuesto; el **Sur** tiene el costo
+por clic más bajo y podría recibir más.

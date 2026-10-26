@@ -4,7 +4,7 @@
 
 > AmoxSQL's visual pipeline studio: build a data transformation as a diagram of connected nodes — no hand-written SQL per step — and run it end to end.
 
-<!-- 📷 CAPTURE: docs/images/data-flow/data-flow-editor.png — The Data Flow editor with the node palette on the left, a multi-node DAG on the canvas (Import File → Filter → Group & Aggregate → Export File), and the selected node's config panel on the right. -->
+<img src="../../images/data-flow/data-flow-editor.png" alt="The Data Flow editor with the node palette on the left, a multi-node DAG on the canvas (Import File → Filter → Group & Aggregate → Export File), and the selected node's config panel on the right." width="100%" />
 
 ## What it is
 
@@ -103,6 +103,8 @@ The canvas's AI panel turns a natural-language description into a pipeline. Type
 | **Ctrl+S** | Save the chain |
 | `.sqlchain` | The pipeline, as JSON (debounced auto-save) |
 | YAML | Interchange format for exporting/importing chains |
+
+<img src="../../images/data-flow/what-changed.png" alt="What changed in a process: the steps and fields that changed, not the JSON" width="100%" />
 
 ## Related
 

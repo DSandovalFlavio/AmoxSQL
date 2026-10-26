@@ -4,7 +4,7 @@
 
 > The two stages that make a chart readable and then good-looking: Format tunes axes, numbers, grid, legend, labels, and tooltips; Style applies palettes, typography, and card finish.
 
-<!-- 📷 CAPTURE: docs/images/visualization/format-style-tabs.png — Story Flow's Format and Style tabs side by side: on the left the Format sections (Number Format, Axis Labels, Grid & Legend), on the right the Style sections (Color Palette, Typography, Card). -->
+<img src="../../images/visualization/format-style-tabs.png" alt="Story Flow's Format and Style tabs side by side: on the left the Format sections (Number Format, Axis Labels, Grid & Legend), on the right the Style sections (Color Palette, Typography, Card)." width="100%" />
 
 ## What it is
 

@@ -4,7 +4,7 @@
 
 > Build presentations from your analysis: `.amoxdeck` decks of markdown slides with live charts that refresh against current data, edited visually in the Report Flow Studio.
 
-<!-- 📷 CAPTURE: docs/images/reports/report-flow-studio.png — The Report Flow Studio in Design view: toolbar on top (Refresh all, Export PowerPoint, Design/Present/Source, Save), a Slides/Layouts/Charts side panel on the left, and the active slide with prose and an embedded chart on the right. -->
+<img src="../../images/reports/report-flow-studio.png" alt="The Report Flow Studio in Design view: toolbar on top (Refresh all, Export PowerPoint, Design/Present/Source, Save), a Slides/Layouts/Charts side panel on the left, and the active slide with prose and an embedded chart on the right." width="100%" />
 
 ## What it is
 

@@ -4,7 +4,7 @@
 
 > Dibuja arquitecturas y procesos arrastrando cajas. Lo que se guarda es texto mermaid: un archivo `.amoxdiagram`, o el diagrama que ya vive dentro de uno de tus documentos.
 
-<!-- 📷 CAPTURE: docs/images/editor/amoxdiagram.png — AmoxDiagram con un diagrama de arquitectura: paleta de formas y esquema a la izquierda, lienzo con dos zonas agrupadas y cajas coloreadas por capa en el centro, inspector a la derecha y el panel de mermaid abierto abajo. -->
+<img src="../../images/editor/amoxdiagram.png" alt="AmoxDiagram con un diagrama de arquitectura: paleta de formas y esquema a la izquierda, lienzo con dos zonas agrupadas y cajas coloreadas por capa en el centro, inspector a la derecha y el panel de mermaid abierto abajo." width="100%" />
 
 ## Qué es
 
