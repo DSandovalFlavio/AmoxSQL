@@ -4,6 +4,8 @@
 
 > Celdas que dejan su consulta puesta en la sesión con un nombre, para que la siguiente la lea. Con índice, parámetros y un botón que actualiza solo lo que se quedó viejo.
 
+<img src="../../images/notebooks/notebook.png" alt="El cuaderno analisis_2024.sqlnb del proyecto de ejemplo: celdas con nombre, parámetros y resultados" width="100%" />
+
 ## Qué es
 
 Un **cuaderno** (`.sqlnb`) es un análisis partido en **celdas**. Cada celda de SQL, al ejecutarse, deja su consulta puesta en la sesión con el nombre de la celda; la de abajo ya puede escribir `FROM ese_nombre`. Entre medias, las celdas de texto cuentan el porqué.

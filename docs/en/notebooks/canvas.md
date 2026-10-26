@@ -4,6 +4,8 @@
 
 > An infinite canvas to think an analysis through: sources, queries, charts, numbers and notes in cards, connected by what each query reads. When the analysis takes shape, it goes out to a deck, a notebook or a process that runs on its own.
 
+<img src="../../images/notebooks/canvas.png" alt="A Canvas with a source, two branches in frames, charts, a number and a note" width="100%" />
+
 ## What it is
 
 A **Canvas** (`.amoxcanvas`) is the place to **find out**, before delivering. Where the [notebook](notebooks.md) reads top to bottom, the Canvas lets you keep two branches at once ("by store" and "by day" from the same clean base), a note next to the number that prompted it, and the whole path in sight.

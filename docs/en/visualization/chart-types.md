@@ -4,7 +4,7 @@
 
 > Story Flow's 17 chart types, grouped by what you want to communicate — Compare, Trend, Composition, Relationship, and Flow — not by their geometry.
 
-<!-- 📷 CAPTURE: docs/images/visualization/chart-type-selector.png — The Type stage's type selector, with the Compare/Trend/Composition/Relationship/Flow categories expanded showing each type's icon. -->
+<img src="../../images/visualization/chart-type-selector.png" alt="The Type stage's type selector, with the Compare/Trend/Composition/Relationship/Flow categories expanded showing each type's icon." width="100%" />
 
 ## What it is
 

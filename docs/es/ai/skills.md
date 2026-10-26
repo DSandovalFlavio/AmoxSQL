@@ -4,7 +4,7 @@
 
 > Playbooks de análisis reutilizables: cada Skill le da a la IA una metodología especializada (cómo hacer una EDA, cómo investigar una caída de métrica, cómo diseñar un pipeline) para que no improvise el enfoque cada vez.
 
-<!-- 📷 CAPTURE: docs/images/ai/skills-panel.png — Panel de Skills con la lista de skills built-in, cada una con nombre, descripción y chips de keywords; una expandida mostrando su contenido -->
+<img src="../../images/ai/skills-panel.png" alt="Panel de Skills con la lista de skills built-in, cada una con nombre, descripción y chips de keywords; una expandida mostrando su contenido" width="100%" />
 
 ## Qué es
 

@@ -4,7 +4,7 @@
 
 > Convierte archivos CSV, Parquet, JSON y Excel en tablas de tu base DuckDB — una carpeta entera, varias hojas, o consúltalos directamente sin importar.
 
-<!-- 📷 CAPTURE: docs/images/data/import-modal.png — Diálogo "Importar a la base" mostrando el nombre de tabla, el schema destino opcional y la casilla de limpiar columnas -->
+<img src="../../images/data/import-modal.png" alt="Diálogo 'Importar a la base' mostrando el nombre de tabla, el schema destino opcional y la casilla de limpiar columnas" width="100%" />
 
 ## Qué es
 

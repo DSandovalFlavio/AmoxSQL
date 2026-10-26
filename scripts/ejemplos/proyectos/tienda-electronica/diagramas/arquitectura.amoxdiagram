@@ -1,0 +1,24 @@
+---
+title: Arquitectura del cierre mensual
+---
+
+```mermaid
+flowchart LR
+  subgraph entrada["Lo que llega"]
+    csv[/"Ventas mensuales (CSV)"/]
+    excel[/"Metas de Finanzas (Excel)"/]
+  end
+  subgraph amox["AmoxSQL"]
+    fuente(["Fuente ventas-mensuales"])
+    base[("tienda.duckdb")]
+    flujo[["Cierre mensual (Data Flow)"]]
+  end
+  subgraph salida["Lo que sale"]
+    libro[/"Cierre del mes (Excel)"/]
+    deck[/"Resumen para Dirección"/]
+  end
+  csv --> fuente --> base
+  excel --> base
+  base --> flujo --> libro
+  base --> deck
+```

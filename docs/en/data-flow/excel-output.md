@@ -4,7 +4,7 @@
 
 > The **Excel** node leaves the result the way the client expects it: a formatted workbook with one sheet per step, or the client's own template with this month's data in it.
 
-<!-- 📷 CAPTURE: docs/images/data-flow/excel-node.png — the Excel node's settings with "A new workbook", three sheets and a column format -->
+<img src="../../images/data-flow/excel-node.png" alt="the Excel node's settings with 'A new workbook', three sheets and a column format" width="100%" />
 
 ## What it is
 

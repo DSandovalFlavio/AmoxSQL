@@ -255,7 +255,7 @@ export const CANVAS_SIZES = [
     { label: '1:1',    w: 1,    h: 1   },
     { label: '9:16',   w: 9,    h: 16  },
     { label: 'Banner', w: 1200, h: 628 },
-    { label: 'Libre',  w: 0,    h: 0   },   // como antes: ocupa todo el hueco
+    { label: 'Free',   w: 0,    h: 0   },   // como antes: ocupa todo el hueco
 ];
 
 export const EXPORT_PRESETS = [
@@ -473,7 +473,7 @@ export const DEFAULT_CONFIG = {
     layout: 'stacked',
     /* La proporción del lienzo en el editor. 4:3 por defecto: es la forma en la
        que la figura se lee bien y la que menos desentona con el resto de la
-       interfaz. 'Libre' recupera el comportamiento de ocupar todo el hueco. */
+       interfaz. 'Free' recupera el comportamiento de ocupar todo el hueco. */
     canvasSize: '4:3',
 
     // Margins & Spacing

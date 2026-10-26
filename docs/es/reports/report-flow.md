@@ -4,7 +4,7 @@
 
 > Construye presentaciones a partir de tu análisis: decks `.amoxdeck` de slides en markdown con gráficos en vivo que se refrescan con datos actuales, editados visualmente en el Report Flow Studio.
 
-<!-- 📷 CAPTURE: docs/images/reports/report-flow-studio.png — El Report Flow Studio en vista Design: barra de herramientas arriba (Refresh all, Export PowerPoint, Design/Present/Source, Save), panel lateral Slides/Layouts/Charts a la izquierda y la slide activa con prosa y un gráfico embebido a la derecha. -->
+<img src="../../images/reports/report-flow-studio.png" alt="El Report Flow Studio en vista Design: barra de herramientas arriba (Refresh all, Export PowerPoint, Design/Present/Source, Save), panel lateral Slides/Layouts/Charts a la izquierda y la slide activa con prosa y un gráfico embebido a la derecha." width="100%" />
 
 ## Qué es
 

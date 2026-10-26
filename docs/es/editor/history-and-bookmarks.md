@@ -23,7 +23,7 @@ El historial se poda solo para no crecer sin límite, y filtra el ruido (sentenc
 ### Abrir el historial
 Pulsa **Ctrl+Shift+H**, o el botón **History** en la barra de acciones del editor. Se abre con la pestaña **History** activa.
 
-<!-- 📷 CAPTURE: docs/images/editor/history-modal.png — vista de historial con las pestañas History y Bookmarked -->
+<img src="../../images/editor/history-modal.png" alt="vista de historial con las pestañas History y Bookmarked" width="100%" />
 
 ### Buscar y recargar una query
 1. (Opcional) Escribe en el buscador para filtrar por el texto de la query.
@@ -38,7 +38,7 @@ Pulsa **Ctrl+Shift+H**, o el botón **History** en la barra de acciones del edit
 
 Los marcadores no dependen de la poda del historial: aunque la query original desaparezca del historial por antigüedad, tu marcador sigue.
 
-<!-- 📷 CAPTURE: docs/images/editor/bookmarks-tab.png — pestaña Bookmarked con queries marcadas -->
+<img src="../../images/editor/bookmarks-tab.png" alt="pestaña Bookmarked con queries marcadas" width="100%" />
 
 ## Referencia
 

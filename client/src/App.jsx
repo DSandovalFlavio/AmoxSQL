@@ -1533,7 +1533,7 @@ function App() {
               <button
                 onClick={() => handleSidebarTabClick('search')}
                 className={`activity-bar-btn ${activeSidebarTab === 'search' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Buscar en el proyecto (Ctrl+Shift+F)"
+                title="Search in project (Ctrl+Shift+F)"
               >
                 <LuSearch size={20} />
               </button>

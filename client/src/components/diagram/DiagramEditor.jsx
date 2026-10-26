@@ -325,13 +325,13 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
     const avisos = useMemo(() => (g ? cabosSueltos(g) : []), [g]);
     const porque = useMemo(() => (g || !doc.mermaid ? null : porQueNoSeAbre(doc.mermaid)), [g, doc.mermaid]);
 
-    const nombre = doc.titulo || (filePath || '').split(/[\\/]/).pop() || 'Diagrama';
+    const nombre = doc.titulo || (filePath || '').split(/[\\/]/).pop() || 'Diagram';
     // La procedencia es un objeto —qué archivo, qué posición, cómo estaba— y no
     // sólo una ruta: guardar necesita las tres cosas para saber si el documento
     // sigue como se abrió.
     const archivoOrigen = procedencia?.archivo || '';
     const nombreOrigen = archivoOrigen.split(/[\\/]/).pop();
-    const destino = procedencia ? `Guardar en ${nombreOrigen}` : 'Guardar el diagrama';
+    const destino = procedencia ? `Save to ${nombreOrigen}` : 'Save the diagram';
 
     return (
         <div className="dgm-editor">
@@ -349,7 +349,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                     </button>
                 ) : (
                     <span className="dgm-origin dgm-origin--propio">
-                        <LuFile size={11} strokeWidth={2.4} /> archivo propio
+                        <LuFile size={11} strokeWidth={2.4} /> own file
                     </span>
                 )}
 
@@ -366,11 +366,11 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                 <div className="dgm-sep" />
                 <button type="button" className={`dgm-btn${verTexto ? ' dgm-btn--on' : ''}`}
                     onClick={() => setVerTexto((v) => !v)} title="See the mermaid (Ctrl+Shift+E)">
-                    <LuCode size={12} strokeWidth={2.3} /> Texto
+                    <LuCode size={12} strokeWidth={2.3} /> Text
                 </button>
                 <button type="button" className={`dgm-btn${verRepaso ? ' dgm-btn--on' : ''}`}
                     onClick={() => setVerRepaso((v) => !v)} title="Loose ends">
-                    <LuShieldCheck size={12} strokeWidth={2.3} /> Repasar
+                    <LuShieldCheck size={12} strokeWidth={2.3} /> Review
                     {avisos.length > 0 && <span className="dgm-btn-n">{avisos.length}</span>}
                 </button>
 
@@ -407,7 +407,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                 </button>
                 <div className="dgm-sep" />
                 <button type="button" className="dgm-btn" onClick={() => onRequestSaveAs?.(content)}>
-                    Guardar como…
+                    Save as…
                 </button>
                 <button type="button" className="dgm-btn dgm-btn--primary" onClick={() => guardar()} disabled={!isDirty}>
                     <LuSave size={12} strokeWidth={2.3} /> {destino}
@@ -494,7 +494,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                                 </button>
                                 <button type="button" className="dgm-btn"
                                     onClick={() => setDescartadas((d) => [...d, ...porAprender])}>
-                                    Ahora no
+                                    Not now
                                 </button>
                             </div>
                         )}
@@ -523,15 +523,15 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                                         un «confirmar/cancelar» de los normales. */}
                                     <div className="dgm-dialogo-botones">
                                         <button type="button" className="dgm-btn" onClick={() => setConflicto(null)}>
-                                            Cancelar
+                                            Cancel
                                         </button>
                                         <button type="button" className="dgm-btn"
                                             onClick={() => { setConflicto(null); onRequestSaveAs?.(content); }}>
-                                            Guardar como archivo nuevo
+                                            Save as a new file
                                         </button>
                                         <button type="button" className="dgm-btn dgm-btn--primary"
                                             onClick={() => guardar({ forzar: true })}>
-                                            Sobrescribir
+                                            Overwrite
                                         </button>
                                     </div>
                                 </div>

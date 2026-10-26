@@ -165,7 +165,7 @@ function DocPanel({
                 <div className="mde-panel-title"><span>Acciones</span></div>
                 {onBuscar && (
                     <button className="mde-panel-act" onClick={onBuscar}>
-                        <LuSearch size={13} /> <span>Buscar en el proyecto</span>
+                        <LuSearch size={13} /> <span>Search in project</span>
                         <kbd>Ctrl+Shift+F</kbd>
                     </button>
                 )}

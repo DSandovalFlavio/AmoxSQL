@@ -11,12 +11,12 @@
 ### Barra de título (arriba)
 Muestra el **proyecto activo** (nombre · modo de conexión MEM/RO/RW · base) y controles de ventana. El widget del proyecto despliega los proyectos recientes y la opción de cerrarlo.
 
-<!-- 📷 CAPTURE: docs/images/user-guide/title-bar-workspace.png — barra de título con el widget del proyecto desplegado -->
+<img src="../../images/user-guide/title-bar-workspace.png" alt="barra de título con el widget del proyecto desplegado" width="100%" />
 
 ### Barra de actividad (extremo izquierdo)
 Iconos que cambian el contenido del panel lateral:
 
-<!-- 📷 CAPTURE: docs/images/user-guide/activity-bar.png — la activity bar con sus iconos resaltados -->
+<img src="../../images/user-guide/activity-bar.png" alt="la activity bar con sus iconos resaltados" width="100%" />
 
 | Icono | Panel |
 |---|---|
@@ -47,7 +47,7 @@ Aparece al ejecutar una query. Alterna entre **Table**, **Chart** y **Profile**.
 
 **Ctrl+Shift+P** abre la paleta: busca y ejecuta cualquier acción (correr query, guardar, cambiar tema, abrir paneles, zoom, tours…). Es la forma más rápida de llegar a cualquier función sin recordar dónde está. Ver [Paleta de comandos](../editor/command-palette.md).
 
-<!-- 📷 CAPTURE: docs/images/user-guide/command-palette.png — paleta de comandos abierta -->
+<img src="../../images/user-guide/command-palette.png" alt="paleta de comandos abierta" width="100%" />
 
 ## Apariencia
 

@@ -26,7 +26,7 @@ Go to [GitHub Releases](https://github.com/dsandovalflavio/amoxsql/releases/late
 ## Option B — Build from source
 
 ### Requirements
-- **Node.js 20+**
+- **Node.js 22.13+**
 - **pnpm 11+** (mandatory — do not use `npm` or `yarn`)
 - C++ build tools (for DuckDB's native bindings). On Windows, Visual Studio Build Tools' "Desktop development with C++".
 

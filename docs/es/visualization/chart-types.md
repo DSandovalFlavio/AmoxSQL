@@ -4,7 +4,7 @@
 
 > Los 17 tipos de gráfico de Story Flow, agrupados por lo que quieres comunicar — Comparar, Tendencia, Composición, Relación y Flujo — no por su geometría.
 
-<!-- 📷 CAPTURE: docs/images/visualization/chart-type-selector.png — El selector de tipo de la etapa Type, con las categorías Compare/Trend/Composition/Relationship/Flow expandidas mostrando los iconos de cada tipo. -->
+<img src="../../images/visualization/chart-type-selector.png" alt="El selector de tipo de la etapa Type, con las categorías Compare/Trend/Composition/Relationship/Flow expandidas mostrando los iconos de cada tipo." width="100%" />
 
 ## Qué es
 

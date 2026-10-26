@@ -1,0 +1,68 @@
+---
+titulo: Ventas 2024 para Dirección
+parametros:
+  anio: 2024
+  minimo: 0
+---
+
+# Ventas 2024: dónde estamos
+
+Cierre al **15 de octubre**. El objetivo de este cuaderno es contestar tres preguntas
+antes del comité: cómo va el año contra el anterior, qué categorías lo explican y si
+llegamos a las metas de Finanzas.
+
+<!-- celda: ventas_mes -->
+```sql
+-- Venta por mes del año del parámetro y del anterior, lado a lado.
+SELECT month(fecha)                                        AS mes,
+       round(sum(importe) FILTER (WHERE year(fecha) = {{anio}}::INTEGER), 2)     AS venta_actual,
+       round(sum(importe) FILTER (WHERE year(fecha) = {{anio}}::INTEGER - 1), 2) AS venta_anterior
+FROM ventas
+GROUP BY ALL
+ORDER BY mes
+```
+
+El año va **parejo con 2023**: enero es el único mes claramente arriba (+15 %), y
+octubre se ve bajo porque el archivo del mes **todavía no llega completo**.
+
+<!-- celda: por_categoria -->
+```sql
+-- Lee la celda de arriba por su nombre: cada celda deja una vista.
+SELECT categoria,
+       round(sum(importe), 2) AS venta,
+       round(100 * sum(importe) / sum(sum(importe)) OVER (), 1) AS participacion_pct
+FROM ventas
+WHERE year(fecha) = {{anio}}::INTEGER AND importe >= {{minimo}}::DECIMAL
+GROUP BY categoria
+ORDER BY venta DESC
+```
+
+Portátiles y teléfonos son más de la mitad de la venta: cualquier cambio en esas dos
+categorías mueve el año entero.
+
+<!-- celda: cumplimiento -->
+```sql
+SELECT categoria,
+       round(sum(r.venta), 0)                    AS venta,
+       round(sum(m.meta), 0)                     AS meta,
+       round(100 * sum(r.venta) / sum(m.meta), 1) AS cumplimiento_pct
+FROM metas_2024 AS m
+JOIN (
+    SELECT date_trunc('month', fecha)::DATE AS mes, categoria, sum(importe) AS venta
+    FROM ventas WHERE year(fecha) = {{anio}}::INTEGER GROUP BY ALL
+) AS r USING (mes, categoria)
+GROUP BY categoria
+ORDER BY cumplimiento_pct
+```
+
+<!-- celda: revision borrador -->
+```sql
+-- Borrador: corre, pero no sale en Word ni en el deck.
+SELECT count(*) AS lineas, min(fecha) AS desde, max(fecha) AS hasta FROM ventas
+```
+
+## Para el comité
+
+- **Ritmo**: igual que 2023; el crecimiento de enero no se sostuvo.
+- **Riesgo**: Pilas y Cargadores mueven mucho volumen pero poco dinero.
+- **Siguiente paso**: revisar las categorías por debajo de la meta con su responsable.

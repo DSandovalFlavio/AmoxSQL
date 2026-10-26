@@ -23,7 +23,7 @@ Note: these editor `${...}` variables are **distinct** from a [Notebook](../note
 ### Open the panel
 In the editor action bar, click **Variables**. The button shows a badge with how many variables you've defined. The **+** button next to it adds a new variable directly.
 
-<!-- 📷 CAPTURE: docs/images/editor/variables-bar.png — variables panel expanded below the action bar -->
+<img src="../../images/editor/variables-bar.png" alt="variables panel expanded below the action bar" width="100%" />
 
 ### Define a variable
 1. Click **+** to add a row.

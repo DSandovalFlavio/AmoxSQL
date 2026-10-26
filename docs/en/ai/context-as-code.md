@@ -4,7 +4,7 @@
 
 > Your project's semantic layer: a few version-controlled files that teach the AI what your data means, how your tables join, and what "revenue" means in your business — so it answers accurately to *your* reality, not a generic one.
 
-<!-- 📷 CAPTURE: docs/images/ai/context-folder.png — Settings → AI, context tab: status of the context/ folder with metrics.yml, joins.yml, glossary.md and examples marked -->
+<img src="../../images/ai/context-folder.png" alt="Settings → AI, context tab: status of the context/ folder with metrics.yml, joins.yml, glossary.md and examples marked" width="100%" />
 
 ## What it is
 

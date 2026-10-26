@@ -4,7 +4,7 @@
 
 > Las dos etapas que hacen el gráfico legible y luego bonito: Format afina ejes, números, cuadrícula, leyenda, etiquetas y tooltips; Style aplica paletas, tipografía y acabado de tarjeta.
 
-<!-- 📷 CAPTURE: docs/images/visualization/format-style-tabs.png — Las pestañas Format y Style de Story Flow una junto a otra: a la izquierda las secciones de Format (Number Format, Axis Labels, Grid & Legend), a la derecha las de Style (Color Palette, Typography, Card). -->
+<img src="../../images/visualization/format-style-tabs.png" alt="Las pestañas Format y Style de Story Flow una junto a otra: a la izquierda las secciones de Format (Number Format, Axis Labels, Grid & Legend), a la derecha las de Style (Color Palette, Typography, Card)." width="100%" />
 
 ## Qué es
 

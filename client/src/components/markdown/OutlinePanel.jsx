@@ -121,7 +121,7 @@ function OutlinePanel({
             {onBuscar && (
                 <div className="mde-rail-foot">
                     <button className="mde-rail-link" onClick={onBuscar}>
-                        <LuSearch size={12} /> Buscar en el proyecto
+                        <LuSearch size={12} /> Search in project
                     </button>
                 </div>
             )}

@@ -23,7 +23,7 @@ The built-in library is grouped by theme, and you can save your own: in the proj
 ### Open the panel
 Open the Snippets sidebar. You'll see a search box at the top and collapsible categories below, each with a snippet count.
 
-<!-- 📷 CAPTURE: docs/images/editor/snippets-panel.png — snippets panel with categories expanded -->
+<img src="../../images/editor/snippets-panel.png" alt="snippets panel with categories expanded" width="100%" />
 
 ### Insert a snippet
 1. (Optional) Type in the search box to filter by name, description, or SQL content.

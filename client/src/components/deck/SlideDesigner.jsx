@@ -508,7 +508,7 @@ const SlideDesigner = ({
                     <LuChevronLeft size={16} />
                 </button>
                 <span className="deck-design-counter">
-                    Lámina {index + 1} / {total}
+                    Slide {index + 1} / {total}
                     <span className="deck-design-layout-badge">{meta?.label || layout}</span>
                 </span>
                 <button
@@ -517,7 +517,7 @@ const SlideDesigner = ({
                     onClick={() => setLimpia((v) => !v)}
                     title="Clean view — turns the regions off without leaving Design (Ctrl+.)"
                 >
-                    <LuEye size={14} /> Vista limpia
+                    <LuEye size={14} /> Clean view
                 </button>
                 <button
                     type="button"
@@ -525,7 +525,7 @@ const SlideDesigner = ({
                     onClick={onAlternarCrudo}
                     title="The raw source of this slide (Ctrl+Shift+E)"
                 >
-                    <LuCode size={14} /> Crudo
+                    <LuCode size={14} /> Raw
                 </button>
                 <button type="button" onClick={onNext} disabled={index >= total - 1} title="Next slide">
                     <LuChevronRight size={16} />

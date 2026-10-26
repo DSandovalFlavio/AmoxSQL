@@ -4,7 +4,7 @@
 
 > Draw architectures and processes by dragging boxes. What gets saved is mermaid text: an `.amoxdiagram` file, or the diagram that already lives inside one of your documents.
 
-<!-- 📷 CAPTURE: docs/images/editor/amoxdiagram.png — AmoxDiagram with an architecture diagram: shape palette and outline on the left, canvas with two grouped zones and boxes coloured by layer in the centre, inspector on the right, and the mermaid panel open at the bottom. -->
+<img src="../../images/editor/amoxdiagram.png" alt="AmoxDiagram with an architecture diagram: shape palette and outline on the left, canvas with two grouped zones and boxes coloured by layer in the centre, inspector on the right, and the mermaid panel open at the bottom." width="100%" />
 
 ## What it is
 

@@ -17,6 +17,7 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 | Introduction | [es](es/user-guide/introduction.md) | [en](en/user-guide/introduction.md) | 🟢 |
 | Installation | [es](es/user-guide/installation.md) | [en](en/user-guide/installation.md) | 🟢 |
 | First steps | [es](es/user-guide/first-steps.md) | [en](en/user-guide/first-steps.md) | 🟢 |
+| Example project · Proyecto de ejemplo | [es](es/user-guide/example-project.md) | [en](en/user-guide/example-project.md) | 🟢 |
 | The interface | [es](es/user-guide/interface.md) | [en](en/user-guide/interface.md) | 🟢 |
 | Projects & connections | [es](es/user-guide/projects-and-connections.md) | [en](en/user-guide/projects-and-connections.md) | 🟢 |
 | Workspaces | [es](es/user-guide/workspaces.md) | [en](en/user-guide/workspaces.md) | 🟢 |

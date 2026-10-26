@@ -23,7 +23,7 @@ History prunes itself so it doesn't grow forever, and it filters out noise (syst
 ### Open history
 Press **Ctrl+Shift+H**, or the **History** button in the editor's action bar. It opens with the **History** tab active.
 
-<!-- 📷 CAPTURE: docs/images/editor/history-modal.png — history view with the History and Bookmarked tabs -->
+<img src="../../images/editor/history-modal.png" alt="history view with the History and Bookmarked tabs" width="100%" />
 
 ### Search and reload a query
 1. (Optional) Type in the search box to filter by the query text.
@@ -38,7 +38,7 @@ Press **Ctrl+Shift+H**, or the **History** button in the editor's action bar. It
 
 Bookmarks don't depend on history pruning: even if the original query drops out of history by age, your bookmark stays.
 
-<!-- 📷 CAPTURE: docs/images/editor/bookmarks-tab.png — Bookmarked tab with starred queries -->
+<img src="../../images/editor/bookmarks-tab.png" alt="Bookmarked tab with starred queries" width="100%" />
 
 ## Reference
 

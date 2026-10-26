@@ -4,7 +4,7 @@
 
 > Get your work out to PowerPoint and Word as native, editable content: a Report Flow deck becomes a `.pptx` presentation, and a notebook's report becomes a `.docx` document.
 
-<!-- 📷 CAPTURE: docs/images/reports/export-to-office-menu.png — The Report Flow Studio's Export PowerPoint dropdown showing the two options: "Native charts (editable)" and "Image charts", with the second greyed out when not in Present view. -->
+<img src="../../images/reports/export-to-office-menu.png" alt="The Report Flow Studio's Export PowerPoint dropdown showing the two options: 'Native charts (editable)' and 'Image charts', with the second greyed out when not in Present view." width="100%" />
 
 ## What it is
 

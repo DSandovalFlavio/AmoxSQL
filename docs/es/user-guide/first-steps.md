@@ -16,7 +16,7 @@ Si ya abriste proyectos antes, aparecerán como **recientes** para volver a ello
 
 Si la carpeta contiene archivos `.duckdb` o `.db`, un modal te pedirá cómo conectar:
 
-<!-- 📷 CAPTURE: docs/images/user-guide/db-selection-modal.png — modal de selección de BD (In-Memory / Read-Only / Read-Write) -->
+<img src="../../images/user-guide/db-selection-modal.png" alt="modal de selección de BD (In-Memory / Read-Only / Read-Write)" width="100%" />
 
 | Modo | Cuándo usarlo |
 |---|---|
@@ -42,6 +42,8 @@ DuckDB lee CSV, Parquet, JSON y Excel directamente desde archivos — no necesit
 - Cambia el panel de resultados de **Results** a **Chart** para graficar (ver [Story Flow](../visualization/story-flow.md)).
 - Clic derecho sobre un archivo de datos en el explorador → **Direct Query** para generar una consulta lista.
 - Abre el **Asistente de IA** y pídele en lenguaje natural: *"muéstrame las ventas por mes"* (ver [Introducción a la IA](../ai/introduction.md)).
+
+> **¿Quieres verlo con un caso real?** El [proyecto de ejemplo](example-project.md) recorre un cierre de ventas completo: fuentes, consultas, cuaderno, Canvas, deck y un proceso programado.
 
 ## Relacionado
 - [La interfaz](interface.md) · [Proyectos y conexiones](projects-and-connections.md)

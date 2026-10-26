@@ -4,7 +4,7 @@
 
 > Reusable analysis playbooks: each Skill hands the AI a specialized methodology (how to run an EDA, how to investigate a metric drop, how to design a pipeline) so it doesn't improvise the approach every time.
 
-<!-- 📷 CAPTURE: docs/images/ai/skills-panel.png — Skills panel listing the built-in skills, each with name, description and keyword chips; one expanded to show its content -->
+<img src="../../images/ai/skills-panel.png" alt="Skills panel listing the built-in skills, each with name, description and keyword chips; one expanded to show its content" width="100%" />
 
 ## What it is
 

@@ -1,0 +1,93 @@
+---
+title: Ventas 2024 — comité de octubre
+theme: dark
+section: Cierre de septiembre
+author: Análisis comercial
+period: Enero a septiembre 2024
+date: 15 oct 2024
+variables:
+  anio: "2024"
+---
+
+<!-- layout: cover -->
+# Ventas 2024
+
+## Vamos parejos con 2023 y al 90 % de la meta
+
+---
+
+<!-- layout: summary -->
+## Si sólo lees una lámina, que sea esta
+
+```kpis
+- label: Venta enero–septiembre
+  value: 23.9M
+  delta: +1.3%
+  base: vs. el mismo periodo de 2023
+- label: Unidades vendidas
+  value: 144K
+  delta: +1.4%
+- label: Cumplimiento de meta
+  value: 90%
+  delta: -10 pts
+  trend: bad
+  base: meta = venta 2023 + 12 %
+```
+
+- La venta crece 1.3 %, lejos del 12 % que pidió Finanzas.
+- Portátiles y teléfonos son el 61 % de la venta.
+- Todas las categorías están entre el 90 % y el 91 % de su meta.
+
+---
+
+<!-- layout: finding -->
+## El año va parejo con 2023; sólo enero despegó
+
+Enero creció 15 % contra el año anterior y el resto de los meses se movió
+menos de 5 % en cualquier dirección. Octubre se ve bajo porque su archivo
+todavía no llega completo.
+
+```amoxchart
+src: charts/venta_mensual.amoxvis
+```
+
+---
+
+<!-- layout: finding -->
+## Dos categorías hacen el 61 % de la venta
+
+Portátiles (35 %) y teléfonos (26 %) explican casi todo el año. Pilas y
+cargadores mueven muchas piezas, pero juntas no llegan al 3 % del dinero.
+
+```amoxchart
+src: charts/mezcla_categorias.amoxvis
+```
+
+---
+
+<!-- layout: chart-full -->
+## Los productos que más venden
+
+```amoxchart
+src: charts/top_productos.amoxvis
+```
+
+---
+
+<!-- layout: actions -->
+## Qué proponemos
+
+```actions
+- action: Revisar precios de portátiles y teléfonos
+  why: Son el 61 % de la venta; un punto de precio mueve 240 mil
+  owner: Comercial
+  due: 31 oct
+- action: Ajustar la meta del cuarto trimestre con Finanzas
+  why: Ninguna categoría pasa del 91 %
+  owner: Dirección
+  due: 8 nov
+- action: Dejar el cierre mensual programado
+  why: Ya corre solo el tercer día hábil y deja el Excel en entregas/
+  owner: Análisis
+  due: Hecho
+```

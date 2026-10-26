@@ -4,7 +4,7 @@
 
 > Your project's file tree: create, rename, move, and open files, and import data into the database — all from the sidebar, without leaving AmoxSQL.
 
-<!-- 📷 CAPTURE: docs/images/data/file-explorer.png — File explorer panel showing the action header, search box, breadcrumb, and the file list with per-type icons and git badges -->
+<img src="../../images/data/file-explorer.png" alt="File explorer panel showing the action header, search box, breadcrumb, and the file list with per-type icons and git badges" width="100%" />
 
 ## What it is
 

@@ -281,6 +281,29 @@ function getCompletions(line, column, triggerChar) {
         tableAliases[table] = alias;
     });
 
+    // Tables and aliases from the text when the AST couldn't map them. Typing `v.` leaves
+    // the statement incomplete, tree-sitter marks an ERROR node and extractTablesAndAliases
+    // comes back empty — so `v.` offered functions instead of the columns of `ventas AS v`.
+    {
+        const NO_ALIAS = new Set(['WHERE', 'JOIN', 'ON', 'USING', 'GROUP', 'ORDER', 'LIMIT', 'OFFSET', 'LEFT', 'RIGHT',
+            'INNER', 'FULL', 'OUTER', 'CROSS', 'NATURAL', 'UNION', 'EXCEPT', 'INTERSECT', 'HAVING', 'QUALIFY',
+            'WINDOW', 'SELECT', 'SET', 'AS', 'ASOF', 'POSITIONAL', 'ANTI', 'SEMI', 'LATERAL', 'PIVOT', 'UNPIVOT']);
+        const relacion = /\b(?:FROM|JOIN)\s+((?:"[^"]+"|[A-Za-z_]\w*)(?:\.(?:"[^"]+"|[A-Za-z_]\w*)){0,2})(?:\s+(?:AS\s+)?("[^"]+"|[A-Za-z_]\w*))?/gi;
+        let m;
+        while ((m = relacion.exec(searchText)) !== null) {
+            const completa = m[1].replace(/"/g, '');
+            const corta = completa.split('.').pop();
+            const tabla = schemaCache.tables[completa] ? completa : (schemaCache.tables[corta] ? corta : null);
+            if (!tabla) continue;
+            referencedTables.add(tabla);
+            const alias = m[2] && m[2].replace(/"/g, '');
+            if (alias && !NO_ALIAS.has(alias.toUpperCase()) && !aliasMap[alias.toLowerCase()]) {
+                aliasMap[alias.toLowerCase()] = tabla;
+                if (!tableAliases[tabla]) tableAliases[tabla] = alias;
+            }
+        }
+    }
+
     // Secondary pass: catch files in cache not found by extractFileReferences regex.
     // IMPORTANT: Only add if the file appears in a FROM/JOIN context, not just anywhere.
     Object.keys(schemaCache.tables).forEach(cachedTable => {

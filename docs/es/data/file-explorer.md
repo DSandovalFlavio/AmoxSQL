@@ -4,7 +4,7 @@
 
 > El árbol de archivos de tu proyecto: crea, renombra, mueve y abre archivos, e importa datos a la base — todo desde la barra lateral, sin salir de AmoxSQL.
 
-<!-- 📷 CAPTURE: docs/images/data/file-explorer.png — Panel del explorador de archivos con la cabecera de acciones, buscador, breadcrumb y la lista de archivos mostrando iconos por tipo y badges de git -->
+<img src="../../images/data/file-explorer.png" alt="Panel del explorador de archivos con la cabecera de acciones, buscador, breadcrumb y la lista de archivos mostrando iconos por tipo y badges de git" width="100%" />
 
 ## Qué es
 

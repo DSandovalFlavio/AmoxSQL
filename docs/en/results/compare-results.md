@@ -4,7 +4,7 @@
 
 > Snapshot one result and compare it with another to see which rows were added, removed, or unchanged.
 
-<!-- 📷 CAPTURE: docs/images/results/compare-results.png — Compare modal showing the key-column selector and the Added/Removed/Unchanged tabs. -->
+<img src="../../images/results/compare-results.png" alt="Compare modal showing the key-column selector and the Added/Removed/Unchanged tabs." width="100%" />
 
 ## What it is
 

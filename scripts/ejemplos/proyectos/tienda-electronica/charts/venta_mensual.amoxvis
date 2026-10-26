@@ -1,0 +1,13 @@
+{
+  "chartType": "area",
+  "xAxisKey": "mes",
+  "yAxisKeys": [
+    "venta"
+  ],
+  "numberFormat": "compact",
+  "colorTheme": "ocean",
+  "chartTitle": "Venta mensual",
+  "chartSubtitle": "Enero 2023 a octubre 2024 (octubre incompleto)",
+  "chartFootnote": "Fuente: archivos mensuales de ventas · tienda.duckdb",
+  "query": "SELECT date_trunc('month', fecha)::DATE AS mes, round(sum(importe), 2) AS venta FROM ventas GROUP BY ALL ORDER BY mes"
+}

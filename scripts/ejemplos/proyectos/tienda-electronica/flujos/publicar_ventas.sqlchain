@@ -1,0 +1,80 @@
+{
+  "name": "Publicar ventas limpias",
+  "description": "Deja un Parquet con las ventas ya limpias para que otros proyectos lo lean por su nombre.",
+  "config": {
+    "base": "memoria"
+  },
+  "nodes": [
+    {
+      "id": "fuente",
+      "type": "fuente",
+      "label": "Ventas mensuales",
+      "position": {
+        "x": 40,
+        "y": 120
+      },
+      "config": {
+        "fuente": "ventas-mensuales"
+      }
+    },
+    {
+      "id": "columnas",
+      "type": "select_columns",
+      "label": "Columnas en español",
+      "position": {
+        "x": 330,
+        "y": 120
+      },
+      "config": {
+        "columns": [
+          {
+            "name": "Order Date",
+            "alias": "fecha"
+          },
+          {
+            "name": "Product",
+            "alias": "producto"
+          },
+          {
+            "name": "Category",
+            "alias": "categoria"
+          },
+          {
+            "name": "Quantity Ordered",
+            "alias": "cantidad"
+          },
+          {
+            "name": "Price Each",
+            "alias": "precio_unitario"
+          }
+        ]
+      }
+    },
+    {
+      "id": "publicar",
+      "type": "publicar",
+      "label": "Publicar ventas-limpias",
+      "position": {
+        "x": 640,
+        "y": 120
+      },
+      "config": {
+        "fuente": "ventas-limpias",
+        "carpeta": "publicado",
+        "formato": "parquet"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "source": "fuente",
+      "target": "columnas"
+    },
+    {
+      "id": "e2",
+      "source": "columnas",
+      "target": "publicar"
+    }
+  ]
+}

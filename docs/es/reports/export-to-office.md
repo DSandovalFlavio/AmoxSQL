@@ -4,7 +4,7 @@
 
 > Saca tu trabajo a PowerPoint y Word con contenido nativo y editable: un deck de Report Flow se convierte en una presentación `.pptx`, y el informe de un notebook en un documento `.docx`.
 
-<!-- 📷 CAPTURE: docs/images/reports/export-to-office-menu.png — El menú desplegable Export PowerPoint del Report Flow Studio mostrando las dos opciones: "Native charts (editable)" y "Image charts", con la segunda atenuada cuando no se está en la vista Present. -->
+<img src="../../images/reports/export-to-office-menu.png" alt="El menú desplegable Export PowerPoint del Report Flow Studio mostrando las dos opciones: 'Native charts (editable)' y 'Image charts', con la segunda atenuada cuando no se está en la vista Present." width="100%" />
 
 ## Qué es
 

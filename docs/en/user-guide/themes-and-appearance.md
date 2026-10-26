@@ -9,7 +9,7 @@
 ## Where to set it
 **Settings → Appearance** (gear icon in the activity bar, or Ctrl+,).
 
-<!-- 📷 CAPTURE: docs/images/user-guide/theme-gallery.png — theme and accent gallery in Settings -->
+<img src="../../images/user-guide/theme-gallery.png" alt="theme and accent gallery in Settings" width="100%" />
 
 ## Themes (10)
 

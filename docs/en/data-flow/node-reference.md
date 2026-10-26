@@ -4,7 +4,7 @@
 
 > The complete catalog of [Data Flow](data-flow.md)'s 33 node types, organized by intent exactly as they appear in the palette.
 
-<!-- 📷 CAPTURE: docs/images/data-flow/node-palette.png — The expanded Data Flow node palette, showing the intent groups (Data Sources, SQL, Filter & Order, Columns, Clean & Format, Reshape & Aggregate, Combine & Enrich, Output, Quality & Control) with their nodes. -->
+<img src="../../images/data-flow/node-palette.png" alt="The expanded Data Flow node palette, showing the intent groups (Data Sources, SQL, Filter & Order, Columns, Clean & Format, Reshape & Aggregate, Combine & Enrich, Output, Quality & Control) with their nodes." width="100%" />
 
 ## What it is
 

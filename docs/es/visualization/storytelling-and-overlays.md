@@ -4,7 +4,7 @@
 
 > La etapa Story de Story Flow: lo que convierte un gráfico en una conclusión — titulares, KPIs, anotaciones, líneas de meta y referencia, foco y tendencia — más un generador de narrativa con IA.
 
-<!-- 📷 CAPTURE: docs/images/visualization/story-stage.png — La pestaña Story abierta con las secciones Headline Number, Storytelling, Annotations, Focus, Goal Line, Trend y Reference; a la derecha un gráfico de barras con título, takeaway y una línea de meta. -->
+<img src="../../images/visualization/story-stage.png" alt="La pestaña Story abierta con las secciones Headline Number, Storytelling, Annotations, Focus, Goal Line, Trend y Reference; a la derecha un gráfico de barras con título, takeaway y una línea de meta." width="100%" />
 
 ## Qué es
 

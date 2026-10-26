@@ -23,7 +23,7 @@ Ojo: estas variables `${...}` del editor son **distintas** de las variables de e
 ### Abrir el panel
 En la barra de acciones del editor, pulsa **Variables**. El botón muestra un contador con cuántas variables tienes definidas. El botón **+** de al lado añade una variable nueva directamente.
 
-<!-- 📷 CAPTURE: docs/images/editor/variables-bar.png — panel de variables desplegado bajo la barra de acciones -->
+<img src="../../images/editor/variables-bar.png" alt="panel de variables desplegado bajo la barra de acciones" width="100%" />
 
 ### Definir una variable
 1. Pulsa **+** para añadir una fila.

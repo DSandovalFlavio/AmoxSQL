@@ -4,7 +4,7 @@
 
 > A process runs by itself at the time it's due: «the monthly close, on the first business day of each month at 7:00». If the computer was off, AmoxSQL catches up when it comes back.
 
-<!-- 📷 CAPTURE: docs/images/data-flow/schedule-dialog.png — the Schedule dialog with "Every month · the first business day · 07:00" and its next five dates -->
+<img src="../../images/data-flow/schedule-dialog.png" alt="the Schedule dialog with 'Every month · the first business day · 07:00' and its next five dates" width="100%" />
 
 ## What it is
 
@@ -97,6 +97,8 @@ Steps that read from the network (a web address, a bucket, an online spreadsheet
   - If it ran with AmoxSQL closed, the run is in the history when you open it.
 - **Pause everything before a holiday:** pause each schedule, or the Windows task keeps waking AmoxSQL but nothing runs while the general pause lasts.
 - **From the command line:** `AmoxSQL.exe tick` runs what's due right now; it's what the Windows task calls.
+
+<img src="../../images/data-flow/operations.png" alt="Operations: what is scheduled today and tomorrow, schedules by client, and the log" width="100%" />
 
 ## Related
 

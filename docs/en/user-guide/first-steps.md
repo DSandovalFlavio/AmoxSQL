@@ -16,7 +16,7 @@ If you've opened projects before, they appear as **recents** to jump back with o
 
 If the folder contains `.duckdb` or `.db` files, a modal asks how to connect:
 
-<!-- 📷 CAPTURE: docs/images/user-guide/db-selection-modal.png — DB selection modal (In-Memory / Read-Only / Read-Write) -->
+<img src="../../images/user-guide/db-selection-modal.png" alt="DB selection modal (In-Memory / Read-Only / Read-Write)" width="100%" />
 
 | Mode | When to use |
 |---|---|
@@ -42,6 +42,8 @@ DuckDB reads CSV, Parquet, JSON, and Excel directly from files — you don't nee
 - Switch the results panel from **Results** to **Chart** to plot (see [Story Flow](../visualization/story-flow.md)).
 - Right-click a data file in the explorer → **Direct Query** to generate a ready-made query.
 - Open the **AI Assistant** and ask in plain language: *"show me sales by month"* (see [AI introduction](../ai/introduction.md)).
+
+> **Want to see it on a real case?** The [example project](example-project.md) walks through a complete sales close: sources, queries, notebook, Canvas, deck and a scheduled process.
 
 ## Related
 - [The interface](interface.md) · [Projects & connections](projects-and-connections.md)

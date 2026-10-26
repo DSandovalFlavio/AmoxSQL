@@ -109,7 +109,7 @@ const DeckSlideRaw = ({ raw, numero, onEditar, onCerrar }) => {
                 {directivas.map((d) => (
                     <p key={`${d.clave}-${d.linea}`} className="deck-crudo-nota">
                         <b>línea {d.linea}</b> <code>{d.clave}</code> — {DIRECTIVAS[d.clave]}
-                        {d.valor ? <> · ahora <code>{d.valor}</code></> : null}
+                        {d.valor ? <> · now <code>{d.valor}</code></> : null}
                     </p>
                 ))}
 

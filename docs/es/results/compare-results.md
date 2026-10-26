@@ -4,7 +4,7 @@
 
 > Guarda una foto de un resultado y compárala con otro para ver qué filas se añadieron, se quitaron o siguen igual.
 
-<!-- 📷 CAPTURE: docs/images/results/compare-results.png — Modal de comparación con el selector de columna clave y las pestañas Added/Removed/Unchanged. -->
+<img src="../../images/results/compare-results.png" alt="Modal de comparación con el selector de columna clave y las pestañas Added/Removed/Unchanged." width="100%" />
 
 ## Qué es
 

@@ -4,7 +4,7 @@
 
 > Extend what DuckDB can do: install and load extensions to read the cloud, write real Excel, work with geospatial data, and more — from one panel, no SQL.
 
-<!-- 📷 CAPTURE: docs/images/data/extensions-panel.png — Extensions panel with the filter chips (All, Featured, Loaded, Installed, Community, Core), the search box, and featured cards with Install/Load buttons -->
+<img src="../../images/data/extensions-panel.png" alt="Extensions panel with the filter chips (All, Featured, Loaded, Installed, Community, Core), the search box, and featured cards with Install/Load buttons" width="100%" />
 
 ## What it is
 

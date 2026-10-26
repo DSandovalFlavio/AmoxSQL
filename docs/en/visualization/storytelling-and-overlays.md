@@ -4,7 +4,7 @@
 
 > Story Flow's Story stage: what turns a chart into a conclusion — headlines, KPIs, annotations, goal and reference lines, focus and trend — plus an AI narrative generator.
 
-<!-- 📷 CAPTURE: docs/images/visualization/story-stage.png — The Story tab open with the Headline Number, Storytelling, Annotations, Focus, Goal Line, Trend, and Reference sections; on the right a bar chart with a title, takeaway, and a goal line. -->
+<img src="../../images/visualization/story-stage.png" alt="The Story tab open with the Headline Number, Storytelling, Annotations, Focus, Goal Line, Trend, and Reference sections; on the right a bar chart with a title, takeaway, and a goal line." width="100%" />
 
 ## What it is
 

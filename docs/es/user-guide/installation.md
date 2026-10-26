@@ -26,7 +26,7 @@ Ve a [GitHub Releases](https://github.com/dsandovalflavio/amoxsql/releases/lates
 ## Opción B — Compilar desde el código fuente
 
 ### Requisitos
-- **Node.js 20+**
+- **Node.js 22.13+**
 - **pnpm 11+** (obligatorio — no uses `npm` ni `yarn`)
 - Herramientas de compilación de C++ (para los bindings nativos de DuckDB). En Windows, "Desktop development with C++" de Visual Studio Build Tools.
 

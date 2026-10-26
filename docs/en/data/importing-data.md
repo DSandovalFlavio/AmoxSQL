@@ -4,7 +4,7 @@
 
 > Turn CSV, Parquet, JSON, and Excel files into tables in your DuckDB database — a whole folder, several sheets, or query them directly without importing.
 
-<!-- 📷 CAPTURE: docs/images/data/import-modal.png — "Import to Database" dialog showing the table name, optional target schema, and the clean-columns checkbox -->
+<img src="../../images/data/import-modal.png" alt="'Import to Database' dialog showing the table name, optional target schema, and the clean-columns checkbox" width="100%" />
 
 ## What it is
 
