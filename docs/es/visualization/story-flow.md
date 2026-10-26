@@ -57,6 +57,7 @@ Reglas para que no haya sorpresas:
 - **Un error no borra la figura.** Si el JSON está a medio escribir o Vega-Lite no lo entiende, se queda la última figura buena y el error aparece debajo del editor.
 - **Volver a los paneles** se hace desde el aviso, con **Use the panels again**. Pide confirmación porque descarta el código.
 - Los datos llegan con el nombre `dataset` (`"data": {"name": "dataset"}`). El título y la conclusión no van en el código: viven en **Story**.
+- **Add layer…** (arriba del editor) añade al spec una capa hecha: **Mean line**, **Median line**, **Value labels** o **Regression line**. Solo ofrece las que tienen sentido en esa figura (una recta de regresión necesita una X numérica o de fechas).
 
 ### La guía y el tour
 - El botón **?** (icono de info) en la cabecera del panel abre un cajón con la **guía de Story Flow**: explica las seis etapas y los principios de narrativa. La misma guía vive en Ajustes → Story Flow.

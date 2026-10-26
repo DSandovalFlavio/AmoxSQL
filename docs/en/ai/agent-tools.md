@@ -44,7 +44,7 @@ You don't invoke tools directly — the agent picks them. But you can:
 
 | Tool | What it does |
 |---|---|
-| `display_chart` | Renders a fully configured chart (overlays, storytelling, color reasoning); server-side linters correct bad choices |
+| `display_chart` | Renders a fully configured chart (overlays, storytelling, color reasoning); server-side linters correct bad choices. Besides Story Flow's types it can hand over a complete **Vega-Lite** spec (`vega_lite`), which the server compiles before accepting it: if it doesn't compile or uses a column that doesn't exist, the error goes back to the model to fix |
 | `build_notebook` | Builds a `.sqlnb` notebook with cells and charts (Deep Dive) |
 | `write_file` | Proposes an edit to the active file, or writes/appends a file (Assistant) |
 

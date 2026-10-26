@@ -2,7 +2,7 @@
 
 **🌐 English · [Español](../../es/visualization/chart-types.md)**
 
-> Story Flow's 17 chart types, grouped by what you want to communicate — Compare, Trend, Composition, Relationship, and Flow — not by their geometry.
+> Story Flow's 21 chart types, grouped by what you want to communicate — Compare, Trend, Composition, Relationship, Distribution, and Flow — not by their geometry. All of them are drawn with Vega-Lite; what no type can say, you write in [Code mode](story-flow.md#panels-or-code).
 
 <img src="../../images/visualization/chart-type-selector.png" alt="The Type stage's type selector, with the Compare/Trend/Composition/Relationship/Flow categories expanded showing each type's icon." width="100%" />
 
@@ -33,6 +33,8 @@ Use this page as a reference when you open the **Type** tab. When in doubt, star
 |---|---|---|
 | `bar` | Column | Comparing categories with vertical bars. The workhorse; also ideal for 2–3 periods. With Split By → grouped bars. |
 | `bar-horizontal` | Bar | Ranking, long category names, or many categories (horizontal bars). |
+| `errorbar` | Bars + interval | A value with its interval (confidence, min–max) per category. In **Data**, pick the *Interval low* and *Interval high* columns. |
+| `slope` | Slope | Each category from one moment to another (two periods): one line per category, labeled at both ends. |
 
 ### Trend — change over a continuum
 | Type | UI label | Use it for |
@@ -58,6 +60,12 @@ Use this page as a reference when you open the **Type** tab. When in doubt, star
 | `scatter` | Scatter | Correlation between two numeric variables. |
 | `bubble` | Bubble | Correlation with a third value encoded as size (scatter + size). |
 | `heatmap` | Heatmap | A two-dimensional pattern by color intensity (e.g. cohorts). |
+
+### Distribution — how values spread
+| Type | UI label | Use it for |
+|---|---|---|
+| `histogram` | Histogram | How ONE numeric column spreads: how many rows fall in each range. The figure does the counting, so the query returns the rows ungrouped. In **Data**: the bins and, optionally, the mean and the median. |
+| `boxplot` | Box plot | Median, quartiles and outliers of a measure per category, from the raw rows. |
 
 ### Flow — stages / pipeline
 | Type | UI label | Use it for |

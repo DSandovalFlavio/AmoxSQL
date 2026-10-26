@@ -5,6 +5,34 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [Unreleased] — 5.17 «Escribe el gráfico»
+
+### Nuevo
+
+- **Cuatro tipos nuevos**: **Histogram** (cómo se reparte una columna numérica, con
+  media y mediana opcionales), **Box plot** (mediana, cuartiles y atípicos por
+  categoría), **Bars + interval** (un valor con su intervalo bajo–alto) y **Slope**
+  (cada categoría de un momento a otro). Nueva categoría **Distribution** en Type.
+- **Resaltes nuevos**: las barras **bajo o sobre un umbral** y **un tramo de la línea**
+  (de una fecha a otra).
+- **La línea de referencia y la meta aceptan `mean` / `median`**: se calculan sobre lo
+  que dibuja la figura.
+- **Recta de regresión de verdad en la dispersión** (y curva suavizada): se ajusta sobre
+  el valor de X, no sobre el orden de las filas.
+- **Anillo**: «Group Small Slices» agrupa las porciones pequeñas en «Others».
+- **Modo Código: Add layer…** añade media, mediana, etiquetas de valor o recta de
+  regresión al spec.
+- **El asistente** usa los tipos y resaltes nuevos, y para lo que ningún tipo dice puede
+  entregar un **Vega-Lite completo**: el servidor lo compila y comprueba sus columnas
+  antes de aceptarlo, y si falla le devuelve el error para que lo corrija.
+
+### Arreglado
+
+- Un color `var(--…)` en un gráfico (el resaltado del asistente) salía negro.
+- Una serie cuyo nombre lleva una «T» mayúscula perdía el nombre en la leyenda.
+
+---
+
 ## [Unreleased] — 5.16 «Vega-Lite por dentro»
 
 Los gráficos de Story Flow se dibujan con **Vega-Lite** y el `.amoxvis` pasa a ser un
@@ -41,8 +69,9 @@ Vega-Lite válido: un gráfico de AmoxSQL ya no queda encerrado en AmoxSQL. Plan
 
 - Recharts sale de Story Flow, del chat del asistente y de la galería (queda en el Data
   Profiler). Las miniaturas de la galería salen directamente de Vega.
-- `scripts/probarGraficos.mjs` (71 comprobaciones): cada tipo, cada capa, la galería y
-  la ida y vuelta del archivo.
+- `scripts/probarGraficos.mjs` (101 comprobaciones con la 5.17): cada tipo, cada capa,
+  las capas del modo Código, la galería y la ida y vuelta del archivo;
+  `scripts/probarGraficoIA.mjs`: la herramienta `display_chart` del asistente.
 
 ---
 
