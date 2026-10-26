@@ -44,6 +44,26 @@ export function prepararFilas(filas) {
     });
 }
 
+const VARIABLE = /^var\((--[\w-]+)(?:\s*,\s*([^)]+))?\)$/;
+
+/**
+ * Un color `var(--token)` funciona en CSS pero no como atributo de un SVG, que
+ * es como lo escribe Vega: la marca salía negra. Se sustituye por su valor antes
+ * de compilar (el asistente, por ejemplo, resalta con `var(--accent-primary)`).
+ */
+export function resolverVariables(spec, leer) {
+    const ir = (v) => {
+        if (typeof v === 'string') {
+            const m = VARIABLE.exec(v.trim());
+            return m ? (leer(m[1]) || (m[2] || '').trim() || v) : v;
+        }
+        if (Array.isArray(v)) return v.map(ir);
+        if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, ir(x)]));
+        return v;
+    };
+    return ir(spec);
+}
+
 const MARCAS = ['arc', 'area', 'bar', 'boxplot', 'circle', 'errorband', 'errorbar', 'geoshape', 'image', 'line', 'point', 'rect', 'rule', 'square', 'text', 'tick', 'trail'];
 
 /** Vega-Lite responde a una marca desconocida con un error interno ilegible; esto lo dice claro. */

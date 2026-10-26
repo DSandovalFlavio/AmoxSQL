@@ -386,7 +386,8 @@ function createTools(context) {
                     'line', 'area', 'donut',
                     'scatter', 'bubble', 'combo',
                     'funnel', 'heatmap', 'treemap',
-                ]).describe('Chart type — pick by the message + data shape, NOT by column type. bar=compare categories (with split_by → grouped bars, ideal for before/after across 2–3 periods); bar-horizontal=ranking or long category names (x_axis_key=category shown LEFT, y_axis_keys=value shown BOTTOM); line/area=true time series with ≥4–5 points; donut=part-of-whole (≤7 slices); scatter=correlation; combo=two metrics at different scales. A date column with only 2–3 points is a comparison → use grouped bars, not a line.'),
+                    'histogram', 'boxplot', 'errorbar', 'slope',
+                ]).describe('Chart type — pick by the message + data shape, NOT by column type. bar=compare categories (with split_by → grouped bars, ideal for before/after across 2–3 periods); bar-horizontal=ranking or long category names (x_axis_key=category shown LEFT, y_axis_keys=value shown BOTTOM); line/area=true time series with ≥4–5 points; donut=part-of-whole (≤7 slices); scatter=correlation; combo=two metrics at different scales; histogram=distribution of ONE numeric column (x_axis_key=that column, counts are computed — pass raw rows, not pre-aggregated); boxplot=spread per category from raw rows (x_axis_key=category, y_axis_keys=[value]); errorbar=a value with a low–high interval per category (needs error_low_key and error_high_key); slope=each category from one moment to another (x_axis_key=the 2 periods, y_axis_keys=[value], split_by=category). A date column with only 2–3 points is a comparison → use grouped bars or slope, not a line.'),
                 title: z.string().describe('The title is a CLAIM, not a label — state what the data shows, e.g. "West leads with 34% of sales", NOT "Sales by region". Write it WITHOUT a terminal period (the figure can add a QED-style mark). Include the key metric and dimension/time range.'),
                 subtitle: z.string().optional().describe('One factual line that explains the calculation, scope, or reading of the chart (not a second headline). When the series are colour-encoded, name them here so the subtitle doubles as the legend, e.g. "Quarterly revenue by region, in USD".'),
                 footnote: z.string().optional().describe('Scope or caveat — row count, date range, method, e.g. "Based on 1,240 transactions · Jan–Dec 2024". NEVER invent a data source or provenance you cannot support from the query context; describe scope instead of naming a source you are guessing.'),
@@ -397,6 +398,11 @@ function createTools(context) {
                 right_y_axis_key: z.string().optional().describe('Column to plot on a secondary right Y axis (combo charts with two scales).'),
                 split_by: z.string().optional().describe('Column to pivot/split the data by (creates one series per unique value). Use for breakdowns by region, category, segment, etc.'),
                 bubble_size_key: z.string().optional().describe('Column for bubble radius (bubble charts only).'),
+                bin_count: z.number().int().min(2).max(200).optional().describe('histogram only: maximum number of bins (default 20).'),
+                histogram_stats: z.array(z.enum(['mean', 'median'])).optional().describe('histogram only: draw a vertical rule at the mean and/or median. Use both when the distribution is skewed — the gap between them IS the story.'),
+                error_low_key: z.string().optional().describe('errorbar only: column with the low end of the interval.'),
+                error_high_key: z.string().optional().describe('errorbar only: column with the high end of the interval.'),
+                orientation: z.enum(['horizontal', 'vertical']).optional().describe('boxplot / errorbar: horizontal (categories on the left, default — best for long names) or vertical.'),
 
                 // ── Axes ──────────────────────────────────────────────────────────
                 x_axis_label: z.string().optional().describe('Label for the CATEGORY axis. For bar/line: appears at bottom. For bar-horizontal: appears on the LEFT (where category names are shown). e.g. "Product", "Region", "Month".'),
@@ -433,7 +439,7 @@ function createTools(context) {
 
                 // ── Analytical overlays ───────────────────────────────────────────
                 trend_line: z.object({
-                    type: z.enum(['linear', 'moving-average']).describe('linear=OLS regression line; moving-average=smoothed trend.'),
+                    type: z.enum(['linear', 'moving-average', 'loess']).describe('linear=OLS regression line (on a scatter, the regression of y on x); moving-average=smoothed trend over ordered x; loess=smooth curve (scatter only).'),
                     window_size: z.number().int().min(2).max(50).optional().describe('Window for moving average (default: 3).'),
                     color: z.string().optional().describe('Hex color, e.g. "#fbbf24". Default: amber.'),
                 }).optional().describe('Overlay a trend/moving-average line. GUARDRAIL: only for a SINGLE-series time series with ≥5 points. NEVER use together with split_by or multiple y_axis_keys — the trend would sum unrelated series into a meaningless line. Omit it for ≤4 points.'),
@@ -446,14 +452,15 @@ function createTools(context) {
                 }).optional().describe('Horizontal target line. Use to show progress toward a goal or SLA.'),
 
                 ref_line: z.object({
-                    value: z.number().describe('Y value for the reference line.'),
+                    value: z.union([z.number(), z.enum(['mean', 'median'])]).describe('Y value for the reference line, or "mean"/"median" to compute it from the plotted values.'),
                     label: z.string().optional().describe('Label shown on the line, e.g. "Average", "Median".'),
                     color: z.string().optional().describe('Hex color. Default: red.'),
                 }).optional().describe('Horizontal reference line. Use for mean, median, or benchmark values.'),
 
                 highlight: z.object({
-                    type: z.enum(['max', 'min', 'exact']).describe('max=highlight the highest bar/point; min=lowest; exact=specific category.'),
-                    value: z.string().optional().describe('Category name to highlight when type=exact.'),
+                    type: z.enum(['max', 'min', 'exact', 'below', 'above', 'range']).describe('max=highlight the highest bar/point; min=lowest; exact=specific category; below/above=every bar under/over a threshold (e.g. ROAS below 1); range=a stretch of a line from value to value2 on the x axis (e.g. the weeks of an incident).'),
+                    value: z.string().optional().describe('Category for exact; the threshold for below/above; the start of the stretch for range.'),
+                    value2: z.string().optional().describe('range only: the end of the stretch.'),
                     color: z.string().optional().describe('Highlight color hex. Default: red.'),
                 }).optional().describe('Highlight a specific data point. Use to draw attention to the peak, trough, or a key category in the story.'),
 
@@ -478,6 +485,9 @@ function createTools(context) {
                     text: z.string().describe('Short callout label (a few words) naming what the reader should notice here.'),
                     color: z.string().optional().describe('Hex color. Default: warning amber.'),
                 })).max(3).optional().describe('Up to 3 callouts marking the exact points that carry your finding. Use sparingly — annotate the "aha", not everything.'),
+
+                // ── Escape hatch: a full Vega-Lite spec ───────────────────────────
+                vega_lite: z.record(z.string(), z.any()).optional().describe('ADVANCED — only when no chart_type + options can express the figure (layered or faceted views, custom transforms, small multiples). A complete Vega-Lite v6 spec whose data is {"name": "dataset"} (the query result is bound to that name); use the result columns as fields. Do NOT put title or takeaway here — pass them as title/takeaway. chart_type, x_axis_key and y_axis_keys are still required (they describe the figure for the panels). The spec is compiled on the server; on error, fix it and re-call.'),
             }),
             execute: async ({
                 query_id, chart_type, title, subtitle, footnote,
@@ -490,6 +500,8 @@ function createTools(context) {
                 trend_line, goal_line, ref_line, highlight,
                 headline_kpi, donut_center_kpi, donut_label_content,
                 takeaway, annotations,
+                bin_count, histogram_stats, error_low_key, error_high_key, orientation,
+                vega_lite,
             }) => {
                 let queryResult = queryResults.get(query_id);
                 if (!queryResult && aiPersistence) {
@@ -509,10 +521,37 @@ function createTools(context) {
                     return { error: `Query result '${query_id}' not found. Call execute_sql first and use the returned queryId.` };
                 }
 
+                const chartWarnings = [];
                 const availableColumns = queryResult.columns.map(c => c.name);
                 const missingX = !availableColumns.includes(x_axis_key);
-                const missingY = y_axis_keys.filter(k => !availableColumns.includes(k));
-                if (missingX || missingY.length > 0) {
+                const missingY = y_axis_keys.filter(k => !availableColumns.includes(k))
+                    .concat([error_low_key, error_high_key].filter(k => k && !availableColumns.includes(k)));
+
+                // Un Vega-Lite escrito por el modelo se compila AQUÍ: un error vuelve
+                // al modelo con el mensaje del compilador para que lo corrija.
+                let especVL = null;
+                if (vega_lite) {
+                    const { title: _t, usermeta: _u, ...resto } = vega_lite;
+                    especVL = { $schema: 'https://vega.github.io/schema/vega-lite/v6.json', ...resto, data: { name: 'dataset' } };
+                    try {
+                        const vl = await import('vega-lite');
+                        const avisos = [];
+                        const logger = { level() { return this; }, warn: (...a) => avisos.push(a.join(' ')), info() {}, debug() {}, error: (...a) => avisos.push(a.join(' ')) };
+                        vl.compile(especVL, { logger });
+                        const usados = new Set();
+                        JSON.stringify(especVL, (k, v) => { if (k === 'field' && typeof v === 'string') usados.add(v.replace(/\\(.)/g, '$1')); return v; });
+                        const derivados = new Set();
+                        JSON.stringify(especVL, (k, v) => { if (k === 'as') (Array.isArray(v) ? v : [v]).forEach(x => typeof x === 'string' && derivados.add(x)); return v; });
+                        const ajenos = [...usados].filter(f => !availableColumns.includes(f) && !derivados.has(f));
+                        if (ajenos.length) {
+                            return { error: `vega_lite uses field(s) not in the result: ${ajenos.join(', ')}. Available: ${availableColumns.join(', ')}` };
+                        }
+                        if (avisos.length) chartWarnings.push(...avisos.slice(0, 3).map(a => `Vega-Lite: ${a}`));
+                    } catch (e) {
+                        return { error: `The vega_lite spec does not compile: ${e.message}`, hint: 'Fix the spec (Vega-Lite v6, data {"name": "dataset"}) and re-call display_chart, or drop vega_lite and use chart_type with its options.' };
+                    }
+                }
+                if (!vega_lite && (missingX || missingY.length > 0)) {
                     return {
                         error: `Column(s) not found in query result. Available: ${availableColumns.join(', ')}`,
                         missingX: missingX ? x_axis_key : null,
@@ -525,7 +564,6 @@ function createTools(context) {
                 // model ignores the prompt guidance. A hard error makes the model
                 // re-call correctly; soft issues are surfaced as warnings.
                 const rows = Array.isArray(queryResult.data) ? queryResult.data : [];
-                const chartWarnings = [];
 
                 if (chart_type === 'line' || chart_type === 'area') {
                     const distinctX = new Set(rows.map(r => String(r?.[x_axis_key] ?? ''))).size;
@@ -592,6 +630,12 @@ function createTools(context) {
                 const chartConfig = {
                     // Core
                     chartType: chart_type,
+                    ...(especVL ? { modo: 'codigo', spec: especVL } : {}),
+                    ...(bin_count       !== undefined && { binCount: bin_count }),
+                    ...(histogram_stats !== undefined && { histogramStats: histogram_stats }),
+                    ...(error_low_key   !== undefined && { errorLowKey: error_low_key }),
+                    ...(error_high_key  !== undefined && { errorHighKey: error_high_key }),
+                    ...(orientation     !== undefined && { orientation }),
                     title,
                     xAxisKey: x_axis_key,
                     yAxisKeys: y_axis_keys,
@@ -654,6 +698,7 @@ function createTools(context) {
                         highlightConfig: {
                             type: highlight.type,
                             value: highlight.value || '',
+                            value2: highlight.value2 || '',
                             // Spotlight follows the theme accent, not alarm-red — a
                             // highlighted leader is emphasis, not something negative.
                             color: highlight.color || 'var(--accent-primary)',

@@ -21586,3 +21586,7 @@ tr:hover td {
   background: color-mix(in oklch, var(--chart-bg) 88%, transparent);
   border-top: 1px solid color-mix(in oklch, var(--color-error) 40%, transparent);
 }
+.sf-codigo-capa {
+  height: 24px; font-size: 11px; padding: 0 6px; border-radius: var(--radius-sm);
+  background: var(--input-bg, transparent); color: var(--text-secondary); border: 1px solid var(--border-color);
+}

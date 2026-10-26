@@ -17,7 +17,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as vega from 'vega';
 import { temaVega } from './tema';
-import { prepararFilas, compilarFigura } from './motor';
+import { prepararFilas, compilarFigura, resolverVariables } from './motor';
 
 /** Un tooltip propio, con los colores de la interfaz y sin depender de otro paquete. */
 function crearTooltip() {
@@ -121,7 +121,9 @@ const FiguraVega = ({ spec, filas, c, colores, fuente, escala = 1, onEstado = nu
         hoja.className = 'figura-vega-hoja';
         try {
             const tema = temaVega(el, { fuente, escala, colores, c: c || {} });
-            const vg = compilarFigura(spec, { tema, ancho: tam.w, alto: tam.h, avisos });
+            const estilo = getComputedStyle(el);
+            const propio = resolverVariables(spec, (n) => estilo.getPropertyValue(n).trim());
+            const vg = compilarFigura(propio, { tema, ancho: tam.w, alto: tam.h, avisos });
             nueva = new vega.View(vega.parse(vg), { renderer: 'svg', hover: true, logLevel: vega.Error });
             nueva.tooltip(tooltipRef.current.manejador);
             try { nueva.data('dataset', datos); } catch { /* el spec trae sus propios datos */ }

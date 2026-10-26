@@ -33,6 +33,7 @@
     "ollama": "^0.6.3",
     "react-icons": "^5.5.0",
     "simple-git": "^3.36.0",
+    "vega-lite": "6.5.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -90,8 +91,18 @@
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["arm64"] },
-        { "target": "zip", "arch": ["arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64"
+          ]
+        }
       ],
       "icon": "assets/icon.png",
       "category": "public.app-category.developer-tools",

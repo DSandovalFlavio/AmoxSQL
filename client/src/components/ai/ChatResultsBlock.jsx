@@ -152,6 +152,15 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             // ── Storytelling layer (AI can set these) ─────────────────────────────
             annotations:  cc.annotations  || [],
             takeaway:     cc.takeaway     || '',
+
+            // ── 5.17: distribución, intervalos y el Vega-Lite escrito por el modelo ──
+            binCount:       cc.binCount       ?? 20,
+            histogramStats: cc.histogramStats || [],
+            errorLowKey:    cc.errorLowKey    || '',
+            errorHighKey:   cc.errorHighKey   || '',
+            orientation:    cc.orientation    || 'horizontal',
+            modo:           cc.modo === 'codigo' && cc.spec ? 'codigo' : 'interfaz',
+            spec:           cc.modo === 'codigo' && cc.spec ? cc.spec : null,
         };
     }, [chartConfig]);
 
@@ -159,7 +168,9 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
     // Sin título: el bloque ya lo pone en su cabecera. Con identidad estable para
     // que el flujo de tokens del chat no vuelva a dibujar la figura.
     const spec = useMemo(
-        () => (data && data.length ? deStoryFlow({ ...fullConfig, chartTitle: '', chartSubtitle: '' }, { filas: data, colores: activeColors }) : null),
+        () => (!data || !data.length ? null
+            : fullConfig.modo === 'codigo' ? fullConfig.spec
+                : deStoryFlow({ ...fullConfig, chartTitle: '', chartSubtitle: '' }, { filas: data, colores: activeColors })),
         [data, fullConfig, activeColors]);
 
     // Después de todos los hooks: con datos que llegan más tarde, un return antes

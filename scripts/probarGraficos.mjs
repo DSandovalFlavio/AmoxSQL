@@ -31,8 +31,9 @@ register('data:text/javascript,' + encodeURIComponent(`
 const url = (p) => pathToFileURL(path.join(CLIENTE, 'src', p)).href;
 const { deStoryFlow } = await import(url('components/DataVisualizer/vega/deStoryFlow.js'));
 const { leerAmoxvis, escribirAmoxvis, esSpecVega } = await import(url('components/DataVisualizer/vega/figura.js'));
-const { compilarFigura, prepararFilas } = await import(url('components/DataVisualizer/vega/motor.js'));
+const { compilarFigura, prepararFilas, resolverVariables } = await import(url('components/DataVisualizer/vega/motor.js'));
 const { temaVega } = await import(url('components/DataVisualizer/vega/tema.js'));
+const { anadirCapa, capaPosible } = await import(url('components/DataVisualizer/vega/capas.js'));
 const { COLOR_PALETTES } = await import(url('components/DataVisualizer/constants.js'));
 const { GALLERY_CHARTS } = await import(url('data/galleryChartDefinitions.js'));
 const vega = await import(pathToFileURL(path.join(CLIENTE, 'node_modules/vega/build/vega.module.js')).href).catch(() => import('vega'));
@@ -141,6 +142,8 @@ console.log('Lo que antes salía mal');
     bien('un ranking sí respeta el límite (3 de 6)', marcas(r.svg, 'bar') === 3, `dibujó ${marcas(r.svg, 'bar')}`);
     const pend = deStoryFlow({ chartType: 'slope', xAxisKey: 'anio', yAxisKeys: ['venta'], splitByKey: 'categoria' }, { filas: [{ anio: '2023', categoria: 'Tabletas', venta: 1 }], colores });
     bien('una serie con «T» mayúscula conserva su nombre', JSON.stringify(pend.layer[0].encoding.color.scale.domain) === '["Tabletas"]');
+    const rv = resolverVariables({ mark: { color: 'var(--accent-primary)' }, x: ['var(--nada, #123456)'] }, (n) => (n === '--accent-primary' ? '#00d4ff' : ''));
+    bien('un color var(--token) se resuelve antes de dibujar', rv.mark.color === '#00d4ff' && rv.x[0] === '#123456');
     bien('BIGINT/DECIMAL llegan como texto y se dibujan como número', typeof prepararFilas(ventas)[0].venta === 'number');
     bien('un código con ceros delante sigue siendo texto', typeof prepararFilas([{ cp: '01234' }, { cp: '04510' }])[0].cp === 'string');
 }
@@ -168,6 +171,26 @@ console.log('El archivo: Vega-Lite + usermeta');
     const ajeno = leerAmoxvis({ $schema: archivo.$schema, title: 'De fuera', data: { values: [{ a: 1 }] }, mark: 'bar' });
     bien('un Vega-Lite de fuera abre en modo código con su título', ajeno.modo === 'codigo' && ajeno.chartTitle === 'De fuera' && ajeno.spec.mark === 'bar');
     bien('el formato anterior se lee como estaba', leerAmoxvis({ chartType: 'line', query: 'x' }).chartType === 'line');
+}
+
+console.log('Capas del modo Código');
+{
+    const suelta = { $schema: 'https://vega.github.io/schema/vega-lite/v6.json', data: { name: 'dataset' }, mark: 'bar', encoding: { x: { field: 'categoria', type: 'nominal' }, y: { field: 'venta', type: 'quantitative' } } };
+    for (const id of ['media', 'mediana', 'etiquetas']) {
+        const s2 = anadirCapa(suelta, id);
+        const { avisos, svg } = await dibujar(s2, categorias);
+        bien(`«${id}» sobre una vista suelta: capas y compila`, s2.layer?.length === 2 && avisos.length === 0, avisos.join(' | '));
+        if (id !== 'etiquetas') bien(`«${id}»: UNA regla`, marcas(svg, 'rule mark') === 1, `${marcas(svg, 'rule mark')}`);
+    }
+    bien('regresión no se ofrece con una X de categorías', !capaPosible(suelta, 'regresion'));
+    const disp = deStoryFlow({ chartType: 'scatter', xAxisKey: 'tv', yAxisKeys: ['ventas'] }, { filas: dispersion, colores });
+    const conRecta = anadirCapa(disp, 'regresion');
+    const { avisos, svg } = await dibujar(conRecta, dispersion);
+    bien('regresión sobre la dispersión de Story Flow', avisos.length === 0 && marcas(svg, 'line mark') === 1, avisos.join(' | '));
+    const barras = deStoryFlow({ chartType: 'bar', xAxisKey: 'mes', yAxisKeys: ['venta'], splitByKey: 'region' }, { filas: ventas, colores });
+    const conMedia = anadirCapa(barras, 'media');
+    const r2 = await dibujar(conMedia, ventas);
+    bien('media sobre barras agrupadas de Story Flow: una sola regla', r2.avisos.length === 0 && marcas(r2.svg, 'rule mark') === 1, `${marcas(r2.svg, 'rule mark')} · ${r2.avisos.join(' | ')}`);
 }
 
 console.log('La galería');
