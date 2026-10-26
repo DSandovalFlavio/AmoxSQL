@@ -399,6 +399,7 @@ const AmoxvisPane = ({ tab, onRunQuery, onSave, onOpenAsSql, onConfigChange, onC
                         onConfigChange={handleConfigChange}
                         onCreateNew={onCreateNew}
                         incluirSpec
+                        onGuardar={onSave ? () => onSave() : null}
                     />
                 )}
 

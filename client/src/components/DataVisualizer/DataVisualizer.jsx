@@ -17,7 +17,7 @@
  */
 import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { API_BASE } from '../../api';
-import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste, LuSlidersHorizontal, LuCode } from 'react-icons/lu';
+import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste, LuSlidersHorizontal, LuCode, LuBraces } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
 import AlertDialog from '../AlertDialog';
 
@@ -45,7 +45,7 @@ import PasteJsonModal from './panels/PasteJsonModal';
 // Renderers & Overlays
 import FiguraVega from './vega/FiguraVega';
 import EditorCodigo from './vega/EditorCodigo';
-import { deStoryFlow } from './vega/deStoryFlow';
+import { especFinal, asimilarCodigo, describirExtras } from './vega/codigo';
 import { sqlDeAgregado } from './vega/agregar';
 import { specDeSalida, scriptDePython } from './vega/salida';
 import { escribirAmoxvis } from './vega/figura';
@@ -163,7 +163,7 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null }) => {
     /**
      * Sin mandos, pero NO empotrada.
      *
@@ -252,9 +252,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
        Si el resultado llegó recortado (o es muy grande) y el tipo suma por X, se
        pide a DuckDB la misma agregación sobre la consulta entera. Mientras llega,
        y si falla, la figura dibuja las filas que hay. */
+    // Un extra que toca la agregación (otra operación que no sea sumar) no se
+    // puede adelantar en DuckDB: sumar dos veces ya no daría lo mismo.
+    const extrasAgregan = !!state.extras && /"(transform|aggregate|op)"/.test(JSON.stringify(state.extras));
     const sqlMotor = useMemo(
-        () => ((truncado || (data?.length || 0) > 20000) ? sqlDeAgregado(state, query, { xEsFecha: isDateCol }) : null),
-        [truncado, data, state, query, isDateCol]);
+        () => ((truncado || (data?.length || 0) > 20000) && !extrasAgregan ? sqlDeAgregado(state, query, { xEsFecha: isDateCol }) : null),
+        [truncado, data, state, query, isDateCol, extrasAgregan]);
     const [agregadas, setAgregadas] = useState(null);
     useEffect(() => {
         if (!sqlMotor) return undefined;
@@ -289,24 +292,36 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         [state.colorTheme, state.brandColors]
     );
 
-    /* ── La figura, en Vega-Lite (5.16) ──
-       En modo interfaz el spec sale de los paneles; en modo código es el que
-       escribió el usuario. Se genera SIN título: el título lo pone la tarjeta, y
-       así teclearlo no vuelve a dibujar la figura en cada letra. */
-    const especInterfaz = useMemo(
-        () => (state.modo === 'codigo' ? null
-            : deStoryFlow({ ...state, chartTitle: '', chartSubtitle: '' }, { filas: filasFigura || [], colores: activeColors })),
-        [state, filasFigura, activeColors]);
-    const specActual = state.modo === 'codigo' && state.spec ? state.spec : especInterfaz;
+    /* ── La figura: lo de los paneles + lo escrito en código (Dec-77) ──
+       `especFinal` = deStoryFlow(paneles) con los extras del código aplicados
+       encima. Sin título: lo pone la tarjeta, y así teclearlo no vuelve a dibujar
+       la figura en cada letra. */
+    const opFigura = useMemo(() => ({ filas: filasFigura || [], colores: activeColors }), [filasFigura, activeColors]);
+    const pendiente = state.modo === 'codigo' && state.spec;
+    const especMostrada = useMemo(() => especFinal(state, opFigura), [state, opFigura]);
+    const specActual = pendiente ? state.spec : especMostrada;
     const specRef = useRef(specActual);
     specRef.current = specActual;
     const [estadoFigura, setEstadoFigura] = useState(null);
-    /* Barra lateral: los paneles o el editor de código. Es solo la vista; quién
-       manda en la figura lo dice `state.modo`. */
+    /* Barra lateral: los paneles o el editor. Es solo la VISTA: los dos editan la
+       misma figura, y lo que se escribe en código vuelve a los paneles. */
     const [lateral, setLateral] = useState(() => (state.modo === 'codigo' ? 'codigo' : 'paneles'));
-    const [confirmarPaneles, setConfirmarPaneles] = useState(false);
-    const aplicarCodigo = useCallback((obj) => setFields({ modo: 'codigo', spec: obj }), [setFields]);
-    const volverAPaneles = useCallback(() => { setFields({ modo: 'interfaz', spec: null }); setConfirmarPaneles(false); }, [setFields]);
+    const estadoRef = useRef(state);
+    estadoRef.current = state;
+    const aplicarCodigo = useCallback(
+        (obj) => setFields(asimilarCodigo(obj, estadoRef.current, opFigura)),
+        [setFields, opFigura]);
+    /* Un Vega-Lite que llega entero (un archivo de fuera, el asistente, el
+       formato anterior en modo código) se asimila en cuanto hay datos: los
+       paneles leen lo que entienden y el resto queda como extras. */
+    useEffect(() => {
+        if (pendiente && data?.length) aplicarCodigo(state.spec);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pendiente, data?.length]);
+    const extrasDescritos = useMemo(
+        () => (state.extras ? describirExtras(state.extras, especMostrada) : []),
+        [state.extras, especMostrada]);
+    const [confirmarQuitarExtras, setConfirmarQuitarExtras] = useState(false);
 
     // ── Inline legend items (legendPosition 'inline' — Sterling-style, woven
     // into the subtitle). Built from the series that actually render; series
@@ -474,7 +489,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         setIsExportingPptx(true);
         try {
             // En modo código no hay tipo de Story Flow que traducir a un gráfico nativo: va como imagen.
-            await exportChartAsPptx(chartRef.current, getConfigForSave(), processedData, state.modo === 'codigo' ? 'vega' : state.chartType, state.chartTitle, activeColors);
+            await exportChartAsPptx(chartRef.current, getConfigForSave(), processedData, state.extras ? 'vega' : state.chartType, state.chartTitle, activeColors);
         } catch (err) {
             setAlertData({ isOpen: true, title: 'PowerPoint', type: 'error', message: err.message || 'Could not export chart as PowerPoint.' });
         } finally {
@@ -906,8 +921,14 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                                     <LuCode size={13} /> <span>Code</span>
                                 </button>
                             </div>
-                            <button onClick={() => setShowGuide(true)} title="What is Story Flow?"
-                                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '3px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
+                            {/* Guardar, siempre a la vista: antes estaba al fondo de Export. */}
+                            <button
+                                onClick={() => { if (onGuardar) onGuardar(); else { setSaveIntent('save'); setIsSaveModalOpen(true); } }}
+                                title={onGuardar ? 'Save the chart (Ctrl+S)' : 'Save as an .amoxvis chart file'}
+                                className="sf-cabecera-btn">
+                                <LuSave size={13} />
+                            </button>
+                            <button onClick={() => setShowGuide(true)} title="What is Story Flow?" className="sf-cabecera-btn">
                                 <LuInfo size={13} />
                             </button>
                         </div>
@@ -918,7 +939,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                             spec={specActual}
                             onAplicar={aplicarCodigo}
                             estado={estadoFigura}
-                            editado={state.modo === 'codigo'}
+                            extras={state.extras}
                         />
                     ) : (<>
 
@@ -949,26 +970,6 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
 
                     {/* ── Tab Content ── */}
                     <div style={{ flex: 1, overflowY: 'auto', scrollbarGutter: 'stable', paddingRight: '4px' }}>
-                        {state.modo === 'codigo' && ['type', 'data', 'format'].includes(activeTab) && (
-                            <div className="sf-aviso-codigo">
-                                <LuCode size={14} />
-                                <div>
-                                    <p>This chart is written in code, so these panels don't change it. Style, Story and Export still apply.</p>
-                                    {confirmarPaneles ? (
-                                        <div className="sf-aviso-codigo-acciones">
-                                            <span>Discard the code and rebuild the chart from the panels?</span>
-                                            <button type="button" className="sf-aviso-btn sf-aviso-btn--peligro" onClick={volverAPaneles}>Discard code</button>
-                                            <button type="button" className="sf-aviso-btn" onClick={() => setConfirmarPaneles(false)}>Cancel</button>
-                                        </div>
-                                    ) : (
-                                        <div className="sf-aviso-codigo-acciones">
-                                            <button type="button" className="sf-aviso-btn" onClick={() => setLateral('codigo')}>Open the code</button>
-                                            <button type="button" className="sf-aviso-btn" onClick={() => setConfirmarPaneles(true)}>Use the panels again</button>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                         {activeTab === 'type' && (() => {
                             // Compute the effective visual type including stack mode
                             let effectiveType = state.chartType;
@@ -1048,6 +1049,34 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                             />
                         )}
                     </div>
+
+                    {/* Lo escrito en código que los paneles no saben mostrar (Dec-77). */}
+                    {extrasDescritos.length > 0 && (
+                        <div className="sf-aviso-codigo">
+                            <LuBraces size={14} />
+                            <div>
+                                <p>
+                                    <strong>This chart has {extrasDescritos.length === 1 ? 'a setting' : `${extrasDescritos.length} settings`} written in code</strong> that the panels don't show:
+                                </p>
+                                <ul className="sf-aviso-lista">
+                                    {extrasDescritos.slice(0, 4).map(f => <li key={f}>{f}</li>)}
+                                    {extrasDescritos.length > 4 && <li>…and {extrasDescritos.length - 4} more</li>}
+                                </ul>
+                                {confirmarQuitarExtras ? (
+                                    <div className="sf-aviso-codigo-acciones">
+                                        <span>Remove what was written in code? The panels stay as they are.</span>
+                                        <button type="button" className="sf-aviso-btn sf-aviso-btn--peligro" onClick={() => { setField('extras', null); setConfirmarQuitarExtras(false); }}>Remove</button>
+                                        <button type="button" className="sf-aviso-btn" onClick={() => setConfirmarQuitarExtras(false)}>Cancel</button>
+                                    </div>
+                                ) : (
+                                    <div className="sf-aviso-codigo-acciones">
+                                        <button type="button" className="sf-aviso-btn" onClick={() => setLateral('codigo')}>Show in code</button>
+                                        <button type="button" className="sf-aviso-btn" onClick={() => setConfirmarQuitarExtras(true)}>Remove custom code</button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     </>)}
                 </div>
             )}

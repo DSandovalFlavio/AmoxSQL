@@ -21593,3 +21593,12 @@ tr:hover td {
   font-size: 10px; letter-spacing: .04em; color: var(--accent-primary);
   background: var(--accent-muted); border-radius: var(--radius-sm); padding: 2px 7px;
 }
+.sf-linea-extra { background: color-mix(in oklch, #f5a524 12%, transparent); }
+.sf-linea-extra-margen { background: #f5a524; width: 3px !important; margin-left: 3px; }
+.sf-aviso-lista { margin: 0 0 7px; padding-left: 16px; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); }
+.sf-aviso-lista li { overflow-wrap: anywhere; }
+.sf-cabecera-btn {
+  background: transparent; border: 1px solid var(--border-color); color: var(--text-muted);
+  cursor: pointer; padding: 3px; border-radius: 4px; display: flex; align-items: center;
+}
+.sf-cabecera-btn:hover { color: var(--text-primary); }

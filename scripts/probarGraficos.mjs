@@ -37,6 +37,7 @@ const { temaVega } = await import(url('components/DataVisualizer/vega/tema.js'))
 const { anadirCapa, capaPosible } = await import(url('components/DataVisualizer/vega/capas.js'));
 const { paraFuera, specDeSalida, scriptDePython, formatoD3 } = await import(url('components/DataVisualizer/vega/salida.js'));
 const { sqlDeAgregado, consultaEnvolvible } = await import(url('components/DataVisualizer/vega/agregar.js'));
+const { diferencia, aplicar, asimilarCodigo, especBase, especFinal, rutasDeExtras, describirExtras } = await import(url('components/DataVisualizer/vega/codigo.js'));
 const { COLOR_PALETTES } = await import(url('components/DataVisualizer/constants.js'));
 const { GALLERY_CHARTS } = await import(url('data/galleryChartDefinitions.js'));
 const vega = await import(pathToFileURL(path.join(CLIENTE, 'node_modules/vega/build/vega.module.js')).href).catch(() => import('vega'));
@@ -239,6 +240,64 @@ console.log('La suma la hace DuckDB');
     bien('dispersión: no se agrega (cada fila es un punto)', sqlDeAgregado({ chartType: 'scatter', xAxisKey: 'x', yAxisKeys: ['y'] }, 'SELECT 1') === null);
     bien('una consulta con variables o con dos sentencias no se envuelve', consultaEnvolvible('SELECT * FROM t WHERE a = ${x}') === null && consultaEnvolvible('SELECT 1; SELECT 2') === null && consultaEnvolvible("SELECT ';' AS s;") !== null);
     con.closeSync?.(); db.closeSync?.();
+}
+
+console.log('El código manda');
+{
+    // Igual sin mirar el orden de las claves.
+    const igualJ = (x, y) => diferencia(x, y) === undefined;
+    const op = { filas: categorias, colores };
+    const inicio = { chartType: 'bar', xAxisKey: 'categoria', yAxisKeys: ['venta'], goalLine: { enabled: true, value: 6000, label: 'Meta', color: '#22c55e', style: 'dashed' } };
+    const base = especBase(inicio, op);
+    const editar = (f) => { const c = JSON.parse(JSON.stringify(base)); f(c); return c; };
+    const principal = (sp) => sp.layer.find(l => l.name === 'amox_principal');
+
+    // La garantía, sobre cualquier edición: lo dibujado es EXACTAMENTE el código.
+    const ediciones = {
+        'cambiar la marca a línea': (c) => { principal(c).mark = { type: 'line' }; },
+        'una capa propia': (c) => { c.layer.push({ name: 'mi_capa', mark: 'rule', encoding: { y: { datum: 3000 } } }); },
+        'quitar la meta': (c) => { c.layer = c.layer.filter(l => !l.name.startsWith('amox_meta')); },
+        'opacidad en la marca': (c) => { principal(c).mark.opacity = 0.5; },
+        'título del eje X': (c) => { principal(c).encoding.x.axis.title = 'Categoría'; },
+        'otra columna en X': (c) => { principal(c).encoding.x.field = 'margen'; },
+        'un config propio': (c) => { c.config = { axis: { labelColor: 'red' } }; },
+        'null donde había valor': (c) => { principal(c).encoding.x.axis = null; },
+    };
+    for (const [nombre, f] of Object.entries(ediciones)) {
+        const codigo = editar(f);
+        const nuevo = asimilarCodigo(codigo, inicio, op);
+        bien(`«${nombre}»: la figura es exactamente el código`, igualJ(especFinal(nuevo, op), codigo), String(JSON.stringify(diferencia(codigo, especFinal(nuevo, op)))).slice(0, 200));
+    }
+
+    // Lo que los paneles representan vuelve a ellos, sin extras.
+    const t1 = asimilarCodigo(editar(ediciones['título del eje X']), inicio, op);
+    bien('título de eje en código → panel, sin extras', t1.showXAxisTitle === true && t1.customAxisTitles.x === 'Categoría' && t1.extras === null, JSON.stringify(t1.extras));
+    const t2 = asimilarCodigo(editar(ediciones['otra columna en X']), inicio, op);
+    // Solo se cambió el `field`: la agrupación y el tooltip del código siguen en la columna anterior, y eso
+    // queda como extra (el código manda). El panel sí muestra la columna nueva.
+    bien('columna X en código → el panel la muestra', t2.xAxisKey === 'margen');
+    const t3 = asimilarCodigo(editar(ediciones['quitar la meta']), inicio, op);
+    bien('quitar la capa de meta apaga la meta en el panel', t3.goalLine.enabled === false && t3.extras === null, JSON.stringify(t3.extras));
+    const t4 = asimilarCodigo(editar(ediciones['cambiar la marca a línea']), inicio, op);
+    bien('marca de línea en código → tipo «line» en el panel', t4.chartType === 'line');
+
+    // Lo que no representan queda como extra, y sobrevive a los paneles.
+    const t5 = asimilarCodigo(editar(ediciones['una capa propia']), inicio, op);
+    bien('una capa propia es UN extra', rutasDeExtras(t5.extras).length === 1 && describirExtras(t5.extras, especFinal(t5, op))[0].includes('mi_capa'), JSON.stringify(rutasDeExtras(t5.extras)));
+    const tras = especFinal({ ...t5, barRadius: 9, goalLine: { ...t5.goalLine, value: 7000 } }, op);
+    bien('…y sobrevive a un cambio en los paneles (radio y meta nuevos)', tras.layer.some(l => l.name === 'mi_capa') && principal(tras).mark.cornerRadiusEnd === 9 && tras.layer.find(l => l.name === 'amox_meta').encoding.y.datum === 7000);
+    const t6 = asimilarCodigo(editar(ediciones['opacidad en la marca']), inicio, op);
+    const tras6 = especFinal({ ...t6, xAxisKey: 'margen' }, op);
+    bien('un retoque en la capa principal sigue aplicado tras cambiar la X', principal(tras6).mark.opacity === 0.5 && principal(tras6).encoding.x.field === 'margen');
+    const t7 = asimilarCodigo(editar(ediciones['quitar la meta']), inicio, op);
+    bien('una capa que el código quitó no vuelve sola', !especFinal(t7, op).layer.some(l => l.name === 'amox_meta'));
+    const { avisos } = await dibujar(especFinal(t5, op), categorias);
+    bien('la figura con extras compila sin avisos', avisos.length === 0, avisos.join(' | '));
+    const titulo = asimilarCodigo({ ...base, title: { text: 'Hola', subtitle: 'Sub' } }, inicio, op);
+    bien('un título escrito en código pasa a la tarjeta y no es extra', titulo.chartTitle === 'Hola' && titulo.chartSubtitle === 'Sub' && titulo.extras === null);
+    const fuera = { $schema: base.$schema, data: { name: 'dataset' }, mark: 'bar', encoding: { x: { field: 'categoria', type: 'nominal' }, y: { field: 'venta', type: 'quantitative', aggregate: 'mean' } } };
+    const deFuera = asimilarCodigo(fuera, { chartType: 'line', xAxisKey: '', yAxisKeys: [] }, op);
+    bien('un Vega-Lite de fuera: los paneles leen tipo y columnas, y se dibuja tal cual', deFuera.chartType === 'bar' && deFuera.xAxisKey === 'categoria' && igualJ(especFinal(deFuera, op), fuera));
 }
 
 console.log('La galería');

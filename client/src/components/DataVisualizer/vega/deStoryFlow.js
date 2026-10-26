@@ -107,7 +107,7 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
     // Distribución e intervalos: leen las filas tal cual, sin la suma por X. El
     // histograma solo necesita la X.
     if (tipo === 'histogram' && X) return histograma(base, c, { X, colores });
-    if (!X || !Ys.length) return { ...base, mark: 'point' };
+    if (!X || !Ys.length) return conCapas(base, [], [{ rol: 'principal', mark: 'point' }]);
     if (tipo === 'boxplot') return caja(base, c, { X, Y: Ys[0], colores });
     if (tipo === 'errorbar') return intervalo(base, c, { X, Y: Ys[0], colores });
 
@@ -247,9 +247,10 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
             T.push(...resalte.transform);
             e.color = { ...(e.color || {}), condition: { test: resalte.test, value: c.highlightConfig.color || '#ef4444' }, ...(e.color ? {} : { value: colorUnico }) };
         }
-        capas.push({ mark, encoding: e });
+        capas.push({ rol: 'principal', mark, encoding: e });
         if (c.showLabels && apilado === 'none') {
             capas.push({
+                rol: 'etiquetas',
                 mark: { type: 'text', fontSize: Number(c.dataLabelSize) || 11, ...(horizontal ? { align: 'left', dx: 4 } : { baseline: 'bottom', dy: -4 }) },
                 encoding: { ...enc, ...(serie ? { [horizontal ? 'yOffset' : 'xOffset']: { field: campo(serie), scale: { domain: series } } } : {}), [val]: { ...encVal, stack: null }, text: { field: campo(valor), ...formato(c) }, color: undefined },
             });
@@ -263,7 +264,7 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         // Un área de UNA serie se ha dibujado siempre como línea con su degradado
         // debajo; apilar solo tiene sentido con varias.
         if (tipo === 'area' && serie) {
-            capas.push({ mark: { type: 'area', interpolate, opacity: 0.85, ...(serie ? {} : { color: colorUnico }) }, encoding: { ...enc, [val]: { ...encVal, stack: 'zero' } } });
+            capas.push({ rol: 'principal', mark: { type: 'area', interpolate, opacity: 0.85, ...(serie ? {} : { color: colorUnico }) }, encoding: { ...enc, [val]: { ...encVal, stack: 'zero' } } });
         } else {
             if (c.lineAreaFill || tipo === 'area') {
                 const relleno = serie
@@ -277,9 +278,10 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
                         },
                         opacity: c.fillStyle === 'solid' ? 0.25 : 1,
                     };
-                capas.push({ mark: relleno, encoding: { ...enc, [val]: { ...encVal, stack: null }, tooltip: undefined } });
+                capas.push({ rol: 'relleno', mark: relleno, encoding: { ...enc, [val]: { ...encVal, stack: null }, tooltip: undefined } });
             }
             capas.push({
+                rol: 'principal',
                 // Una serie larga sobre un eje continuo se puede acercar en X.
                 ...(continuo && encCat.type === 'temporal' && nPuntos > MAX_PUNTOS ? { params: [ZOOM_X] } : {}),
                 mark: { type: 'line', interpolate, strokeWidth: 2, ...(serie ? {} : { color: colorUnico }), ...(puntos ? { point: { filled: true, size: 28 } } : {}) },
@@ -290,28 +292,31 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         if (resalte?.tramo) {
             // Un tramo se resalta como LÍNEA encima, no como puntos sueltos.
             capas.push({
+                rol: 'resalte',
                 transform: [{ filter: resalte.test }],
                 mark: { type: 'line', interpolate, strokeWidth: 3, color: c.highlightConfig.color || '#ef4444' },
                 encoding: { [cat]: encCat, [val]: { ...encVal, stack: null }, ...(serie ? { detail: { field: campo(serie) } } : {}) },
             });
         } else if (resalte) {
             capas.push({
+                rol: 'resalte',
                 transform: [...resalte.transform, { filter: resalte.test }],
                 mark: { type: 'point', filled: true, size: 110, color: c.highlightConfig.color || '#ef4444', opacity: 1 },
                 encoding: { [cat]: encCat, [val]: { ...encVal, stack: null } },
             });
         }
         if (c.showLabels) {
-            capas.push({ mark: { type: 'text', fontSize: Number(c.dataLabelSize) || 11, baseline: 'bottom', dy: -6 }, encoding: { [cat]: encCat, [val]: { ...encVal, stack: null }, text: { field: campo(valor), ...formato(c) } } });
+            capas.push({ rol: 'etiquetas', mark: { type: 'text', fontSize: Number(c.dataLabelSize) || 11, baseline: 'bottom', dy: -6 }, encoding: { [cat]: encCat, [val]: { ...encVal, stack: null }, text: { field: campo(valor), ...formato(c) } } });
         }
     }
 
     // ━━━ Pendiente: de un momento a otro, una línea por categoría ━━━
     if (tipo === 'slope') {
         const e = { ...enc, [cat]: { ...encCat, axis: { ...ejeCat, grid: false, orient: 'top', title: null } }, [val]: { ...encVal, axis: null, stack: null } };
-        capas.push({ mark: { type: 'line', strokeWidth: 2.5, point: { filled: true, size: 55 }, ...(serie ? {} : { color: colorUnico }) }, encoding: e });
+        capas.push({ rol: 'principal', mark: { type: 'line', strokeWidth: 2.5, point: { filled: true, size: 55 }, ...(serie ? {} : { color: colorUnico }) }, encoding: e });
         const etiqueta = `${serie ? `${dato(serie)} + '  ' + ` : ''}${FORMATO_AMOX}(${dato(valor)}, ${texto(`${c.numberFormat}|${c.decimalPlaces}`)})`;
         const extremo = (cual, align, dx) => ({
+            rol: cual === 'min' ? 'extremo_inicio' : 'extremo_fin',
             transform: [{ joinaggregate: [{ op: cual, field: campo(X), as: '__extremo' }] }, { filter: `${dato(X)} === datum.__extremo` }, { calculate: etiqueta, as: '__etiqueta' }],
             mark: { type: 'text', align, dx, fontSize: Number(c.dataLabelSize) || 11 },
             encoding: { [cat]: encCat, [val]: { ...encVal, stack: null }, text: { field: '__etiqueta' }, ...(serie ? { color: encColor } : {}) },
@@ -325,10 +330,10 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         const barras = Ys.filter(k => !lineas.includes(k));
         const enLista = (lista) => `indexof(${JSON.stringify(lista)}, datum.serie) >= 0`;
         if (plegado) {
-            capas.push({ transform: [{ filter: enLista(barras) }], mark: { type: 'bar', ...(c.barRadius ? { cornerRadiusEnd: Number(c.barRadius) } : {}) }, encoding: { ...enc, xOffset: { field: 'serie', scale: { domain: barras } }, [val]: { ...encVal, stack: null } } });
-            capas.push({ transform: [{ filter: enLista(lineas) }], mark: { type: 'line', interpolate: c.lineType || 'monotone', strokeWidth: 2, point: { filled: true, size: 28 } }, encoding: { ...enc, [val]: { ...encVal, stack: null } } });
+            capas.push({ rol: 'principal', transform: [{ filter: enLista(barras) }], mark: { type: 'bar', ...(c.barRadius ? { cornerRadiusEnd: Number(c.barRadius) } : {}) }, encoding: { ...enc, xOffset: { field: 'serie', scale: { domain: barras } }, [val]: { ...encVal, stack: null } } });
+            capas.push({ rol: 'lineas', transform: [{ filter: enLista(lineas) }], mark: { type: 'line', interpolate: c.lineType || 'monotone', strokeWidth: 2, point: { filled: true, size: 28 } }, encoding: { ...enc, [val]: { ...encVal, stack: null } } });
         } else {
-            capas.push({ mark: { type: 'bar', color: colorUnico }, encoding: enc });
+            capas.push({ rol: 'principal', mark: { type: 'bar', color: colorUnico }, encoding: enc });
         }
     }
 
@@ -338,13 +343,14 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         T.push({ calculate: `datum.__fin - ${dato(valor)}`, as: '__inicio' });
         const pos = colores[4] || '#34d399', neg = colores[1] || '#f87171';
         capas.push({
+            rol: 'principal',
             mark: { type: 'bar', ...(c.barRadius ? { cornerRadius: Number(c.barRadius) } : {}) },
             encoding: {
                 x: { ...encCat, sort: null }, y: { field: '__inicio', type: 'quantitative', axis: encVal.axis }, y2: { field: '__fin' },
                 color: { condition: { test: `${dato(valor)} < 0`, value: neg }, value: pos }, tooltip,
             },
         });
-        if (c.showLabels) capas.push({ mark: { type: 'text', baseline: 'bottom', dy: -4, fontSize: Number(c.dataLabelSize) || 11 }, encoding: { x: { ...encCat, sort: null }, y: { field: '__fin', type: 'quantitative' }, text: { field: campo(valor), ...formato(c) } } });
+        if (c.showLabels) capas.push({ rol: 'etiquetas', mark: { type: 'text', baseline: 'bottom', dy: -4, fontSize: Number(c.dataLabelSize) || 11 }, encoding: { x: { ...encCat, sort: null }, y: { field: '__fin', type: 'quantitative' }, text: { field: campo(valor), ...formato(c) } } });
     }
 
     // ━━━ Dispersión y burbujas ━━━
@@ -353,10 +359,10 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         if (!serie) e.color = undefined;
         if ((burbuja || c.bubbleSizeKey) && c.bubbleSizeKey) e.size = { field: campo(c.bubbleSizeKey), type: 'quantitative', scale: { range: [60, 600] }, legend: null };
         // Rueda para acercar, arrastrar para moverse; doble clic vuelve (5.18).
-        capas.push({ params: [ZOOM], mark: { type: 'circle', opacity: 0.85, size: 60, ...(serie ? {} : { color: colorUnico }) }, encoding: e });
+        capas.push({ rol: 'principal', params: [ZOOM], mark: { type: 'circle', opacity: 0.85, size: 60, ...(serie ? {} : { color: colorUnico }) }, encoding: e });
         if (c.scatterQuadrants) {
-            capas.push({ mark: { type: 'rule', strokeDash: [5, 5], color: '#888' }, encoding: { x: { aggregate: 'mean', field: campo(X), type: 'quantitative' } } });
-            capas.push({ mark: { type: 'rule', strokeDash: [5, 5], color: '#888' }, encoding: { y: { aggregate: 'mean', field: campo(valor), type: 'quantitative' } } });
+            capas.push({ rol: 'cuadrante_x', mark: { type: 'rule', strokeDash: [5, 5], color: '#888' }, encoding: { x: { aggregate: 'mean', field: campo(X), type: 'quantitative' } } });
+            capas.push({ rol: 'cuadrante_y', mark: { type: 'rule', strokeDash: [5, 5], color: '#888' }, encoding: { y: { aggregate: 'mean', field: campo(valor), type: 'quantitative' } } });
         }
     }
 
@@ -366,12 +372,14 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
     if (t.type && t.type !== 'none' && !serie && ejeContinuo && (t.type === 'linear' || t.type === 'loess')) {
         // Regresión sobre el valor de X (dispersión, series de fechas): la recta de verdad.
         capas.push({
+            rol: 'tendencia',
             transform: [{ [t.type === 'loess' ? 'loess' : 'regression']: campo(valor), on: campo(X) }],
             mark: { type: 'line', color: t.color || '#fbbf24', strokeWidth: 2, ...(tipo === 'scatter' ? {} : { strokeDash: [6, 4] }) },
             encoding: { [cat]: { field: campo(X), type: encCat.type }, [val]: { field: campo(valor), type: 'quantitative' } },
         });
     } else if (t.type && t.type !== 'none' && !serie && ['bar', 'line', 'area', 'scatter'].includes(tipo)) {
         capas.push({
+            rol: 'tendencia',
             transform: tendencia(t, { X, valor }),
             mark: { type: 'line', color: t.color || '#fbbf24', strokeWidth: 2, strokeDash: [6, 4] },
             encoding: { [cat]: encCat, [val]: { field: '__tendencia', type: 'quantitative' } },
@@ -383,12 +391,32 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
     return conCapas(base, T, capas);
 }
 
+/**
+ * La figura SIEMPRE en capas, y cada capa con nombre (`amox_<papel>`). Es lo que
+ * permite comparar el código del usuario con lo que generan los paneles capa a
+ * capa (vega/codigo.js): sin nombre no se sabría qué capa es la meta.
+ */
+export const PREFIJO_CAPA = 'amox_';
 function conCapas(base, transform, capas) {
     const spec = { ...base };
     if (transform.length) spec.transform = transform;
-    const limpias = capas.map(limpiar);
-    if (limpias.length === 1 && !limpias[0].data && !limpias[0].transform) Object.assign(spec, limpias[0]);
-    else spec.layer = limpias;
+    const usados = new Set();
+    const hayPrincipal = capas.some(c => c.rol === 'principal');
+    spec.layer = capas.map((capa, i) => {
+        const { rol, ...resto } = capa;
+        // Los ejes los configura SOLO la capa principal: las demás (relleno,
+        // etiquetas, resalte…) comparten escala, y repetir el eje en cada una hacía
+        // que cambiar un título en el código pareciera tocar varias capas.
+        if (hayPrincipal && rol !== 'principal' && resto.encoding) {
+            const enc = { ...resto.encoding };
+            for (const k of ['x', 'y']) if (enc[k] && typeof enc[k] === 'object' && 'axis' in enc[k]) { const { axis, ...e } = enc[k]; enc[k] = e; }
+            resto.encoding = enc;
+        }
+        let nombre = `${PREFIJO_CAPA}${rol || `capa_${i + 1}`}`;
+        for (let n = 2; usados.has(nombre); n++) nombre = `${PREFIJO_CAPA}${rol || 'capa'}_${n}`;
+        usados.add(nombre);
+        return limpiar({ name: nombre, ...resto });
+    });
     return spec;
 }
 
@@ -463,18 +491,18 @@ const estadistico = (v) => ESTADISTICOS[String(v ?? '').trim().toLowerCase()] ||
 function capasDeReferencia(c, { cat, val, valor }) {
     const capas = [];
     const una = { values: [{}] };
-    const regla = (v, color, estilo, etiqueta, grosor = 1.5) => {
+    const regla = (rol, v, color, estilo, etiqueta, grosor = 1.5) => {
         const op = estadistico(v);
         // Con un estadístico la regla lee los datos de la figura (ya agregados por
         // X): la media de las barras, no la de las filas sueltas.
         const pos = op ? { aggregate: op, field: campo(valor), type: 'quantitative' } : { datum: num(v) };
         const desde = op ? {} : { data: una };
-        capas.push({ ...desde, mark: { type: 'rule', color, strokeWidth: grosor, strokeDash: trazo(estilo) }, encoding: { [val]: pos } });
-        if (etiqueta) capas.push({ ...desde, mark: { type: 'text', color, align: 'right', baseline: 'bottom', dy: -3, fontWeight: 600, [cat === 'x' ? 'x' : 'y']: { expr: cat === 'x' ? 'width' : '0' } }, encoding: { [val]: pos, text: { value: etiqueta } } });
+        capas.push({ rol, ...desde, mark: { type: 'rule', color, strokeWidth: grosor, strokeDash: trazo(estilo) }, encoding: { [val]: pos } });
+        if (etiqueta) capas.push({ rol: `${rol}_etiqueta`, ...desde, mark: { type: 'text', color, align: 'right', baseline: 'bottom', dy: -3, fontWeight: 600, [cat === 'x' ? 'x' : 'y']: { expr: cat === 'x' ? 'width' : '0' } }, encoding: { [val]: pos, text: { value: etiqueta } } });
     };
     const vale = (v) => num(v) !== null || estadistico(v);
-    if (vale(c.refLine?.value)) regla(c.refLine.value, c.refLine.color || '#ff4444', c.refLine.style || 'dashed', c.refLine.label);
-    if (c.goalLine?.enabled && vale(c.goalLine.value)) regla(c.goalLine.value, c.goalLine.color || '#22c55e', c.goalLine.style || 'dashed', c.goalLine.label, 2);
+    if (vale(c.refLine?.value)) regla('referencia', c.refLine.value, c.refLine.color || '#ff4444', c.refLine.style || 'dashed', c.refLine.label);
+    if (c.goalLine?.enabled && vale(c.goalLine.value)) regla('meta', c.goalLine.value, c.goalLine.color || '#22c55e', c.goalLine.style || 'dashed', c.goalLine.label, 2);
 
     const a = c.refArea || {};
     const hayX = a.x1 !== '' && a.x1 != null && a.x2 !== '' && a.x2 != null;
@@ -483,21 +511,22 @@ function capasDeReferencia(c, { cat, val, valor }) {
         const enc = {};
         if (hayX) { enc[cat] = { datum: valorDeEje(a.x1) }; enc[`${cat}2`] = { datum: valorDeEje(a.x2) }; }
         if (hayY) { enc[val] = { datum: num(a.y1) }; enc[`${val}2`] = { datum: num(a.y2) }; }
-        capas.push({ data: una, mark: { type: 'rect', color: a.color || '#ffffff', opacity: a.opacity || 0.1 }, encoding: enc });
+        capas.push({ rol: 'banda', data: una, mark: { type: 'rect', color: a.color || '#ffffff', opacity: a.opacity || 0.1 }, encoding: enc });
     }
 
-    for (const n of c.annotations || []) {
+    for (const [i, n] of (c.annotations || []).entries()) {
         if (n.x === '' || n.x == null) continue;
+        const rol = `anotacion_${i + 1}`;
         const color = n.color || '#f59e0b';
         if (n.type === 'box') {
             const enc = { [cat]: { datum: valorDeEje(n.x) }, [`${cat}2`]: { datum: valorDeEje(n.x2 ?? n.x) } };
             if (num(n.y) !== null && num(n.y2) !== null) { enc[val] = { datum: num(n.y) }; enc[`${val}2`] = { datum: num(n.y2) }; }
-            capas.push({ data: una, mark: { type: 'rect', color, opacity: 0.12, stroke: color, strokeOpacity: 0.5 }, encoding: enc });
-            if (n.text) capas.push({ data: una, mark: { type: 'text', color, align: 'left', baseline: 'top', dx: 4, dy: 4, fontWeight: 600, [val === 'y' ? 'y' : 'x']: 0 }, encoding: { [cat]: { datum: valorDeEje(n.x) }, text: { value: n.text } } });
+            capas.push({ rol, data: una, mark: { type: 'rect', color, opacity: 0.12, stroke: color, strokeOpacity: 0.5 }, encoding: enc });
+            if (n.text) capas.push({ rol: `${rol}_texto`, data: una, mark: { type: 'text', color, align: 'left', baseline: 'top', dx: 4, dy: 4, fontWeight: 600, [val === 'y' ? 'y' : 'x']: 0 }, encoding: { [cat]: { datum: valorDeEje(n.x) }, text: { value: n.text } } });
         } else if (num(n.y) !== null) {
             const enc = { [cat]: { datum: valorDeEje(n.x) }, [val]: { datum: num(n.y) } };
-            capas.push({ data: una, mark: { type: 'point', filled: true, color, size: 50 }, encoding: enc });
-            if (n.text) capas.push({ data: una, mark: { type: 'text', color, baseline: 'bottom', dy: -8, fontWeight: 600 }, encoding: { ...enc, text: { value: n.text } } });
+            capas.push({ rol, data: una, mark: { type: 'point', filled: true, color, size: 50 }, encoding: enc });
+            if (n.text) capas.push({ rol: `${rol}_texto`, data: una, mark: { type: 'text', color, baseline: 'bottom', dy: -8, fontWeight: 600 }, encoding: { ...enc, text: { value: n.text } } });
         }
     }
     return capas;
@@ -513,6 +542,7 @@ function histograma(base, c, { X, colores }) {
     const ejeX = { title: c.showXAxisTitle === false ? null : (c.customAxisTitles?.x || X), grid: false, ...formato(c) };
     const ejeY = { title: c.showYAxisTitle ? (c.customAxisTitles?.y || 'Count') : null, grid: c.gridMode === 'both' || c.gridMode === 'horizontal' };
     const capas = [{
+        rol: 'principal',
         mark: { type: 'bar', binSpacing: 1, ...(c.splitByKey ? {} : { color }) },
         encoding: {
             x: { field: campo(X), bin: { maxbins: cubos }, type: 'quantitative', axis: ejeX },
@@ -525,8 +555,9 @@ function histograma(base, c, { X, colores }) {
     const colorStat = { mean: c.highlightConfig?.color && c.highlightConfig.type !== 'none' ? c.highlightConfig.color : '#ef4444', median: colores[1] || '#2a7ab9' };
     const nombres = { mean: 'Mean', median: 'Median' };
     for (const op of stats.filter(s => s === 'mean' || s === 'median')) {
-        capas.push({ mark: { type: 'rule', strokeWidth: 2, color: colorStat[op], ...(op === 'median' ? { strokeDash: [5, 3] } : {}) }, encoding: { x: { aggregate: op, field: campo(X), type: 'quantitative' } } });
+        capas.push({ rol: op === 'mean' ? 'media' : 'mediana', mark: { type: 'rule', strokeWidth: 2, color: colorStat[op], ...(op === 'median' ? { strokeDash: [5, 3] } : {}) }, encoding: { x: { aggregate: op, field: campo(X), type: 'quantitative' } } });
         capas.push({
+            rol: op === 'mean' ? 'media_texto' : 'mediana_texto',
             transform: [{ aggregate: [{ op, field: campo(X), as: '__v' }] }, { calculate: `${texto(nombres[op] + ' ')} + ${FORMATO_AMOX}(datum.__v, ${texto(`${c.numberFormat}|${c.decimalPlaces}`)})`, as: '__t' }],
             mark: { type: 'text', color: colorStat[op], align: 'left', dx: 4, baseline: 'top', fontWeight: 600, y: op === 'mean' ? 0 : 14 },
             encoding: { x: { field: '__v', type: 'quantitative' }, text: { field: '__t' } },
@@ -547,7 +578,7 @@ function caja(base, c, { X, Y, colores }) {
         [val]: { field: campo(Y), type: 'quantitative', scale: { zero: false }, axis: { title: c.showYAxisTitle ? (c.customAxisTitles?.y || Y) : null, ...formato(c) } },
         color: resalte ? { condition: { test: `'' + ${dato(X)} === ${texto(resalte.value)}`, value: resalte.color || '#ef4444' }, value: color } : { value: color },
     };
-    return { ...base, mark: { type: 'boxplot', extent: 1.5, size: 18, median: { color: '#1f2228' }, outliers: { size: 22 } }, encoding: enc };
+    return conCapas(base, [], [{ rol: 'principal', mark: { type: 'boxplot', extent: 1.5, size: 18, median: { color: '#1f2228' }, outliers: { size: 22 } }, encoding: enc }]);
 }
 
 /**
@@ -562,6 +593,7 @@ function intervalo(base, c, { X, Y, colores }) {
     const resalte = condicionDeResalte(c, { X, valor: Y });
     const encCat = { field: campo(X), type: 'nominal', sort: c.sortMode === 'y-desc' ? { field: campo(Y), order: 'descending' } : c.sortMode === 'y-asc' ? { field: campo(Y), order: 'ascending' } : null, axis: { title: null, grid: false } };
     const capas = [{
+        rol: 'principal',
         transform: resalte?.transform || [],
         mark: { type: 'bar', ...(c.barRadius ? { cornerRadiusEnd: Number(c.barRadius) } : {}) },
         encoding: {
@@ -575,6 +607,7 @@ function intervalo(base, c, { X, Y, colores }) {
     }];
     if (c.errorLowKey && c.errorHighKey) {
         capas.push({
+            rol: 'intervalo',
             mark: { type: 'errorbar', thickness: 1.5, ticks: true, color: '#555b66' },
             encoding: { [cat]: encCat, [val]: { field: campo(c.errorLowKey), type: 'quantitative' }, [`${val}2`]: { field: campo(c.errorHighKey) } },
         });
@@ -591,6 +624,7 @@ function anillo(c, { X, valor, colores, tipo }) {
     const color = { field: campo(X), type: 'nominal', scale: { range: colores }, legend: leg, sort: { field: campo(valor), order: 'descending' } };
     const orden = { field: campo(valor), order: 'descending' };
     const capas = [{
+        rol: 'principal',
         mark: { type: 'arc', outerRadius: { expr: radio }, ...(proporcion ? { innerRadius: { expr: `${radio} * ${proporcion}` } } : {}), stroke: null, padAngle: proporcion ? 0.01 : 0 },
         encoding: { theta, color, order: orden, tooltip: [{ field: campo(X), type: 'nominal' }, { field: campo(valor), type: 'quantitative', ...formato(c) }] },
     }];
@@ -600,6 +634,7 @@ function anillo(c, { X, valor, colores, tipo }) {
             name: dato(X), name_value: `${dato(X)} + ' ' + ${FORMATO_AMOX}(${dato(valor)}, ${texto(`${c.numberFormat}|${c.decimalPlaces}`)})`,
         }[c.donutLabelContent] || `${dato(X)} + ' ' + format(datum.__pct, '.1%')`;
         capas.push({
+            rol: 'etiquetas',
             transform: [{ joinaggregate: [{ op: 'sum', field: campo(valor), as: '__total' }] }, { calculate: `${dato(valor)} / datum.__total`, as: '__pct' }, { calculate: contenido, as: '__etiqueta' }],
             mark: { type: 'text', radius: { expr: c.donutLabelPosition === 'inside' ? `${radio} * ${(1 + proporcion) / 2}` : `${radio} + 16` }, fontSize: Number(c.dataLabelSize) || 11 },
             encoding: { theta, order: orden, text: { field: '__etiqueta' } },
@@ -607,6 +642,7 @@ function anillo(c, { X, valor, colores, tipo }) {
     }
     if (tipo === 'donut' && c.donutCenterKpi && c.donutCenterKpi !== 'none' && proporcion > 0.3) {
         capas.push({
+            rol: 'centro',
             transform: [{ aggregate: [{ op: 'sum', field: campo(valor), as: '__total' }] }],
             mark: { type: 'text', fontSize: 22, fontWeight: 700, x: { expr: 'width / 2' }, y: { expr: 'height / 2' } },
             encoding: { text: { field: '__total', ...formato(c) } },
@@ -620,6 +656,7 @@ function embudo(c, { X, valor, colores }) {
     const y = { field: campo(X), type: 'nominal', sort: orden, axis: { title: null, domain: false, ticks: false } };
     return [
         {
+            rol: 'principal',
             transform: [{ calculate: `-${dato(valor)} / 2`, as: '__a' }, { calculate: `${dato(valor)} / 2`, as: '__b' }],
             mark: { type: 'bar', cornerRadius: 3 },
             encoding: {
@@ -628,7 +665,7 @@ function embudo(c, { X, valor, colores }) {
                 tooltip: [{ field: campo(X), type: 'nominal' }, { field: campo(valor), type: 'quantitative', ...formato(c) }],
             },
         },
-        ...(c.showLabels ? [{ mark: { type: 'text', fontWeight: 600 }, encoding: { y, x: { datum: 0, type: 'quantitative' }, text: { field: campo(valor), ...formato(c) } } }] : []),
+        ...(c.showLabels ? [{ rol: 'etiquetas', mark: { type: 'text', fontWeight: 600 }, encoding: { y, x: { datum: 0, type: 'quantitative' }, text: { field: campo(valor), ...formato(c) } } }] : []),
     ];
 }
 
@@ -647,9 +684,9 @@ function mapaDeCalor(base, c, { X, Ys, colores, filas }) {
         transform: [{ fold: Ys, as: ['serie', 'valor'] }],
         encoding: enc,
         layer: [
-            { mark: { type: 'rect', cornerRadius: 2 }, encoding: { color: { field: 'valor', type: 'quantitative', scale: escala, legend: leyenda(c) ? { orient: 'top', direction: 'horizontal', title: null } : null }, tooltip: [{ field: campo(X), type: 'nominal' }, { field: 'serie', type: 'nominal' }, { field: 'valor', type: 'quantitative', ...formato(c) }] } },
+            { name: `${PREFIJO_CAPA}principal`, mark: { type: 'rect', cornerRadius: 2 }, encoding: { color: { field: 'valor', type: 'quantitative', scale: escala, legend: leyenda(c) ? { orient: 'top', direction: 'horizontal', title: null } : null }, tooltip: [{ field: campo(X), type: 'nominal' }, { field: 'serie', type: 'nominal' }, { field: 'valor', type: 'quantitative', ...formato(c) }] } },
             // El mapa de calor siempre lleva la cifra en la celda: sin ella el color no se lee.
-            { mark: { type: 'text', fontSize: Number(c.dataLabelSize) || 11 }, encoding: { text: { field: 'valor', ...formato(c) } } },
+            { name: `${PREFIJO_CAPA}etiquetas`, mark: { type: 'text', fontSize: Number(c.dataLabelSize) || 11 }, encoding: { text: { field: 'valor', ...formato(c) } } },
         ],
     };
 }

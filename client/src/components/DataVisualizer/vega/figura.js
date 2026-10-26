@@ -36,6 +36,14 @@ export const esVegaCompleto = (spec) => typeof spec?.$schema === 'string' && /\/
 
 const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
+/** Una huella corta del spec (FNV-1a): dice si el archivo se editó fuera de AmoxSQL. */
+function huellaDe(spec) {
+    const t = JSON.stringify(spec);
+    let h = 0x811c9dc5;
+    for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, '0');
+}
+
 /** Solo lo que difiere de fábrica: el archivo dice lo que se eligió, no las 78 claves. */
 function soloCambios(plano) {
     const r = {};
@@ -73,6 +81,12 @@ export function leerAmoxvis(entrada) {
     const plano = { ...DEFAULT_CONFIG, ...(interfaz || {}), query: am.consulta || '', modo };
     if (am.origen) plano.source = am.origen;
     if (modo === 'codigo') plano.spec = specParaEditar(o);
+    // Editado fuera (en un editor de texto, otra herramienta): el código manda.
+    // Story Flow lo vuelve a asimilar sobre sus paneles al abrirlo (Dec-77).
+    if (interfaz && am.huella) {
+        const { usermeta, ...puro } = o;
+        if (huellaDe(puro) !== am.huella) { plano.modo = 'codigo'; plano.spec = specParaEditar(o); }
+    }
     // Un spec que llega de fuera trae su título en `title`; la tarjeta lo dibuja.
     if (!plano.chartTitle && o.title) {
         const t = typeof o.title === 'string' ? { text: o.title } : o.title;
@@ -105,11 +119,13 @@ export function escribirAmoxvis(plano = {}, { filas } = {}) {
     }
     Object.assign(archivo, cuerpo);
     const otros = usermeta ? Object.fromEntries(Object.entries(usermeta).filter(([k]) => k !== 'amoxsql')) : {};
+    const huella = huellaDe(archivo);
     archivo.usermeta = {
         ...otros,
         amoxsql: {
             version: VERSION_AMOXVIS,
             modo,
+            huella,
             consulta: plano.query || '',
             ...(plano.source ? { origen: plano.source } : {}),
             interfaz: soloCambios(plano),
