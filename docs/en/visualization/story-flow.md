@@ -96,6 +96,8 @@ The maximize button (top-right of the chart area) takes the chart full-screen; i
 
 - **The `.amoxvis` is self-contained:** it stores the figure *and* the query, so the chart can regenerate itself — the basis of a Report Flow deck that refreshes.
 - **The `.amoxvis` isn't locked in:** it is a valid Vega-Lite spec. What belongs to AmoxSQL (the query, the state of the panels) goes in `usermeta`, a field Vega-Lite reserves for that and every other tool ignores.
+- **Totals come from every row:** the editor shows at most the first 10,000 rows of a result. If the result was cut and the chart adds up by X (bars, lines, areas, donut, funnel, waterfall…), DuckDB does that sum over the whole query and the canvas bar says so: **Totals from all rows (DuckDB)**. Scatter, histogram and box plot draw the rows there are.
+- **Zoom:** on a scatter, and on a date series with many points, the wheel zooms and dragging pans; double-click resets.
 - **Your axes survive re-queries:** when you re-run a query with different columns, Story Flow only fills axes that are missing or no longer valid; your manual pick is kept as long as its column still exists.
 - **The AI doesn't clobber your work:** an AI proposal is merged onto your current config, not replaced.
 - **The theme follows your settings:** the chart adopts the active theme and accent color.

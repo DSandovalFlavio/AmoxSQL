@@ -1,6 +1,6 @@
 # Gráficos en Vega-Lite — análisis y plan (5.16 → 5.18)
 
-> Estado: **aprobado por el autor (2026-10-26), en implementación** — §8 respondido; se hace 5.16 → 5.18 y la 6.0 va en otra sesión.
+> Estado: **5.16, 5.17 y 5.18 implementadas (2026-10-26)**, sin publicar — PR #208. Pendiente: la selección que filtra otras figuras (ver bitácora). La 6.0 va en otra sesión.
 > Prueba: [`graficos-vega-lite/`](graficos-vega-lite/) — las 12 figuras de referencia escritas en Vega-Lite,
 > compiladas y renderizadas (abre `galeria.html`).
 > Relacionado: [`plan_6_0_duckdb_2.md`](plan_6_0_duckdb_2.md) (rama `claude/plan-6-0`), `sistema_graficos.html`, `plan_story_flow.md`.
@@ -392,3 +392,8 @@ la vez haría imposible saber qué rompió qué.
 - 2026-10-26 — Análisis del sistema actual, prueba de las 12 figuras (`graficos-vega-lite/`), fallos
   §3 reproducidos con `processChartData` y 100 filas sintéticas.
 - 2026-10-26 — Decisiones del autor (§8). Se añade Dec-76 (interruptor interfaz/código). Empieza la 5.16.
+- 2026-10-26 — **5.16 hecha**: `vega/` (deStoryFlow, figura, FiguraVega + motor, tema, EditorCodigo), `server/amoxvis.js`, todas las superficies (editor, Report Flow, Lienzo, cuaderno, chat, galería, nodo de Data Flow). Fallos de la §3 resueltos por construcción. De paso: pestañas de gráfico restauradas sin consulta; nombres de serie con «T».
+- 2026-10-26 — **5.17 hecha**: histograma, caja, barras con intervalo, pendiente; resaltes por umbral y por tramo; referencia en media/mediana; regresión y curva suavizada en dispersión; «Others» en el anillo; **Add layer…** en el modo Código (`vega/capas.js`); el asistente con los tipos nuevos y `vega_lite` compilado en el servidor (vega-lite pasa a dependencia del servidor).
+- 2026-10-26 — **5.18 hecha**: *Take it elsewhere* (Vega-Lite con datos, plantilla `dataset`, script de Python — `vega/salida.js`), totales desde DuckDB cuando el resultado llega recortado (`vega/agregar.js`; antes un gráfico sobre >10 000 filas sumaba solo las primeras), zoom en dispersión y series largas, el Data Profiler en Vega y **Recharts fuera** (−267 KB en el paquete principal). Word encontraba las figuras por la clase de Recharts: arreglado.
+- **Queda para después**: la selección que filtra otras figuras del mismo Lienzo o deck (necesita un canal entre tarjetas que hoy no existe); el PowerPoint nativo sigue leyendo los paneles (un gráfico en modo código va como imagen, Dec-75 sin cambios); el empuje a DuckDB de `bin`/`timeUnit` para histogramas de millones de filas.
+- Pruebas: `scripts/probarGraficos.mjs` 115/115, `scripts/probarGraficoIA.mjs` 10/10.

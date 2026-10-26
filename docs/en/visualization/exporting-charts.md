@@ -33,6 +33,19 @@ The **Export** stage ("Ship it") is step ⑥ of [Story Flow](story-flow.md). It 
 2. It stores the full configuration **plus the query** that feeds the chart.
 3. To restore a configuration, use **Load configuration** and pick an `.amoxvis` (or `.json`).
 
+### Take it to another tool
+An AmoxSQL chart is Vega-Lite, so it can leave AmoxSQL and still be the same chart. In **Export → Take it elsewhere**:
+
+| Option | What it downloads | What for |
+|---|---|---|
+| **Vega-Lite with data** | `<title>.vl.json` with the data inside (`data.values`) and the query in `description` | Opening the chart in any Vega-Lite editor or viewer, as is |
+| **Template (data as "dataset")** | `<title>.template.vl.json` with the data by name (`"data": {"name": "dataset"}`) | Visuals that bring their own data, like Deneb in Power BI: paste the spec and give it your data |
+| **Python script** | `<title>.py`: the query in DuckDB and the figure with Altair | Rebuilding the chart from Python, with fresh data |
+
+- **Keep AmoxSQL's look** (on by default) carries AmoxSQL's look as a Vega-Lite `config` —typography, axes, grid, palette— with colors meant for a light background. Turn it off for a Vega-Lite with the default look.
+- AmoxSQL's own number format is translated to a standard Vega-Lite format on export.
+- The treemap is saved as a **Vega** spec (not Vega-Lite), so it has no Python script.
+
 ### Paste JSON from the AI
 1. Click **Paste JSON from AI** and paste the configuration object.
 2. AmoxSQL **validates it against the columns** of the current result before applying, so the axes reference columns that exist.
@@ -64,6 +77,7 @@ The **Export** stage ("Ship it") is step ⑥ of [Story Flow](story-flow.md). It 
 - **Original size respects your layout:** if you tuned margins and proportions, "Original size" exports exactly that.
 - **Validation prevents broken axes:** pasting AI JSON won't apply a configuration that points at columns that don't exist.
 - **PNG to share, `.amoxvis` to build:** use PNG when the destination is flat; use `.amoxvis` when the chart will go into a Report Flow deck.
+- **The `.amoxvis` already is Vega-Lite:** "Take it elsewhere" adds the data or the script, but the saved file also opens outside AmoxSQL.
 
 ## Related formats
 

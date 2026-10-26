@@ -33,6 +33,19 @@ La etapa **Export** ("Ship it") es el paso ⑥ de [Story Flow](story-flow.md). T
 2. Se guarda la configuración completa **más la query** que alimenta el gráfico.
 3. Para recuperar una configuración, usa **Load configuration** y elige un `.amoxvis` (o `.json`).
 
+### Llevarlo a otra herramienta
+Un gráfico de AmoxSQL es Vega-Lite, así que puede salir de AmoxSQL y seguir siendo el mismo gráfico. En **Export → Take it elsewhere**:
+
+| Opción | Qué descarga | Para qué |
+|---|---|---|
+| **Vega-Lite with data** | `<título>.vl.json` con los datos dentro (`data.values`) y la consulta en `description` | Abrir el gráfico en cualquier editor o visor de Vega-Lite, tal cual |
+| **Template (data as "dataset")** | `<título>.template.vl.json` con los datos por nombre (`"data": {"name": "dataset"}`) | Visuales que reciben los datos de otro sitio, como Deneb en Power BI: pegas el spec y le das tus datos |
+| **Python script** | `<título>.py`: la consulta en DuckDB y la figura con Altair | Rehacer el gráfico desde Python, con los datos al día |
+
+- **Keep AmoxSQL's look** (activado por defecto) lleva el aspecto de AmoxSQL como `config` de Vega-Lite —tipografía, ejes, rejilla, paleta— con los colores pensados para un fondo claro. Desactívalo para un Vega-Lite con el aspecto por defecto.
+- El formato de número propio de AmoxSQL se traduce a un formato estándar de Vega-Lite al exportar.
+- El mapa de rectángulos se guarda como spec de **Vega** (no Vega-Lite), así que no tiene script de Python.
+
 ### Pegar JSON desde la IA
 1. Pulsa **Paste JSON from AI** y pega el objeto de configuración.
 2. AmoxSQL lo **valida contra las columnas** del resultado actual antes de aplicarlo, para que los ejes referencien columnas que existen.
@@ -64,6 +77,7 @@ La etapa **Export** ("Ship it") es el paso ⑥ de [Story Flow](story-flow.md). T
 - **Original size respeta tu layout:** si ajustaste márgenes y proporción, "Original size" exporta exactamente eso.
 - **La validación evita ejes rotos:** pegar JSON de la IA no aplicará una configuración que apunte a columnas inexistentes.
 - **PNG para compartir, `.amoxvis` para construir:** usa PNG cuando el destino es plano; usa `.amoxvis` cuando el gráfico entrará en un deck de Report Flow.
+- **El `.amoxvis` ya es Vega-Lite:** «Take it elsewhere» añade los datos o el script, pero el archivo guardado también se abre fuera de AmoxSQL.
 
 ## Formatos relacionados
 

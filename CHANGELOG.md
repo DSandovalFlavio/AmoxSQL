@@ -5,6 +5,30 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [Unreleased] — 5.18 «Sal con tu gráfico»
+
+### Nuevo
+
+- **Take it elsewhere** (Export): el gráfico como **Vega-Lite con los datos dentro**,
+  como **plantilla con los datos por nombre** (`dataset`, la convención de Deneb en
+  Power BI) o como **script de Python** (la consulta en DuckDB y la figura con Altair).
+  Con «Keep AmoxSQL's look», el aspecto viaja como `config` de Vega-Lite.
+- **Los totales salen de todas las filas**: si el resultado llegó recortado (10 000 filas
+  por defecto) y el gráfico suma por X, DuckDB hace la suma sobre la consulta entera; la
+  barra del lienzo lo dice.
+- **Zoom** con la rueda en las dispersiones y en las series de fechas largas.
+
+### Arreglado
+
+- Un gráfico sobre una consulta de más de 10 000 filas sumaba solo las primeras 10 000.
+- La exportación a Word de un cuaderno no encontraba las figuras.
+
+### Interno
+
+- **Recharts fuera del proyecto**: el Data Profiler dibuja su distribución con Vega.
+
+---
+
 ## [Unreleased] — 5.17 «Escribe el gráfico»
 
 ### Nuevo

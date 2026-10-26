@@ -96,6 +96,8 @@ El botón de maximizar (esquina superior derecha del área del gráfico) lleva e
 
 - **El `.amoxvis` es autónomo:** guarda la figura *y* la query, así que el gráfico puede regenerarse solo — la base de un deck de Report Flow que se refresca.
 - **El `.amoxvis` no es privativo:** es un Vega-Lite válido. Lo que es de AmoxSQL (la query, el estado de los paneles) va en `usermeta`, un campo que Vega-Lite reserva para eso y que cualquier otra herramienta ignora.
+- **Los totales salen de todas las filas:** el editor muestra como mucho las primeras 10 000 filas de un resultado. Si el resultado llegó recortado y el gráfico suma por X (barras, líneas, áreas, anillo, embudo, cascada…), DuckDB hace esa suma sobre la consulta entera y la barra del lienzo lo dice: **Totals from all rows (DuckDB)**. La dispersión, el histograma y la caja dibujan las filas que hay.
+- **Zoom:** en una dispersión, y en una serie de fechas con muchos puntos, la rueda acerca y arrastrar mueve; doble clic vuelve.
 - **Tus ejes sobreviven a re-consultas:** al re-ejecutar una query con columnas distintas, Story Flow solo rellena los ejes que faltan o que dejaron de ser válidos; tu elección manual se respeta mientras la columna exista.
 - **La IA no pisa tu trabajo:** una propuesta de la IA se fusiona sobre tu config actual, no la reemplaza.
 - **El tema sigue tu configuración:** el gráfico adopta el tema y el color de acento activos.
