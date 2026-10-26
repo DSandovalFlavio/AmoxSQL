@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AmoxSQL · La respuesta ya está en tus datos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: una sola columna de 1120px que alterna texto y producto; el producto
+   siempre en una ventana de vidrio, con la luz del logo detrás. Oscuro por marca. */
+:root {
+  color-scheme: dark;
+  --ink: #06080c;          /* fondo: casi negro con tinte azul de la noche del logo */
+  --ink-2: #0b0f16;        /* superficies */
+  --line: #1a2230;         /* bordes finos */
+  --text: #e8eef6;
+  --muted: #8a97a8;
+  --faint: #566275;
+  --cyan: #19e3f0;         /* el neón del glifo */
+  --azul: #2f6bff;         /* el final del degradado del glifo */
+  --ok: #3ad29f;
+  --f-display: "Geist", "Manrope", system-ui, sans-serif;
+  --f-body: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Consolas, monospace;
+  --max: 1120px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--ink); color: var(--text);
+  font: 400 16px/1.6 var(--f-body);
+  -webkit-font-smoothing: antialiased; overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+img { max-width: 100%; display: block; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 6px; }
+
+.wrap { max-width: var(--max); margin: 0 auto; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.035em; }
+p { margin: 0; }
+.grad { background: linear-gradient(180deg, #ffffff 30%, #9fb4cc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.neon { background: linear-gradient(90deg, var(--cyan), var(--azul)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.eyebrow { font: 500 12px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--cyan); }
+
+/* ── Navegación ─────────────────────────────────────────────────────────── */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 60; background: rgba(6,8,12,.8); }
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50; backdrop-filter: blur(14px) saturate(140%); -webkit-backdrop-filter: blur(14px) saturate(140%); background: rgba(6,8,12,.72); border-bottom: 1px solid rgba(26,34,48,.7); }
+.nav .wrap { display: flex; align-items: center; gap: 28px; height: 60px; }
+.marca { display: flex; align-items: center; gap: 10px; font: 600 16px var(--f-display); letter-spacing: -.02em; }
+.marca svg { width: 22px; height: 22px; }
+.nav ul { display: flex; gap: 24px; list-style: none; margin: 0; padding: 0; font-size: 14px; color: var(--muted); }
+.nav ul a:hover { color: var(--text); }
+.nav .der { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 999px; font: 500 14px var(--f-body); border: 1px solid var(--line); background: rgba(255,255,255,.03); color: var(--text); transition: background .2s, border-color .2s, transform .2s; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: #2a3546; background: rgba(255,255,255,.06); }
+.btn.pri { background: var(--text); color: #05070a; border-color: var(--text); }
+.btn.pri:hover { background: #fff; transform: translateY(-1px); }
+.btn.grande { height: 46px; padding: 0 22px; font-size: 15px; }
+.btn svg { width: 16px; height: 16px; }
+
+/* ── Hero ───────────────────────────────────────────────────────────────── */
+.hero { position: relative; padding-block: 96px 0; text-align: center; isolation: isolate; }
+.hero::before { content: ""; position: absolute; inset: -120px 0 auto; height: 760px; z-index: -1;
+  background: radial-gradient(42% 46% at 50% 38%, rgba(25,227,240,.16), transparent 70%), radial-gradient(30% 30% at 66% 52%, rgba(47,107,255,.14), transparent 72%); }
+.version { display: inline-flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--muted); background: rgba(11,15,22,.7); }
+.version b { color: var(--text); font-weight: 600; }
+.version span.ir { padding: 3px 10px; border-radius: 999px; background: rgba(25,227,240,.1); color: var(--cyan); font: 500 12px var(--f-mono); }
+.hero h1 { font-size: clamp(36px, 6.2vw, 72px); line-height: 1.05; font-weight: 600; margin-top: 28px; }
+.hero .sub { max-width: 620px; margin: 24px auto 0; font-size: clamp(17px, 2vw, 20px); color: var(--muted); line-height: 1.55; }
+.hero .ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 36px; }
+.hero .nota { margin-top: 16px; font: 400 12.5px var(--f-mono); color: var(--faint); }
+
+.ventana { position: relative; margin: 72px auto 0; max-width: 1080px; border-radius: 14px; padding: 1px;
+  background: linear-gradient(180deg, rgba(120,170,220,.32), rgba(26,34,48,.2) 40%, rgba(26,34,48,0)); box-shadow: 0 40px 120px -30px rgba(25,227,240,.22), 0 30px 80px -40px rgba(0,0,0,.9); }
+.ventana .dentro { border-radius: 13px; overflow: hidden; background: var(--ink-2); }
+.ventana img { width: 100%; height: auto; }
+.hero .ventana { transform: perspective(1800px) rotateX(9deg); transform-origin: 50% 0; transition: transform 1.2s cubic-bezier(.2,.7,.2,1); }
+.hero.listo .ventana { transform: perspective(1800px) rotateX(0deg); }
+.ventana::after { content: ""; position: absolute; inset: auto 0 -1px; height: 38%; border-radius: 0 0 14px 14px; background: linear-gradient(180deg, transparent, var(--ink)); pointer-events: none; }
+.hero .ventana::after { height: 30%; }
+
+/* ── Cifras ─────────────────────────────────────────────────────────────── */
+.cifras { padding-block: 56px 24px; }
+.cifras .wrap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.cifra { padding: 28px 24px; border-left: 1px solid var(--line); }
+.cifra:first-child { border-left: 0; }
+.cifra .n { font: 600 34px/1 var(--f-display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.cifra .l { margin-top: 10px; font-size: 14px; color: var(--muted); line-height: 1.45; }
+
+/* ── Secciones ──────────────────────────────────────────────────────────── */
+section.bloque { padding-block: 120px 0; }
+.cab { max-width: 720px; }
+.cab.centro { margin: 0 auto; text-align: center; }
+.cab h2 { font-size: clamp(32px, 4.6vw, 54px); line-height: 1.06; font-weight: 600; margin-top: 16px; }
+.cab p { margin-top: 18px; font-size: 18px; color: var(--muted); max-width: 600px; }
+.cab.centro p { margin-left: auto; margin-right: auto; }
+
+/* Del archivo a la entrega: pestañas con producto */
+.pasos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 56px; }
+.paso { text-align: left; padding: 18px 18px 20px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font: inherit; transition: border-color .25s, background .25s, color .25s; position: relative; overflow: hidden; }
+.paso .num { font: 500 12px var(--f-mono); color: var(--faint); }
+.paso h3 { font-size: 18px; letter-spacing: -.02em; color: var(--text); margin-top: 10px; font-weight: 600; }
+.paso p { font-size: 14px; margin-top: 6px; line-height: 1.5; }
+.paso[aria-selected="true"] { border-color: rgba(25,227,240,.35); background: linear-gradient(180deg, rgba(25,227,240,.07), rgba(25,227,240,0)); color: #b4c2d3; }
+.paso[aria-selected="true"] .num { color: var(--cyan); }
+.paso .barra { position: absolute; left: 0; bottom: 0; height: 2px; width: 0; background: linear-gradient(90deg, var(--cyan), var(--azul)); }
+.paso[aria-selected="true"] .barra { animation: llenar 7s linear forwards; }
+@keyframes llenar { to { width: 100%; } }
+.escena { margin-top: 20px; }
+.escena .ventana { margin-top: 0; }
+.escena .pie { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 18px; font: 400 13px var(--f-mono); color: var(--faint); }
+.escena .pie code { color: var(--muted); }
+
+/* Canvas: imagen grande a sangre derecha con tres ideas */
+.canvas-g { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 56px; align-items: center; margin-top: 8px; }
+.ideas { display: grid; gap: 26px; margin-top: 36px; }
+.idea { display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 14px; }
+.idea .ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; border: 1px solid var(--line); background: var(--ink-2); color: var(--cyan); }
+.idea .ic svg { width: 17px; height: 17px; }
+.idea h3 { font-size: 16px; letter-spacing: -.01em; font-weight: 600; }
+.idea p { font-size: 15px; color: var(--muted); margin-top: 4px; }
+.canvas-g .ventana { margin: 0; }
+
+/* Rejilla de capacidades */
+.rejilla { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 14px; margin-top: 56px; }
+.celda { grid-column: span 2; border: 1px solid var(--line); border-radius: 16px; background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,0) 60%); padding: 24px; display: flex; flex-direction: column; gap: 10px; min-width: 0; overflow: hidden; position: relative; }
+.celda.ancha { grid-column: span 3; }
+.celda h3 { font-size: 19px; font-weight: 600; letter-spacing: -.02em; }
+.celda p { font-size: 14.5px; color: var(--muted); }
+.celda .shot { margin-top: 10px; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.celda .shot img { width: 100%; }
+.etq { font: 500 11.5px var(--f-mono); color: var(--faint); letter-spacing: .04em; }
+.formatos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.formatos code { font: 400 12.5px var(--f-mono); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--line); color: #b4c2d3; background: var(--ink-2); }
+
+/* Corre solo */
+.solo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 56px; align-items: center; }
+.reloj { font: 500 13px/1.9 var(--f-mono); color: var(--muted); border: 1px solid var(--line); border-radius: 14px; background: var(--ink-2); padding: 20px 22px; margin-top: 32px; }
+.reloj .fila { display: flex; gap: 14px; align-items: baseline; }
+.reloj .t { color: var(--faint); min-width: 92px; font-variant-numeric: tabular-nums; }
+.reloj .ok { color: var(--ok); }
+.reloj b { color: var(--text); font-weight: 500; }
+
+/* Local */
+.local { border: 1px solid var(--line); border-radius: 22px; padding: 56px; background: radial-gradient(60% 80% at 100% 0%, rgba(47,107,255,.10), transparent 70%), var(--ink-2); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+.codigo { font: 400 14px/1.75 var(--f-mono); background: #04060a; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; overflow-x: auto; color: #c9d4e2; }
+.codigo .k { color: #8ab4ff; } .codigo .s { color: #f2c27b; } .codigo .c { color: var(--faint); } .codigo .f { color: var(--cyan); }
+.ticks { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 12px; }
+.ticks li { display: grid; grid-template-columns: 20px minmax(0,1fr); gap: 10px; color: var(--muted); font-size: 15.5px; }
+.ticks svg { width: 18px; height: 18px; color: var(--cyan); margin-top: 3px; }
+
+/* Nombre */
+.nombre { text-align: center; padding-block: 120px 0; }
+.nombre .glifo { width: 92px; height: 92px; margin: 0 auto; filter: drop-shadow(0 0 22px rgba(25,227,240,.45)); }
+.nombre blockquote { margin: 28px auto 0; max-width: 660px; font: 500 clamp(22px, 3vw, 30px)/1.35 var(--f-display); letter-spacing: -.02em; }
+.nombre blockquote em { font-style: normal; }
+.nombre p { margin-top: 18px; color: var(--muted); }
+
+/* CTA final y pie */
+.final { text-align: center; padding-block: 140px 120px; position: relative; isolation: isolate; }
+.final::before { content: ""; position: absolute; inset: 20% 0 0; z-index: -1; background: radial-gradient(40% 50% at 50% 60%, rgba(25,227,240,.12), transparent 70%); }
+.final h2 { font-size: clamp(36px, 5.6vw, 68px); line-height: 1.04; font-weight: 600; }
+.final .ctas { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 36px; }
+footer { border-top: 1px solid var(--line); padding-block: 40px 56px; color: var(--faint); font-size: 13.5px; }
+footer .wrap { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+footer nav { display: flex; gap: 22px; flex-wrap: wrap; }
+footer a:hover { color: var(--text); }
+
+/* Aparición: siempre visible en reposo; sólo se desplaza un poco al entrar. */
+.sube { transition: transform .9s cubic-bezier(.2,.7,.2,1); }
+.sube.abajo { transform: translateY(18px); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  .hero .ventana { transform: none; }
+}
+@media (max-width: 900px) {
+  .nav ul { display: none; }
+  .pasos { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .canvas-g, .solo, .local { grid-template-columns: minmax(0,1fr); }
+  .local { padding: 32px 22px; }
+  .rejilla { grid-template-columns: minmax(0,1fr); }
+  .celda, .celda.ancha { grid-column: auto; }
+  .cifras .wrap { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .cifra:nth-child(3) { border-left: 0; }
+  .cifra:nth-child(n+3) { border-top: 1px solid var(--line); }
+  section.bloque { padding-block: 88px 0; }
+}
+@media (max-width: 520px) {
+  .nav .der .btn:not(.pri) { display: none; }
+  .hero { padding-block: 64px 0; }
+  .pasos { grid-template-columns: minmax(0,1fr); }
+  .cifra { padding: 22px 16px; }
+  .cifra .n { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+
+<!-- El glifo de AmoxSQL, para reutilizar -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="g-neon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#19e3f0"/><stop offset="1" stop-color="#2f6bff"/></linearGradient>
+    <symbol id="glifo" viewBox="70 42 260 260">
+      <g stroke="url(#g-neon)" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <path d="M 135 285 Q 125 290 115 275 L 185 75 Q 200 45 215 75 L 285 275 Q 275 290 265 285"/>
+        <path d="M 130 210 Q 200 330 270 210"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="marca" href="#inicio"><svg><use href="#glifo"/></svg>AmoxSQL</a>
+    <ul>
+      <li><a href="#flujo">Producto</a></li>
+      <li><a href="#canvas">Canvas</a></li>
+      <li><a href="#solo">Automatiza</a></li>
+      <li><a href="#local">Privacidad</a></li>
+      <li><a href="https://github.com/dsandovalflavio/amoxsql/tree/main/docs">Docs</a></li>
+    </ul>
+    <div class="der">
+      <a class="btn" href="https://github.com/dsandovalflavio/amoxsql">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.53-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+        GitHub
+      </a>
+      <a class="btn pri" href="#descargar">Descargar</a>
+    </div>
+  </div>
+</header>
+
+<main id="inicio">
+  <section class="hero" id="hero">
+    <div class="wrap">
+      <a class="version" href="#canvas"><span><b>v5.15</b> · Nuevo: el Canvas, un lienzo infinito para tus análisis</span><span class="ir">Ver →</span></a>
+      <h1 class="grad">La respuesta ya está en tus datos.<br>A una consulta de distancia.</h1>
+      <p class="sub">AmoxSQL es tu espacio de análisis de datos, en tu propia computadora. Abre los Excel y CSV tal como te llegan, analízalos con SQL y convierte el resultado en un reporte, una presentación o un proceso que se ejecuta solo cada mes.</p>
+      <div class="ctas">
+        <a class="btn pri grande" href="#descargar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v12m0 0-5-5m5 5 5-5M4 21h16"/></svg>
+          Descargar para Windows
+        </a>
+        <a class="btn grande" href="#flujo">Ver cómo funciona</a>
+      </div>
+      <p class="nota">Gratis si lo compilas desde el código · Mac con Apple Silicon en beta · Con el motor de DuckDB</p>
+    </div>
+    <div class="wrap">
+      <div class="ventana"><div class="dentro"><img src="img/canvas.png" alt="El Canvas de AmoxSQL: la fuente de ventas, dos ramas por categoría y por mes, con gráficos, una cifra y una nota" width="1600" height="1000"></div></div>
+    </div>
+  </section>
+
+  <section class="cifras" aria-label="Un mes real en el proyecto de ejemplo">
+    <div class="wrap">
+      <div class="cifra"><div class="n">310,956</div><div class="l">líneas de venta de 22 archivos mensuales, en una sola consulta</div></div>
+      <div class="cifra"><div class="n">2.6 ms</div><div class="l">tarda la venta mensual de una categoría, en una laptop normal</div></div>
+      <div class="cifra"><div class="n">0 bytes</div><div class="l">de tus datos salen de tu computadora, a menos que tú lo decidas</div></div>
+      <div class="cifra"><div class="n neon">3er hábil</div><div class="l">de cada mes, a las 7:00, el cierre se genera solo y deja el Excel listo</div></div>
+    </div>
+  </section>
+
+  <section class="bloque" id="flujo">
+    <div class="wrap">
+      <div class="cab centro">
+        <span class="eyebrow">Cómo funciona</span>
+        <h2>Del archivo que llega<br>al reporte que entregas.</h2>
+        <p>Hoy eso suele ser un Excel con fórmulas que se rompen, varias herramientas y el mismo correo cada lunes. En AmoxSQL es un solo proyecto: una carpeta con archivos de texto que puedes versionar y compartir.</p>
+      </div>
+      <div class="pasos" role="tablist" aria-label="Pasos">
+        <button class="paso" role="tab" aria-selected="true" data-img="img/import-modal.png" data-alt="Importar el Excel de metas: la hoja, el rango y cómo se leerán las columnas" data-pie="datos/metas_2024.xlsx · fuentes.&quot;ventas-mensuales&quot;"><span class="num">01</span><h3>Abre</h3><p>Excel, CSV, Parquet o una carpeta que crece cada mes, sin copiar ni importar a mano.</p><span class="barra"></span></button>
+        <button class="paso" role="tab" aria-selected="false" data-img="img/notebook.png" data-alt="Un cuaderno con celdas con nombre, parámetros y resultados" data-pie="notebooks/analisis_2024.sqlnb · cada celda deja una vista"><span class="num">02</span><h3>Analiza</h3><p>SQL con autocompletado que conoce tus tablas, cuadernos y un perfil de tus datos en un clic.</p><span class="barra"></span></button>
+        <button class="paso" role="tab" aria-selected="false" data-img="img/report-flow-studio.png" data-alt="La presentación del comité en Report Flow con un gráfico refrescable" data-pie="reportes/resumen_2024.amoxdeck · exporta a PowerPoint editable"><span class="num">03</span><h3>Presenta</h3><p>Gráficos que explican lo que muestran y presentaciones que se actualizan solas.</p><span class="barra"></span></button>
+        <button class="paso" role="tab" aria-selected="false" data-img="img/running-status.png" data-alt="El proceso de cierre en Data Flow, cada paso con sus filas" data-pie="flujos/cierre_mensual.sqlchain · entregas/2024/cierre_2024-10.xlsx"><span class="num">04</span><h3>Entrega</h3><p>Procesos visuales que dejan el Excel en la carpeta donde Dirección lo busca.</p><span class="barra"></span></button>
+      </div>
+      <div class="escena">
+        <div class="ventana"><div class="dentro"><img id="escena-img" src="img/import-modal.png" alt="Importar el Excel de metas: la hoja, el rango y cómo se leerán las columnas" width="1600" height="1000"></div></div>
+        <div class="pie"><code id="escena-pie">datos/metas_2024.xlsx · fuentes."ventas-mensuales"</code><span>Capturas reales del proyecto de ejemplo</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloque" id="canvas">
+    <div class="wrap canvas-g">
+      <div>
+        <span class="eyebrow">Nuevo en 5.15</span>
+        <div class="cab"><h2>Un lienzo para<br>pensar tu análisis.</h2>
+        <p>Explora dos caminos desde la misma base, deja una nota junto a la cifra que la motivó y ten todo tu razonamiento a la vista.</p></div>
+        <div class="ideas">
+          <div class="idea"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><div><h3>Las conexiones se crean solas</h3><p>No tienes que dibujarlas: cuando una consulta usa otra tarjeta, la flecha aparece.</p></div></div>
+          <div class="idea"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg></span><div><h3>Se abre al instante</h3><p>Cada tarjeta recuerda su último resultado, así que el lienzo se ve completo sin volver a ejecutar nada.</p></div></div>
+          <div class="idea"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H4zM8 20h8M12 16v4"/></svg></span><div><h3>De la exploración a la entrega</h3><p>Cada marco se convierte en una diapositiva y cada rama, en un proceso programado.</p></div></div>
+        </div>
+      </div>
+      <div class="ventana sube"><div class="dentro"><img src="img/canvas.png" alt="El Canvas con sus marcos por categoría y por mes" width="1600" height="1000" loading="lazy"></div></div>
+    </div>
+  </section>
+
+  <section class="bloque" id="todo">
+    <div class="wrap">
+      <div class="cab">
+        <span class="eyebrow">Todo lo que incluye</span>
+        <h2>Pensado para quien<br>entrega reportes cada semana.</h2>
+      </div>
+      <div class="rejilla">
+        <article class="celda ancha sube">
+          <span class="etq">Story Flow</span>
+          <h3>Gráficos que cuentan una historia.</h3>
+          <p>17 tipos de gráfico en seis pasos, con título, la conclusión resaltada, anotaciones y línea de meta. Cada gráfico guarda su consulta, así que siempre puedes regenerarlo.</p>
+          <div class="shot"><img src="img/story-stage.png" alt="Story Flow: los diez productos que más venden, con la conclusión" loading="lazy"></div>
+        </article>
+        <article class="celda ancha sube">
+          <span class="etq">Editor SQL</span>
+          <h3>Escribe SQL sin memorizar columnas.</h3>
+          <p>Escribe <code>v.</code> y te muestra las columnas de esa tabla. Tus métricas de negocio se vuelven funciones: <code>venta_total(importe)</code>.</p>
+          <div class="shot"><img src="img/autocomplete-dot-access.png" alt="Autocompletado de columnas tras un alias" loading="lazy"></div>
+        </article>
+        <article class="celda sube">
+          <span class="etq">Workspaces</span>
+          <h3>Cada cliente, con lo suyo.</h3>
+          <p>Agrupa tus proyectos por cliente, con su contexto, sus métricas y un aviso de lo que falló mientras no estabas.</p>
+        </article>
+        <article class="celda sube">
+          <span class="etq">Perfilado</span>
+          <h3>Detecta los problemas antes de entregar.</h3>
+          <p>Duplicados, valores atípicos, fechas faltantes y columnas redundantes, con un clic.</p>
+        </article>
+        <article class="celda sube">
+          <span class="etq">dbt y DuckLake</span>
+          <h3>También para ingeniería de datos.</h3>
+          <p>dbt integrado en el editor, con vista previa y linaje, y lagos de datos con versiones que puedes consultar tal como estaban en una fecha.</p>
+        </article>
+        <article class="celda ancha sube">
+          <span class="etq">IA local o en la nube</span>
+          <h3>Un asistente que conoce tu negocio.</h3>
+          <p>Conoce tus métricas, cómo se relacionan tus tablas y el vocabulario de tu negocio. Funciona con modelos locales o en la nube, y tú decides por cliente qué datos puede ver.</p>
+        </article>
+        <article class="celda ancha sube">
+          <span class="etq">Todo es texto</span>
+          <h3>Versiona tu análisis como código.</h3>
+          <p>Todo lo que creas es un archivo legible: si cambias una línea, el historial muestra solo esa línea.</p>
+          <div class="formatos"><code>.sql</code><code>.sqlnb</code><code>.amoxcanvas</code><code>.amoxvis</code><code>.amoxdeck</code><code>.sqlchain</code><code>.amoxdiagram</code></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="bloque" id="solo">
+    <div class="wrap solo">
+      <div>
+        <span class="eyebrow">Automatiza</span>
+        <div class="cab"><h2>El cierre de mes<br>se hace solo.</h2>
+        <p>Programa un proceso para los días hábiles, para el tercer día hábil de cada mes o para cuando llegue un archivo nuevo. Si el cliente cambió una columna, el proceso se detiene y te dice cuál.</p></div>
+        <div class="reloj" aria-label="Ejemplo de bitácora">
+          <div class="fila"><span class="t">Nov 5 · 06:58</span><span>Llega <b>Sales_2024_10.csv</b> a la carpeta</span></div>
+          <div class="fila"><span class="t">Nov 5 · 07:00</span><span>Validación del archivo <span class="ok">✓ 11 columnas</span></span></div>
+          <div class="fila"><span class="t">Nov 5 · 07:00</span><span>Cierre mensual <span class="ok">✓ 94 filas · 6 s</span></span></div>
+          <div class="fila"><span class="t">Nov 5 · 07:00</span><span>Guarda <b>entregas/2024/cierre_2024-10.xlsx</b></span></div>
+        </div>
+      </div>
+      <div class="ventana sube"><div class="dentro"><img src="img/schedule-dialog.png" alt="Programar el cierre: cada mes, el tercer día hábil, a las 07:00" width="1600" height="1000" loading="lazy"></div></div>
+    </div>
+  </section>
+
+  <section class="bloque" id="local">
+    <div class="wrap">
+      <div class="local">
+        <div>
+          <span class="eyebrow">Local-first</span>
+          <div class="cab"><h2>Tus datos nunca salen<br>de tu computadora.</h2></div>
+          <ul class="ticks">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>El motor de análisis va dentro de la aplicación: millones de filas sin servidor ni registro.</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>Tus contraseñas y llaves de acceso se guardan cifradas con la seguridad de tu sistema operativo.</li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>Funciona sin internet, incluida la IA si usas modelos locales.</li>
+          </ul>
+        </div>
+        <pre class="codigo"><span class="c">-- Los 22 meses de una vez, sin importar archivos</span>
+<span class="k">SELECT</span> <span class="f">date_trunc</span>(<span class="s">'month'</span>, "Order Date") <span class="k">AS</span> mes,
+       <span class="f">venta_total</span>(importe)          <span class="k">AS</span> venta
+<span class="k">FROM</span>   fuentes.<span class="s">"ventas-mensuales"</span>
+<span class="k">GROUP BY ALL</span>
+<span class="k">ORDER BY</span> mes;</pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="nombre">
+    <div class="wrap">
+      <svg class="glifo" aria-hidden="true"><use href="#glifo"/></svg>
+      <blockquote>De <em class="neon">Amoxtli</em>, «códice» en náhuatl: el libro donde se guardaba lo que se sabía.</blockquote>
+      <p>Hecho en Latinoamérica para el mundo.</p>
+    </div>
+  </section>
+
+  <section class="final" id="descargar">
+    <div class="wrap">
+      <h2 class="grad">Tu próximo análisis<br>empieza aquí.</h2>
+      <div class="ctas">
+        <a class="btn pri grande" href="https://github.com/dsandovalflavio/amoxsql/releases/latest">Descargar para Windows</a>
+        <a class="btn grande" href="https://github.com/dsandovalflavio/amoxsql/releases/latest">macOS (beta)</a>
+        <a class="btn grande" href="https://github.com/dsandovalflavio/amoxsql/blob/main/docs/es/user-guide/example-project.md">Ver el proyecto de ejemplo</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Flavio Sandoval · AmoxSQL Community License</span>
+    <nav>
+      <a href="https://github.com/dsandovalflavio/amoxsql">GitHub</a>
+      <a href="https://github.com/dsandovalflavio/amoxsql/tree/main/docs">Documentación</a>
+      <a href="https://github.com/dsandovalflavio/amoxsql/blob/main/CHANGELOG.md">Novedades</a>
+      <a href="https://github.com/sponsors/dsandovalflavio">Sponsor</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const reducir = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // El producto del hero se endereza al cargar.
+  requestAnimationFrame(() => document.getElementById('hero').classList.add('listo'));
+
+  // Pestañas del recorrido: avanzan solas cada 7 s hasta que alguien elige una.
+  const pasos = [...document.querySelectorAll('.paso')];
+  const img = document.getElementById('escena-img');
+  const pie = document.getElementById('escena-pie');
+  let i = 0, auto = !reducir, t;
+  const elegir = (k) => {
+    i = k;
+    pasos.forEach((p, n) => p.setAttribute('aria-selected', String(n === k)));
+    const p = pasos[k];
+    img.src = p.dataset.img; img.alt = p.dataset.alt; pie.textContent = p.dataset.pie;
+    clearTimeout(t);
+    if (auto) t = setTimeout(() => elegir((i + 1) % pasos.length), 7000);
+  };
+  pasos.forEach((p, n) => p.addEventListener('click', () => { auto = false; elegir(n); }));
+  // Precarga para que el cambio no parpadee.
+  pasos.forEach(p => { const im = new Image(); im.src = p.dataset.img; });
+  elegir(0);
+
+  // Aparición suave: el contenido ya es visible; sólo sube unos píxeles al entrar.
+  if (!reducir && 'IntersectionObserver' in window) {
+    const els = [...document.querySelectorAll('.sube')];
+    const io = new IntersectionObserver((es) => es.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.remove('abajo'); io.unobserve(e.target); }
+    }), { rootMargin: '0px 0px -8% 0px' });
+    els.forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.top > innerHeight) { el.classList.add('abajo'); io.observe(el); }
+    });
+  }
+})();
+</script>
+</body>
+</html>
