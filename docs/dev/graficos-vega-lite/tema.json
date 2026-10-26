@@ -1,0 +1,48 @@
+{
+  "font": "Segoe UI, system-ui, sans-serif",
+  "background": "#ffffff",
+  "padding": 12,
+  "view": {
+    "stroke": null
+  },
+  "axis": {
+    "domainColor": "#c9ccd2",
+    "tickColor": "#c9ccd2",
+    "gridColor": "#eceef1",
+    "gridDash": [
+      2,
+      4
+    ],
+    "labelColor": "#3c4048",
+    "titleColor": "#7a3e3e",
+    "titleFontWeight": "normal",
+    "labelFontSize": 11,
+    "titleFontSize": 11
+  },
+  "axisY": {
+    "domain": false,
+    "ticks": false
+  },
+  "axisBand": {
+    "grid": false
+  },
+  "legend": {
+    "labelColor": "#3c4048",
+    "symbolType": "stroke"
+  },
+  "title": {
+    "fontSize": 15,
+    "subtitleColor": "#6b7079",
+    "color": "#1f2228"
+  },
+  "range": {
+    "category": [
+      "#2a7ab9",
+      "#f2545b",
+      "#b8bcc4",
+      "#e4a43a",
+      "#25a08d"
+    ]
+  },
+  "numberFormat": ",.0f"
+}

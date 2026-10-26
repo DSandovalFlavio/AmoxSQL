@@ -1,0 +1,86 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 460,
+  "height": 240,
+  "layer": [
+    {
+      "mark": {
+        "type": "bar",
+        "color": "#b8bcc4",
+        "binSpacing": 1
+      },
+      "encoding": {
+        "x": {
+          "field": "ingresos",
+          "bin": {
+            "maxbins": 40
+          },
+          "title": "Ingresos del día (MXN)"
+        },
+        "y": {
+          "aggregate": "count",
+          "title": "Días"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule",
+        "color": "#f2545b",
+        "strokeWidth": 2
+      },
+      "encoding": {
+        "x": {
+          "aggregate": "mean",
+          "field": "ingresos"
+        },
+        "strokeDash": {
+          "datum": "Media"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule",
+        "color": "#f2545b",
+        "strokeWidth": 2
+      },
+      "encoding": {
+        "x": {
+          "aggregate": "median",
+          "field": "ingresos"
+        },
+        "strokeDash": {
+          "datum": "Mediana"
+        }
+      }
+    }
+  ],
+  "encoding": {
+    "strokeDash": {
+      "scale": {
+        "domain": [
+          "Media",
+          "Mediana"
+        ],
+        "range": [
+          [
+            1,
+            0
+          ],
+          [
+            5,
+            3
+          ]
+        ]
+      },
+      "legend": {
+        "orient": "top",
+        "title": null
+      }
+    }
+  }
+}

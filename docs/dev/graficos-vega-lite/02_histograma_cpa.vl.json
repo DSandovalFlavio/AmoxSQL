@@ -1,0 +1,78 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 460,
+  "height": 240,
+  "layer": [
+    {
+      "mark": {
+        "type": "bar",
+        "color": "#b8bcc4",
+        "binSpacing": 1
+      },
+      "encoding": {
+        "x": {
+          "field": "cpa",
+          "bin": {
+            "maxbins": 20
+          },
+          "title": "CPA del mes (MXN)"
+        },
+        "y": {
+          "aggregate": "count",
+          "title": "Campañas-mes"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule",
+        "strokeWidth": 2
+      },
+      "encoding": {
+        "x": {
+          "aggregate": "mean",
+          "field": "cpa"
+        },
+        "color": {
+          "datum": "Media"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule",
+        "strokeWidth": 2
+      },
+      "encoding": {
+        "x": {
+          "aggregate": "median",
+          "field": "cpa"
+        },
+        "color": {
+          "datum": "Mediana"
+        }
+      }
+    }
+  ],
+  "encoding": {
+    "color": {
+      "scale": {
+        "domain": [
+          "Media",
+          "Mediana"
+        ],
+        "range": [
+          "#f2545b",
+          "#2a7ab9"
+        ]
+      },
+      "legend": {
+        "orient": "top",
+        "title": null
+      }
+    }
+  }
+}

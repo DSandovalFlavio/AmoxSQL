@@ -1,0 +1,50 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 440,
+  "encoding": {
+    "y": {
+      "field": "grupo",
+      "type": "nominal",
+      "sort": null,
+      "title": null
+    }
+  },
+  "layer": [
+    {
+      "mark": "bar",
+      "encoding": {
+        "x": {
+          "field": "lift",
+          "type": "quantitative",
+          "title": "Lift en recuerdo de marca (pp)"
+        },
+        "color": {
+          "condition": {
+            "test": "datum.grupo === 'Ajustada'",
+            "value": "#f2545b"
+          },
+          "value": "#b8bcc4"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "errorbar",
+        "color": "#333",
+        "thickness": 1.5
+      },
+      "encoding": {
+        "x": {
+          "field": "bajo",
+          "type": "quantitative"
+        },
+        "x2": {
+          "field": "alto"
+        }
+      }
+    }
+  ]
+}

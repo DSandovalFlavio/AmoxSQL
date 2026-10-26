@@ -1,0 +1,70 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 320,
+  "height": 260,
+  "transform": [
+    {
+      "fold": [
+        "cupones",
+        "gasto"
+      ],
+      "as": [
+        "serie",
+        "valor"
+      ]
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "min",
+          "field": "valor",
+          "as": "mn"
+        },
+        {
+          "op": "max",
+          "field": "valor",
+          "as": "mx"
+        }
+      ],
+      "groupby": [
+        "serie"
+      ]
+    },
+    {
+      "calculate": "(datum.valor - datum.mn) / (datum.mx - datum.mn)",
+      "as": "escala"
+    }
+  ],
+  "mark": {
+    "type": "line",
+    "point": true
+  },
+  "encoding": {
+    "x": {
+      "field": "mes",
+      "type": "ordinal",
+      "title": "Mes de 2025"
+    },
+    "y": {
+      "field": "escala",
+      "type": "quantitative",
+      "title": "Escala min-max (0 = mes más bajo)"
+    },
+    "color": {
+      "field": "serie",
+      "scale": {
+        "range": [
+          "#2a7ab9",
+          "#f2545b"
+        ]
+      },
+      "legend": {
+        "orient": "top",
+        "title": null
+      }
+    }
+  }
+}

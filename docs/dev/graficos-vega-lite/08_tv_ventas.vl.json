@@ -1,0 +1,42 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 440,
+  "height": 280,
+  "mark": {
+    "type": "circle",
+    "size": 60,
+    "opacity": 0.9
+  },
+  "encoding": {
+    "x": {
+      "field": "tv",
+      "type": "quantitative",
+      "title": "Inversión semanal en TV (MXN)"
+    },
+    "y": {
+      "field": "ventas",
+      "type": "quantitative",
+      "title": "Ventas de la semana (MXN)"
+    },
+    "color": {
+      "field": "temporada",
+      "scale": {
+        "domain": [
+          "Baja",
+          "Alta"
+        ],
+        "range": [
+          "#b8bcc4",
+          "#f2545b"
+        ]
+      },
+      "legend": {
+        "orient": "top",
+        "title": "Temporada"
+      }
+    }
+  }
+}

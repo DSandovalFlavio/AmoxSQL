@@ -1,0 +1,72 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 440,
+  "title": {
+    "text": "Tres campañas no recuperan lo que cuestan",
+    "subtitle": "ROAS de Moda Nube, 2025. Línea punteada: ROAS = 1",
+    "anchor": "start"
+  },
+  "encoding": {
+    "y": {
+      "field": "campana",
+      "type": "nominal",
+      "sort": {
+        "field": "roas",
+        "op": "sum",
+        "order": "descending"
+      },
+      "title": null
+    },
+    "x": {
+      "field": "roas",
+      "type": "quantitative",
+      "axis": null
+    }
+  },
+  "layer": [
+    {
+      "mark": "bar",
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum.roas < 1",
+            "value": "#f2545b"
+          },
+          "value": "#b8bcc4"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "dx": 4
+      },
+      "encoding": {
+        "text": {
+          "field": "roas",
+          "format": ".2f"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule",
+        "strokeDash": [
+          3,
+          3
+        ],
+        "color": "#555"
+      },
+      "encoding": {
+        "x": {
+          "datum": 1
+        },
+        "y": null
+      }
+    }
+  ]
+}
