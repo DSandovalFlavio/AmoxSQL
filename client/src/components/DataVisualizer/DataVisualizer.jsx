@@ -290,6 +290,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     const inlineLegendItems = useMemo(() => {
         if (state.legendPosition !== 'inline') return null;
         if (state.chartType === 'donut') return null;
+        // Distribución e intervalos: una sola medida, sin series que nombrar.
+        if (['histogram', 'boxplot', 'errorbar'].includes(state.chartType)) return null;
         if (!finalSeriesKeys || finalSeriesKeys.length === 0) return null;
         /* Intenté esconderla con una sola serie por considerarla ruido. Error:
            en los gráficos donde la categoría va por fila — treemap, barras por

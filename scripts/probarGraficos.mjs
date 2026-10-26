@@ -95,6 +95,16 @@ const casos = [
         highlightConfig: { type: 'max', value: '', color: '#ef4444' },
     }, categorias, 'bar', 6],
     ['la misma columna en X y en Y', { chartType: 'bar', xAxisKey: 'margen', yAxisKeys: ['margen'] }, categorias, 'bar', 6],
+    ['histograma con media y mediana', { chartType: 'histogram', xAxisKey: 'ventas', yAxisKeys: ['ventas'], binCount: 15, histogramStats: ['mean', 'median'] }, dispersion, 'bar', 5],
+    ['caja y bigotes con una categoría resaltada', { chartType: 'boxplot', xAxisKey: 'temporada', yAxisKeys: ['ventas'], highlightConfig: { type: 'exact', value: 'Alta', color: '#ef4444' } }, dispersion, 'box', 2],
+    ['barras con intervalo', { chartType: 'errorbar', xAxisKey: 'grupo', yAxisKeys: ['lift'], errorLowKey: 'bajo', errorHighKey: 'alto', highlightConfig: { type: 'exact', value: 'Ajustada', color: '#ef4444' } }, [{ grupo: 'Ingenua', lift: 9, bajo: 6.2, alto: 11.8 }, { grupo: 'Ajustada', lift: 4.2, bajo: 1.2, alto: 7.2 }], 'errorbar', 2],
+    ['pendiente de 2023 a 2024', { chartType: 'slope', xAxisKey: 'anio', yAxisKeys: ['venta'], splitByKey: 'categoria' }, ['Audio', 'Tabletas'].flatMap((c, i) => [{ anio: '2023', categoria: c, venta: 100 + i * 30 }, { anio: '2024', categoria: c, venta: 140 - i * 20 }]), 'line mark', 2],
+    ['barras bajo un umbral en otro color', { chartType: 'bar-horizontal', xAxisKey: 'categoria', yAxisKeys: ['margen'], highlightConfig: { type: 'below', value: 20, color: '#ef4444' }, refLine: { value: 20, label: 'Umbral', color: '#555', style: 'dashed' } }, categorias, 'bar', 6],
+    ['tramo de una serie diaria resaltado', { chartType: 'line', xAxisKey: 'dia', yAxisKeys: ['cvr'], highlightConfig: { type: 'range', value: '2025-06-10', value2: '2025-06-26', color: '#ef4444' } }, diarios, 'line mark', 2],
+    ['dispersión con recta de regresión', { chartType: 'scatter', xAxisKey: 'tv', yAxisKeys: ['ventas'], trendLine: { type: 'linear', color: '#ef4444' } }, dispersion, 'line mark', 1],
+    ['dispersión con curva suavizada', { chartType: 'scatter', xAxisKey: 'tv', yAxisKeys: ['ventas'], trendLine: { type: 'loess', color: '#ef4444' } }, dispersion, 'line mark', 1],
+    ['línea de referencia en la media', { chartType: 'bar', xAxisKey: 'categoria', yAxisKeys: ['venta'], refLine: { value: 'mean', label: 'Media', color: '#ef4444', style: 'dashed' } }, categorias, 'rule mark', 1],
+    ['anillo con porciones pequeñas en «Others»', { chartType: 'donut', xAxisKey: 'categoria', yAxisKeys: ['venta'], donutGroupingThreshold: 15 }, categorias, 'arc mark', 1],
     ['línea con media móvil y punto resaltado', { chartType: 'line', xAxisKey: 'dia', yAxisKeys: ['cvr'], trendLine: { type: 'moving-average', windowSize: 7 }, highlightConfig: { type: 'exact', value: '2025-06-15', color: '#ef4444' } }, diarios, 'line mark', 2],
 ];
 
@@ -107,6 +117,8 @@ for (const [nombre, config, filas, rol, minimo] of casos) {
         const { avisos, svg, vista } = await dibujar(spec, filas);
         // Vega sin «-Lite» no pone descripciones a cada marca: se cuentan los datos que dibuja.
         const n = rol.startsWith('data:') ? vista.data(rol.slice(5)).length : marcas(svg, rol);
+        // SALIDA=<carpeta>: deja el SVG de cada caso para mirarlo.
+        if (process.env.SALIDA) (await import('node:fs')).writeFileSync(path.join(process.env.SALIDA, `${nombre.replace(/[^\p{L}\d]+/gu, '_')}.svg`), svg);
         bien(`${nombre}: compila sin avisos`, avisos.length === 0, avisos.join(' | '));
         bien(`${nombre}: dibuja ${minimo}+ «${rol}»`, n >= minimo, `dibujó ${n} · ${globalThis.__roles(svg)}`);
     } catch (e) {
@@ -127,6 +139,8 @@ console.log('Lo que antes salía mal');
     const top = deStoryFlow({ chartType: 'bar', xAxisKey: 'categoria', yAxisKeys: ['venta'], limit: 3, sortMode: 'y-desc' }, { filas: categorias, colores });
     const r = await dibujar(top, categorias);
     bien('un ranking sí respeta el límite (3 de 6)', marcas(r.svg, 'bar') === 3, `dibujó ${marcas(r.svg, 'bar')}`);
+    const pend = deStoryFlow({ chartType: 'slope', xAxisKey: 'anio', yAxisKeys: ['venta'], splitByKey: 'categoria' }, { filas: [{ anio: '2023', categoria: 'Tabletas', venta: 1 }], colores });
+    bien('una serie con «T» mayúscula conserva su nombre', JSON.stringify(pend.layer[0].encoding.color.scale.domain) === '["Tabletas"]');
     bien('BIGINT/DECIMAL llegan como texto y se dibujan como número', typeof prepararFilas(ventas)[0].venta === 'number');
     bien('un código con ceros delante sigue siendo texto', typeof prepararFilas([{ cp: '01234' }, { cp: '04510' }])[0].cp === 'string');
 }

@@ -178,6 +178,11 @@ export const CHART_TYPES = [
     { key: 'scatter', label: 'Scatter', category: 'relation', description: 'XY scatter plot' },
     { key: 'bubble', label: 'Bubble', category: 'relation', description: 'Scatter with size' },
     { key: 'heatmap', label: 'Heatmap', category: 'relation', description: 'Color intensity matrix' },
+    { key: 'errorbar', label: 'Bars + interval', category: 'compare', description: 'Bars with a low–high interval (confidence, range)' },
+    { key: 'slope', label: 'Slope', category: 'compare', description: 'From one moment to another, one line per category' },
+    // Distribution — how values spread
+    { key: 'histogram', label: 'Histogram', category: 'distribution', description: 'How many rows fall in each range of a number' },
+    { key: 'boxplot', label: 'Box plot', category: 'distribution', description: 'Median, quartiles and outliers per category' },
     // Flow — stages / pipeline
     { key: 'funnel', label: 'Funnel', category: 'flow', description: 'Funnel / pipeline' },
     { key: 'waterfall', label: 'Waterfall', category: 'flow', description: 'Cumulative bridge' },
@@ -200,6 +205,7 @@ export const CHART_CATEGORIES = [
     { key: 'trend', label: 'Trend' },
     { key: 'composition', label: 'Composition' },
     { key: 'relation', label: 'Relationship' },
+    { key: 'distribution', label: 'Distribution' },
     { key: 'flow', label: 'Flow' },
 ];
 
@@ -415,11 +421,19 @@ export const DEFAULT_CONFIG = {
     // Scatter specific
     scatterQuadrants: false,
 
+    // Distribución e intervalos (5.17)
+    binCount: 20,              // histograma: cuántos cubos como máximo
+    histogramStats: [],        // histograma: ['mean', 'median'] dibuja esas reglas
+    errorLowKey: '',           // barras con intervalo: columna del mínimo…
+    errorHighKey: '',          // …y del máximo
+    orientation: 'horizontal', // caja y barras con intervalo: categorías a la izquierda
+
     // Combo specific
     comboLineKeys: [],
 
     // Highlight
-    highlightConfig: { type: 'none', value: '', color: '#ff0000' },
+    // type: none | max | min | exact | below | above (umbral en `value`) | range (de `value` a `value2` en X)
+    highlightConfig: { type: 'none', value: '', value2: '', color: '#ff0000' },
 
     // Series colors/styles
     seriesConfig: {},

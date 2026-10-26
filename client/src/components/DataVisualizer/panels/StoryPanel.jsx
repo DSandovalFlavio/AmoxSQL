@@ -30,9 +30,11 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
     // Feature support per chart type — MUST match what vega/deStoryFlow.js draws,
     // so the panel never offers a control that does nothing. With Vega-Lite the
     // reference layers are real layers, so every chart with axes gets them.
-    const supportsRef = isLine || isBar || isCombo || isScatter || isWaterfall;   // Goal / Reference line & area
+    const isBox = chartType === 'boxplot';
+    const isErr = chartType === 'errorbar';
+    const supportsRef = isLine || isBar || isCombo || isScatter || isWaterfall || isErr;   // Goal / Reference line & area
     const supportsTrend = isLine || isBar || isScatter;                           // Trend / moving average (one series)
-    const supportsHighlight = isLine || isBar;                                    // Highlight rule
+    const supportsHighlight = isLine || isBar || isBox || isErr;                  // Highlight rule
     const supportsAnnotations = supportsRef;                                      // Free-form annotations
 
     const applyTexts = () => {
@@ -312,10 +314,33 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                         style={{ marginBottom: '8px' }}
                     >
                         <option value="none">None</option>
-                        <option value="max">Max Value</option>
-                        <option value="min">Min Value</option>
+                        {!isBox && <option value="max">Max Value</option>}
+                        {!isBox && <option value="min">Min Value</option>}
                         <option value="exact">Specific Category</option>
+                        {!isBox && <option value="below">Values below…</option>}
+                        {!isBox && <option value="above">Values above…</option>}
+                        {isLine && <option value="range">A stretch of the line</option>}
                     </SelectField>
+
+                    {(highlightConfig.type === 'below' || highlightConfig.type === 'above') && (
+                        <input
+                            type="number" placeholder="Threshold, e.g. 1"
+                            value={highlightConfig.value}
+                            onChange={e => setField('highlightConfig', { ...highlightConfig, value: e.target.value })}
+                            style={{ ...panelStyles.input, marginBottom: '8px' }}
+                        />
+                    )}
+
+                    {highlightConfig.type === 'range' && (
+                        <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                            <input type="text" placeholder="From (e.g. 2025-06-10)" value={highlightConfig.value}
+                                onChange={e => setField('highlightConfig', { ...highlightConfig, value: e.target.value })}
+                                style={{ ...panelStyles.input, flex: 1 }} />
+                            <input type="text" placeholder="To" value={highlightConfig.value2 || ''}
+                                onChange={e => setField('highlightConfig', { ...highlightConfig, value2: e.target.value })}
+                                style={{ ...panelStyles.input, flex: 1 }} />
+                        </div>
+                    )}
 
                     {highlightConfig.type === 'exact' && (
                         <input
@@ -347,10 +372,10 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                     {goalLine.enabled && (
                         <>
                             <InputField
-                                label="Y Value" type="text"
+                                label="Value — a number, or mean / median" type="text"
                                 value={goalLine.value}
                                 onChange={v => setField('goalLine', { ...goalLine, value: v })}
-                                placeholder="Enter value..."
+                                placeholder="e.g. 28000"
                                 style={{ marginBottom: '6px' }}
                             />
                             <InputField
@@ -390,8 +415,9 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                         style={{ marginBottom: '6px' }}
                     >
                         <option value="none">None</option>
-                        <option value="linear">Linear Trend</option>
-                        <option value="moving-average">Moving Average</option>
+                        <option value="linear">{isScatter ? 'Regression line' : 'Linear Trend'}</option>
+                        {isScatter && <option value="loess">Smooth curve</option>}
+                        {!isScatter && <option value="moving-average">Moving Average</option>}
                     </SelectField>
 
                     {trendLine.type === 'moving-average' && (
@@ -420,10 +446,10 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
             {supportsRef && (
                 <Section title="Reference Line">
                     <InputField
-                        label="Y Value" type="text"
+                        label="Value — a number, or mean / median" type="text"
                         value={refLine.value}
                         onChange={v => setField('refLine', { ...refLine, value: v })}
-                        placeholder="Enter value..."
+                        placeholder="e.g. 1, mean, median"
                         style={{ marginBottom: '6px' }}
                     />
                     <InputField

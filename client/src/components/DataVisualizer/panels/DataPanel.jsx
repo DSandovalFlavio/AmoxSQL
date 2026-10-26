@@ -18,6 +18,14 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
     const soloAnillo = chartType === 'donut';    // grosor y cifra del centro
     const isScatter = chartType === 'scatter' || chartType === 'bubble';
     const isHorizontal = chartType.startsWith('bar-horizontal');
+    // 5.17: distribución e intervalos. El histograma solo necesita UNA columna
+    // numérica (la cuenta la hace la figura); caja e intervalo, una sola Y.
+    const isHist = chartType === 'histogram';
+    const isBox = chartType === 'boxplot';
+    const isErr = chartType === 'errorbar';
+    const unaSolaY = isBox || isErr;
+    const { binCount, histogramStats = [], errorLowKey, errorHighKey, orientation } = state;
+    const alternarStat = (op) => setField('histogramStats', histogramStats.includes(op) ? histogramStats.filter(s => s !== op) : [...histogramStats, op]);
 
     // Field roles are orientation-independent: xAxisKey is ALWAYS the
     // dimension/category and yAxisKeys are ALWAYS the measures. Horizontal
@@ -26,6 +34,8 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
     let xLabel = 'Category';
     let yLabel = 'Values';
     if (isDonut) { xLabel = 'Segment Label'; yLabel = 'Segment Size'; }
+    if (isHist) xLabel = 'Value (a number)';
+    if (unaSolaY) yLabel = 'Value';
 
     return (
         <>
@@ -44,6 +54,7 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
                 </div>
 
                 {/* Y-Axis */}
+                {!isHist && (
                 <div style={{ marginBottom: '10px' }}>
                     <label style={panelStyles.label}>
                         {yLabel}
@@ -53,7 +64,7 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
                             </span>
                         )}
                     </label>
-                    {splitByKey ? (
+                    {(splitByKey || unaSolaY) ? (
                         <select
                             value={yAxisKeys[0] || ''}
                             onChange={e => setField('yAxisKeys', [e.target.value])}
@@ -87,9 +98,42 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
                         </div>
                     )}
                 </div>
+                )}
+
+                {/* Intervalo: de qué columnas salen el mínimo y el máximo */}
+                {isErr && (
+                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                        <SelectField label="Interval low" value={errorLowKey} onChange={v => setField('errorLowKey', v)} style={{ flex: 1 }}>
+                            <option value="">(None)</option>
+                            {columns.map(col => <option key={col} value={col}>{col}</option>)}
+                        </SelectField>
+                        <SelectField label="Interval high" value={errorHighKey} onChange={v => setField('errorHighKey', v)} style={{ flex: 1 }}>
+                            <option value="">(None)</option>
+                            {columns.map(col => <option key={col} value={col}>{col}</option>)}
+                        </SelectField>
+                    </div>
+                )}
+
+                {(isBox || isErr) && (
+                    <SelectField label="Orientation" value={orientation} onChange={v => setField('orientation', v)} style={{ marginBottom: '8px' }}>
+                        <option value="horizontal">Categories on the left</option>
+                        <option value="vertical">Categories along the bottom</option>
+                    </SelectField>
+                )}
+
+                {/* Histograma: cubos y estadísticos */}
+                {isHist && (
+                    <>
+                        <InputField label="Bins (at most)" type="number" min={2} max={200}
+                            value={binCount} onChange={v => setField('binCount', v === '' || isNaN(v) ? 20 : v)}
+                            style={{ marginBottom: '8px' }} />
+                        <Toggle label="Mark the mean" checked={histogramStats.includes('mean')} onChange={() => alternarStat('mean')} />
+                        <Toggle label="Mark the median" checked={histogramStats.includes('median')} onChange={() => alternarStat('median')} />
+                    </>
+                )}
 
                 {/* Secondary Y-Axis (Right) */}
-                {yAxisKeys.length > 0 && !splitByKey && !isDonut && !isHorizontal && (
+                {yAxisKeys.length > 0 && !splitByKey && !isDonut && !isHorizontal && !isHist && !unaSolaY && (
                     <SelectField
                         label="Secondary Y-Axis (Right)"
                         value={rightYAxisKey}
@@ -103,6 +147,7 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
             </Section>
 
             {/* ── Sorting & Limits ── */}
+            {!isHist && (
             <Section title="Sort & Limit">
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                     <SelectField
@@ -126,6 +171,7 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
                     />
                 </div>
             </Section>
+            )}
 
             {/* ── Date Aggregation ── */}
             {isDateColumn && (
@@ -149,7 +195,7 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
             )}
 
             {/* ── Split By ── */}
-            {!isDonut && (
+            {!isDonut && !unaSolaY && (
                 <Section>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '8px' }}>
                         <LuGitMerge size={12} style={{ color: 'var(--text-tertiary)' }} />

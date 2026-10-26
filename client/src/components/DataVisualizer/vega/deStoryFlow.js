@@ -75,7 +75,8 @@ function seriesDe(c, filas, plegado) {
         const vistas = new Set();
         for (const f of filas) {
             const v = f[c.splitByKey];
-            if (v != null) vistas.add(String(v).split('T')[0]);
+            // Una fecha con hora se queda en el día; cualquier otro texto, tal cual.
+            if (v != null) vistas.add(/^\d{4}-\d{2}-\d{2}T/.test(String(v)) ? String(v).slice(0, 10) : String(v));
         }
         return [...vistas].sort();
     }
@@ -101,7 +102,12 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
     if (c.chartTitle || c.chartSubtitle) {
         base.title = { text: c.chartTitle || '', ...(c.chartSubtitle ? { subtitle: c.chartSubtitle } : {}) };
     }
+    // Distribución e intervalos: leen las filas tal cual, sin la suma por X. El
+    // histograma solo necesita la X.
+    if (tipo === 'histogram' && X) return histograma(base, c, { X, colores });
     if (!X || !Ys.length) return { ...base, mark: 'point' };
+    if (tipo === 'boxplot') return caja(base, c, { X, Y: Ys[0], colores });
+    if (tipo === 'errorbar') return intervalo(base, c, { X, Y: Ys[0], colores });
 
     const muestra = filas.slice(0, 200);
     const valorX = muestra.find(f => f[X] != null)?.[X];
@@ -142,6 +148,13 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         T.push({ filter: `datum.__puesto <= ${Number(c.limit)}` });
     }
 
+    if ((tipo === 'donut' || tipo === 'pie') && Number(c.donutGroupingThreshold) > 0) {
+        T.push(
+            { joinaggregate: [{ op: 'sum', field: campo(valor), as: '__total' }] },
+            { calculate: `${dato(valor)} / datum.__total * 100 < ${Number(c.donutGroupingThreshold)} ? 'Others' : ${dato(X)}`, as: X },
+            { aggregate: [{ op: 'sum', field: campo(valor), as: valor }], groupby: [String(X)] },
+        );
+    }
     if (tipo === 'donut' || tipo === 'pie') return conCapas(base, T, anillo(c, { X, valor, colores, tipo }));
     if (tipo === 'funnel') return conCapas(base, T, embudo(c, { X, valor, colores }));
     if (tipo === 'heatmap') return mapaDeCalor(base, c, { X, Ys, colores, filas });
@@ -270,7 +283,14 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
             });
         }
         const resalte = condicionDeResalte(c, { X, valor });
-        if (resalte) {
+        if (resalte?.tramo) {
+            // Un tramo se resalta como LÍNEA encima, no como puntos sueltos.
+            capas.push({
+                transform: [{ filter: resalte.test }],
+                mark: { type: 'line', interpolate, strokeWidth: 3, color: c.highlightConfig.color || '#ef4444' },
+                encoding: { [cat]: encCat, [val]: { ...encVal, stack: null }, ...(serie ? { detail: { field: campo(serie) } } : {}) },
+            });
+        } else if (resalte) {
             capas.push({
                 transform: [...resalte.transform, { filter: resalte.test }],
                 mark: { type: 'point', filled: true, size: 110, color: c.highlightConfig.color || '#ef4444', opacity: 1 },
@@ -280,6 +300,19 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         if (c.showLabels) {
             capas.push({ mark: { type: 'text', fontSize: Number(c.dataLabelSize) || 11, baseline: 'bottom', dy: -6 }, encoding: { [cat]: encCat, [val]: { ...encVal, stack: null }, text: { field: campo(valor), ...formato(c) } } });
         }
+    }
+
+    // ━━━ Pendiente: de un momento a otro, una línea por categoría ━━━
+    if (tipo === 'slope') {
+        const e = { ...enc, [cat]: { ...encCat, axis: { ...ejeCat, grid: false, orient: 'top', title: null } }, [val]: { ...encVal, axis: null, stack: null } };
+        capas.push({ mark: { type: 'line', strokeWidth: 2.5, point: { filled: true, size: 55 }, ...(serie ? {} : { color: colorUnico }) }, encoding: e });
+        const etiqueta = `${serie ? `${dato(serie)} + '  ' + ` : ''}${FORMATO_AMOX}(${dato(valor)}, ${texto(`${c.numberFormat}|${c.decimalPlaces}`)})`;
+        const extremo = (cual, align, dx) => ({
+            transform: [{ joinaggregate: [{ op: cual, field: campo(X), as: '__extremo' }] }, { filter: `${dato(X)} === datum.__extremo` }, { calculate: etiqueta, as: '__etiqueta' }],
+            mark: { type: 'text', align, dx, fontSize: Number(c.dataLabelSize) || 11 },
+            encoding: { [cat]: encCat, [val]: { ...encVal, stack: null }, text: { field: '__etiqueta' }, ...(serie ? { color: encColor } : {}) },
+        });
+        capas.push(extremo('min', 'right', -8), extremo('max', 'left', 8));
     }
 
     // ━━━ Combo: barras + líneas ━━━
@@ -324,7 +357,15 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
 
     // ━━━ Tendencia (una sola serie) ━━━
     const t = c.trendLine || {};
-    if (t.type && t.type !== 'none' && !serie && ['bar', 'line', 'area', 'scatter'].includes(tipo)) {
+    const ejeContinuo = encCat.type === 'quantitative' || encCat.type === 'temporal';
+    if (t.type && t.type !== 'none' && !serie && ejeContinuo && (t.type === 'linear' || t.type === 'loess')) {
+        // Regresión sobre el valor de X (dispersión, series de fechas): la recta de verdad.
+        capas.push({
+            transform: [{ [t.type === 'loess' ? 'loess' : 'regression']: campo(valor), on: campo(X) }],
+            mark: { type: 'line', color: t.color || '#fbbf24', strokeWidth: 2, ...(tipo === 'scatter' ? {} : { strokeDash: [6, 4] }) },
+            encoding: { [cat]: { field: campo(X), type: encCat.type }, [val]: { field: campo(valor), type: 'quantitative' } },
+        });
+    } else if (t.type && t.type !== 'none' && !serie && ['bar', 'line', 'area', 'scatter'].includes(tipo)) {
         capas.push({
             transform: tendencia(t, { X, valor }),
             mark: { type: 'line', color: t.color || '#fbbf24', strokeWidth: 2, strokeDash: [6, 4] },
@@ -332,7 +373,7 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         });
     }
 
-    capas.push(...capasDeReferencia(c, { cat, val, encCat, horizontal }));
+    capas.push(...capasDeReferencia(c, { cat, val, encCat, horizontal, valor }));
 
     return conCapas(base, T, capas);
 }
@@ -360,6 +401,19 @@ function condicionDeResalte(c, { X, valor }) {
     if (!h.type || h.type === 'none') return null;
     if (h.type === 'max') return { transform: [{ joinaggregate: [{ op: 'max', field: campo(valor), as: '__max' }] }], test: `${dato(valor)} === datum.__max` };
     if (h.type === 'min') return { transform: [{ joinaggregate: [{ op: 'min', field: campo(valor), as: '__min' }] }], test: `${dato(valor)} === datum.__min` };
+    if ((h.type === 'below' || h.type === 'above') && num(h.value) !== null) {
+        return { transform: [], test: `${dato(valor)} ${h.type === 'below' ? '<' : '>'} ${num(h.value)}` };
+    }
+    if (h.type === 'range' && h.value !== '' && h.value != null) {
+        const hasta = h.value2 !== '' && h.value2 != null ? h.value2 : h.value;
+        const esFecha = (v) => /^\d{4}-\d{2}-\d{2}/.test(String(v));
+        if (esFecha(h.value)) {
+            const t = (v) => `time(toDate(${texto(String(v).slice(0, 10))}))`;
+            return { transform: [], test: `time(toDate(${dato(X)})) >= ${t(h.value)} && time(toDate(${dato(X)})) <= ${t(hasta)}`, tramo: true };
+        }
+        const lado = (v) => (num(v) !== null ? String(num(v)) : texto(v));
+        return { transform: [], test: `${dato(X)} >= ${lado(h.value)} && ${dato(X)} <= ${lado(hasta)}`, tramo: true };
+    }
     if (h.type === 'exact' && h.value !== '' && h.value != null) {
         const v = texto(h.value);
         return { transform: [], test: `(isDate(${dato(X)}) ? timeFormat(${dato(X)}, '%Y-%m-%d') : '' + ${dato(X)}) === ${v}` };
@@ -397,15 +451,25 @@ const valorDeEje = (v) => (num(v) !== null ? Number(v) : String(v));
  * propio dato de una fila: sin eso, una regla con solo `datum` se dibuja una vez
  * por cada fila del conjunto.
  */
-function capasDeReferencia(c, { cat, val }) {
+const ESTADISTICOS = { mean: 'mean', media: 'mean', average: 'mean', median: 'median', mediana: 'median' };
+/** «mean» o «median» en lugar de un número: la línea se calcula sobre los datos. */
+const estadistico = (v) => ESTADISTICOS[String(v ?? '').trim().toLowerCase()] || null;
+
+function capasDeReferencia(c, { cat, val, valor }) {
     const capas = [];
     const una = { values: [{}] };
-    const regla = (valor, color, estilo, etiqueta, grosor = 1.5) => {
-        capas.push({ data: una, mark: { type: 'rule', color, strokeWidth: grosor, strokeDash: trazo(estilo) }, encoding: { [val]: { datum: valor } } });
-        if (etiqueta) capas.push({ data: una, mark: { type: 'text', color, align: 'right', baseline: 'bottom', dy: -3, fontWeight: 600, [cat === 'x' ? 'x' : 'y']: { expr: cat === 'x' ? 'width' : '0' } }, encoding: { [val]: { datum: valor }, text: { value: etiqueta } } });
+    const regla = (v, color, estilo, etiqueta, grosor = 1.5) => {
+        const op = estadistico(v);
+        // Con un estadístico la regla lee los datos de la figura (ya agregados por
+        // X): la media de las barras, no la de las filas sueltas.
+        const pos = op ? { aggregate: op, field: campo(valor), type: 'quantitative' } : { datum: num(v) };
+        const desde = op ? {} : { data: una };
+        capas.push({ ...desde, mark: { type: 'rule', color, strokeWidth: grosor, strokeDash: trazo(estilo) }, encoding: { [val]: pos } });
+        if (etiqueta) capas.push({ ...desde, mark: { type: 'text', color, align: 'right', baseline: 'bottom', dy: -3, fontWeight: 600, [cat === 'x' ? 'x' : 'y']: { expr: cat === 'x' ? 'width' : '0' } }, encoding: { [val]: pos, text: { value: etiqueta } } });
     };
-    if (num(c.refLine?.value) !== null) regla(num(c.refLine.value), c.refLine.color || '#ff4444', c.refLine.style || 'dashed', c.refLine.label);
-    if (c.goalLine?.enabled && num(c.goalLine.value) !== null) regla(num(c.goalLine.value), c.goalLine.color || '#22c55e', c.goalLine.style || 'dashed', c.goalLine.label, 2);
+    const vale = (v) => num(v) !== null || estadistico(v);
+    if (vale(c.refLine?.value)) regla(c.refLine.value, c.refLine.color || '#ff4444', c.refLine.style || 'dashed', c.refLine.label);
+    if (c.goalLine?.enabled && vale(c.goalLine.value)) regla(c.goalLine.value, c.goalLine.color || '#22c55e', c.goalLine.style || 'dashed', c.goalLine.label, 2);
 
     const a = c.refArea || {};
     const hayX = a.x1 !== '' && a.x1 != null && a.x2 !== '' && a.x2 != null;
@@ -432,6 +496,86 @@ function capasDeReferencia(c, { cat, val }) {
         }
     }
     return capas;
+}
+
+/**
+ * Histograma: la X es una columna numérica y la cuenta la hace Vega-Lite con
+ * `bin`. Media y mediana (opcionales) son reglas sobre las MISMAS filas.
+ */
+function histograma(base, c, { X, colores }) {
+    const cubos = Math.max(2, Number(c.binCount) || 20);
+    const color = c.seriesConfig?.[X]?.color || colores[0];
+    const ejeX = { title: c.showXAxisTitle === false ? null : (c.customAxisTitles?.x || X), grid: false, ...formato(c) };
+    const ejeY = { title: c.showYAxisTitle ? (c.customAxisTitles?.y || 'Count') : null, grid: c.gridMode === 'both' || c.gridMode === 'horizontal' };
+    const capas = [{
+        mark: { type: 'bar', binSpacing: 1, ...(c.splitByKey ? {} : { color }) },
+        encoding: {
+            x: { field: campo(X), bin: { maxbins: cubos }, type: 'quantitative', axis: ejeX },
+            y: { aggregate: 'count', type: 'quantitative', axis: ejeY },
+            ...(c.splitByKey ? { color: { field: campo(c.splitByKey), type: 'nominal', scale: { range: colores }, legend: leyenda(c) } } : {}),
+            tooltip: [{ field: campo(X), bin: { maxbins: cubos }, type: 'quantitative', title: X }, { aggregate: 'count', type: 'quantitative', title: 'Count' }],
+        },
+    }];
+    const stats = Array.isArray(c.histogramStats) ? c.histogramStats : [];
+    const colorStat = { mean: c.highlightConfig?.color && c.highlightConfig.type !== 'none' ? c.highlightConfig.color : '#ef4444', median: colores[1] || '#2a7ab9' };
+    const nombres = { mean: 'Mean', median: 'Median' };
+    for (const op of stats.filter(s => s === 'mean' || s === 'median')) {
+        capas.push({ mark: { type: 'rule', strokeWidth: 2, color: colorStat[op], ...(op === 'median' ? { strokeDash: [5, 3] } : {}) }, encoding: { x: { aggregate: op, field: campo(X), type: 'quantitative' } } });
+        capas.push({
+            transform: [{ aggregate: [{ op, field: campo(X), as: '__v' }] }, { calculate: `${texto(nombres[op] + ' ')} + ${FORMATO_AMOX}(datum.__v, ${texto(`${c.numberFormat}|${c.decimalPlaces}`)})`, as: '__t' }],
+            mark: { type: 'text', color: colorStat[op], align: 'left', dx: 4, baseline: 'top', fontWeight: 600, y: op === 'mean' ? 0 : 14 },
+            encoding: { x: { field: '__v', type: 'quantitative' }, text: { field: '__t' } },
+        });
+    }
+    return conCapas(base, [], capas);
+}
+
+/** Caja y bigotes: las filas sueltas, una caja por categoría. Horizontal por defecto. */
+function caja(base, c, { X, Y, colores }) {
+    if (!Y) return { ...base, mark: 'point' };
+    const vertical = c.orientation === 'vertical';
+    const cat = vertical ? 'x' : 'y', val = vertical ? 'y' : 'x';
+    const color = c.seriesConfig?.[Y]?.color || colores[0];
+    const resalte = c.highlightConfig?.type === 'exact' && c.highlightConfig.value !== '' ? c.highlightConfig : null;
+    const enc = {
+        [cat]: { field: campo(X), type: 'nominal', axis: { title: null, grid: false }, sort: c.sortMode === 'x-desc' ? 'descending' : c.sortMode === 'y-desc' ? { op: 'median', field: campo(Y), order: 'descending' } : c.sortMode === 'y-asc' ? { op: 'median', field: campo(Y), order: 'ascending' } : 'ascending' },
+        [val]: { field: campo(Y), type: 'quantitative', scale: { zero: false }, axis: { title: c.showYAxisTitle ? (c.customAxisTitles?.y || Y) : null, ...formato(c) } },
+        color: resalte ? { condition: { test: `'' + ${dato(X)} === ${texto(resalte.value)}`, value: resalte.color || '#ef4444' }, value: color } : { value: color },
+    };
+    return { ...base, mark: { type: 'boxplot', extent: 1.5, size: 18, median: { color: '#1f2228' }, outliers: { size: 22 } }, encoding: enc };
+}
+
+/**
+ * Barras con intervalo: el valor y, de otras dos columnas, el mínimo y el máximo
+ * del intervalo (de confianza, de un rango, de un escenario). Horizontal por defecto.
+ */
+function intervalo(base, c, { X, Y, colores }) {
+    if (!Y) return { ...base, mark: 'point' };
+    const vertical = c.orientation === 'vertical';
+    const cat = vertical ? 'x' : 'y', val = vertical ? 'y' : 'x';
+    const color = c.seriesConfig?.[Y]?.color || colores[0];
+    const resalte = condicionDeResalte(c, { X, valor: Y });
+    const encCat = { field: campo(X), type: 'nominal', sort: c.sortMode === 'y-desc' ? { field: campo(Y), order: 'descending' } : c.sortMode === 'y-asc' ? { field: campo(Y), order: 'ascending' } : null, axis: { title: null, grid: false } };
+    const capas = [{
+        transform: resalte?.transform || [],
+        mark: { type: 'bar', ...(c.barRadius ? { cornerRadiusEnd: Number(c.barRadius) } : {}) },
+        encoding: {
+            [cat]: encCat,
+            [val]: { field: campo(Y), type: 'quantitative', axis: { title: c.showYAxisTitle ? (c.customAxisTitles?.y || Y) : null, ...formato(c) } },
+            color: resalte ? { condition: { test: resalte.test, value: c.highlightConfig.color || '#ef4444' }, value: color } : { value: color },
+            tooltip: [{ field: campo(X), type: 'nominal' }, { field: campo(Y), type: 'quantitative', ...formato(c) },
+                ...(c.errorLowKey ? [{ field: campo(c.errorLowKey), type: 'quantitative', ...formato(c) }] : []),
+                ...(c.errorHighKey ? [{ field: campo(c.errorHighKey), type: 'quantitative', ...formato(c) }] : [])],
+        },
+    }];
+    if (c.errorLowKey && c.errorHighKey) {
+        capas.push({
+            mark: { type: 'errorbar', thickness: 1.5, ticks: true, color: '#555b66' },
+            encoding: { [cat]: encCat, [val]: { field: campo(c.errorLowKey), type: 'quantitative' }, [`${val}2`]: { field: campo(c.errorHighKey) } },
+        });
+    }
+    capas.push(...capasDeReferencia(c, { cat, val, valor: Y }));
+    return conCapas(base, [], capas);
 }
 
 function anillo(c, { X, valor, colores, tipo }) {
