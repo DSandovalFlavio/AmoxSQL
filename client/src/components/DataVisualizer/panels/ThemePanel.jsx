@@ -5,7 +5,7 @@
 import { memo } from 'react';
 import { LuExternalLink } from 'react-icons/lu';
 import { Section, Toggle, SelectField, SliderField, SimpleColorPicker, panelStyles } from './shared';
-import { COLOR_PALETTES, FONT_OPTIONS, BACKGROUND_TONES, PALETTE_PURPOSE } from '../constants';
+import { COLOR_PALETTES, FONT_OPTIONS, BACKGROUND_TONES, PALETTE_PURPOSE, LAYOUT_MODES } from '../constants';
 import { openSterling } from '../StoryFlowGuide';
 
 const PalettePreview = memo(({ colors, isActive, onClick }) => (
@@ -32,8 +32,8 @@ PalettePreview.displayName = 'PalettePreview';
 
 const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData }) => {
     const { colorTheme, brandColors, backgroundTone, customBgColor, borderStyle, borderColor,
-        fontFamily, textScale, seriesConfig, chartType, axisLabelOpacity = 0.8,
-        fillStyle = 'gradient', cardStyle = {} } = state;
+        fontFamily, textScale, seriesConfig, chartType,
+        fillStyle = 'gradient', cardStyle = {}, layout } = state;
 
     /* La tarta comparte renderizador con el anillo, así que sus controles de
        ETIQUETA le aplican igual. Solo el grosor y la cifra del centro son del
@@ -120,7 +120,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
             </Section>
 
             {/* ── Series Colors ── */}
-            <Section title="Series Colors">
+            <Section title="Series: colors & names">
                 {isDonut ? (
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px' }}>
                         {(donutData || []).map((d, i) => {
@@ -164,6 +164,10 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                                                 ...seriesConfig, [key]: { ...seriesConfig[key], color: val }
                                             })}
                                         />
+                                        <input type="text" placeholder="Name in the legend" defaultValue={cfg.label || ''}
+                                            key={`${key}-${cfg.label || ''}`}
+                                            onBlur={e => setField('seriesConfig', { ...seriesConfig, [key]: { ...seriesConfig[key], label: e.target.value.trim() || undefined } })}
+                                            style={{ ...panelStyles.input, flex: 2 }} />
                                         {(chartType === 'line' || chartType === 'combo') && (
                                             <select
                                                 value={currentStyle}
@@ -189,25 +193,20 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                 )}
             </Section>
 
-            {/* ── Background Tone ── */}
-            <Section title="Background">
-                <SelectField
-                    label="Canvas Tone"
-                    value={backgroundTone}
-                    onChange={v => setField('backgroundTone', v)}
-                    options={BACKGROUND_TONES}
-                    style={{ marginBottom: '8px' }}
-                />
-                {backgroundTone === 'custom' && (
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <SimpleColorPicker
-                            color={customBgColor || 'var(--surface-base)'}
-                            onChange={v => setField('customBgColor', v)}
-                        />
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Custom Background</span>
-                    </div>
-                )}
-            </Section>
+
+            {/* ── Fill ── */}
+            {(chartType === 'line' || chartType === 'area') && (
+                <Section title="Fill">
+                    <SelectField
+                        label="Area Fill"
+                        value={fillStyle}
+                        onChange={v => setField('fillStyle', v)}
+                    >
+                        <option value="gradient">Gradient (fade out)</option>
+                        <option value="solid">Solid</option>
+                    </SelectField>
+                </Section>
+            )}
 
             {/* ── Font & Text ── */}
             <Section title="Typography">
@@ -225,31 +224,36 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                     onChange={v => setField('textScale', v / 100)}
                     suffix="%"
                 />
-                <SliderField
-                    label="Label Intensity"
-                    value={Math.round(axisLabelOpacity * 100)}
-                    min={20} max={100}
-                    onChange={v => setField('axisLabelOpacity', v / 100)}
-                    suffix="%"
-                />
             </Section>
 
-            {/* ── Fill ── */}
-            {(chartType === 'line' || chartType === 'area') && (
-                <Section title="Fill">
-                    <SelectField
-                        label="Area Fill"
-                        value={fillStyle}
-                        onChange={v => setField('fillStyle', v)}
-                    >
-                        <option value="gradient">Gradient (fade out)</option>
-                        <option value="solid">Solid</option>
-                    </SelectField>
-                </Section>
-            )}
+
 
             {/* ── Card ── */}
             <Section title="Card">
+                <SelectField
+                    label="Layout"
+                    value={layout || 'stacked'}
+                    onChange={v => setField('layout', v)}
+                    options={LAYOUT_MODES}
+                    style={{ marginBottom: '8px' }}
+                />
+                <SelectField
+                    label="Background"
+                    value={backgroundTone}
+                    onChange={v => setField('backgroundTone', v)}
+                    options={BACKGROUND_TONES}
+                    style={{ marginBottom: '8px' }}
+                />
+                {backgroundTone === 'custom' && (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <SimpleColorPicker
+                            color={customBgColor || 'var(--surface-base)'}
+                            onChange={v => setField('customBgColor', v)}
+                        />
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Custom Background</span>
+                    </div>
+                )}
+            
                 <Toggle label="Drop shadow" checked={!!cardStyle.shadow}
                     onChange={v => setField('cardStyle', { ...cardStyle, shadow: v })} />
                 <SliderField
@@ -274,12 +278,9 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                         <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>From → To</span>
                     </div>
                 )}
-            </Section>
-
-            {/* ── Border ── */}
-            <Section title="Border">
+                <div style={{ height: '8px' }} />
                 <SelectField
-                    label="Border Style"
+                    label="Border"
                     value={borderStyle}
                     onChange={v => setField('borderStyle', v)}
                     style={{ marginBottom: '8px' }}
@@ -298,7 +299,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                         <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Border Color</span>
                     </div>
                 )}
-            </Section>
+                        </Section>
         </>
     );
 });

@@ -193,6 +193,39 @@ const ChartIcon = ({ type, size = 28 }) => {
                 <circle cx="6" cy="10" r="2" fill={color} opacity="0.5" /><circle cx="22" cy="16" r="2" fill={color} opacity="0.5" />
             </svg>
         ),
+        'lollipop': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <line x1="4" y1="6" x2="20" y2="6" stroke={color} strokeWidth="1.6" /><circle cx="20" cy="6" r="2.6" fill={color} />
+                <line x1="4" y1="14" x2="15" y2="14" stroke={color} strokeWidth="1.6" opacity="0.7" /><circle cx="15" cy="14" r="2.6" fill={color} opacity="0.7" />
+                <line x1="4" y1="22" x2="10" y2="22" stroke={color} strokeWidth="1.6" opacity="0.5" /><circle cx="10" cy="22" r="2.6" fill={color} opacity="0.5" />
+            </svg>
+        ),
+        'dumbbell': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <line x1="7" y1="7" x2="21" y2="7" stroke={color} strokeWidth="1.6" opacity="0.5" /><circle cx="7" cy="7" r="2.6" fill={color} opacity="0.5" /><circle cx="21" cy="7" r="2.6" fill={color} />
+                <line x1="11" y1="15" x2="18" y2="15" stroke={color} strokeWidth="1.6" opacity="0.5" /><circle cx="11" cy="15" r="2.6" fill={color} opacity="0.5" /><circle cx="18" cy="15" r="2.6" fill={color} />
+                <line x1="5" y1="23" x2="13" y2="23" stroke={color} strokeWidth="1.6" opacity="0.5" /><circle cx="5" cy="23" r="2.6" fill={color} opacity="0.5" /><circle cx="13" cy="23" r="2.6" fill={color} />
+            </svg>
+        ),
+        'density': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <path d="M3 23 C8 23 9 6 14 6 C19 6 20 23 25 23 Z" fill={color} opacity="0.35" />
+                <path d="M3 23 C8 23 9 6 14 6 C19 6 20 23 25 23" stroke={color} strokeWidth="1.6" fill="none" />
+            </svg>
+        ),
+        'strip': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                {[5, 8, 9, 12, 16, 19].map(x => <line key={`a${x}`} x1={x} y1="5" x2={x} y2="11" stroke={color} strokeWidth="1.4" opacity="0.7" />)}
+                {[9, 13, 14, 15, 18, 23].map(x => <line key={`b${x}`} x1={x} y1="17" x2={x} y2="23" stroke={color} strokeWidth="1.4" opacity="0.7" />)}
+            </svg>
+        ),
+        'bump': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <polyline points="4,6 11,14 18,6 25,14" stroke={color} strokeWidth="2" fill="none" />
+                <polyline points="4,14 11,6 18,22 25,6" stroke={color} strokeWidth="2" fill="none" opacity="0.5" />
+                <circle cx="25" cy="14" r="2" fill={color} /><circle cx="25" cy="6" r="2" fill={color} opacity="0.5" />
+            </svg>
+        ),
         'treemap': (
             <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
                 <rect x="4" y="4" width="12" height="12" rx="1" fill={color} opacity="0.8" />

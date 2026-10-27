@@ -7,12 +7,14 @@
  */
 import { memo, useRef, useState } from 'react';
 import { Section, Toggle, SelectField, InputField, SimpleColorPicker, panelStyles } from './shared';
+import { capacidades } from './capacidades';
 
 const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => {
     const { chartType, chartTitle, chartSubtitle, chartFootnote, takeaway, textAlign,
         refLine, refArea, goalLine, trendLine, headline, highlightConfig, annotations,
-        chartSource, signature = {}, titleMark,
+        chartSource, signature = {}, titleMark, endLabels,
     } = state;
+    const cap = capacidades(chartType);
 
     const titleRef = useRef(null);
     const subtitleRef = useRef(null);
@@ -32,10 +34,10 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
     // reference layers are real layers, so every chart with axes gets them.
     const isBox = chartType === 'boxplot';
     const isErr = chartType === 'errorbar';
-    const supportsRef = isLine || isBar || isCombo || isScatter || isWaterfall || isErr;   // Goal / Reference line & area
-    const supportsTrend = isLine || isBar || isScatter;                           // Trend / moving average (one series)
-    const supportsHighlight = isLine || isBar || isBox || isErr;                  // Highlight rule
-    const supportsAnnotations = supportsRef;                                      // Free-form annotations
+    const supportsRef = cap.referencias;
+    const supportsTrend = cap.tendencia;
+    const supportsHighlight = cap.resalte;
+    const supportsAnnotations = cap.anotaciones;
 
     const applyTexts = () => {
         if (titleRef.current) setField('chartTitle', titleRef.current.value);
@@ -83,66 +85,9 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
 
     return (
         <>
-            {/* ── Headline Number ── */}
-            <Section title="Headline Number">
-                <Toggle label="Show Headline KPI" checked={headline.visible}
-                    onChange={v => setField('headline', { ...headline, visible: v })} />
-
-                {headline.visible && (
-                    <>
-                        <SelectField
-                            label="Metric"
-                            value={headline.metric}
-                            onChange={v => setField('headline', { ...headline, metric: v })}
-                            style={{ marginBottom: '6px' }}
-                        >
-                            <option value="total">Total (Sum)</option>
-                            <option value="average">Average</option>
-                            <option value="last">Last Value</option>
-                            <option value="first">First Value</option>
-                        </SelectField>
-                        <SelectField
-                            label="Compare With"
-                            value={headline.compareWith}
-                            onChange={v => setField('headline', { ...headline, compareWith: v })}
-                            style={{ marginBottom: '6px' }}
-                        >
-                            <option value="none">No Comparison</option>
-                            <option value="first">First Value</option>
-                            <option value="previous">Previous Value</option>
-                        </SelectField>
-                        <SelectField
-                            label="Position"
-                            value={headline.position || 'below'}
-                            onChange={v => setField('headline', { ...headline, position: v })}
-                            style={{ marginBottom: '6px' }}
-                        >
-                            <option value="below">Below the subtitle</option>
-                            <option value="header-right">Right of the title</option>
-                        </SelectField>
-                        <SelectField
-                            label="Font Size"
-                            value={headline.size}
-                            onChange={v => setField('headline', { ...headline, size: v })}
-                        >
-                            <option value="auto">Auto</option>
-                            <option value="custom">Custom</option>
-                        </SelectField>
-                        {headline.size === 'custom' && (
-                            <InputField
-                                label="Size (px)"
-                                type="number" min={12} max={72}
-                                value={headline.customSize}
-                                onChange={v => setField('headline', { ...headline, customSize: v })}
-                                style={{ marginTop: '4px' }}
-                            />
-                        )}
-                    </>
-                )}
-            </Section>
-
             {/* ── Title & Subtitle ── */}
-            <Section title="Storytelling">
+            <Section title="Texts">
+                <div key={JSON.stringify([chartTitle, chartSubtitle, chartFootnote, takeaway, chartSource])}>
                 <SelectField
                     label="Text Alignment"
                     value={textAlign}
@@ -222,6 +167,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                         {storyError}
                     </div>
                 )}
+                </div>
             </Section>
 
             {/* ── Editorial (Sterling-style figure shell) ── */}
@@ -256,54 +202,63 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                 )}
             </Section>
 
-            {/* ── Annotations ── */}
-            {supportsAnnotations && (
-                <Section title="Annotations">
-                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
-                        <button onClick={() => addAnnotation('text')} style={addBtnStyle}>+ Text</button>
-                        <button onClick={() => addAnnotation('box')} style={addBtnStyle}>+ Box</button>
-                    </div>
-                    {(!annotations || annotations.length === 0) && (
-                        <div style={{ fontSize: '10px', color: 'var(--text-disabled)' }}>
-                            Mark a point (Text) or a region (Box) on the chart.
-                        </div>
-                    )}
-                    {(annotations || []).map((a, i) => (
-                        <div key={a.id || i} style={{ border: '1px solid var(--border-color)', borderRadius: '5px', padding: '6px', marginBottom: '6px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>{a.type}</span>
-                                <button onClick={() => removeAnnotation(i)} title="Remove"
-                                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', lineHeight: 1 }}>✕</button>
-                            </div>
-                            <input type="text" value={a.text} onChange={e => updateAnnotation(i, 'text', e.target.value)}
-                                placeholder="Annotation text..." style={{ ...panelStyles.input, marginBottom: '5px' }} />
-                            <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-                                <select value={a.x} onChange={e => updateAnnotation(i, 'x', e.target.value)} style={{ ...panelStyles.select, flex: 1 }}>
-                                    {xValues.map(v => <option key={String(v)} value={v}>{String(v)}</option>)}
-                                </select>
-                                {a.type === 'box' && (
-                                    <select value={a.x2} onChange={e => updateAnnotation(i, 'x2', e.target.value)} style={{ ...panelStyles.select, flex: 1 }}>
-                                        {xValues.map(v => <option key={String(v)} value={v}>{String(v)}</option>)}
-                                    </select>
-                                )}
-                            </div>
-                            {a.type === 'box' ? (
-                                <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
-                                    <input type="number" value={a.y} onChange={e => updateAnnotation(i, 'y', e.target.value)} placeholder="Y min" style={{ ...panelStyles.input, flex: 1 }} />
-                                    <input type="number" value={a.y2} onChange={e => updateAnnotation(i, 'y2', e.target.value)} placeholder="Y max" style={{ ...panelStyles.input, flex: 1 }} />
-                                </div>
-                            ) : (
-                                <input type="number" value={a.y} onChange={e => updateAnnotation(i, 'y', e.target.value)}
-                                    placeholder="Y value (auto if empty)" style={{ ...panelStyles.input, marginBottom: '5px' }} />
-                            )}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <SimpleColorPicker color={a.color} onChange={v => updateAnnotation(i, 'color', v)} />
-                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Color</span>
-                            </div>
-                        </div>
-                    ))}
-                </Section>
-            )}
+            {/* ── Headline Number ── */}
+            <Section title="Headline Number">
+                <Toggle label="Show Headline KPI" checked={headline.visible}
+                    onChange={v => setField('headline', { ...headline, visible: v })} />
+
+                {headline.visible && (
+                    <>
+                        <SelectField
+                            label="Metric"
+                            value={headline.metric}
+                            onChange={v => setField('headline', { ...headline, metric: v })}
+                            style={{ marginBottom: '6px' }}
+                        >
+                            <option value="total">Total (Sum)</option>
+                            <option value="average">Average</option>
+                            <option value="last">Last Value</option>
+                            <option value="first">First Value</option>
+                        </SelectField>
+                        <SelectField
+                            label="Compare With"
+                            value={headline.compareWith}
+                            onChange={v => setField('headline', { ...headline, compareWith: v })}
+                            style={{ marginBottom: '6px' }}
+                        >
+                            <option value="none">No Comparison</option>
+                            <option value="first">First Value</option>
+                            <option value="previous">Previous Value</option>
+                        </SelectField>
+                        <SelectField
+                            label="Position"
+                            value={headline.position || 'below'}
+                            onChange={v => setField('headline', { ...headline, position: v })}
+                            style={{ marginBottom: '6px' }}
+                        >
+                            <option value="below">Below the subtitle</option>
+                            <option value="header-right">Right of the title</option>
+                        </SelectField>
+                        <SelectField
+                            label="Font Size"
+                            value={headline.size}
+                            onChange={v => setField('headline', { ...headline, size: v })}
+                        >
+                            <option value="auto">Auto</option>
+                            <option value="custom">Custom</option>
+                        </SelectField>
+                        {headline.size === 'custom' && (
+                            <InputField
+                                label="Size (px)"
+                                type="number" min={12} max={72}
+                                value={headline.customSize}
+                                onChange={v => setField('headline', { ...headline, customSize: v })}
+                                style={{ marginTop: '4px' }}
+                            />
+                        )}
+                    </>
+                )}
+            </Section>
 
             {/* ── Focus: Highlight ── */}
             {supportsHighlight && (
@@ -314,11 +269,11 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                         style={{ marginBottom: '8px' }}
                     >
                         <option value="none">None</option>
-                        {!isBox && <option value="max">Max Value</option>}
-                        {!isBox && <option value="min">Min Value</option>}
+                        {!(isBox || chartType === 'strip') && <option value="max">Max Value</option>}
+                        {!(isBox || chartType === 'strip') && <option value="min">Min Value</option>}
                         <option value="exact">Specific Category</option>
-                        {!isBox && <option value="below">Values below…</option>}
-                        {!isBox && <option value="above">Values above…</option>}
+                        {!(isBox || chartType === 'strip') && <option value="below">Values below…</option>}
+                        {!(isBox || chartType === 'strip') && <option value="above">Values above…</option>}
                         {isLine && <option value="range">A stretch of the line</option>}
                     </SelectField>
 
@@ -363,6 +318,14 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                 </Section>
             )}
 
+            {/* ── End labels ── */}
+            {cap.finales && (
+                <Section title="Label the lines">
+                    <Toggle label="Name each line at its end (instead of a legend)" checked={!!endLabels}
+                        onChange={v => setField('endLabels', v)} />
+                </Section>
+            )}
+
             {/* ── Goal Line ── */}
             {supportsRef && (
                 <Section title="Goal Line">
@@ -401,43 +364,6 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                                 </SelectField>
                             </div>
                         </>
-                    )}
-                </Section>
-            )}
-
-            {/* ── Trend Line ── */}
-            {supportsTrend && (
-                <Section title="Trend & Average">
-                    <SelectField
-                        label="Overlay"
-                        value={trendLine.type}
-                        onChange={v => setField('trendLine', { ...trendLine, type: v })}
-                        style={{ marginBottom: '6px' }}
-                    >
-                        <option value="none">None</option>
-                        <option value="linear">{isScatter ? 'Regression line' : 'Linear Trend'}</option>
-                        {isScatter && <option value="loess">Smooth curve</option>}
-                        {!isScatter && <option value="moving-average">Moving Average</option>}
-                    </SelectField>
-
-                    {trendLine.type === 'moving-average' && (
-                        <InputField
-                            label="Window Size"
-                            type="number" min={2} max={50}
-                            value={trendLine.windowSize}
-                            onChange={v => setField('trendLine', { ...trendLine, windowSize: v })}
-                            style={{ marginBottom: '6px' }}
-                        />
-                    )}
-
-                    {trendLine.type !== 'none' && (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <SimpleColorPicker
-                                color={trendLine.color}
-                                onChange={v => setField('trendLine', { ...trendLine, color: v })}
-                            />
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Trend Color</span>
-                        </div>
                     )}
                 </Section>
             )}
@@ -489,6 +415,92 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                 </div>
             </Section>
             )}
+            {/* ── Trend Line ── */}
+            {supportsTrend && (
+                <Section title="Trend & Average">
+                    <SelectField
+                        label="Overlay"
+                        value={trendLine.type}
+                        onChange={v => setField('trendLine', { ...trendLine, type: v })}
+                        style={{ marginBottom: '6px' }}
+                    >
+                        <option value="none">None</option>
+                        <option value="linear">{isScatter ? 'Regression line' : 'Linear Trend'}</option>
+                        {isScatter && <option value="loess">Smooth curve</option>}
+                        {!isScatter && <option value="moving-average">Moving Average</option>}
+                    </SelectField>
+
+                    {trendLine.type === 'moving-average' && (
+                        <InputField
+                            label="Window Size"
+                            type="number" min={2} max={50}
+                            value={trendLine.windowSize}
+                            onChange={v => setField('trendLine', { ...trendLine, windowSize: v })}
+                            style={{ marginBottom: '6px' }}
+                        />
+                    )}
+
+                    {trendLine.type !== 'none' && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <SimpleColorPicker
+                                color={trendLine.color}
+                                onChange={v => setField('trendLine', { ...trendLine, color: v })}
+                            />
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Trend Color</span>
+                        </div>
+                    )}
+                </Section>
+            )}
+
+            {/* ── Annotations ── */}
+            {supportsAnnotations && (
+                <Section title="Annotations">
+                    <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                        <button onClick={() => addAnnotation('text')} style={addBtnStyle}>+ Text</button>
+                        <button onClick={() => addAnnotation('box')} style={addBtnStyle}>+ Box</button>
+                    </div>
+                    {(!annotations || annotations.length === 0) && (
+                        <div style={{ fontSize: '10px', color: 'var(--text-disabled)' }}>
+                            Mark a point (Text) or a region (Box) on the chart.
+                        </div>
+                    )}
+                    {(annotations || []).map((a, i) => (
+                        <div key={a.id || i} style={{ border: '1px solid var(--border-color)', borderRadius: '5px', padding: '6px', marginBottom: '6px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>{a.type}</span>
+                                <button onClick={() => removeAnnotation(i)} title="Remove"
+                                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', lineHeight: 1 }}>✕</button>
+                            </div>
+                            <input type="text" value={a.text} onChange={e => updateAnnotation(i, 'text', e.target.value)}
+                                placeholder="Annotation text..." style={{ ...panelStyles.input, marginBottom: '5px' }} />
+                            <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
+                                <select value={a.x} onChange={e => updateAnnotation(i, 'x', e.target.value)} style={{ ...panelStyles.select, flex: 1 }}>
+                                    {xValues.map(v => <option key={String(v)} value={v}>{String(v)}</option>)}
+                                </select>
+                                {a.type === 'box' && (
+                                    <select value={a.x2} onChange={e => updateAnnotation(i, 'x2', e.target.value)} style={{ ...panelStyles.select, flex: 1 }}>
+                                        {xValues.map(v => <option key={String(v)} value={v}>{String(v)}</option>)}
+                                    </select>
+                                )}
+                            </div>
+                            {a.type === 'box' ? (
+                                <div style={{ display: 'flex', gap: '5px', marginBottom: '5px' }}>
+                                    <input type="number" value={a.y} onChange={e => updateAnnotation(i, 'y', e.target.value)} placeholder="Y min" style={{ ...panelStyles.input, flex: 1 }} />
+                                    <input type="number" value={a.y2} onChange={e => updateAnnotation(i, 'y2', e.target.value)} placeholder="Y max" style={{ ...panelStyles.input, flex: 1 }} />
+                                </div>
+                            ) : (
+                                <input type="number" value={a.y} onChange={e => updateAnnotation(i, 'y', e.target.value)}
+                                    placeholder="Y value (auto if empty)" style={{ ...panelStyles.input, marginBottom: '5px' }} />
+                            )}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <SimpleColorPicker color={a.color} onChange={v => updateAnnotation(i, 'color', v)} />
+                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Color</span>
+                            </div>
+                        </div>
+                    ))}
+                </Section>
+            )}
+
         </>
     );
 });

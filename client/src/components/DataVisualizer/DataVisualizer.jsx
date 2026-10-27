@@ -1009,6 +1009,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                                 state={state}
                                 setField={setField}
                                 finalSeriesKeys={finalSeriesKeys}
+                                columns={columns}
                             />
                         )}
 

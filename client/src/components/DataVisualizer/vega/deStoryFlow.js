@@ -25,8 +25,10 @@ export const ESQUEMA_VEGA = 'https://vega.github.io/schema/vega/v6.json';
 /** El tipo de formato que registra FiguraVega: `formatNumber` de Story Flow. */
 export const FORMATO_AMOX = 'amoxNumero';
 
-const UNIDAD = { day: 'yearmonthdate', week: 'yearweek', month: 'yearmonth', quarter: 'yearquarter', year: 'year' };
-const FORMATO_FECHA = { yearmonthdate: '%d %b %Y', yearweek: '%d %b %Y', yearmonth: '%b %Y', yearquarter: 'Q%q %Y', year: '%Y' };
+/* Todo en UTC: una fecha «2023-01-01» se lee como medianoche UTC, y pintarla en
+   hora local la mostraba como 31 de diciembre en América. */
+const UNIDAD = { day: 'utcyearmonthdate', week: 'utcyearweek', month: 'utcyearmonth', quarter: 'utcyearquarter', year: 'utcyear' };
+const FORMATO_FECHA = { utcyearmonthdate: '%d %b %Y', utcyearweek: '%d %b %Y', utcyearmonth: '%b %Y', utcyearquarter: 'Q%q %Y', utcyear: '%Y' };
 const MAX_PUNTOS = 60;
 const ZOOM = { name: 'zoom', select: 'interval', bind: 'scales' };
 const ZOOM_X = { name: 'zoom', select: { type: 'interval', encodings: ['x'] }, bind: 'scales' };
@@ -120,10 +122,10 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
     // Distribución e intervalos: leen las filas tal cual, sin la suma por X. El
     // histograma solo necesita la X.
     if (tipo === 'histogram' && X) return histograma(base, c, { X, colores });
+    if (tipo === 'density' && X) return densidad(base, c, { X, colores });
     if (!X || !Ys.length) return conCapas(base, [], [{ rol: 'principal', mark: 'point' }]);
     if (tipo === 'boxplot') return caja(base, c, { X, Y: Ys[0], colores });
     if (tipo === 'strip') return franjas(base, c, { X, Y: Ys[0], colores });
-    if (tipo === 'density') return densidad(base, c, { X: Ys[0] || X, colores });
     if (tipo === 'errorbar') return intervalo(base, c, { X, Y: Ys[0], colores });
 
     const muestra = filas.slice(0, 200);
@@ -221,9 +223,9 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
     let encCat;
     if (xEsFecha) {
         encCat = continuo
-            ? { field: campo(X), type: 'temporal', ...(unidad ? { timeUnit: unidad } : {}) }
-            : { field: campo(X), type: 'ordinal', timeUnit: unidad || 'yearmonthdate' };
-        if (!continuo || unidad) ejeCat.format = FORMATO_FECHA[unidad || 'yearmonthdate'];
+            ? { field: campo(X), type: 'temporal', ...(unidad ? { timeUnit: unidad } : { scale: { type: 'utc' } }) }
+            : { field: campo(X), type: 'ordinal', timeUnit: unidad || 'utcyearmonthdate' };
+        if (!continuo || unidad) ejeCat.format = FORMATO_FECHA[unidad || 'utcyearmonthdate'];
     } else if (tipo === 'scatter' && xEsNumero) {
         encCat = { field: campo(X), type: 'quantitative' };
         Object.assign(ejeCat, formato(c));
@@ -340,10 +342,14 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
                     };
                 capas.push({ rol: 'relleno', mark: relleno, encoding: { ...enc, [val]: { ...encVal, stack: null }, tooltip: undefined } });
             }
+            // El trazo de cada serie (Style → Series): continuo, discontinuo, punteado.
+            const trazos = serie && series.some(x => c.seriesConfig?.[x]?.style && c.seriesConfig[x].style !== 'solid')
+                ? { strokeDash: { field: campo(serie), type: 'nominal', scale: { domain: series, range: series.map(x => trazo(c.seriesConfig?.[x]?.style || 'solid')) }, legend: null } }
+                : {};
             capas.push({
                 rol: 'principal',
                 mark: { type: 'line', interpolate, strokeWidth: 2, ...(serie ? {} : { color: colorUnico }), ...(puntos ? { point: { filled: true, size: 28 } } : {}) },
-                encoding: { ...enc, [val]: { ...encVal, stack: null } },
+                encoding: { ...enc, [val]: { ...encVal, stack: null }, ...trazos },
             });
         }
         const resalte = condicionDeResalte(c, { X, valor });
@@ -613,7 +619,7 @@ function condicionDeResalte(c, { X, valor }) {
     }
     if (h.type === 'exact' && h.value !== '' && h.value != null) {
         const v = texto(h.value);
-        return { transform: [], test: `(isDate(${dato(X)}) ? timeFormat(${dato(X)}, '%Y-%m-%d') : '' + ${dato(X)}) === ${v}` };
+        return { transform: [], test: `(isDate(${dato(X)}) ? utcFormat(${dato(X)}, '%Y-%m-%d') : '' + ${dato(X)}) === ${v}` };
     }
     return null;
 }
@@ -691,7 +697,7 @@ function capasDeReferencia(c, { cat, val, valor, faceta, encCat }) {
             // Sin Y: la marca va sobre el dato de esa X, leído de la figura.
             // Una fecha se compara por su comienzo: «2024-03» acierta en el 1 de marzo.
             const x = dato(c.xAxisKey);
-            const test = `isDate(${x}) ? indexof(timeFormat(${x}, '%Y-%m-%d'), ${texto(n.x)}) === 0 : '' + ${x} === ${texto(n.x)}`;
+            const test = `isDate(${x}) ? indexof(utcFormat(${x}, '%Y-%m-%d'), ${texto(n.x)}) === 0 : '' + ${x} === ${texto(n.x)}`;
             const { axis, ...ejeSinTitulo } = encCat || { field: campo(c.xAxisKey), type: 'nominal' };
             const enc = { [cat]: ejeSinTitulo, [val]: { field: campo(valor), type: 'quantitative' } };
             capas.push({ rol, transform: [{ filter: test }], mark: { type: 'point', filled: true, color, size: 60 }, encoding: enc });

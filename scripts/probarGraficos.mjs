@@ -112,7 +112,7 @@ const casos = [
     ['anillo con porciones pequeñas en «Others»', { chartType: 'donut', xAxisKey: 'categoria', yAxisKeys: ['venta'], donutGroupingThreshold: 15 }, categorias, 'arc mark', 1],
     ['piruleta', { chartType: 'lollipop', xAxisKey: 'categoria', yAxisKeys: ['venta'], sortMode: 'y-desc', showLabels: true }, categorias, 'circle', 6],
     ['mancuerna con dos medidas', { chartType: 'dumbbell', xAxisKey: 'mes', yAxisKeys: ['venta', 'costo'] }, ventas, 'circle', 12],
-    ['densidad por región', { chartType: 'density', xAxisKey: 'venta', yAxisKeys: ['venta'], splitByKey: 'region' }, ventas, 'area mark', 2],
+    ['densidad por región', { chartType: 'density', xAxisKey: 'venta', yAxisKeys: ['costo'], splitByKey: 'region' }, ventas, 'area mark', 2],
     ['franjas', { chartType: 'strip', xAxisKey: 'temporada', yAxisKeys: ['ventas'] }, dispersion, 'tick', 100],
     ['bump: el puesto por mes', { chartType: 'bump', xAxisKey: 'mes', yAxisKeys: ['venta'], splitByKey: 'region', endLabels: true }, ventas, 'line mark', 2],
     ['eje derecho para una de las Y', { chartType: 'line', xAxisKey: 'mes', yAxisKeys: ['venta', 'costo'], rightYAxisKey: 'costo' }, ventas, 'line mark', 2],
@@ -127,6 +127,7 @@ const casos = [
     ['anotación sin Y: va sobre el dato', { chartType: 'bar', xAxisKey: 'categoria', yAxisKeys: ['venta'], annotations: [{ id: 'a', type: 'text', x: 'Audio', y: '', text: 'Aquí' }] }, categorias, 'text mark', 1],
     ['etiquetas dentro de la barra', { chartType: 'bar', xAxisKey: 'categoria', yAxisKeys: ['venta'], showLabels: true, dataLabelPosition: 'inside-end' }, categorias, 'text mark', 6],
     ['nombres de serie en la leyenda', { chartType: 'line', xAxisKey: 'mes', yAxisKeys: ['venta', 'costo'], legendPosition: 'top', seriesConfig: { costo: { label: 'Costo total' } } }, ventas, 'legend', 1],
+    ['trazo discontinuo para una serie', { chartType: 'line', xAxisKey: 'mes', yAxisKeys: ['venta', 'costo'], seriesConfig: { costo: { style: 'dashed' } } }, ventas, 'line mark', 2],
     ['línea con media móvil y punto resaltado', { chartType: 'line', xAxisKey: 'dia', yAxisKeys: ['cvr'], trendLine: { type: 'moving-average', windowSize: 7 }, highlightConfig: { type: 'exact', value: '2025-06-15', color: '#ef4444' } }, diarios, 'line mark', 2],
 ];
 
@@ -167,6 +168,10 @@ console.log('Lo que antes salía mal');
     bien('un color var(--token) se resuelve antes de dibujar', rv.mark.color === '#00d4ff' && rv.x[0] === '#123456');
     const centro = await dibujar(deStoryFlow({ chartType: 'donut', xAxisKey: 'categoria', yAxisKeys: ['venta'], donutCenterKpi: 'average' }, { filas: categorias, colores }), categorias);
     bien('anillo: el centro muestra el promedio (6K), no la suma (36K)', centro.svg.includes('>6K<') && !centro.svg.includes('>36K<'));
+    const discontinua = deStoryFlow({ chartType: 'line', xAxisKey: 'mes', yAxisKeys: ['venta', 'costo'], seriesConfig: { costo: { style: 'dashed' } } }, { filas: ventas, colores });
+    bien('el trazo discontinuo de una serie llega al spec', JSON.stringify(discontinua.layer.find(l => l.name === 'amox_principal').encoding.strokeDash?.scale?.range) === '[[],[6,4]]');
+    const enero = await dibujar(deStoryFlow({ chartType: 'bar', xAxisKey: 'mes', yAxisKeys: ['venta'], dateAggregation: 'month' }, { filas: ventas, colores }), ventas);
+    bien(`«2024-01-01» se rotula enero también fuera de UTC (zona ${Intl.DateTimeFormat().resolvedOptions().timeZone})`, enero.svg.includes('>Jan 2024<') && !enero.svg.includes('Dec 2023'));
     bien('BIGINT/DECIMAL llegan como texto y se dibujan como número', typeof prepararFilas(ventas)[0].venta === 'number');
     bien('un código con ceros delante sigue siendo texto', typeof prepararFilas([{ cp: '01234' }, { cp: '04510' }])[0].cp === 'string');
 }
