@@ -577,9 +577,12 @@ function conCapas(base, transform, capas) {
         // Los ejes los configura SOLO la capa principal: las demás (relleno,
         // etiquetas, resalte…) comparten escala, y repetir el eje en cada una hacía
         // que cambiar un título en el código pareciera tocar varias capas.
-        if (hayPrincipal && rol !== 'principal' && resto.encoding) {
+        // Lo mismo con la escala. La excepción es el eje derecho, que tiene los suyos.
+        if (hayPrincipal && rol !== 'principal' && rol !== 'secundaria' && resto.encoding) {
             const enc = { ...resto.encoding };
-            for (const k of ['x', 'y']) if (enc[k] && typeof enc[k] === 'object' && 'axis' in enc[k]) { const { axis, ...e } = enc[k]; enc[k] = e; }
+            for (const k of ['x', 'y']) {
+                if (enc[k] && typeof enc[k] === 'object') { const { axis, scale, ...e } = enc[k]; enc[k] = e; }
+            }
             resto.encoding = enc;
         }
         let nombre = `${PREFIJO_CAPA}${rol || `capa_${i + 1}`}`;

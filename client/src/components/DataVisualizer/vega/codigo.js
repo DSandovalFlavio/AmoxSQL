@@ -23,7 +23,15 @@
 import { DEFAULT_CONFIG } from '../constants';
 import { deStoryFlow } from './deStoryFlow';
 
-const igual = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+/** Igualdad profunda sin mirar el orden de las claves (el usuario las reordena al escribir). */
+function igual(a, b) {
+    if (a === b) return true;
+    if (typeof a !== typeof b || a === null || b === null || typeof a !== 'object') return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    if (Array.isArray(a)) return a.length === b.length && a.every((x, i) => igual(x, b[i]));
+    const ka = Object.keys(a), kb = Object.keys(b);
+    return ka.length === kb.length && ka.every(k => Object.prototype.hasOwnProperty.call(b, k) && igual(a[k], b[k]));
+}
 const esObjeto = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const clonar = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)));
 export const PREFIJO = 'amox_';
