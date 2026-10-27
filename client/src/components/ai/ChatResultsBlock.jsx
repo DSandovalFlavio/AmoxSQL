@@ -159,6 +159,10 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
             errorLowKey:    cc.errorLowKey    || '',
             errorHighKey:   cc.errorHighKey   || '',
             orientation:    cc.orientation    || 'horizontal',
+            facetKey:       cc.facetKey       || '',
+            facetColumns:   cc.facetColumns   ?? 3,
+            endLabels:      cc.endLabels      ?? false,
+            tooltipFields:  cc.tooltipFields  || [],
             modo:           cc.modo === 'codigo' && cc.spec ? 'codigo' : 'interfaz',
             spec:           cc.modo === 'codigo' && cc.spec ? cc.spec : null,
         };

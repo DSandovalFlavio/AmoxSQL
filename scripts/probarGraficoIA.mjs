@@ -70,5 +70,12 @@ const dibujar = (args) => tools.display_chart.execute({ query_id: 'qr_1', title:
     bien('vega_lite que no compila → error con pista', !!r.error && !!r.hint, JSON.stringify(r).slice(0, 200));
 }
 
+{
+    const r = await dibujar({ chart_type: 'lollipop', x_axis_key: 'campana', y_axis_keys: ['roas'], facet_by: 'campana', end_labels: true, tooltip_fields: ['bajo'] });
+    bien('tipo nuevo con facetas, etiquetas al final y campos de tooltip', r.chartConfig?.chartType === 'lollipop' && r.chartConfig.facetKey === 'campana' && r.chartConfig.endLabels === true && r.chartConfig.tooltipFields[0] === 'bajo', JSON.stringify(r).slice(0, 200));
+    const r2 = await dibujar({ chart_type: 'bar', x_axis_key: 'campana', y_axis_keys: ['roas'], facet_by: 'region' });
+    bien('facet_by con una columna que no existe es un error', !!r2.error);
+}
+
 console.log(`\n${ok} bien, ${mal} mal`);
 process.exit(mal ? 1 : 0);

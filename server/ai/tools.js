@@ -387,7 +387,8 @@ function createTools(context) {
                     'scatter', 'bubble', 'combo',
                     'funnel', 'heatmap', 'treemap',
                     'histogram', 'boxplot', 'errorbar', 'slope',
-                ]).describe('Chart type — pick by the message + data shape, NOT by column type. bar=compare categories (with split_by → grouped bars, ideal for before/after across 2–3 periods); bar-horizontal=ranking or long category names (x_axis_key=category shown LEFT, y_axis_keys=value shown BOTTOM); line/area=true time series with ≥4–5 points; donut=part-of-whole (≤7 slices); scatter=correlation; combo=two metrics at different scales; histogram=distribution of ONE numeric column (x_axis_key=that column, counts are computed — pass raw rows, not pre-aggregated); boxplot=spread per category from raw rows (x_axis_key=category, y_axis_keys=[value]); errorbar=a value with a low–high interval per category (needs error_low_key and error_high_key); slope=each category from one moment to another (x_axis_key=the 2 periods, y_axis_keys=[value], split_by=category). A date column with only 2–3 points is a comparison → use grouped bars or slope, not a line.'),
+                    'lollipop', 'dumbbell', 'density', 'strip', 'bump',
+                ]).describe('Chart type — pick by the message + data shape, NOT by column type. bar=compare categories (with split_by → grouped bars, ideal for before/after across 2–3 periods); bar-horizontal=ranking or long category names (x_axis_key=category shown LEFT, y_axis_keys=value shown BOTTOM); line/area=true time series with ≥4–5 points; donut=part-of-whole (≤7 slices); scatter=correlation; combo=two metrics at different scales; histogram=distribution of ONE numeric column (x_axis_key=that column, counts are computed — pass raw rows, not pre-aggregated); boxplot=spread per category from raw rows (x_axis_key=category, y_axis_keys=[value]); errorbar=a value with a low–high interval per category (needs error_low_key and error_high_key); slope=each category from one moment to another (x_axis_key=the 2 periods, y_axis_keys=[value], split_by=category); lollipop=a ranking with less ink than bars; dumbbell=two values per category joined (y_axis_keys=[before, after] or [plan, actual]); density=smooth distribution of x_axis_key (split_by = one curve per group); strip=every raw row as a tick per category; bump=how the RANK of each category changes over periods (split_by=category). A date column with only 2–3 points is a comparison → use grouped bars or slope, not a line.'),
                 title: z.string().describe('The title is a CLAIM, not a label — state what the data shows, e.g. "West leads with 34% of sales", NOT "Sales by region". Write it WITHOUT a terminal period (the figure can add a QED-style mark). Include the key metric and dimension/time range.'),
                 subtitle: z.string().optional().describe('One factual line that explains the calculation, scope, or reading of the chart (not a second headline). When the series are colour-encoded, name them here so the subtitle doubles as the legend, e.g. "Quarterly revenue by region, in USD".'),
                 footnote: z.string().optional().describe('Scope or caveat — row count, date range, method, e.g. "Based on 1,240 transactions · Jan–Dec 2024". NEVER invent a data source or provenance you cannot support from the query context; describe scope instead of naming a source you are guessing.'),
@@ -402,6 +403,10 @@ function createTools(context) {
                 histogram_stats: z.array(z.enum(['mean', 'median'])).optional().describe('histogram only: draw a vertical rule at the mean and/or median. Use both when the distribution is skewed — the gap between them IS the story.'),
                 error_low_key: z.string().optional().describe('errorbar only: column with the low end of the interval.'),
                 error_high_key: z.string().optional().describe('errorbar only: column with the high end of the interval.'),
+                facet_by: z.string().optional().describe('Small multiples: repeat the chart for each value of this column (≤12 values). Better than one crowded chart with many series.'),
+                facet_columns: z.number().int().min(1).max(6).optional().describe('Charts per row for facet_by (default 3).'),
+                end_labels: z.boolean().optional().describe('line/area/bump: name each series at the end of its line instead of a legend (direct labeling — usually clearer).'),
+                tooltip_fields: z.array(z.string()).optional().describe('Extra result columns to show in the tooltip.'),
                 orientation: z.enum(['horizontal', 'vertical']).optional().describe('boxplot / errorbar: horizontal (categories on the left, default — best for long names) or vertical.'),
 
                 // ── Axes ──────────────────────────────────────────────────────────
@@ -501,6 +506,7 @@ function createTools(context) {
                 headline_kpi, donut_center_kpi, donut_label_content,
                 takeaway, annotations,
                 bin_count, histogram_stats, error_low_key, error_high_key, orientation,
+                facet_by, facet_columns, end_labels, tooltip_fields,
                 vega_lite,
             }) => {
                 let queryResult = queryResults.get(query_id);
@@ -525,7 +531,7 @@ function createTools(context) {
                 const availableColumns = queryResult.columns.map(c => c.name);
                 const missingX = !availableColumns.includes(x_axis_key);
                 const missingY = y_axis_keys.filter(k => !availableColumns.includes(k))
-                    .concat([error_low_key, error_high_key].filter(k => k && !availableColumns.includes(k)));
+                    .concat([error_low_key, error_high_key, facet_by, ...(tooltip_fields || [])].filter(k => k && !availableColumns.includes(k)));
 
                 // Un Vega-Lite escrito por el modelo se compila AQUÍ: un error vuelve
                 // al modelo con el mensaje del compilador para que lo corrija.
@@ -636,6 +642,10 @@ function createTools(context) {
                     ...(error_low_key   !== undefined && { errorLowKey: error_low_key }),
                     ...(error_high_key  !== undefined && { errorHighKey: error_high_key }),
                     ...(orientation     !== undefined && { orientation }),
+                    ...(facet_by        !== undefined && { facetKey: facet_by }),
+                    ...(facet_columns   !== undefined && { facetColumns: facet_columns }),
+                    ...(end_labels      !== undefined && { endLabels: end_labels }),
+                    ...(tooltip_fields  !== undefined && { tooltipFields: tooltip_fields }),
                     title,
                     xAxisKey: x_axis_key,
                     yAxisKeys: y_axis_keys,
