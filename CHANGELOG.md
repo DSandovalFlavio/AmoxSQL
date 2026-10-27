@@ -5,9 +5,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
-## [Unreleased] — Un gráfico, un documento
+## [5.18.0] — 2026-10-27
 
-### Nuevo
+**Los gráficos son Vega-Lite.** Story Flow dibuja con la gramática abierta de gráficos y un `.amoxvis` es un Vega-Lite válido: una consulta y su gráfico ya no son de AmoxSQL, se abren en cualquier herramienta que lea Vega-Lite (plan en `docs/dev/plan_graficos_vega_lite.md`). Los paneles y el código editan la misma figura, hay 26 tipos, y un `.sql` recuerda su gráfico. Esta versión reúne la 5.16 y la 5.17, que no se publicaron por separado.
+
+### Un gráfico, un documento
+
+#### Nuevo
 - **El gráfico de un `.sql` se recuerda con el archivo.** Pasa los resultados a gráfico, configúralo, cierra el archivo: al volver a abrirlo está igual. No hay nada que guardar ni ninguna pregunta al cerrar; Story Flow lo dice debajo de la cabecera (**Kept with ventas.sql**). Se guarda en `.amoxsql/borradores/` (ignorado por git, fuera del `.amoxproject`) y acompaña al archivo si lo renombras o lo mueves.
 - **Save as chart…** en los resultados de un `.sql`: crea un `.amoxvis` vinculado a la consulta, junto al archivo y con su nombre, y lo abre. Los gráficos guardados de ese `.sql` aparecen como **Saved as …** y se abren con un clic.
 - **La pestaña de un gráfico dice de dónde sale su consulta**: `ventas.sql › ventas.amoxvis` (el nombre del `.sql` lo abre) u **Own query**. La consulta propia se edita en la misma pestaña, en el panel **Query** (Ctrl+Enter ejecuta, Ctrl+S guarda el gráfico), y **Move to a .sql file…** la lleva a un archivo y deja el gráfico vinculado. «Edit with SQL» del explorador pasa a **Edit query**.
@@ -16,18 +20,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - **La skill descargable Data & Viz 4.0** enseña Vega-Lite con `"data": {"name": "dataset"}` en lugar de la configuración interna.
 - El asistente: `display_chart` dibuja una banda detrás de la línea (`band_low_key` / `band_high_key`); los skills de storytelling, series de tiempo, exploración inicial, investigación de métricas y calidad de datos conocen los tipos y resaltes nuevos (pendiente, mancuerna, bump, histograma, caja, umbrales, tramos, referencia en la media, etiquetas al final, múltiplos pequeños); los gráficos de un cuaderno generado y el nodo de gráfico de Data Flow ofrecen más tipos.
 
-### Arreglado
+#### Arreglado
 - El gráfico configurado sobre los resultados de un `.sql` volvía a la configuración de fábrica al cambiar de pestaña y volver (se guardaba con un nombre y se leía con otro); un cambio hecho medio segundo antes de cambiar de pestaña se perdía.
 - Dos `.amoxvis` abiertos compartían el mismo panel al cambiar de uno a otro, y uno con cambios sin guardar volvía a su versión del disco.
 - Abrir un gráfico lo marcaba como modificado.
+- **A pantalla completa** el gráfico quedaba detrás de los paneles del editor y parecía transparente; en la pestaña de un `.amoxvis` ni siquiera salía de su panel. Ahora ocupa la ventana, opaco, y **Escape** lo cierra.
 - Abrir un `.amoxvis` desde los resultados creaba una consulta sobre el archivo como si fuera un CSV.
 - **Save as chart** sobrescribía sin avisar un archivo con el mismo nombre.
 - Renombrar un `.sql` dejaba a sus gráficos apuntando a un archivo que ya no existía.
 
-## [Unreleased] — Story Flow: paneles y código, una sola figura
+### Story Flow: paneles y código, una sola figura
 
-### Nuevo
-
+#### Nuevo
 - **El código manda, y vuelve a los paneles.** Panels y Code editan la misma figura. Lo
   que se escribe en código y los paneles saben representar (tipo, columnas, títulos de
   eje, escala, cero, orden, rejilla, meta, referencia, etiquetas al final, facetas…) se
@@ -47,8 +51,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
   bajo la línea, columnas extra en el tooltip, escala raíz cuadrada, «empezar en cero»
   y zoom (automático, siempre, nunca).
 
-### Arreglado
-
+#### Arreglado
 - Opciones que no hacían nada con Vega-Lite: el **eje derecho**, el **% del total** y el
   **cambio frente al anterior** en el tooltip, la **posición de las etiquetas** en las
   barras, los **nombres de serie** en la leyenda, el **trazo** discontinuo de una serie,
@@ -60,10 +63,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
-## [Unreleased] — 5.18 «Sal con tu gráfico»
+### Sal con tu gráfico
 
-### Nuevo
-
+#### Nuevo
 - **Take it elsewhere** (Export): el gráfico como **Vega-Lite con los datos dentro**,
   como **plantilla con los datos por nombre** (`dataset`, la convención de Deneb en
   Power BI) o como **script de Python** (la consulta en DuckDB y la figura con Altair).
@@ -73,18 +75,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
   barra del lienzo lo dice.
 - **Zoom** con la rueda en las dispersiones y en las series de fechas largas.
 
-### Arreglado
-
+#### Arreglado
 - Un gráfico sobre una consulta de más de 10 000 filas sumaba solo las primeras 10 000.
 - La exportación a Word de un cuaderno no encontraba las figuras.
 
-### Interno
-
+#### Interno
 - **Recharts fuera del proyecto**: el Data Profiler dibuja su distribución con Vega.
 
 ---
 
-## [Unreleased] — 5.17 «Escribe el gráfico»
+## [5.17.0] — 2026-10-26 (sin publicar) — Escribe el gráfico
 
 ### Nuevo
 
@@ -112,7 +112,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
-## [Unreleased] — 5.16 «Vega-Lite por dentro»
+## [5.16.0] — 2026-10-26 (sin publicar) — Vega-Lite por dentro
 
 Los gráficos de Story Flow se dibujan con **Vega-Lite** y el `.amoxvis` pasa a ser un
 Vega-Lite válido: un gráfico de AmoxSQL ya no queda encerrado en AmoxSQL. Plan en

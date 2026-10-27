@@ -16,6 +16,7 @@
  *   onConfigChange - Callback when config changes
  */
 import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { API_BASE } from '../../api';
 import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste, LuSlidersHorizontal, LuCode, LuBraces, LuHistory } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
@@ -191,6 +192,17 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
 
     const [activeTab, setActiveTab] = useState('type');
     const [isFullscreen, setIsFullscreen] = useState(false);
+    // A pantalla completa la tarjeta sale a <body>. Dentro, su `position: fixed`
+    // quedaba en el contexto de apilamiento del editor: los paneles se pintaban
+    // encima y el gráfico parecía transparente; en la pestaña de un .amoxvis,
+    // el `contain: paint` del panel la dejaba encerrada en él.
+    const aPantallaCompleta = (nodo) => (isFullscreen ? createPortal(nodo, document.body) : nodo);
+    useEffect(() => {
+        if (!isFullscreen) return undefined;
+        const alTeclear = (e) => { if (e.key === 'Escape') setIsFullscreen(false); };
+        window.addEventListener('keydown', alTeclear);
+        return () => window.removeEventListener('keydown', alTeclear);
+    }, [isFullscreen]);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [isPasteJsonOpen, setIsPasteJsonOpen] = useState(false);
@@ -1149,7 +1161,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                 alignItems: 'center', justifyContent: 'center',
                 overflow: 'auto', padding: (isReportMode || isFullscreen) ? 0 : '12px',
             }}>
-            <div ref={cardRef} style={{
+            {aPantallaCompleta(<div ref={cardRef} style={{
                 ...(tamCarta && !isReportMode && !isFullscreen
                     ? tamCarta
                     : { flex: 1, height: '100%' }),
@@ -1228,7 +1240,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                 }}>
                     {componerFigura(modoLayout, piezas, retiradas, (state.headline?.position || 'below') === 'header-right' || modoLayout === 'split-header', desnuda)}
                 </div>
-            </div>
+            </div>)}
             </div>
 
             {/* ── Barra del lienzo ──
