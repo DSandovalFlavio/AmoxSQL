@@ -49,6 +49,9 @@ Algunos overlays dependen del tipo de gráfico, porque solo se dibujan donde tie
    - **A stretch of the line** — un tramo de la serie, de un valor de X a otro (p. ej. `2025-06-10` a `2025-06-26`), dibujado encima en el color del resaltado.
 2. Elige el color del resaltado. El resto del gráfico se queda en su color para que el protagonista destaque.
 
+### Nombrar las líneas al final
+En **Label the lines**, activa **Name each line at its end**: el nombre de cada serie (y su último valor) aparece junto al último punto. Es más fácil de leer que una leyenda aparte; con ella activada, puedes ocultar la leyenda en **Format**. Disponible en líneas, áreas y bump.
+
 ### Meta, referencia y área
 1. **Goal Line** — activa y define valor Y, etiqueta, color y estilo (sólida/discontinua/punteada).
 2. **Reference Line** — línea de referencia con etiqueta y color. El valor puede ser un número o **`mean`** / **`median`**: la línea se calcula sobre los valores que dibuja la figura.

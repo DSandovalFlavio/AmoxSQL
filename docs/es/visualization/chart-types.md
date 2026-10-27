@@ -2,7 +2,7 @@
 
 **🌐 [English](../../en/visualization/chart-types.md) · Español**
 
-> Los 21 tipos de gráfico de Story Flow, agrupados por lo que quieres comunicar — Comparar, Tendencia, Composición, Relación, Distribución y Flujo — no por su geometría. Todos se dibujan con Vega-Lite; lo que ningún tipo dice, se escribe en el [modo Código](story-flow.md#paneles-o-código).
+> Los 26 tipos de gráfico de Story Flow, agrupados por lo que quieres comunicar — Comparar, Tendencia, Composición, Relación, Distribución y Flujo — no por su geometría. Todos se dibujan con Vega-Lite; lo que ningún tipo dice, se escribe en el [modo Código](story-flow.md#paneles-o-código).
 
 <img src="../../images/visualization/chart-type-selector.png" alt="El selector de tipo de la etapa Type, con las categorías Compare/Trend/Composition/Relationship/Flow expandidas mostrando los iconos de cada tipo." width="100%" />
 
@@ -33,6 +33,8 @@ Usa esta página como referencia al abrir la pestaña **Type**. Si dudas, empiez
 |---|---|---|
 | `bar` | Column | Comparar categorías con barras verticales. El caballo de batalla; ideal también para 2–3 períodos. Con Split By → barras agrupadas. |
 | `bar-horizontal` | Bar | Ranking, nombres de categoría largos o muchas categorías (barras horizontales). |
+| `lollipop` | Lollipop | Un ranking con menos tinta que la barra: una línea y un punto por categoría. |
+| `dumbbell` | Dumbbell | Dos valores por categoría unidos (antes/después, plan/real). Elige exactamente dos valores en **Data**. |
 | `errorbar` | Bars + interval | Un valor con su intervalo (de confianza, mínimo–máximo) por categoría. Elige en **Data** las columnas *Interval low* e *Interval high*. |
 | `slope` | Slope | Cada categoría de un momento a otro (dos períodos): una línea por categoría, con su valor en los extremos. |
 
@@ -41,6 +43,7 @@ Usa esta página como referencia al abrir la pestaña **Type**. Si dudas, empiez
 |---|---|---|
 | `line` | Line | Serie temporal real (idealmente ≥4–5 puntos). |
 | `area` | Stacked Area | Serie temporal enfatizando volumen, con áreas apiladas. |
+| `bump` | Bump | Cómo cambia el **puesto** de cada categoría período a período (con **Color by**). |
 | `combo` | Combo | Dos métricas a escalas distintas (barra + línea), usando eje Y secundario. |
 
 ### Composición — partes de un todo
@@ -66,6 +69,8 @@ Usa esta página como referencia al abrir la pestaña **Type**. Si dudas, empiez
 |---|---|---|
 | `histogram` | Histogram | Cómo se reparte UNA columna numérica: cuántas filas caen en cada rango. La cuenta la hace la figura, así que la consulta trae las filas sin agrupar. En **Data**: los cubos y, opcionalmente, la media y la mediana. |
 | `boxplot` | Box plot | Mediana, cuartiles y atípicos de una medida por categoría, desde las filas sueltas. |
+| `density` | Density | La forma suave del reparto de una columna numérica; con **One curve per**, una curva por grupo. |
+| `strip` | Strip plot | Cada fila como una raya en su categoría: la forma del reparto sin resumirla. |
 
 ### Flujo — etapas / pipeline
 | Tipo | Etiqueta en UI | Úsalo para |

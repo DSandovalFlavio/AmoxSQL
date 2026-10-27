@@ -45,19 +45,19 @@ The figure is drawn with **Vega-Lite**, the open grammar of graphics, and saved 
 2. The order isn't mandatory: each tab is independent and changes render live.
 3. Each tab's footer shows a short hint ("What goes where?", etc.) to orient you.
 
-### Panels or code
-The sidebar header has a **Panels | Code** switch:
+### The code is in charge
+The sidebar header has the **Panels | Code** switch, the **Save** button (always visible; on an `.amoxvis` it saves the file, on a result it saves it as an `.amoxvis`) and the guide.
 
-- **Panels** (the default) — you work through the six stages. Each change generates the figure's Vega-Lite.
-- **Code** — the sidebar becomes an editor holding the figure's **Vega-Lite**. Write one or paste one; the figure redraws when you stop typing. The editor validates against the Vega-Lite schema and completes as you type.
+**Panels** and **Code** are two ways to edit **the same figure**, not two modes:
 
-Rules so nothing surprises you:
-
-- **Once you edit the code, the code is in charge.** The Type, Data and Format stages stop changing the figure (a notice says so). Style, Story and Export keep working: the title, takeaway, source, palette and card apply in both modes.
-- **An error doesn't wipe the figure.** If the JSON is half written or Vega-Lite can't read it, the last good figure stays and the error shows under the editor.
-- **Going back to the panels** is done from the notice, with **Use the panels again**. It asks first because it discards the code.
-- The data arrives under the name `dataset` (`"data": {"name": "dataset"}`). The title and takeaway are not in the code: they live in **Story**.
-- **Add layer…** (above the editor) adds a ready-made layer to the spec: **Mean line**, **Median line**, **Value labels**, or **Regression line**. It only offers the ones that make sense for that figure (a regression line needs a numeric or date X).
+- **The panels write the Vega-Lite.** Every change in a stage shows up in **Code**.
+- **The code comes back to the panels.** If in **Code** you change the mark type, a column, an axis title, the scale, the sort, the grid, the goal or the reference line, the matching panel shows it. Removing the goal layer turns "Goal Line" off.
+- **What the panels can't represent is kept and marked.** A hand-written layer, an opacity, your own `config`… stay in the figure even if you then change the panels. At the foot of the panels you get **This chart has N settings written in code**, with the list, **Show in code** and **Remove custom code**. In **Code**, those lines are marked in **amber** in the margin.
+- **The code always wins:** what is drawn is exactly what is written.
+- **An error doesn't wipe the figure.** If the JSON is half written or Vega-Lite can't read it, the last good figure stays and the error shows under the editor. The editor validates against the Vega-Lite schema and completes as you type.
+- The data arrives under the name `dataset` (`"data": {"name": "dataset"}`). The title and takeaway live in **Story**; a `title` written in the code moves to the card.
+- **Add layer…** (above the editor) adds a ready-made layer: **Mean line**, **Median line**, **Value labels**, or **Regression line**.
+- An `.amoxvis` edited outside AmoxSQL (in another editor) is recognized on open and read the same way: the panels take what they understand and the rest stays as your own code.
 
 ### The guide and the tour
 - The **?** button (info icon) in the panel header opens a drawer with the **Story Flow guide**: it explains the six stages and the storytelling principles. The same guide lives in Settings → Story Flow.
@@ -81,16 +81,19 @@ The maximize button (top-right of the chart area) takes the chart full-screen; i
 | **Story** | Make it speak | Title/takeaway, KPI, annotations, goal/reference lines, focus, trend | [Storytelling & overlays](storytelling-and-overlays.md) |
 | **Export** | Ship it | PNG by size, clipboard, `.amoxvis`, paste JSON | [Exporting charts](exporting-charts.md) |
 
-### Channels (Data stage)
-| Channel | What it does |
-|---|---|
-| Category (X) | X-axis dimension/category (on donut, the segment label) |
-| Values (Y) | One or more value columns (checkboxes; with Split By it becomes a single one) |
-| Secondary Y-Axis (Right) | Second right-hand scale for one of the series |
-| Split By Column | Pivots into one series per distinct value (grouped bars, multiple lines) |
-| Bubble Size | Bubble radius (scatter/bubble only) |
-| Sort By · Limit | Order (label/value, asc/desc) and top-N (empty = all) |
-| Date Aggregation | Group a date column by month or year |
+### Data stage
+| Section | Option | What it does |
+|---|---|---|
+| Columns | Category (X) · Values (Y) | The dimension and one or more measures (with "Color by", just one) |
+| | Interval low/high · Band low/high | The interval of bars with interval; a band under the line |
+| | Color by | One series per value of the column |
+| | Size by | Point size (scatter) |
+| | Right axis | One of the Y columns on its own scale, on the right |
+| Shape the data | Group dates by | Day · week · month · quarter · year |
+| | Running total | Cumulative total (lines and areas) |
+| | Sort by · Top | Order and, on rankings, how many to show |
+| Small multiples | One chart per · Charts per row | The same figure repeated for each value of a column |
+| Per type | Bins · mean/median · Orientation · Small slices | Histogram; box, strip, interval, lollipop, dumbbell; donut |
 
 ## Tips & gems
 

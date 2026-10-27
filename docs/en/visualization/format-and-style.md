@@ -2,95 +2,80 @@
 
 **🌐 English · [Español](../../es/visualization/format-and-style.md)**
 
-> The two stages that make a chart readable and then good-looking: Format tunes axes, numbers, grid, legend, labels, and tooltips; Style applies palettes, typography, and card finish.
+> The two stages that make the chart readable and then good-looking: Format tunes numbers, axes, grid, legend, labels, tooltip, marks and interaction; Style applies palette, series names, typography and the card.
 
-<img src="../../images/visualization/format-style-tabs.png" alt="Story Flow's Format and Style tabs side by side: on the left the Format sections (Number Format, Axis Labels, Grid & Legend), on the right the Style sections (Color Palette, Typography, Card)." width="100%" />
+<img src="../../images/visualization/format-style-tabs.png" alt="Story Flow's Format and Style tabs side by side." width="100%" />
 
 ## What it is
 
-**Format** ("Make it readable") and **Style** ("Make it look good") are stages ③ and ④ of [Story Flow](story-flow.md). Format is the mechanics: making values effortless to read. Style is the finish: a clean visual identity. The options shown adapt to the active chart type — a donut hides axis controls, a scatter adds quadrants, and so on.
+**Format** ("Make it readable") and **Style** ("Make it look good") are stages ③ and ④ of [Story Flow](story-flow.md). Format is the mechanics: values that read without effort. Style is the finish. Each panel shows only what the active type can draw —a donut has no axes, a scatter has zoom—, and everything you change here is written into the figure's Vega-Lite (you see it in **Code**).
 
 ## When to use it
 
 - **Format**: when numbers overlap, the scale misleads, labels are missing, or the tooltip doesn't say enough.
-- **Style**: when the chart is going into a report or deck and needs a palette, typography, and frame consistent with the rest.
+- **Style**: when the chart goes into a report or deck and needs a palette, typography and frame consistent with the rest.
 
 ## How to use it
 
+The sections follow the order in which a figure is read: numbers first, then axes, then the details.
+
 ### Format — readability
-1. Open the **Format** tab.
-2. In **Number Format**, pick the abbreviation (compact, currency, thousands, millions, percent…) and the decimals.
-3. In **Axis Labels**, adjust the size, intensity, gap, max length (truncation), and rotation of the labels.
-4. In **Vertical Axis**, turn on a log scale or manually pin Y Min/Max; if you use a secondary axis, set its range.
-5. In **Data Labels**, turn on value labels, choose the tooltip style (Standard or **Rich**, with Δ vs. previous), and the label position.
-6. In **Grid & Legend**, choose the grid, axis lines, and legend position.
-7. Adjust **Margins & Spacing** if content is crowding the edges.
+1. **Numbers** — the format (compact, currency, thousands, millions, percentage…) and decimals. It applies to axes, labels, tooltip and KPI.
+2. **Value axis** — the scale (linear, logarithmic or square root), whether it starts at zero (automatic, always, never) and the min and max. With a right axis (set in **Data**), its range is here too.
+3. **Axis titles & labels** — each axis title, the rotation of the category labels, their size, max length, gap and intensity.
+4. **Grid & legend** — grid, axis lines and the legend. With the legend at the top, bottom or a side you can turn on **Click the legend to highlight a series**: a click on a series dims the rest.
+5. **Labels & tooltip** — values on the marks (on bars, outside or inside; on a donut, what they say and where), what the tooltip adds (**% of total** or **change vs previous**), and **Also show in the tooltip**, to add result columns.
+6. **Marks** — what belongs to the type: **Lines** (smooth, straight or step; points; fill), **Bars** (side by side, stacked or 100 %; color; radius), **Donut** (hole size and what goes in the center), **Scatter** (quadrants), **Combo** (which series are lines).
+7. **Interaction** — **Zoom and pan**: automatic (scatter and long date series), always or never. Wheel to zoom, drag to pan, double-click to reset.
 
 ### Style — appearance
-1. Open the **Style** tab.
-2. Pick a **palette** from the five groups, or set **per-series colors** one by one.
-3. In **Typography**, choose the font, text scale, and label intensity.
-4. Adjust **Background** (canvas tone), **Card** (shadow, radius, gradient background), and **Border**.
+1. **Color Palette** — pick a palette by its purpose (categorical, sequential, diverging, brand).
+2. **Series: colors & names** — each series' color, **the name it shows in the legend** and, for lines, the stroke (solid, dashed, dotted).
+3. **Fill** — for lines and areas, gradient or solid.
+4. **Typography** — font and text scale.
+5. **Card** — how the card is laid out (**Layout**), background, shadow, radius, gradient and border.
 
 ## Reference — Format stage
 
-### Numbers and axes
 | Section | Option | Values |
 |---|---|---|
-| Number Format | Abbreviation | Auto (compact) · Standard · Currency · Thousands · Millions · Billions · Percentage · Raw (8 options) |
-| | Decimal Places | Auto · 0 · 1 · 2 · 3 · 4 |
-| Axis Labels | Label Size | 8–24 px |
-| | Label Intensity | 20–100% (opacity of ticks, titles, and legend) |
-| | Gap from Axis | 0–30 px |
-| | Max Length | 0 = auto; >0 truncates to N characters |
-| | Label Rotation | 0° · 45° · 90° (line/bar/area/combo/waterfall) |
-| Vertical Axis | Logarithmic Scale | On/Off (data spanning orders of magnitude) |
-| | Y Min / Y Max | Manual domain (empty = auto) |
-| Secondary Axis (Right) | Min / Max | Appears when a secondary Y-axis is assigned |
-| Axis Titles | Category / Value Axis Title | Text + show toggle |
-
-### Mark detail
-| Section | Option | Values |
-|---|---|---|
-| Data Labels | Show Data Labels | On/Off |
-| | Tooltip Style | Standard · **Rich (value + Δ vs. previous)** |
-| | Show % of Total in Tooltip | On/Off (Standard tooltip only) |
-| | Label Position | Outside · Inside Center · Inside Start · Inside End |
-| | Label Size · Hide if space < | 8–20 px · px threshold to hide cramped labels |
-| Grid & Legend | Grid Lines | Both · Horizontal · Vertical · None |
-| | Show Axis Lines & Ticks | On/Off |
-| | Legend Position | Top · Bottom · Left · Right · Hidden |
-| Line Options | Interpolation | Smooth · Linear · Step · Step Before · Step After |
-| | Fill Area · Show Points · Cumulative Sum | Area fill · points · running total |
-| Bar Options | Bar Layout | Grouped · Stacked · 100% Stacked |
-| | Corner Radius | 0–20 px |
-| | Color Mode | By Series · By Category · **Intensity by Value** (grouped only) |
-| Donut Options | Inner Radius (Thickness) | 0–90 |
-| | Center Metric | None · Total · Average |
-| Scatter Options | Automatic Quadrants | Crosshairs at the means |
-| Combo Options | Line series toggles | Pick which series are lines; the rest are bars |
-| Margins & Spacing | Title Gap · Top · Bottom · Left · Right | Margins in px |
+| Numbers | Format · Decimals | Auto (compact) · Standard · Currency · Thousands · Millions · Billions · Percentage · Raw · Auto/0–4 |
+| Value axis | Scale | Linear · Logarithmic · Square root |
+| | Start at zero | Automatic · Always · Never |
+| | Min / Max | Empty = automatic; also for the right axis |
+| Axis titles & labels | Category / Value axis title | Text + show |
+| | Category label rotation | 0° · 45° · 90° |
+| | Label size · Max label length · Gap · Intensity | 8–24 px · 0 = auto · 0–30 px · 20–100 % |
+| Grid & legend | Grid lines · Axis lines | Both · Horizontal · Vertical · None |
+| | Legend | In the subtitle · Top · Bottom · Left · Right · Hidden |
+| | Click the legend to highlight a series | With the legend in the figure and several series |
+| Labels & tooltip | Values on the marks · Label position · Label size | Bars: Outside · Inside the bar |
+| | Content · Position (donut) | % · value · name · name + % · name + value; outside/inside |
+| | Tooltip | Value · Value + % of total · Value + change vs previous |
+| | Also show in the tooltip | Result columns (on charts that add up, numeric only, summed) |
+| Lines | Shape · Points · Fill | Smooth · Straight · Step · Step before · Step after |
+| Bars | Layout · Color · Corner radius | Side by side · Stacked · Stacked to 100 % · One color · Per category · Intensity |
+| Donut | Hole size · In the center | 20–85 % · Nothing · Total · Average |
+| Scatter | Quadrants | The mean of each axis |
+| Combo | Line series | Which series are lines |
+| Interaction | Zoom and pan | Automatic · Always · Never |
 
 ## Reference — Style stage
 
 | Section | Option | Values |
 |---|---|---|
-| Color Palette | Groups | **Modern** (default, vivid, neon) · **Qualitative** (set1, set2, pastel, dark2) · **Sequential** (blues, greens, reds, purples, ylorbr) · **Diverging** (spectral, rdylbu, rdylgn, piyg) · **Brand** (ocean, sunset, corporate) |
-| Series Colors | Per-series color | Individual color; on line/combo, also a style (Solid/Dashed/Dotted); on donut, color per segment |
-| Background | Canvas Tone | Default · Darker · Lighter · Warm · Cool · Custom (color) |
-| Typography | Font Family | System · Inter · Lato · IBM Plex Sans · Manrope · Space Grotesk · Lora · JetBrains Mono (8) |
-| | Text Size Scale · Label Intensity | 75–200% · 20–100% |
-| Fill (line/area) | Area Fill | Gradient (fades out) · Solid |
-| Card | Drop shadow · Corner Radius · Gradient background | On/Off · 0–28 px · From → To gradient |
-| Border | Border Style | None · Solid · Dashed · Subtle (+ color) |
+| Color Palette | Groups | Modern · Qualitative · Sequential · Diverging · Brand · Sterling |
+| Series: colors & names | Color · Name in the legend · Stroke | Per series (per slice on a donut); stroke on lines: Solid · Dashed · Dotted |
+| Fill | Area fill | Gradient · Solid |
+| Typography | Font family · Text size scale | 8 fonts · 75–200 % |
+| Card | Layout · Background · Drop shadow · Corner radius · Gradient · Border | Stacked · Side by side · Automatic; background tones; 0–28 px; None · Solid · Dashed · Subtle |
 
 ## Tips & gems
 
-- **Rich tooltip = value + delta:** it automatically shows the change from the previous point, with nothing else to configure.
-- **Color by intensity:** on grouped bars, "Intensity by Value" tints each bar by its value — a free 1D heatmap.
-- **KPI in the donut center:** "Center Metric" puts the total or the average in the central hole.
-- **Scatter quadrants:** turn on "Automatic Quadrants" to split the plot by the means and classify points into four zones.
-- **Pin the Y domain to compare:** if you're building several charts that will be read together, pin Y Min/Max so the scales match.
+- **What you write in code comes back to the panels:** change an axis title or the scale in **Code** and the panel shows it. What the panels can't represent stays marked (see [Story Flow](story-flow.md#the-code-is-in-charge)).
+- **Name your series:** "Total cost" in the legend instead of `costo_total`, without touching the query.
+- **A legend you use:** with several series, "Click the legend to highlight a series" lets you read one without another chart.
+- **Fix the axis to compare:** if several charts are read together, fix min and max so their scales match.
 
 ## Related
 

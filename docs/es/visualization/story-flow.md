@@ -45,19 +45,19 @@ La figura se dibuja con **Vega-Lite**, la gramática de gráficos abierta, y se 
 2. No es obligatorio seguir el orden: cada pestaña es independiente y los cambios se reflejan en vivo.
 3. El pie de cada pestaña muestra una pista corta ("What goes where?", etc.) para orientarte.
 
-### Paneles o código
-En la cabecera de la barra lateral hay un interruptor **Panels | Code**:
+### El código manda
+En la cabecera de la barra lateral están el interruptor **Panels | Code**, el botón **Guardar** (siempre a la vista; en un `.amoxvis` guarda el archivo, en un resultado lo guarda como `.amoxvis`) y la guía.
 
-- **Panels** (por defecto) — trabajas con las seis etapas. Cada cambio genera el Vega-Lite de la figura.
-- **Code** — la barra lateral se vuelve un editor con el **Vega-Lite** de la figura. Puedes escribirlo o pegar uno; la figura se redibuja al dejar de teclear. El editor valida contra el esquema de Vega-Lite y autocompleta mientras escribes.
+**Panels** y **Code** son dos maneras de editar **la misma figura**, no dos modos:
 
-Reglas para que no haya sorpresas:
-
-- **En cuanto editas el código, el código manda.** Las etapas Type, Data y Format dejan de cambiar la figura (lo dice un aviso). Style, Story y Export siguen funcionando: el título, la conclusión, la fuente, la paleta y la tarjeta valen igual en los dos modos.
-- **Un error no borra la figura.** Si el JSON está a medio escribir o Vega-Lite no lo entiende, se queda la última figura buena y el error aparece debajo del editor.
-- **Volver a los paneles** se hace desde el aviso, con **Use the panels again**. Pide confirmación porque descarta el código.
-- Los datos llegan con el nombre `dataset` (`"data": {"name": "dataset"}`). El título y la conclusión no van en el código: viven en **Story**.
-- **Add layer…** (arriba del editor) añade al spec una capa hecha: **Mean line**, **Median line**, **Value labels** o **Regression line**. Solo ofrece las que tienen sentido en esa figura (una recta de regresión necesita una X numérica o de fechas).
+- **Los paneles escriben el Vega-Lite.** Cada cambio en una etapa se ve en **Code**.
+- **El código vuelve a los paneles.** Si en **Code** cambias el tipo de marca, una columna, el título de un eje, la escala, el orden, la rejilla, la meta o la línea de referencia, el panel correspondiente lo muestra. Quitar la capa de la meta apaga «Goal Line».
+- **Lo que los paneles no saben representar se conserva y se marca.** Una capa escrita a mano, una opacidad, un `config` propio… se quedan en la figura aunque después cambies los paneles. Al pie de los paneles aparece **This chart has N settings written in code**, con la lista, **Show in code** y **Remove custom code**. En **Code**, esas líneas están en **ámbar** en el margen.
+- **El código siempre gana:** lo que se dibuja es exactamente lo que está escrito.
+- **Un error no borra la figura.** Si el JSON está a medio escribir o Vega-Lite no lo entiende, se queda la última figura buena y el error aparece debajo del editor. El editor valida con el esquema de Vega-Lite y autocompleta.
+- Los datos llegan con el nombre `dataset` (`"data": {"name": "dataset"}`). El título y la conclusión viven en **Story**; si escribes un `title` en el código, pasa a la tarjeta.
+- **Add layer…** (arriba del editor) añade una capa hecha: **Mean line**, **Median line**, **Value labels** o **Regression line**.
+- Un `.amoxvis` editado fuera de AmoxSQL (en otro editor) se reconoce al abrirlo y se lee igual: los paneles toman lo que entienden y el resto queda como código propio.
 
 ### La guía y el tour
 - El botón **?** (icono de info) en la cabecera del panel abre un cajón con la **guía de Story Flow**: explica las seis etapas y los principios de narrativa. La misma guía vive en Ajustes → Story Flow.
@@ -81,16 +81,19 @@ El botón de maximizar (esquina superior derecha del área del gráfico) lleva e
 | **Story** | Make it speak | Título/takeaway, KPI, anotaciones, líneas de meta/referencia, foco, tendencia | [Narrativa y overlays](storytelling-and-overlays.md) |
 | **Export** | Ship it | PNG por tamaño, portapapeles, `.amoxvis`, pegar JSON | [Exportar gráficos](exporting-charts.md) |
 
-### Canales (etapa Data)
-| Canal | Qué hace |
-|---|---|
-| Category (X) | Dimensión/categoría del eje X (en donut, la etiqueta del segmento) |
-| Values (Y) | Una o más columnas de valor (checkboxes; con Split By pasa a una sola) |
-| Secondary Y-Axis (Right) | Segunda escala a la derecha para una de las series |
-| Split By Column | Pivota en una serie por valor único (barras agrupadas, líneas múltiples) |
-| Bubble Size | Radio de burbuja (solo scatter/bubble) |
-| Sort By · Limit | Orden (label/valor, asc/desc) y top-N (vacío = todo) |
-| Date Aggregation | Agrupar una columna de fecha por mes o año |
+### Etapa Data
+| Sección | Opción | Qué hace |
+|---|---|---|
+| Columns | Category (X) · Values (Y) | La dimensión y una o más medidas (con «Color by», una sola) |
+| | Interval low/high · Band low/high | El intervalo de las barras con intervalo; una banda bajo la línea |
+| | Color by | Una serie por cada valor de la columna |
+| | Size by | El tamaño de los puntos (dispersión) |
+| | Right axis | Una de las Y con su propia escala a la derecha |
+| Shape the data | Group dates by | Día · semana · mes · trimestre · año |
+| | Running total | Total acumulado (líneas y áreas) |
+| | Sort by · Top | Orden y, en rankings, cuántos mostrar |
+| Small multiples | One chart per · Charts per row | La misma figura repetida por cada valor de una columna |
+| Del tipo | Bins · mean/median · Orientation · Small slices | Histograma; caja, franjas, intervalo, piruleta, mancuerna; anillo |
 
 ## Tips y gemas
 

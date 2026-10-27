@@ -277,6 +277,36 @@ del editor sin borrar la última figura buena.
 - Sustituye a la pestaña «Spec» de Dec-72 y adelanta su llegada a la 5.16: es la salida de escape
   desde el primer día.
 
+### Dec-77 — El código manda, y vuelve a los paneles (2026-10-27, sustituye a Dec-76)
+
+Decisión del autor: los paneles se llenan con lo que diga el código, el código siempre
+manda, y lo que los paneles no representan se señala.
+
+- **Una sola figura**: `spec = aplicar(deStoryFlow(paneles), extras)` (`vega/codigo.js`).
+  No hay «modo código» ni «modo paneles»; el interruptor es solo la vista.
+- **Del código a los paneles** (`leerPaneles`): lentes sobre el spec (tipo de marca,
+  columnas, títulos y rejilla de los ejes, escala, cero, orden, interpolación, radio,
+  leyenda, meta, referencia, etiquetas, tendencia, resalte, facetas, etiquetas al final,
+  zoom, leyenda interactiva, título). Solo se aplica lo que CAMBIÓ frente a la base.
+- **Lo demás son extras** (`diferencia(base, código)`): un parche con las capas por
+  nombre (`amox_principal`, `amox_meta`…), así sobrevive a los cambios de los paneles; una
+  capa quitada en código sigue quitada. Garantía probada: lo dibujado es exactamente el
+  código.
+- **Señal**: aviso al pie de los paneles con la lista y *Remove custom code*; en el
+  editor, las líneas de los extras en ámbar (`vega/ubicar.js` las ubica en el texto tal
+  como está escrito).
+- El `.amoxvis` guarda los extras en `usermeta.amoxsql.interfaz.extras` y una **huella**
+  del spec: si no coincide al abrir, el archivo se editó fuera y se vuelve a asimilar.
+
+### Dec-78 — Lo que Vega-Lite abre a quien no escribe Vega-Lite
+
+Paneles nuevos sobre capacidades de la gramática que eran caras con el dibujo anterior:
+pequeños múltiplos (`facet`), leyenda interactiva (`params` + `bind: legend`), etiquetas
+al final de cada línea, banda de intervalo (`errorband`), columnas extra en el tooltip,
+escala raíz cuadrada, «empezar en cero», zoom on/off. Tipos nuevos: piruleta, mancuerna,
+bump (`window rank`), densidad (`density`) y franjas (`tick`). Qué enseña cada panel lo
+decide una sola tabla (`panels/capacidades.js`).
+
 ### Dec-75 — El PowerPoint nativo sigue
 
 `officeChartMapper` pasa a leer un subconjunto del spec: una sola vista, `bar`, `line`, `area` o
@@ -397,3 +427,4 @@ la vez haría imposible saber qué rompió qué.
 - 2026-10-26 — **5.18 hecha**: *Take it elsewhere* (Vega-Lite con datos, plantilla `dataset`, script de Python — `vega/salida.js`), totales desde DuckDB cuando el resultado llega recortado (`vega/agregar.js`; antes un gráfico sobre >10 000 filas sumaba solo las primeras), zoom en dispersión y series largas, el Data Profiler en Vega y **Recharts fuera** (−267 KB en el paquete principal). Word encontraba las figuras por la clase de Recharts: arreglado.
 - **Queda para después**: la selección que filtra otras figuras del mismo Lienzo o deck (necesita un canal entre tarjetas que hoy no existe); el PowerPoint nativo sigue leyendo los paneles (un gráfico en modo código va como imagen, Dec-75 sin cambios); el empuje a DuckDB de `bin`/`timeUnit` para histogramas de millones de filas.
 - Pruebas: `scripts/probarGraficos.mjs` 115/115, `scripts/probarGraficoIA.mjs` 10/10.
+- 2026-10-27 — **Dec-77/78**: el código manda y vuelve a los paneles (`codigo.js`, `ubicar.js`), aviso y líneas en ámbar, Guardar en la cabecera; auditoría de los paneles (siete opciones que no hacían nada, ahora sí; márgenes y «Hide if space» fuera), paneles reescritos en orden lógico desde `capacidades.js`; cinco tipos nuevos y ocho opciones nuevas; fechas en UTC (salían un día antes). Pruebas: 175 + 12.

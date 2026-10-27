@@ -49,6 +49,9 @@ Some overlays depend on the chart type, because they only draw where they make s
    - **A stretch of the line** — part of the series, from one X value to another (e.g. `2025-06-10` to `2025-06-26`), drawn on top in the highlight color.
 2. Pick the highlight color. The rest of the chart keeps its color so the protagonist stands out.
 
+### Label the lines at their end
+In **Label the lines**, turn on **Name each line at its end**: each series' name (and last value) appears next to its last point. It reads more easily than a separate legend; with it on, you can hide the legend in **Format**. Available on lines, areas, and bump.
+
 ### Goal, reference, and area
 1. **Goal Line** — enable and set the Y value, label, color, and style (solid/dashed/dotted).
 2. **Reference Line** — a reference line with a label and color. The value can be a number or **`mean`** / **`median`**: the line is computed from the values the figure draws.

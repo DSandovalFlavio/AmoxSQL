@@ -2,7 +2,7 @@
 
 **🌐 English · [Español](../../es/visualization/chart-types.md)**
 
-> Story Flow's 21 chart types, grouped by what you want to communicate — Compare, Trend, Composition, Relationship, Distribution, and Flow — not by their geometry. All of them are drawn with Vega-Lite; what no type can say, you write in [Code mode](story-flow.md#panels-or-code).
+> Story Flow's 26 chart types, grouped by what you want to communicate — Compare, Trend, Composition, Relationship, Distribution, and Flow — not by their geometry. All of them are drawn with Vega-Lite; what no type can say, you write in [Code mode](story-flow.md#panels-or-code).
 
 <img src="../../images/visualization/chart-type-selector.png" alt="The Type stage's type selector, with the Compare/Trend/Composition/Relationship/Flow categories expanded showing each type's icon." width="100%" />
 
@@ -33,6 +33,8 @@ Use this page as a reference when you open the **Type** tab. When in doubt, star
 |---|---|---|
 | `bar` | Column | Comparing categories with vertical bars. The workhorse; also ideal for 2–3 periods. With Split By → grouped bars. |
 | `bar-horizontal` | Bar | Ranking, long category names, or many categories (horizontal bars). |
+| `lollipop` | Lollipop | A ranking with less ink than bars: a line and a dot per category. |
+| `dumbbell` | Dumbbell | Two values per category, joined (before/after, plan/actual). Pick exactly two values in **Data**. |
 | `errorbar` | Bars + interval | A value with its interval (confidence, min–max) per category. In **Data**, pick the *Interval low* and *Interval high* columns. |
 | `slope` | Slope | Each category from one moment to another (two periods): one line per category, labeled at both ends. |
 
@@ -41,6 +43,7 @@ Use this page as a reference when you open the **Type** tab. When in doubt, star
 |---|---|---|
 | `line` | Line | A real time series (ideally ≥4–5 points). |
 | `area` | Stacked Area | A time series emphasizing volume, with stacked areas. |
+| `bump` | Bump | How the **rank** of each category changes period by period (with **Color by**). |
 | `combo` | Combo | Two metrics on different scales (bar + line), using a secondary Y-axis. |
 
 ### Composition — parts of a whole
@@ -66,6 +69,8 @@ Use this page as a reference when you open the **Type** tab. When in doubt, star
 |---|---|---|
 | `histogram` | Histogram | How ONE numeric column spreads: how many rows fall in each range. The figure does the counting, so the query returns the rows ungrouped. In **Data**: the bins and, optionally, the mean and the median. |
 | `boxplot` | Box plot | Median, quartiles and outliers of a measure per category, from the raw rows. |
+| `density` | Density | The smooth shape of a numeric column's spread; with **One curve per**, one curve per group. |
+| `strip` | Strip plot | Every row as a tick in its category: the shape of the spread without summarizing it. |
 
 ### Flow — stages / pipeline
 | Type | UI label | Use it for |

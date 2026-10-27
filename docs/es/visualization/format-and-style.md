@@ -2,13 +2,13 @@
 
 **🌐 [English](../../en/visualization/format-and-style.md) · Español**
 
-> Las dos etapas que hacen el gráfico legible y luego bonito: Format afina ejes, números, cuadrícula, leyenda, etiquetas y tooltips; Style aplica paletas, tipografía y acabado de tarjeta.
+> Las dos etapas que hacen el gráfico legible y luego bonito: Format afina números, ejes, rejilla, leyenda, etiquetas, tooltip, marcas e interacción; Style aplica paleta, nombres de serie, tipografía y la tarjeta.
 
-<img src="../../images/visualization/format-style-tabs.png" alt="Las pestañas Format y Style de Story Flow una junto a otra: a la izquierda las secciones de Format (Number Format, Axis Labels, Grid & Legend), a la derecha las de Style (Color Palette, Typography, Card)." width="100%" />
+<img src="../../images/visualization/format-style-tabs.png" alt="Las pestañas Format y Style de Story Flow una junto a otra." width="100%" />
 
 ## Qué es
 
-**Format** ("Make it readable") y **Style** ("Make it look good") son las etapas ③ y ④ de [Story Flow](story-flow.md). Format es la mecánica: que los valores se lean sin esfuerzo. Style es el acabado: una identidad visual limpia. Las opciones que aparecen se adaptan al tipo de gráfico activo — un donut no muestra controles de eje, un scatter añade cuadrantes, etc.
+**Format** ("Make it readable") y **Style** ("Make it look good") son las etapas ③ y ④ de [Story Flow](story-flow.md). Format es la mecánica: que los valores se lean sin esfuerzo. Style es el acabado. Cada panel enseña solo lo que el tipo activo puede dibujar —un anillo no tiene ejes, una dispersión tiene zoom—, y todo lo que cambias aquí se escribe en el Vega-Lite de la figura (lo ves en **Code**).
 
 ## Cuándo usarlo
 
@@ -17,80 +17,65 @@
 
 ## Cómo usarlo
 
+Las secciones están en el orden en que se lee una figura: primero las cifras, luego los ejes, después los detalles.
+
 ### Format — legibilidad
-1. Abre la pestaña **Format**.
-2. En **Number Format**, elige la abreviación (compacto, moneda, miles, millones, porcentaje…) y los decimales.
-3. En **Axis Labels**, ajusta tamaño, intensidad, separación, longitud máxima (truncado) y rotación de las etiquetas.
-4. En **Vertical Axis**, activa escala logarítmica o fija manualmente Y Min/Max; si usas eje secundario, ajusta su rango.
-5. En **Data Labels**, activa etiquetas de valor, elige el estilo de tooltip (Standard o **Rich**, con Δ vs. anterior) y la posición de la etiqueta.
-6. En **Grid & Legend**, elige cuadrícula, líneas de eje y posición de la leyenda.
-7. Ajusta **Margins & Spacing** si el contenido roza los bordes.
+1. **Numbers** — el formato (compacto, moneda, miles, millones, porcentaje…) y los decimales. Vale para ejes, etiquetas, tooltip y KPI.
+2. **Value axis** — la escala (lineal, logarítmica o raíz cuadrada), si empieza en cero (automático, siempre, nunca) y el mínimo y máximo. Con un eje derecho (en **Data**), aquí está también su rango.
+3. **Axis titles & labels** — los títulos de cada eje, la rotación de las etiquetas de categoría, su tamaño, longitud máxima, separación e intensidad.
+4. **Grid & legend** — rejilla, líneas de eje y la leyenda. Con la leyenda arriba, abajo o a un lado puedes activar **Click the legend to highlight a series**: un clic en una serie apaga las demás.
+5. **Labels & tooltip** — las cifras sobre las marcas (en barras, fuera o dentro de la barra; en el anillo, qué dicen y dónde), qué añade el tooltip (**% of total** o **change vs previous**) y **Also show in the tooltip**, para sumar columnas del resultado.
+6. **Marcas** — lo propio del tipo: **Lines** (forma suave, recta o en escalón; puntos; relleno), **Bars** (lado a lado, apiladas o al 100 %; color; radio), **Donut** (tamaño del hueco y qué va en el centro), **Scatter** (cuadrantes), **Combo** (qué series son línea).
+7. **Interaction** — **Zoom and pan**: automático (en dispersiones y series de fechas largas), siempre o nunca. Rueda para acercar, arrastrar para moverse, doble clic para volver.
 
 ### Style — apariencia
-1. Abre la pestaña **Style**.
-2. Elige una **paleta** de los cinco grupos, o define **colores por serie** uno a uno.
-3. En **Typography**, elige fuente, escala de texto e intensidad de etiquetas.
-4. Ajusta **Background** (tono del lienzo), **Card** (sombra, radio, fondo degradado) y **Border**.
+1. **Color Palette** — elige una paleta por su propósito (categórica, secuencial, divergente, de marca).
+2. **Series: colors & names** — el color de cada serie, **el nombre con el que sale en la leyenda** y, en líneas, el trazo (continuo, discontinuo, punteado).
+3. **Fill** — en líneas y áreas, degradado o sólido.
+4. **Typography** — la fuente y la escala del texto.
+5. **Card** — cómo se reparte la tarjeta (**Layout**), el fondo, la sombra, el radio, el degradado y el borde.
 
 ## Referencia — etapa Format
 
-### Números y ejes
 | Sección | Opción | Valores |
 |---|---|---|
-| Number Format | Abbreviation | Auto (compacto) · Standard · Currency · Thousands · Millions · Billions · Percentage · Raw (8 opciones) |
-| | Decimal Places | Auto · 0 · 1 · 2 · 3 · 4 |
-| Axis Labels | Label Size | 8–24 px |
-| | Label Intensity | 20–100% (opacidad de ticks, títulos y leyenda) |
-| | Gap from Axis | 0–30 px |
-| | Max Length | 0 = auto; >0 trunca a N caracteres |
-| | Label Rotation | 0° · 45° · 90° (line/bar/area/combo/waterfall) |
-| Vertical Axis | Logarithmic Scale | On/Off (datos con órdenes de magnitud) |
-| | Y Min / Y Max | Dominio manual (vacío = auto) |
-| Secondary Axis (Right) | Min / Max | Aparece al asignar un eje Y secundario |
-| Axis Titles | Category / Value Axis Title | Texto + interruptor de mostrar |
-
-### Detalle del mark
-| Sección | Opción | Valores |
-|---|---|---|
-| Data Labels | Show Data Labels | On/Off |
-| | Tooltip Style | Standard · **Rich (valor + Δ vs. anterior)** |
-| | Show % of Total in Tooltip | On/Off (solo con tooltip Standard) |
-| | Label Position | Outside · Inside Center · Inside Start · Inside End |
-| | Label Size · Hide if space < | 8–20 px · umbral en px para ocultar etiquetas apretadas |
-| Grid & Legend | Grid Lines | Both · Horizontal · Vertical · None |
-| | Show Axis Lines & Ticks | On/Off |
-| | Legend Position | Top · Bottom · Left · Right · Hidden |
-| Line Options | Interpolation | Smooth · Linear · Step · Step Before · Step After |
-| | Fill Area · Show Points · Cumulative Sum | Relleno de área · puntos · total acumulado |
-| Bar Options | Bar Layout | Grouped · Stacked · 100% Stacked |
-| | Corner Radius | 0–20 px |
-| | Color Mode | By Series · By Category · **Intensity by Value** (solo agrupado) |
-| Donut Options | Inner Radius (Thickness) | 0–90 |
-| | Center Metric | None · Total · Average |
-| Scatter Options | Automatic Quadrants | Crosshairs en las medias |
-| Combo Options | Line series toggles | Elige qué series son línea; el resto, barras |
-| Margins & Spacing | Title Gap · Top · Bottom · Left · Right | Márgenes en px |
+| Numbers | Format · Decimals | Auto (compacto) · Standard · Currency · Thousands · Millions · Billions · Percentage · Raw · Auto/0–4 |
+| Value axis | Scale | Linear · Logarithmic · Square root |
+| | Start at zero | Automatic · Always · Never |
+| | Min / Max | Vacío = automático; también para el eje derecho |
+| Axis titles & labels | Category / Value axis title | Texto + mostrar |
+| | Category label rotation | 0° · 45° · 90° |
+| | Label size · Max label length · Gap · Intensity | 8–24 px · 0 = auto · 0–30 px · 20–100 % |
+| Grid & legend | Grid lines · Axis lines | Both · Horizontal · Vertical · None |
+| | Legend | In the subtitle · Top · Bottom · Left · Right · Hidden |
+| | Click the legend to highlight a series | Con leyenda en la figura y varias series |
+| Labels & tooltip | Values on the marks · Label position · Label size | Barras: Outside · Inside the bar |
+| | Content · Position (anillo) | % · valor · nombre · nombre + % · nombre + valor; fuera/dentro |
+| | Tooltip | Value · Value + % of total · Value + change vs previous |
+| | Also show in the tooltip | Columnas del resultado (en gráficos que suman, solo numéricas, sumadas) |
+| Lines | Shape · Points · Fill | Smooth · Straight · Step · Step before · Step after |
+| Bars | Layout · Color · Corner radius | Side by side · Stacked · Stacked to 100 % · One color · Per category · Intensity |
+| Donut | Hole size · In the center | 20–85 % · Nothing · Total · Average |
+| Scatter | Quadrants | Las medias de cada eje |
+| Combo | Line series | Qué series son línea |
+| Interaction | Zoom and pan | Automatic · Always · Never |
 
 ## Referencia — etapa Style
 
 | Sección | Opción | Valores |
 |---|---|---|
-| Color Palette | Grupos | **Modern** (default, vivid, neon) · **Qualitative** (set1, set2, pastel, dark2) · **Sequential** (blues, greens, reds, purples, ylorbr) · **Diverging** (spectral, rdylbu, rdylgn, piyg) · **Brand** (ocean, sunset, corporate) |
-| Series Colors | Color por serie | Color individual; en línea/combo, también estilo (Solid/Dashed/Dotted); en donut, color por segmento |
-| Background | Canvas Tone | Default · Darker · Lighter · Warm · Cool · Custom (color) |
-| Typography | Font Family | System · Inter · Lato · IBM Plex Sans · Manrope · Space Grotesk · Lora · JetBrains Mono (8) |
-| | Text Size Scale · Label Intensity | 75–200% · 20–100% |
-| Fill (line/area) | Area Fill | Gradient (desvanece) · Solid |
-| Card | Drop shadow · Corner Radius · Gradient background | On/Off · 0–28 px · degradado From → To |
-| Border | Border Style | None · Solid · Dashed · Subtle (+ color) |
+| Color Palette | Grupos | Modern · Qualitative · Sequential · Diverging · Brand · Sterling |
+| Series: colors & names | Color · Name in the legend · Trazo | Por serie (en anillo, por segmento); trazo en líneas: Solid · Dashed · Dotted |
+| Fill | Area fill | Gradient · Solid |
+| Typography | Font family · Text size scale | 8 fuentes · 75–200 % |
+| Card | Layout · Background · Drop shadow · Corner radius · Gradient · Border | Stacked · Side by side · Automatic; tonos de fondo; 0–28 px; None · Solid · Dashed · Subtle |
 
 ## Tips y gemas
 
-- **Tooltip Rich = valor + delta:** muestra automáticamente el cambio frente al punto anterior, sin configurar nada más.
-- **Color por intensidad:** en barras agrupadas, "Intensity by Value" tiñe cada barra según su valor — un mapa de calor 1D gratis.
-- **KPI en el centro del donut:** "Center Metric" pone el total o el promedio en el hueco central.
-- **Cuadrantes del scatter:** activa "Automatic Quadrants" para dividir el gráfico por las medias y clasificar los puntos en cuatro zonas.
-- **Fija el dominio Y para comparar:** si generas varios gráficos que se leerán juntos, fija Y Min/Max para que las escalas coincidan.
+- **Lo que escribes en código vuelve a los paneles:** si cambias en **Code** el título de un eje o la escala, el panel lo muestra. Lo que los paneles no saben representar queda marcado (ver [Story Flow](story-flow.md#el-código-manda)).
+- **Nombra las series:** «Costo total» en la leyenda en lugar de `costo_total`, sin tocar la consulta.
+- **Leyenda que se usa:** con varias series, «Click the legend to highlight a series» deja leer una sola sin crear otro gráfico.
+- **Fija el eje para comparar:** si varios gráficos se leerán juntos, fija mínimo y máximo para que las escalas coincidan.
 
 ## Relacionado
 

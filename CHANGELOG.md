@@ -5,6 +5,42 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [Unreleased] — Story Flow: paneles y código, una sola figura
+
+### Nuevo
+
+- **El código manda, y vuelve a los paneles.** Panels y Code editan la misma figura. Lo
+  que se escribe en código y los paneles saben representar (tipo, columnas, títulos de
+  eje, escala, cero, orden, rejilla, meta, referencia, etiquetas al final, facetas…) se
+  ve en el panel; lo demás se conserva aunque cambies los paneles, se anuncia al pie
+  («This chart has N settings written in code», con *Show in code* y *Remove custom
+  code*) y se marca en ámbar en el editor. Un `.amoxvis` editado fuera se reconoce al
+  abrirlo.
+- **Guardar siempre a la vista**, junto a la guía en la cabecera de Story Flow.
+- **Paneles reordenados** en el orden en que se lee una figura, desde una sola tabla de
+  lo que admite cada tipo. Data: *Columns → Shape the data → Small multiples*. Format:
+  *Numbers → Value axis → Axis titles & labels → Grid & legend → Labels & tooltip →
+  marcas → Interaction*. Style: paleta, series (color y **nombre en la leyenda**),
+  relleno, tipografía y la tarjeta entera. Story: los textos primero.
+- **Cinco tipos nuevos**: Lollipop, Dumbbell, Bump, Density y Strip plot (26 en total).
+- **Lo que Vega-Lite abre a los paneles**: pequeños múltiplos (una figura por valor de
+  una columna), leyenda interactiva, nombrar cada línea al final, banda de un intervalo
+  bajo la línea, columnas extra en el tooltip, escala raíz cuadrada, «empezar en cero»
+  y zoom (automático, siempre, nunca).
+
+### Arreglado
+
+- Opciones que no hacían nada con Vega-Lite: el **eje derecho**, el **% del total** y el
+  **cambio frente al anterior** en el tooltip, la **posición de las etiquetas** en las
+  barras, los **nombres de serie** en la leyenda, el **trazo** discontinuo de una serie,
+  la **anotación sin Y** (ahora se coloca sobre el dato), **Step before / after** y el
+  **promedio** en el centro del anillo.
+- **Las fechas salían un día antes** en América («31 Dec 2022» por el 1 de enero).
+- Fuera: los márgenes y «Hide if space <» (eran del dibujo anterior) y la intensidad de
+  etiquetas repetida en Style.
+
+---
+
 ## [Unreleased] — 5.18 «Sal con tu gráfico»
 
 ### Nuevo
