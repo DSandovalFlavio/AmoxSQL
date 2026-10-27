@@ -40,21 +40,27 @@ Some overlays depend on the chart type, because they only draw where they make s
 ### Annotations
 1. In **Annotations**, add **+ Text** (mark a point) or **+ Box** (mark a region).
 2. Choose the X value (and an end X, for a Box), an optional Y value (auto if left empty), and the color.
-3. Available on line, bar, and combo charts.
+3. Available on every chart with axes: line, area, bar, combo, scatter, waterfall, and bars with interval.
 
 ### Focus (Highlight)
-1. In **Focus — Highlight**, choose what to highlight: **Max**, **Min**, or **Specific Category** (type the category).
-2. Pick the highlight color. The rest of the chart dims so the protagonist stands out.
+1. In **Focus — Highlight**, choose what to highlight:
+   - **Max**, **Min**, or **Specific Category** (type the category).
+   - **Values below… / Values above…** — every bar under or over a threshold (e.g. campaigns with ROAS under 1). Pair it with a **Reference Line** at that same value.
+   - **A stretch of the line** — part of the series, from one X value to another (e.g. `2025-06-10` to `2025-06-26`), drawn on top in the highlight color.
+2. Pick the highlight color. The rest of the chart keeps its color so the protagonist stands out.
+
+### Label the lines at their end
+In **Label the lines**, turn on **Name each line at its end**: each series' name (and last value) appears next to its last point. It reads more easily than a separate legend; with it on, you can hide the legend in **Format**. Available on lines, areas, and bump.
 
 ### Goal, reference, and area
 1. **Goal Line** — enable and set the Y value, label, color, and style (solid/dashed/dotted).
-2. **Reference Line** — a horizontal reference line (mean, median, benchmark) with a label and color.
+2. **Reference Line** — a reference line with a label and color. The value can be a number or **`mean`** / **`median`**: the line is computed from the values the figure draws.
 3. **Reference Area** — a rectangular band by X and Y range, with color and opacity.
 
 ### Trend and moving average
-1. In **Trend & Average**, choose **Linear Trend** or **Moving Average**.
+1. In **Trend & Average**, choose **Linear Trend** or **Moving Average**. On a scatter the options are **Regression line** (the least-squares line of Y on X) and **Smooth curve**.
 2. For the moving average, set the **window size**.
-3. Only available on a single series (line or vertical bar); with multiple series or Split By it doesn't apply.
+3. Single series only (line, bar, scatter); with multiple series or Split By it doesn't apply.
 
 ## Reference
 
@@ -68,19 +74,20 @@ Some overlays depend on the chart type, because they only draw where they make s
 | | Text Alignment | Left · Center · Right |
 | | Auto Story | Generates text with AI from a data sample |
 | Annotations | + Text / + Box | Point (X, Y) or region (X→X2, Y→Y2) + color |
-| Focus — Highlight | Type | None · Max · Min · Specific Category (+ color) |
+| Focus — Highlight | Type | None · Max · Min · Specific Category · Values below/above (threshold) · A stretch of the line (from X to X) (+ color) |
 | Goal Line | Enabled, Y Value, Label, Color, Style | Style: Solid · Dashed · Dotted |
-| Reference Line | Y Value, Label, Color | Horizontal line |
+| Reference Line | Value, Label, Color | A number, or `mean` / `median` |
 | Reference Area | X Start/End, Y Start/End, Color, Opacity | Rectangular band |
-| Trend & Average | Overlay | None · Linear Trend · Moving Average (+ Window Size, + color) |
+| Trend & Average | Overlay | None · Linear Trend · Moving Average (+ Window Size) · on a scatter: Regression line · Smooth curve (+ color) |
 
 ### Support by chart type
 | Overlay | Where it draws |
 |---|---|
-| Annotations | Line, bar, combo |
-| Focus (Highlight) | Line, bar |
-| Goal / Reference / Area | Line, bar, combo, scatter, waterfall |
-| Trend / Moving average | Line, vertical bar (single series) |
+| Annotations | Line, bar, combo, scatter, waterfall, bars with interval |
+| Focus (Highlight) | Line, bar, box plot (by category), bars with interval |
+| Goal / Reference / Area | Line, bar, combo, scatter, waterfall, bars with interval |
+| Trend / Moving average / Regression | Line, bar, scatter (single series) |
+| Histogram mean and median | Histogram (in **Data**) |
 
 The panel only shows overlays the active type can draw, so you never get a control that would do nothing.
 

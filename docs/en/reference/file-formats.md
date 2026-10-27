@@ -17,7 +17,7 @@ This page is the reference for all of them. For the technical detail of the note
 | `.sql` | Plain SQL query | SQL text | [SQL editor](../editor/sql-editor.md) |
 | `.sqlnb` | Notebook (cells + parameters) | Markdown with front matter | [Notebooks](../notebooks/notebooks.md) |
 | `.sqlnb.state.json` | Notebook visual state | JSON | Generated (alongside) |
-| `.amoxvis` | A chart's configuration | JSON | [Story Flow](../visualization/story-flow.md) |
+| `.amoxvis` | A chart, with its query | JSON (Vega-Lite) | [Story Flow](../visualization/story-flow.md) |
 | `.amoxdeck` | Presentation deck | Markdown + front-matter | [Report Flow](../reports/report-flow.md) |
 | `.sqlchain` | Transformation pipeline | JSON (DAG) | [Data Flow](../data-flow/data-flow.md) |
 | `.amoxproject` | A project in one file, or a template | ZIP with `amoxproject.json` | [Projects](../user-guide/projects-and-connections.md) |
@@ -79,17 +79,31 @@ A sibling file of a `.sqlnb` that stores the visual state (results, chart config
 | Priority | If present, its state wins over the `state` embedded in the `.sqlnb` — you can edit the SQL without losing results |
 | Edited in | Auto-generated (not hand-edited) |
 
-## `.amoxvis` — Chart configuration
+## `.amoxvis` — Chart (Vega-Lite)
 
-Everything needed to rebuild a chart: type, axes, titles, color theme, number format, reference lines, and — crucially — the query that feeds it. An `.amoxvis` is self-contained: on open, AmoxSQL re-runs its `query` and redraws.
+An AmoxSQL chart **is a valid Vega-Lite spec** (schema v6), so it isn't locked into AmoxSQL: any tool that reads Vega-Lite draws it. What belongs only to AmoxSQL goes in `usermeta.amoxsql`, the field Vega-Lite reserves for application metadata and every other tool ignores.
+
+```json
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "title": { "text": "The 10 best-selling products", "subtitle": "2024, in pesos" },
+  "data": { "name": "dataset" },
+  "mark": "bar",
+  "encoding": { "y": { "field": "producto", "type": "nominal" }, "x": { "field": "venta", "type": "quantitative" } },
+  "usermeta": { "amoxsql": { "version": 2, "modo": "interfaz", "consulta": "SELECT …", "interfaz": { "chartType": "bar-horizontal" } } }
+}
+```
 
 | Aspect | Detail |
 |---|---|
-| Structure | JSON with `chartType`, `xAxisKey`, `yAxisKeys[]`, titles, `colorTheme`, formatting, reference lines, and `query` |
-| Carries its query | Yes — the `query` field makes the file standalone |
-| Chart types | `bar`, `bar-stacked`, `bar-horizontal`, `bar-100`, `line`, `area`, `donut`, `scatter`, `bubble`, `combo`, `funnel`, `heatmap`, `treemap` |
+| Structure | Vega-Lite v6 (`$schema`, `title`, `data`, `mark`/`layer`, `encoding`, `transform`…) + `usermeta.amoxsql` |
+| The data | By name: `"data": {"name": "dataset"}`. AmoxSQL fills it with the query's result |
+| Carries its query | Yes — `usermeta.amoxsql.consulta`; `origen` when it came from a saved `.sql` |
+| `modo` | `interfaz`: the Story Flow panels (in `interfaz`, only what differs from the defaults) generate the spec on open. `codigo`: the hand-written spec is the figure |
+| Treemap | Saved as a **Vega** spec (Vega `$schema`): Vega-Lite has no hierarchical layout |
+| Previous format | The old flat configuration (`chartType`, `xAxisKey`, `query`…) still opens and is saved in the new format |
 | Usage | Standalone, embedded in a notebook cell (`state.chartConfig`), or referenced from a deck |
-| Edited in | [Story Flow](../visualization/story-flow.md) |
+| Edited in | [Story Flow](../visualization/story-flow.md) — with the panels or directly in code |
 
 ## `.amoxdeck` — Report Flow deck
 

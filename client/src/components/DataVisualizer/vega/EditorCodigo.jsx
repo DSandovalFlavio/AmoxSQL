@@ -1,0 +1,176 @@
+/**
+ * El modo Código de Story Flow (Dec-76/77): la barra lateral se vuelve un editor
+ * de Vega-Lite. Lo que se escribe aquí ES la figura, y lo que los paneles saben
+ * representar vuelve a ellos; lo que no, queda marcado en ámbar en el margen.
+ *
+ *   - Se muestra el spec sin `title` ni `usermeta`: el título vive en la tarjeta
+ *     (pestaña Story) y `usermeta` lo escribe AmoxSQL al guardar.
+ *   - Se aplica al dejar de teclear. Un JSON a medio escribir no borra la figura:
+ *     se dice qué falla y se queda la última buena.
+ *   - El esquema de Vega-Lite valida y completa mientras se escribe. Se carga al
+ *     abrir el editor (pesa casi 2 MB) y solo para este modelo, para no imponerlo
+ *     a cualquier otro .json abierto en la aplicación.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Editor from '@monaco-editor/react';
+import { LuCopy, LuCheck, LuTriangleAlert, LuWandSparkles } from 'react-icons/lu';
+import { registerMonaco, MONACO_THEME_NAME } from '../../../monacoTheme.js';
+import { specParaEditar, esVegaCompleto } from './figura';
+import { ESQUEMA_VL } from './deStoryFlow';
+import { CAPAS, anadirCapa, capaPosible } from './capas';
+import { rutasDeExtras } from './codigo';
+import { ubicar, rangoDe } from './ubicar';
+
+const MODELO_VL = 'inmemory://amoxsql/figura.vl.json';
+const MODELO_VEGA = 'inmemory://amoxsql/figura.vg.json';
+let esquemaCargado = null;
+
+async function ponerEsquema(monaco) {
+    if (!esquemaCargado) {
+        esquemaCargado = import('vega-lite/vega-lite-schema.json').then(m => m.default || m).catch(() => null);
+    }
+    const schema = await esquemaCargado;
+    if (!schema || !monaco?.languages?.json?.jsonDefaults) return;
+    const actual = monaco.languages.json.jsonDefaults.diagnosticsOptions || {};
+    const otros = (actual.schemas || []).filter(s => s.uri !== ESQUEMA_VL);
+    monaco.languages.json.jsonDefaults.setDiagnosticsOptions({
+        ...actual,
+        validate: true,
+        allowComments: false,
+        enableSchemaRequest: false,
+        schemas: [...otros, { uri: ESQUEMA_VL, fileMatch: ['*.vl.json'], schema }],
+    });
+}
+
+const formatear = (spec) => JSON.stringify(specParaEditar(spec) ?? {}, null, 2);
+
+const EditorCodigo = ({ spec, onAplicar, estado, extras }) => {
+    const [texto, setTexto] = useState(() => formatear(spec));
+    const [errorJson, setErrorJson] = useState(null);
+    const [copiado, setCopiado] = useState(false);
+    const propio = useRef(false);          // el último cambio salió de aquí
+    const temporizador = useRef(null);
+
+    // Un spec que llega de fuera (los paneles, Deshacer, otro archivo) reemplaza
+    // el texto; el que acaba de salir de este editor no, para no mover el cursor.
+    const entrante = useMemo(() => formatear(spec), [spec]);
+    useEffect(() => {
+        if (propio.current) { propio.current = false; return; }
+        setTexto(entrante);
+        setErrorJson(null);
+    }, [entrante]);
+
+    useEffect(() => () => clearTimeout(temporizador.current), []);
+
+    const alCambiar = useCallback((valor) => {
+        const t = valor ?? '';
+        setTexto(t);
+        clearTimeout(temporizador.current);
+        temporizador.current = setTimeout(() => {
+            let obj;
+            try { obj = JSON.parse(t); } catch (e) { setErrorJson(e.message); return; }
+            if (!obj || typeof obj !== 'object' || Array.isArray(obj)) { setErrorJson('The chart has to be a JSON object.'); return; }
+            setErrorJson(null);
+            propio.current = true;
+            onAplicar(obj);
+        }, 450);
+    }, [onAplicar]);
+
+    const ordenar = useCallback(() => {
+        try { const obj = JSON.parse(texto); setTexto(JSON.stringify(obj, null, 2)); setErrorJson(null); }
+        catch (e) { setErrorJson(e.message); }
+    }, [texto]);
+
+    const copiar = useCallback(async () => {
+        try { await navigator.clipboard.writeText(texto); setCopiado(true); setTimeout(() => setCopiado(false), 1400); } catch { /* sin portapapeles */ }
+    }, [texto]);
+
+    // «Add layer»: se aplica al spec que está escrito ahora, no al de los paneles.
+    const actual = useMemo(() => { try { return JSON.parse(texto); } catch { return null; } }, [texto]);
+    const posibles = useMemo(() => (actual ? CAPAS.filter(c => capaPosible(actual, c.id)) : []), [actual]);
+    const anadir = useCallback((id) => {
+        if (!actual || !id) return;
+        const nuevo = anadirCapa(actual, id);
+        setTexto(JSON.stringify(nuevo, null, 2));
+        setErrorJson(null);
+        propio.current = true;
+        onAplicar(nuevo);
+    }, [actual, onAplicar]);
+
+    const antesDeMontar = useCallback((monaco) => { registerMonaco(monaco); ponerEsquema(monaco); }, []);
+
+    /* Las líneas que son extras (lo que los paneles no muestran), en ámbar. Se
+       ubican en el texto TAL COMO ESTÁ escrito, no en uno reformateado. */
+    const editorRef = useRef(null);
+    const decoraciones = useRef(null);
+    const alMontar = useCallback((editor, monaco) => { editorRef.current = { editor, monaco }; }, []);
+    const nExtras = useMemo(() => rutasDeExtras(extras || undefined).length, [extras]);
+    useEffect(() => {
+        const ed = editorRef.current;
+        if (!ed) return;
+        const { editor, monaco } = ed;
+        const modelo = editor.getModel();
+        if (!modelo) return;
+        const rangos = extras ? ubicar(texto) : null;
+        const marcas = [];
+        if (rangos) {
+            for (const ruta of rutasDeExtras(extras)) {
+                const r = rangoDe(rangos, ruta);
+                if (!r || ruta.length === 0) continue;
+                const a = modelo.getPositionAt(r.inicio), b = modelo.getPositionAt(r.fin);
+                marcas.push({
+                    range: new monaco.Range(a.lineNumber, 1, b.lineNumber, 1),
+                    options: { isWholeLine: true, className: 'sf-linea-extra', linesDecorationsClassName: 'sf-linea-extra-margen', hoverMessage: { value: 'Written in code: the panels do not show this' } },
+                });
+            }
+        }
+        if (!decoraciones.current) decoraciones.current = editor.createDecorationsCollection(marcas);
+        else decoraciones.current.set(marcas);
+    }, [texto, extras]);
+    const ruta = esVegaCompleto(spec) ? MODELO_VEGA : MODELO_VL;
+    const problema = errorJson ? `JSON: ${errorJson}` : estado?.error || null;
+    const avisos = !problema ? (estado?.avisos || []) : [];
+
+    return (
+        <div className="sf-codigo">
+            <div className="sf-codigo-franja">
+                <span className="sf-codigo-idioma">{esVegaCompleto(spec) ? 'Vega' : 'Vega-Lite'}</span>
+                <span className="sf-codigo-nota">
+                    {nExtras ? `${nExtras} custom ${nExtras === 1 ? 'setting' : 'settings'} marked in amber` : 'Same chart as the panels'}
+                </span>
+                <span style={{ flex: 1 }} />
+                {posibles.length > 0 && (
+                    <select className="sf-codigo-capa" value="" onChange={e => anadir(e.target.value)} title="Add a ready-made layer to the spec">
+                        <option value="">Add layer…</option>
+                        {posibles.map(c => <option key={c.id} value={c.id}>{c.etiqueta}</option>)}
+                    </select>
+                )}
+                <button type="button" className="sf-codigo-btn" onClick={ordenar} title="Format the JSON"><LuWandSparkles size={13} /></button>
+                <button type="button" className="sf-codigo-btn" onClick={copiar} title="Copy the spec">{copiado ? <LuCheck size={13} /> : <LuCopy size={13} />}</button>
+            </div>
+            <div className="sf-codigo-editor">
+                <Editor
+                    path={ruta}
+                    value={texto}
+                    language="json"
+                    theme={MONACO_THEME_NAME}
+                    beforeMount={antesDeMontar}
+                    onMount={alMontar}
+                    onChange={alCambiar}
+                    options={{
+                        minimap: { enabled: false }, fontSize: 12, tabSize: 2, wordWrap: 'on',
+                        scrollBeyondLastLine: false, automaticLayout: true, lineNumbersMinChars: 3,
+                        folding: true, renderLineHighlight: 'none', fixedOverflowWidgets: true,
+                    }}
+                />
+            </div>
+            <div className={`sf-codigo-pie${problema ? ' sf-codigo-pie--error' : ''}`}>
+                {problema ? (<><LuTriangleAlert size={13} /> <span>{problema}</span></>)
+                    : avisos.length ? (<><LuTriangleAlert size={13} /> <span>{avisos[0]}</span></>)
+                        : <span>Panels and code edit the same chart: what the panels can show goes back to them. The data arrives as <code>{'{"name": "dataset"}'}</code>; title and takeaway live in Story.</span>}
+            </div>
+        </div>
+    );
+};
+
+export default EditorCodigo;

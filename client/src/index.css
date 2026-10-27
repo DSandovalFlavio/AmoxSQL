@@ -9906,8 +9906,7 @@ tr:hover td {
   }
 
   /* Prevent charts from being split across pages */
-  .recharts-responsive-container,
-  .recharts-wrapper,
+  .figura-vega,
   .notebook-code-cell-content>div:last-child {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
@@ -9964,7 +9963,7 @@ tr:hover td {
   }
 
   /* ===== CHARTS: ensure SVG prints with colors ===== */
-  .recharts-surface {
+  .figura-vega svg {
     overflow: visible !important;
   }
 
@@ -21503,3 +21502,177 @@ tr:hover td {
 .opx-incrustada .opx-cuerpo { padding: 18px 0 0; max-width: none; }
 .opx-incrustada .opx-error,
 .opx-incrustada .opx-cargando { margin: 16px 0; }
+
+/* ═══════════════════════════════════════════════════════════════
+   STORY FLOW SOBRE VEGA-LITE (5.16, plan_graficos_vega_lite.md)
+   La figura, su tooltip y el modo Código de la barra lateral.
+   ═══════════════════════════════════════════════════════════════ */
+.figura-vega svg { display: block; overflow: visible; }
+.figura-vega-error {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+  padding: 16px; text-align: center;
+  color: var(--text-secondary); font-size: var(--text-xs);
+}
+.figura-vega-error strong { color: var(--color-error); font-weight: var(--weight-medium); }
+.figura-vega-error span { font-family: var(--font-mono); max-width: 52ch; overflow-wrap: anywhere; }
+
+.figura-vega-tooltip {
+  position: fixed; z-index: 10050; pointer-events: none; display: none;
+  min-width: 120px; max-width: 320px;
+  padding: 7px 9px;
+  background: var(--tooltip-bg, var(--surface-overlay));
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  color: var(--text-primary);
+  font-family: var(--font-sans); font-size: 12px; line-height: 1.45;
+}
+.figura-vega-tooltip > div { display: flex; justify-content: space-between; gap: 14px; }
+.figura-vega-tooltip .fvt-clave { color: var(--text-secondary); }
+.figura-vega-tooltip .fvt-valor { font-variant-numeric: tabular-nums; font-weight: var(--weight-medium); text-align: right; }
+
+.sf-interruptor { padding: 2px; }
+.sf-interruptor .seg-item { padding: 3px 8px; }
+
+.sf-codigo { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.sf-codigo-franja { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); }
+.sf-codigo-idioma {
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--accent-primary); background: var(--accent-muted);
+  padding: 2px 6px; border-radius: var(--radius-sm);
+}
+.sf-codigo-nota { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sf-codigo-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; border-radius: var(--radius-sm);
+  background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); cursor: pointer;
+}
+.sf-codigo-btn:hover { color: var(--text-primary); }
+.sf-codigo-editor {
+  flex: 1; min-height: 200px;
+  border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden;
+}
+.sf-codigo-pie {
+  display: flex; align-items: flex-start; gap: 6px;
+  font-size: 11px; line-height: 1.45; color: var(--text-muted);
+  min-height: 32px;
+}
+.sf-codigo-pie code { font-family: var(--font-mono); font-size: 10.5px; }
+.sf-codigo-pie--error { color: var(--color-error); }
+.sf-codigo-pie > span { overflow-wrap: anywhere; }
+
+.sf-aviso-codigo {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin-bottom: 12px; padding: 9px 10px;
+  border: 1px solid color-mix(in oklch, var(--accent-primary) 35%, transparent);
+  background: var(--accent-muted);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary); font-size: 11.5px; line-height: 1.45;
+}
+.sf-aviso-codigo > svg { flex: none; margin-top: 2px; color: var(--accent-primary); }
+.sf-aviso-codigo p { margin: 0 0 7px; }
+.sf-aviso-codigo-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sf-aviso-btn {
+  font-size: 11px; padding: 3px 8px; border-radius: var(--radius-sm); cursor: pointer;
+  background: transparent; border: 1px solid var(--border-color); color: var(--text-primary);
+}
+.sf-aviso-btn--peligro { border-color: var(--color-error); color: var(--color-error); }
+.figura-vega-hoja { width: 100%; height: 100%; }
+.figura-vega-error--franja {
+  inset: auto 0 0 0; flex-direction: row; justify-content: flex-start; flex-wrap: wrap;
+  padding: 6px 10px; gap: 4px 8px; text-align: left;
+  background: color-mix(in oklch, var(--chart-bg) 88%, transparent);
+  border-top: 1px solid color-mix(in oklch, var(--color-error) 40%, transparent);
+}
+.sf-codigo-capa {
+  height: 24px; font-size: 11px; padding: 0 6px; border-radius: var(--radius-sm);
+  background: var(--input-bg, transparent); color: var(--text-secondary); border: 1px solid var(--border-color);
+}
+.sf-en-motor {
+  font-size: 10px; letter-spacing: .04em; color: var(--accent-primary);
+  background: var(--accent-muted); border-radius: var(--radius-sm); padding: 2px 7px;
+}
+.sf-linea-extra { background: color-mix(in oklch, #f5a524 12%, transparent); }
+.sf-linea-extra-margen { background: #f5a524; width: 3px !important; margin-left: 3px; }
+.sf-aviso-lista { margin: 0 0 7px; padding-left: 16px; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); }
+.sf-aviso-lista li { overflow-wrap: anywhere; }
+.sf-cabecera-btn {
+  background: transparent; border: 1px solid var(--border-color); color: var(--text-muted);
+  cursor: pointer; padding: 3px; border-radius: 4px; display: flex; align-items: center;
+}
+.sf-cabecera-btn:hover { color: var(--text-primary); }
+
+/* ── La pestaña de un .amoxvis (Dec-80): un documento, y de dónde sale su consulta ── */
+.axp { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; }
+.axp-barra {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  padding: 6px 12px; border-bottom: 1px solid var(--border-color); background: var(--panel-bg);
+}
+.axp-miga { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; font-size: 12px; }
+.axp-miga-sql, .axp-miga-doc { display: inline-flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; }
+.axp-miga-sql {
+  background: transparent; border: none; padding: 3px 6px; margin-left: -6px; border-radius: var(--radius-sm);
+  color: var(--text-secondary); cursor: pointer; font: inherit;
+}
+.axp-miga-sql:hover { background: var(--hover-bg, color-mix(in oklch, var(--text-primary) 6%, transparent)); color: var(--text-primary); }
+.axp-miga-sql:focus-visible, .axp-btn:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 1px; }
+.axp-miga-sep { color: var(--text-muted); flex: none; }
+.axp-miga-doc { color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.axp-miga-nota { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.axp-miga-nota::before { content: '·'; margin: 0 6px 0 2px; }
+.axp-punto { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-primary); flex: none; }
+.axp-acciones { display: flex; align-items: center; gap: 6px; flex: none; }
+.axp-btn {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  padding: 4px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-default, var(--border-color));
+  background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer;
+}
+.axp-btn:hover:not(:disabled) { color: var(--text-primary); }
+.axp-btn:disabled { opacity: .5; cursor: default; }
+.axp-btn--activo { color: var(--text-primary); background: var(--accent-muted); border-color: transparent; }
+.axp-btn--primario { background: var(--accent-primary); border-color: transparent; color: var(--surface-base); font-weight: 600; }
+.axp-btn--primario:hover:not(:disabled) { color: var(--surface-base); filter: brightness(1.08); }
+.axp-galeria {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: var(--radius-sm);
+  background: var(--accent-muted); color: var(--text-secondary); font-size: 11px; font-weight: 600;
+}
+.axp-deriva {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; flex-shrink: 0;
+  padding: 8px 14px; border-bottom: 1px solid var(--border-color);
+  background: var(--feedback-warning-bg); color: var(--text-secondary); font-size: 12px;
+}
+.axp-deriva > svg { color: var(--color-warning); flex: none; }
+.axp-deriva-texto { flex: 1 1 260px; min-width: 0; }
+.axp-deriva-select {
+  max-width: 320px; height: 26px; font-size: 12px; border-radius: var(--radius-sm);
+  background: var(--input-bg, var(--panel-bg)); color: var(--text-primary); border: 1px solid var(--border-color);
+}
+.axp-consulta { display: flex; flex-direction: column; flex-shrink: 0; height: 200px; border-bottom: 1px solid var(--border-color); background: var(--panel-bg); }
+.axp-consulta-barra { display: flex; align-items: center; gap: 6px; padding: 6px 12px; flex-wrap: wrap; }
+.axp-consulta-titulo { flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-muted); }
+.axp-consulta-titulo strong { color: var(--text-secondary); font-weight: 600; }
+.axp-sin-ejecutar { font-style: normal; color: var(--color-warning-text); }
+.axp-consulta-editor { flex: 1; min-height: 0; }
+.axp-figura { flex: 1; overflow: hidden; position: relative; contain: layout paint; }
+.axp-estado { display: flex; align-items: center; justify-content: center; gap: 8px; height: 100%; color: var(--text-muted); font-size: 14px; padding: 0 16px; text-align: center; }
+.axp-error {
+  margin: 20px; padding: 20px; border-radius: 8px; white-space: pre-wrap;
+  background: var(--color-error-bg); border: 1px solid var(--color-error); color: var(--color-error);
+  font-size: 13px; font-family: var(--font-mono);
+}
+
+/* ── El gráfico de un .sql: se recuerda con el archivo y dice dónde está guardado (Dec-79) ── */
+.sf-recordado {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px;
+  margin: -4px 0 12px; font-size: 11px; color: var(--text-muted);
+}
+.sf-recordado > svg { flex: none; }
+.sf-recordado-chip {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
+  padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border-color);
+  background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sf-recordado-chip:hover { color: var(--text-primary); border-color: var(--accent-primary); }
+.sf-recordado-chip:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 1px; }

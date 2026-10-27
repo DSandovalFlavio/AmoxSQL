@@ -1,0 +1,61 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 460,
+  "height": 240,
+  "encoding": {
+    "x": {
+      "field": "fecha",
+      "type": "temporal",
+      "timeUnit": "yearmonthdate",
+      "axis": {
+        "format": "%b",
+        "title": null
+      }
+    },
+    "y": {
+      "field": "cvr",
+      "type": "quantitative",
+      "axis": {
+        "format": ".1%",
+        "title": "CVR diario de Meta"
+      }
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "line",
+        "color": "#b8bcc4"
+      }
+    },
+    {
+      "transform": [
+        {
+          "filter": {
+            "field": "fecha",
+            "range": [
+              {
+                "year": 2025,
+                "month": 6,
+                "date": 10
+              },
+              {
+                "year": 2025,
+                "month": 6,
+                "date": 26
+              }
+            ]
+          }
+        }
+      ],
+      "mark": {
+        "type": "line",
+        "color": "#f2545b",
+        "strokeWidth": 2.5
+      }
+    }
+  ]
+}

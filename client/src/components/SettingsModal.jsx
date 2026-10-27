@@ -591,7 +591,7 @@ function ExternalSkillsSection() {
                         <LuSparkles size={13} /> AmoxSQL Data &amp; Viz Skill
                     </div>
                     <p className="stg-card-desc" style={{ marginTop: 4 }}>
-                        SQL expert + Story Flow chart designer. Responds with SQL <em>and</em> a chart configuration JSON you can paste directly into Story Flow.
+                        SQL expert + chart designer. Responds with SQL <em>and</em> a Vega-Lite chart you paste into Story Flow (Paste JSON) — the panels pick up what they understand.
                     </p>
                     <button
                         className="stg-btn stg-btn--primary"

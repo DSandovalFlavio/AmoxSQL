@@ -1,0 +1,40 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 460,
+  "mark": {
+    "type": "boxplot",
+    "extent": 1.5,
+    "size": 16,
+    "median": {
+      "color": "#333"
+    }
+  },
+  "encoding": {
+    "y": {
+      "field": "campana",
+      "type": "nominal",
+      "title": null,
+      "sort": [
+        "Search - Marca",
+        "Meta - Prospección",
+        "Meta - Retargeting",
+        "Search - Genérica"
+      ]
+    },
+    "x": {
+      "field": "cpa",
+      "type": "quantitative",
+      "title": "CPA diario (MXN)"
+    },
+    "color": {
+      "condition": {
+        "test": "datum.campana === 'Meta - Retargeting'",
+        "value": "#f2545b"
+      },
+      "value": "#b8bcc4"
+    }
+  }
+}

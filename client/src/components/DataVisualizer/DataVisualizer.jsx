@@ -4,7 +4,7 @@
  * This is the slim entry point that composes all sub-modules:
  * - useChartState for state management
  * - Panel components for the sidebar UI
- * - ChartRenderer for chart rendering
+ * - FiguraVega: the figure, drawn from a Vega-Lite spec (vega/)
  * - HeadlineOverlay for KPI display
  * - Export utilities for PNG/config saving
  *
@@ -16,8 +16,9 @@
  *   onConfigChange - Callback when config changes
  */
 import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { API_BASE } from '../../api';
-import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste } from 'react-icons/lu';
+import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste, LuSlidersHorizontal, LuCode, LuBraces, LuHistory } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
 import AlertDialog from '../AlertDialog';
 
@@ -43,7 +44,14 @@ import ExportPanel from './panels/ExportPanel';
 import PasteJsonModal from './panels/PasteJsonModal';
 
 // Renderers & Overlays
-import ChartRenderer from './renderers/ChartRenderer';
+import FiguraVega from './vega/FiguraVega';
+import EditorCodigo from './vega/EditorCodigo';
+import { especFinal, asimilarCodigo, describirExtras } from './vega/codigo';
+import { sqlDeAgregado } from './vega/agregar';
+import { specDeSalida, scriptDePython } from './vega/salida';
+import { escribirAmoxvis } from './vega/figura';
+import { prepararFilas } from './vega/motor';
+import { temaVega, TOKENS_CLAROS } from './vega/tema';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
 import { StoryFlowGuide } from './StoryFlowGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
@@ -156,7 +164,7 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null, recordadoCon = null, onAbrirArchivo = null }) => {
     /**
      * Sin mandos, pero NO empotrada.
      *
@@ -184,6 +192,17 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
 
     const [activeTab, setActiveTab] = useState('type');
     const [isFullscreen, setIsFullscreen] = useState(false);
+    // A pantalla completa la tarjeta sale a <body>. Dentro, su `position: fixed`
+    // quedaba en el contexto de apilamiento del editor: los paneles se pintaban
+    // encima y el gráfico parecía transparente; en la pestaña de un .amoxvis,
+    // el `contain: paint` del panel la dejaba encerrada en él.
+    const aPantallaCompleta = (nodo) => (isFullscreen ? createPortal(nodo, document.body) : nodo);
+    useEffect(() => {
+        if (!isFullscreen) return undefined;
+        const alTeclear = (e) => { if (e.key === 'Escape') setIsFullscreen(false); };
+        window.addEventListener('keydown', alTeclear);
+        return () => window.removeEventListener('keydown', alTeclear);
+    }, [isFullscreen]);
     const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [isPasteJsonOpen, setIsPasteJsonOpen] = useState(false);
@@ -224,10 +243,13 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         const yValid = state.yAxisKeys?.length > 0 && state.yAxisKeys.every(k => columns.includes(k));
         const spInvalid = state.splitByKey && !columns.includes(state.splitByKey);
         if (xValid && yValid && !spInvalid) return;
-        const numericCols = columns.filter(c => !isNaN(Number(data[0][c])));
-        const fallbackY = numericCols.length > 0 ? [numericCols[0]] : [columns[Math.min(1, columns.length - 1)]];
+        const x = xValid ? state.xAxisKey : columns[0];
+        // La Y por defecto es la primera columna numérica que NO es la X: con
+        // «mes» (1..12) primero, X e Y salían iguales y la figura sumaba el mes.
+        const numericCols = columns.filter(c => c !== x && !isNaN(Number(data[0][c])));
+        const fallbackY = numericCols.length > 0 ? [numericCols[0]] : [columns.find(c => c !== x) || columns[0]];
         const patch = {
-            xAxisKey:  xValid ? state.xAxisKey  : columns[0],
+            xAxisKey:  x,
             yAxisKeys: yValid ? state.yAxisKeys : fallbackY,
         };
         if (spInvalid) patch.splitByKey = '';
@@ -238,15 +260,38 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     // ── Derived data ──
     const isDateCol = useMemo(() => isDateColumn(data, state.xAxisKey), [data, state.xAxisKey]);
 
+    /* ── La suma la hace DuckDB (5.18) ──
+       Si el resultado llegó recortado (o es muy grande) y el tipo suma por X, se
+       pide a DuckDB la misma agregación sobre la consulta entera. Mientras llega,
+       y si falla, la figura dibuja las filas que hay. */
+    // Un extra que toca la agregación (otra operación que no sea sumar) no se
+    // puede adelantar en DuckDB: sumar dos veces ya no daría lo mismo.
+    const extrasAgregan = !!state.extras && /"(transform|aggregate|op)"/.test(JSON.stringify(state.extras));
+    const sqlMotor = useMemo(
+        () => ((truncado || (data?.length || 0) > 20000) && !extrasAgregan ? sqlDeAgregado(state, query, { xEsFecha: isDateCol }) : null),
+        [truncado, data, state, query, isDateCol, extrasAgregan]);
+    const [agregadas, setAgregadas] = useState(null);
+    useEffect(() => {
+        if (!sqlMotor) return undefined;
+        let vivo = true;
+        fetch(`${API_BASE}/api/query`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: sqlMotor, limit: 100000 }) })
+            .then(r => (r.ok ? r.json() : null))
+            .then(r => { if (vivo && r?.data && !r.truncated) setAgregadas({ sql: sqlMotor, filas: r.data }); })
+            .catch(() => { /* se queda con las filas del resultado */ });
+        return () => { vivo = false; };
+    }, [sqlMotor]);
+    const filasFigura = (agregadas && agregadas.sql === sqlMotor) ? agregadas.filas : data;
+    const enMotor = filasFigura !== data;
+
     const { processedData, finalSeriesKeys } = useMemo(() =>
         processChartData({
-            data, xAxisKey: state.xAxisKey, yAxisKeys: state.yAxisKeys,
+            data: filasFigura, xAxisKey: state.xAxisKey, yAxisKeys: state.yAxisKeys,
             splitByKey: state.splitByKey, isDate: isDateCol,
             dateAggregation: state.dateAggregation, bubbleSizeKey: state.bubbleSizeKey,
             chartType: state.chartType, isCumulative: state.isCumulative,
             sortMode: state.sortMode, limit: state.limit,
         }),
-        [data, state.xAxisKey, state.yAxisKeys, state.splitByKey, isDateCol,
+        [filasFigura, state.xAxisKey, state.yAxisKeys, state.splitByKey, isDateCol,
             state.dateAggregation, state.bubbleSizeKey, state.chartType,
             state.isCumulative, state.sortMode, state.limit]
     );
@@ -259,6 +304,37 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         [state.colorTheme, state.brandColors]
     );
 
+    /* ── La figura: lo de los paneles + lo escrito en código (Dec-77) ──
+       `especFinal` = deStoryFlow(paneles) con los extras del código aplicados
+       encima. Sin título: lo pone la tarjeta, y así teclearlo no vuelve a dibujar
+       la figura en cada letra. */
+    const opFigura = useMemo(() => ({ filas: filasFigura || [], colores: activeColors }), [filasFigura, activeColors]);
+    const pendiente = state.modo === 'codigo' && state.spec;
+    const especMostrada = useMemo(() => especFinal(state, opFigura), [state, opFigura]);
+    const specActual = pendiente ? state.spec : especMostrada;
+    const specRef = useRef(specActual);
+    specRef.current = specActual;
+    const [estadoFigura, setEstadoFigura] = useState(null);
+    /* Barra lateral: los paneles o el editor. Es solo la VISTA: los dos editan la
+       misma figura, y lo que se escribe en código vuelve a los paneles. */
+    const [lateral, setLateral] = useState(() => (state.modo === 'codigo' ? 'codigo' : 'paneles'));
+    const estadoRef = useRef(state);
+    estadoRef.current = state;
+    const aplicarCodigo = useCallback(
+        (obj) => setFields(asimilarCodigo(obj, estadoRef.current, opFigura)),
+        [setFields, opFigura]);
+    /* Un Vega-Lite que llega entero (un archivo de fuera, el asistente, el
+       formato anterior en modo código) se asimila en cuanto hay datos: los
+       paneles leen lo que entienden y el resto queda como extras. */
+    useEffect(() => {
+        if (pendiente && data?.length) aplicarCodigo(state.spec);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pendiente, data?.length]);
+    const extrasDescritos = useMemo(
+        () => (state.extras ? describirExtras(state.extras, especMostrada) : []),
+        [state.extras, especMostrada]);
+    const [confirmarQuitarExtras, setConfirmarQuitarExtras] = useState(false);
+
     // ── Inline legend items (legendPosition 'inline' — Sterling-style, woven
     // into the subtitle). Built from the series that actually render; series
     // color overrides win, label text uses the palette's legend twin. Donut/pie
@@ -266,6 +342,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     const inlineLegendItems = useMemo(() => {
         if (state.legendPosition !== 'inline') return null;
         if (state.chartType === 'donut') return null;
+        // Distribución e intervalos: una sola medida, sin series que nombrar.
+        if (['histogram', 'boxplot', 'errorbar'].includes(state.chartType)) return null;
         if (!finalSeriesKeys || finalSeriesKeys.length === 0) return null;
         /* Intenté esconderla con una sola serie por considerarla ruido. Error:
            en los gráficos donde la categoría va por fila — treemap, barras por
@@ -323,7 +401,18 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     ]);
 
     // ── Config change notification ──
-    useConfigChangeNotifier(onConfigChange);
+    // En modo código el spec ES la figura y siempre viaja. El generado por los
+    // paneles solo lo pide quien escribe un .amoxvis (`incluirSpec`): así el
+    // archivo lleva el mismo Vega-Lite que se dibujó, con los tipos de columna ya
+    // resueltos, y el estado de un cuaderno o un lienzo no carga con él.
+    const alCambiarConfig = useMemo(() => (onConfigChange
+        ? (cfg) => {
+            const { spec, ...resto } = cfg;
+            if (cfg.modo === 'codigo') onConfigChange({ ...resto, spec });
+            else onConfigChange(incluirSpec ? { ...resto, spec: specRef.current } : resto);
+        }
+        : null), [onConfigChange, incluirSpec]);
+    useConfigChangeNotifier(alCambiarConfig);
 
     // ── External chart config updates from AI (update_chart_config tool) ──
     // Merges AI changes into the current state via setFields, preserving
@@ -411,7 +500,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         if (isExportingPptx) return;
         setIsExportingPptx(true);
         try {
-            await exportChartAsPptx(chartRef.current, getConfigForSave(), processedData, state.chartType, state.chartTitle, activeColors);
+            // En modo código no hay tipo de Story Flow que traducir a un gráfico nativo: va como imagen.
+            await exportChartAsPptx(chartRef.current, getConfigForSave(), processedData, state.extras ? 'vega' : state.chartType, state.chartTitle, activeColors);
         } catch (err) {
             setAlertData({ isOpen: true, title: 'PowerPoint', type: 'error', message: err.message || 'Could not export chart as PowerPoint.' });
         } finally {
@@ -455,6 +545,30 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         URL.revokeObjectURL(url);
     }, [processedData, state.chartTitle]);
 
+    /* ── Sal con tu gráfico (5.18) ──
+       Vega-Lite con los datos dentro, la plantilla con los datos por nombre, o un
+       script de Python. `conAspecto` lleva el aspecto de AmoxSQL como `config`,
+       con los colores de un fondo claro (fuera, casi siempre es blanco). */
+    const descargar = useCallback((texto, nombre, tipo) => {
+        const blob = new Blob([texto], { type: tipo });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = nombre; a.click();
+        URL.revokeObjectURL(url);
+    }, []);
+    const handleExportarFuera = useCallback((formato, { conAspecto = true } = {}) => {
+        const archivo = escribirAmoxvis({ ...state, query, spec: specRef.current }, { filas: filasFigura });
+        const config = conAspecto ? temaVega(null, { fuente: fontFamily, colores: activeColors, c: state, tokens: TOKENS_CLAROS }) : null;
+        const base = (state.chartTitle || 'chart').replace(/[^\p{L}\d]+/gu, '-').toLowerCase().replace(/^-|-$/g, '').slice(0, 40) || 'chart';
+        if (formato === 'python') {
+            const py = scriptDePython(archivo, { config });
+            if (py) descargar(py, `${base}.py`, 'text/x-python;charset=utf-8');
+            return;
+        }
+        const spec = specDeSalida(archivo, { datos: formato === 'plantilla' ? 'nombre' : 'valores', filas: prepararFilas(filasFigura), config });
+        descargar(JSON.stringify(spec, null, 2), `${base}${formato === 'plantilla' ? '.template' : ''}.vl.json`, 'application/json;charset=utf-8');
+    }, [state, query, filasFigura, fontFamily, activeColors, descargar]);
+
     // 'save' — the plain "Save as .amoxvis" flow. 'presentation' — Fase 4:
     // "Add to new presentation" reuses the same save step (a deck slide has
     // to reference a real .amoxvis file, so there's no way around saving
@@ -462,15 +576,45 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     // it and opens that as a new unsaved tab for the user to name and save.
     const [saveIntent, setSaveIntent] = useState('save');
 
+    // ── El gráfico de un .sql (Dec-79) ──
+    // Se recuerda solo con el archivo; guardarlo como gráfico lo convierte en un
+    // documento (.amoxvis) vinculado a la consulta, que sí va a un deck, al
+    // Lienzo o a otra persona. Aquí se ve cuáles hay ya.
+    const nombreBase = sourcePath ? sourcePath.split(/[/\\]/).pop().replace(/\.sql$/i, '') : 'my_chart';
+    const carpetaBase = sourcePath ? sourcePath.replace(/\\/g, '/').split('/').slice(0, -1).join('/') : '';
+    const [vinculados, setVinculados] = useState([]);
+    const cargarVinculados = useCallback(async () => {
+        if (!sourcePath || !recordadoCon) return;
+        try {
+            const r = await fetch(`${API_BASE}/api/charts/using-source?path=${encodeURIComponent(sourcePath)}`);
+            if (r.ok) setVinculados(await r.json());
+        } catch { /* sin la lista, el gráfico sigue igual */ }
+    }, [sourcePath, recordadoCon]);
+    useEffect(() => { cargarVinculados(); }, [cargarVinculados]);
+    const nombreLibre = useMemo(() => {
+        const usados = new Set(vinculados.map(v => v.path.replace(/\\/g, '/').toLowerCase()));
+        const en = (n) => (carpetaBase ? `${carpetaBase}/${n}` : n).toLowerCase();
+        let n = `${nombreBase}.amoxvis`;
+        for (let i = 2; usados.has(en(n)); i++) n = `${nombreBase}_${i}.amoxvis`;
+        return n;
+    }, [vinculados, nombreBase, carpetaBase]);
+
     const performSaveConfig = useCallback(async (filename) => {
         // sourcePath links the new .amoxvis back to the .sql file this query
         // came from (Fase 3 — procedencia), so editing the query later can
         // go to that file instead of a copy embedded in the chart. Only set
         // for charts built from a saved .sql tab — an ad-hoc/notebook query
         // has no such file to point at.
-        const result = await saveChartConfig(filename, getConfigForSave(), query, sourcePath);
+        const chartFile = filename.endsWith('.amoxvis') ? filename : `${filename}.amoxvis`;
+        // Guardar como no pisa otro archivo sin decirlo.
+        const existe = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(chartFile)}`).then(r => r.json()).catch(() => ({ error: true }));
+        if (!existe.error) return { success: false, error: `${chartFile.split(/[/\\]/).pop()} already exists. Choose another name.` };
+        const result = await saveChartConfig(filename, { ...getConfigForSave(), spec: specRef.current }, query, sourcePath);
         if (result.success) {
             setIsSaveModalOpen(false);
+            cargarVinculados();
+            // El documento recién creado se abre al lado: es donde se edita.
+            if (saveIntent === 'save' && onAbrirArchivo) onAbrirArchivo(chartFile);
             if (saveIntent === 'presentation' && onCreateNew) {
                 const chartPath = filename.endsWith('.amoxvis') ? filename : `${filename}.amoxvis`;
                 const title = (state.chartTitle || chartPath.split(/[/\\]/).pop().replace(/\.amoxvis$/, '')).replace(/[^\w\s-]+/g, '');
@@ -480,7 +624,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
             }
         }
         return result;
-    }, [getConfigForSave, query, sourcePath, saveIntent, onCreateNew, state.chartTitle]);
+    }, [getConfigForSave, query, sourcePath, saveIntent, onCreateNew, state.chartTitle, cargarVinculados, onAbrirArchivo]);
 
     const handleGenerateStory = useCallback(async () => {
         if (!data || data.length === 0 || !state.xAxisKey || !state.yAxisKeys?.[0]) return null;
@@ -702,15 +846,15 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                 it always measures the real, visible size. (Config state lives
                 on DataVisualizer, which stays mounted — nothing is lost.) */}
             <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '10px', minWidth: '10px', width: '100%', height: '100%' }}>
-                {(isActive || isReportMode) && (
-                    <ChartRenderer
-                        config={state}
-                        processedData={processedData}
-                        finalSeriesKeys={finalSeriesKeys}
-                        activeColors={activeColors}
-                        columns={columns}
-                        isDateColumn={isDateCol}
-                        textScale={escalaTexto}
+                {(isActive || isReportMode) && specActual && (
+                    <FiguraVega
+                        spec={specActual}
+                        filas={filasFigura}
+                        c={state}
+                        colores={activeColors}
+                        fuente={fontFamily}
+                        escala={escalaTexto}
+                        onEstado={setEstadoFigura}
                     />
                 )}
             </div>
@@ -786,8 +930,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                 isOpen={isSaveModalOpen}
                 onClose={() => setIsSaveModalOpen(false)}
                 onSave={performSaveConfig}
-                initialName="my_chart.amoxvis"
-                title={saveIntent === 'presentation' ? 'Save Chart — then add to a new presentation' : 'Save Chart Layout'}
+                initialName={nombreLibre}
+                initialFolder={carpetaBase}
+                title={saveIntent === 'presentation' ? 'Save Chart — then add to a new presentation' : (recordadoCon ? `Save as a chart linked to ${recordadoCon}` : 'Save as chart')}
                 placeholder="my_chart.amoxvis"
                 hideDescription={true}
             />
@@ -795,7 +940,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
             {/* ━━━ Controls Panel ━━━ */}
             {!sinMandos && (
                 <div style={{
-                    width: '320px', flexShrink: 0, borderRight: '1px solid var(--border-color)',
+                    width: lateral === 'codigo' ? '440px' : '320px', flexShrink: 0, borderRight: '1px solid var(--border-color)',
                     padding: '12px', overflowY: 'auto',
                     backgroundColor: 'var(--panel-bg)',
                     display: 'flex', flexDirection: 'column',
@@ -807,11 +952,58 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                             color: 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px'
                         }}>Story Flow</h3>
                         <input type="file" accept=".json,.amoxvis" ref={fileInputRef} style={{ display: 'none' }} onChange={handleLoadConfig} />
-                        <button onClick={() => setShowGuide(true)} title="What is Story Flow?"
-                            style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', cursor: 'pointer', padding: '3px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}>
-                            <LuInfo size={13} />
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {/* Interfaz | Código (Dec-76): la barra lateral cambia de paneles a editor. */}
+                            <div className="seg sf-interruptor" role="tablist" aria-label="How to edit the chart">
+                                <button type="button" role="tab" aria-selected={lateral === 'paneles'} title="Edit with the panels"
+                                    className={`seg-item${lateral === 'paneles' ? ' seg-item--active' : ''}`} onClick={() => setLateral('paneles')}>
+                                    <LuSlidersHorizontal size={13} /> <span>Panels</span>
+                                </button>
+                                <button type="button" role="tab" aria-selected={lateral === 'codigo'} title="Edit the Vega-Lite spec"
+                                    className={`seg-item${lateral === 'codigo' ? ' seg-item--active' : ''}`} onClick={() => setLateral('codigo')}>
+                                    <LuCode size={13} /> <span>Code</span>
+                                </button>
+                            </div>
+                            {/* Guardar, siempre a la vista: antes estaba al fondo de Export. */}
+                            <button
+                                onClick={() => { if (onGuardar) onGuardar(); else { setSaveIntent('save'); setIsSaveModalOpen(true); } }}
+                                title={onGuardar ? 'Save the chart (Ctrl+S)' : 'Save as chart… — an .amoxvis you can put in a deck, a canvas or share'}
+                                className="sf-cabecera-btn">
+                                <LuSave size={13} />
+                            </button>
+                            <button onClick={() => setShowGuide(true)} title="What is Story Flow?" className="sf-cabecera-btn">
+                                <LuInfo size={13} />
+                            </button>
+                        </div>
                     </div>
+
+                    {recordadoCon && (
+                        <div className="sf-recordado">
+                            <LuHistory size={12} />
+                            <span title={`This chart is remembered with ${recordadoCon} on this computer. Save it as a chart to put it in a deck, a canvas or share it.`}>
+                                Kept with {recordadoCon}
+                            </span>
+                            {vinculados.length > 0 && (<>
+                                <span aria-hidden="true">·</span>
+                                <span>Saved as</span>
+                                {vinculados.map(v => (
+                                    <button key={v.path} type="button" className="sf-recordado-chip" title={`Open ${v.path}`}
+                                        onClick={() => onAbrirArchivo && onAbrirArchivo(v.path)}>
+                                        <LuChartColumn size={11} /> {v.name}
+                                    </button>
+                                ))}
+                            </>)}
+                        </div>
+                    )}
+
+                    {lateral === 'codigo' ? (
+                        <EditorCodigo
+                            spec={specActual}
+                            onAplicar={aplicarCodigo}
+                            estado={estadoFigura}
+                            extras={state.extras}
+                        />
+                    ) : (<>
 
                     {/* ── Tab Navigation — segmented control ── */}
                     <div className="seg seg--fill" style={{ marginBottom: '12px' }}>
@@ -879,6 +1071,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                                 state={state}
                                 setField={setField}
                                 finalSeriesKeys={finalSeriesKeys}
+                                columns={columns}
                             />
                         )}
 
@@ -913,10 +1106,41 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                                 onCopy={handleCopy}
                                 onPasteJson={() => setIsPasteJsonOpen(true)}
                                 onExportData={handleExportData}
+                                onExportarFuera={handleExportarFuera}
+                                esVega={specActual?.$schema?.includes('/vega/v')}
                                 chartRef={chartRef}
                             />
                         )}
                     </div>
+
+                    {/* Lo escrito en código que los paneles no saben mostrar (Dec-77). */}
+                    {extrasDescritos.length > 0 && (
+                        <div className="sf-aviso-codigo">
+                            <LuBraces size={14} />
+                            <div>
+                                <p>
+                                    <strong>This chart has {extrasDescritos.length === 1 ? 'a setting' : `${extrasDescritos.length} settings`} written in code</strong> that the panels don't show:
+                                </p>
+                                <ul className="sf-aviso-lista">
+                                    {extrasDescritos.slice(0, 4).map(f => <li key={f}>{f}</li>)}
+                                    {extrasDescritos.length > 4 && <li>…and {extrasDescritos.length - 4} more</li>}
+                                </ul>
+                                {confirmarQuitarExtras ? (
+                                    <div className="sf-aviso-codigo-acciones">
+                                        <span>Remove what was written in code? The panels stay as they are.</span>
+                                        <button type="button" className="sf-aviso-btn sf-aviso-btn--peligro" onClick={() => { setField('extras', null); setConfirmarQuitarExtras(false); }}>Remove</button>
+                                        <button type="button" className="sf-aviso-btn" onClick={() => setConfirmarQuitarExtras(false)}>Cancel</button>
+                                    </div>
+                                ) : (
+                                    <div className="sf-aviso-codigo-acciones">
+                                        <button type="button" className="sf-aviso-btn" onClick={() => setLateral('codigo')}>Show in code</button>
+                                        <button type="button" className="sf-aviso-btn" onClick={() => setConfirmarQuitarExtras(true)}>Remove custom code</button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    </>)}
                 </div>
             )}
 
@@ -937,7 +1161,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                 alignItems: 'center', justifyContent: 'center',
                 overflow: 'auto', padding: (isReportMode || isFullscreen) ? 0 : '12px',
             }}>
-            <div ref={cardRef} style={{
+            {aPantallaCompleta(<div ref={cardRef} style={{
                 ...(tamCarta && !isReportMode && !isFullscreen
                     ? tamCarta
                     : { flex: 1, height: '100%' }),
@@ -1016,7 +1240,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                 }}>
                     {componerFigura(modoLayout, piezas, retiradas, (state.headline?.position || 'below') === 'header-right' || modoLayout === 'split-header', desnuda)}
                 </div>
-            </div>
+            </div>)}
             </div>
 
             {/* ── Barra del lienzo ──
@@ -1028,6 +1252,11 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                     display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap',
                     padding: '6px 16px 10px', flex: 'none',
                 }}>
+                    {enMotor && (
+                        <span className="sf-en-motor" title="The result was cut at the row limit, so DuckDB added up the whole query for this chart">
+                            Totals from all rows (DuckDB)
+                        </span>
+                    )}
                     <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Size</span>
                     <div style={{ display: 'flex', gap: '3px' }}>
                         {CANVAS_SIZES.map(c => (
@@ -1077,7 +1306,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
             <PasteJsonModal
                 isOpen={isPasteJsonOpen}
                 onClose={() => setIsPasteJsonOpen(false)}
-                onApply={(cfg) => { loadConfig(cfg); setAlertData({ isOpen: true, title: 'Config aplicada', type: 'success', message: 'The chart configuration was applied.' }); }}
+                onApply={(cfg) => { loadConfig(cfg); setAlertData({ isOpen: true, title: 'Chart applied', type: 'success', message: 'The pasted chart now draws this result.' }); }}
                 columns={columns}
             />
 

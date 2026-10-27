@@ -61,7 +61,7 @@ Las queries de abajo son herramientas; **elige y ordena los checks por ese impac
    LIMIT 50
    ```
 5. **Consistencia de valores** — Verificar rangos lógicos (fechas futuras, valores negativos donde no deben, etc.)
-6. **Visualizar** — `display_chart` (bar) con distribución de nulls por columna
+6. **Visualizar** — `display_chart` (`bar-horizontal`) con el % de nulls por columna, `highlight` `type: "above"` en el umbral que consideres grave (p. ej. `"20"`). Para los outliers de una columna numérica → `boxplot` (o `histogram` sobre las filas crudas): los puntos fuera de los bigotes son los mismos que encuentra el método IQR.
 7. **Cierre** — `final_answer` con: resumen de issues críticos, tabla de nulls/duplicados, recomendaciones de limpieza
 
 ## Reglas

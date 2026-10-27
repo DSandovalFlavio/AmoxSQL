@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { LuLoaderCircle, LuTriangleAlert } from 'react-icons/lu';
 import DataVisualizer from '../DataVisualizer';
 import { injectEnvironmentVariables } from '../../utils/injectEnvironmentVariables';
+import { leerAmoxvis } from '../DataVisualizer/vega/figura';
 
 /**
  * Min y max de las series verticales de una figura. Sin esto, cuatro small
@@ -92,7 +93,7 @@ const AmoxChartEmbed = ({ src, variables = {}, refreshToken = 0, onProcedencia, 
             const fileData = await fileRes.json();
             if (fileData.error) throw new Error(fileData.error);
 
-            const config = JSON.parse(fileData.content);
+            const config = leerAmoxvis(fileData.content);
             const query = injectEnvironmentVariables(config.query || '', variablesRef.current);
             if (!query.trim()) throw new Error(`"${src}" has no stored query`);
 

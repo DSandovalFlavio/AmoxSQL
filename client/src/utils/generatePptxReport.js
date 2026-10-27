@@ -33,6 +33,7 @@ import { parseAmoxChartBlock, DECK_LAYOUT_ALIASES, resolveFooterFields } from '.
 import { splitSlideContent } from './deckTemplates';
 import { isNativeChartType, buildNativeSlideChartSpec } from './officeChartMapper';
 import { COLOR_PALETTES } from '../components/DataVisualizer/constants';
+import { leerAmoxvis } from '../components/DataVisualizer/vega/figura';
 
 const remarkProcessor = unified().use(remarkParse).use(remarkGfm);
 
@@ -290,7 +291,7 @@ async function loadChartData(src, variables) {
     const fileData = await fileRes.json();
     if (fileData.error) throw new Error(fileData.error);
 
-    const config = JSON.parse(fileData.content);
+    const config = leerAmoxvis(fileData.content);
     const query = injectEnvironmentVariables(config.query || '', variables);
     if (!query.trim()) throw new Error('No stored query');
 

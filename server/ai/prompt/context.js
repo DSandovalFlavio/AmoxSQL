@@ -11,10 +11,12 @@ Do NOT map a column type to a chart type (the trap: "has a date → line"). Reas
 2. **Classify the intent**, not the data: comparison · change-over-time · part-of-whole · relationship · distribution · **ranking change**.
 3. **Check the data shape** — it overrides intent:
    - **Few time periods (2–3)** → this is a *comparison*, not a trend. Use \`bar\` grouped by \`split_by\` (before/after per category), not a line. A line needs ≥4–5 points to be honest.
-   - **Ranking flips between 2 periods** (e.g. a category goes from last to first) → grouped \`bar\`, or a 2-point \`line\` per series WITHOUT a trend (a slope view).
+   - **Ranking flips between 2 periods** (e.g. a category goes from last to first) → \`slope\` (one line per category from one period to the other), or grouped \`bar\`.
+   - **Distribution of one number** (how spread / skewed is it?) → \`histogram\` from RAW rows, with \`histogram_stats\` mean+median when skewed. **Spread per category** → \`boxplot\` from raw rows. Never pre-aggregate the rows for these two.
+   - **A value with its uncertainty or range** (confidence interval, min–max) → \`errorbar\` with \`error_low_key\`/\`error_high_key\`.
    - Many categories / long names → \`bar-horizontal\`. >7 part-of-whole slices → \`bar\`/\`bar-horizontal\`, not \`donut\`.
 4. **5-second test.** If a reader can't get the message in 5 seconds, change the chart, don't decorate it.
-5. **Emphasis & declutter.** Spotlight the one thing that carries the message with \`highlight\` (max/min/exact); keep everything else one calm color. Remove anything that isn't carrying the message. Title states the *conclusion*, not the contents; add a \`takeaway\`.
+5. **Emphasis & declutter.** Spotlight the one thing that carries the message with \`highlight\` (max/min/exact; \`below\`/\`above\` a threshold — e.g. campaigns with ROAS below 1, paired with a \`ref_line\` at that value; \`range\` for a stretch of a line such as an incident); keep everything else one calm color. A \`ref_line\` can be \`"mean"\` or \`"median"\`. Remove anything that isn't carrying the message. Title states the *conclusion*, not the contents; add a \`takeaway\`.
 
 ## Color is a design decision — reason it, don't default it
 Choose the palette like a designer for THIS analysis, not by habit. Think it through, then say your choice in a few words ("cool sequential blues — ordered magnitude on a dark canvas"):
@@ -31,7 +33,9 @@ Choose the palette like a designer for THIS analysis, not by habit. Think it thr
 - **Brand / mono**: \`ocean\` (cool), \`sunset\` (warm), \`corporate\` (grayscale — for muting a backdrop).
 
 ### Capability reference (what each type CAN do)
-\`bar\` compare categories (+\`split_by\`=grouped) · \`bar-stacked\`/\`bar-100\` parts of a whole · \`bar-horizontal\` ranking/long names · \`line\`/\`area\` true time series (≥4–5 pts) · \`donut\` part-of-whole (≤7) · \`scatter\`/\`bubble\` relationships · \`combo\` two metrics at different scales · \`funnel\` stage drop-off · \`heatmap\` 2-D patterns · \`treemap\` hierarchy.
+\`bar\` compare categories (+\`split_by\`=grouped) · \`bar-stacked\`/\`bar-100\` parts of a whole · \`bar-horizontal\` ranking/long names · \`line\`/\`area\` true time series (≥4–5 pts) · \`slope\` two moments per category · \`donut\` part-of-whole (≤7) · \`scatter\`/\`bubble\` relationships (\`trend_line\` linear = the regression of y on x; loess = smooth curve) · \`combo\` two metrics at different scales · \`histogram\` one number's distribution · \`boxplot\` spread per category · \`errorbar\` value ± interval · \`lollipop\` light ranking · \`dumbbell\` two values per category · \`density\` smooth distribution · \`strip\` raw rows per category · \`bump\` rank changes over time · \`funnel\` stage drop-off · \`heatmap\` 2-D patterns (diverges around 0 by itself, e.g. correlations) · \`treemap\` hierarchy.
+
+**Charts are Vega-Lite.** When no type + options can say it (layers, facets/small multiples, a custom transform), pass a complete Vega-Lite v6 spec in \`vega_lite\` with \`"data": {"name": "dataset"}\` — it is compiled on the server and errors come back to you. Prefer the types: they keep the panels editable. Many series → \`facet_by\` (small multiples) or \`end_labels\` instead of a big legend.
 
 ### Hard guardrails
 - Trend line: only on a **single-series** time series with **≥5 points**. Never with \`split_by\`/multiple series.

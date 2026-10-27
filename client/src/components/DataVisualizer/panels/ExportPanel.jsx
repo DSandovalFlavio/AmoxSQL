@@ -2,9 +2,9 @@
  * ExportPanel — "Ship it".
  * Story Flow stage ⑥: tamaño de lienzo + formato de export + archivo de config.
  */
-import { memo } from 'react';
-import { LuDownload, LuSave, LuUpload, LuCopy, LuClipboardPaste, LuFileImage, LuMonitorPlay, LuLoaderCircle, LuPresentation } from 'react-icons/lu';
-import { Section } from './shared';
+import { memo, useState } from 'react';
+import { LuDownload, LuSave, LuUpload, LuCopy, LuClipboardPaste, LuFileImage, LuMonitorPlay, LuLoaderCircle, LuPresentation, LuBraces, LuFileCode } from 'react-icons/lu';
+import { Section, Toggle } from './shared';
 import { EXPORT_PRESETS } from '../constants';
 
 const btnStyle = {
@@ -17,9 +17,30 @@ const btnStyle = {
 
 const iconStyle = { marginRight: 6, verticalAlign: 'middle' };
 
-const ExportPanel = memo(({ onExport, onExportSvg, onExportPptx, isExportingPptx, onOpenSave, onAddToPresentation, onLoadFile, onCopy, onPasteJson, onExportData, chartRef }) => {
+const ExportPanel = memo(({ onExport, onExportSvg, onExportPptx, isExportingPptx, onOpenSave, onAddToPresentation, onLoadFile, onCopy, onPasteJson, onExportData, onExportarFuera, esVega, chartRef }) => {
+    const [conAspecto, setConAspecto] = useState(true);
     return (
         <>
+            {onExportarFuera && (
+                <Section title="Take it elsewhere">
+                    <button onClick={() => onExportarFuera('valores', { conAspecto })} style={btnStyle} className="dv-export-item" title="A Vega-Lite spec with the data inside: opens in any Vega-Lite editor">
+                        <span><LuBraces size={12} style={iconStyle} />Vega-Lite with data</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>.vl.json</span>
+                    </button>
+                    <button onClick={() => onExportarFuera('plantilla', { conAspecto })} style={btnStyle} className="dv-export-item" title="The spec with the data by name (dataset), for visuals that bring their own data — Deneb in Power BI">
+                        <span><LuBraces size={12} style={iconStyle} />Template (data as "dataset")</span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Deneb</span>
+                    </button>
+                    {!esVega && (
+                        <button onClick={() => onExportarFuera('python', { conAspecto })} style={btnStyle} className="dv-export-item" title="A Python script: the query in DuckDB and the figure with Altair">
+                            <span><LuFileCode size={12} style={iconStyle} />Python script</span>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Altair</span>
+                        </button>
+                    )}
+                    <Toggle label="Keep AmoxSQL's look" checked={conAspecto} onChange={setConAspecto} />
+                </Section>
+            )}
+
             <Section title="Clipboard">
                 <button onClick={onCopy} style={btnStyle} className="dv-export-item">
                     <span><LuCopy size={12} style={iconStyle} />Copy chart as image</span>

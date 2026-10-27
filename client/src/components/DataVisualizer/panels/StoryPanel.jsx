@@ -7,12 +7,14 @@
  */
 import { memo, useRef, useState } from 'react';
 import { Section, Toggle, SelectField, InputField, SimpleColorPicker, panelStyles } from './shared';
+import { capacidades } from './capacidades';
 
 const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => {
     const { chartType, chartTitle, chartSubtitle, chartFootnote, takeaway, textAlign,
         refLine, refArea, goalLine, trendLine, headline, highlightConfig, annotations,
-        chartSource, signature = {}, titleMark,
+        chartSource, signature = {}, titleMark, endLabels,
     } = state;
+    const cap = capacidades(chartType);
 
     const titleRef = useRef(null);
     const subtitleRef = useRef(null);
@@ -24,16 +26,18 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
 
     const isLine = chartType === 'line' || chartType === 'area';
     const isBar = chartType.startsWith('bar');
-    const isHorizontal = chartType.startsWith('bar-horizontal');
     const isCombo = chartType === 'combo';
     const isScatter = chartType === 'scatter' || chartType === 'bubble';
     const isWaterfall = chartType === 'waterfall';
-    // Feature support per chart type — MUST match what ChartRenderer actually draws,
-    // so the panel never offers a control that does nothing.
-    const supportsRef = isLine || isBar || isCombo || isScatter || isWaterfall;   // Goal / Reference line & area
-    const supportsTrend = isLine || (isBar && !isHorizontal);                     // Trend / moving average
-    const supportsHighlight = isLine || isBar;                                    // Highlight rule
-    const supportsAnnotations = isLine || isBar || isCombo;                       // Free-form annotations
+    // Feature support per chart type — MUST match what vega/deStoryFlow.js draws,
+    // so the panel never offers a control that does nothing. With Vega-Lite the
+    // reference layers are real layers, so every chart with axes gets them.
+    const isBox = chartType === 'boxplot';
+    const isErr = chartType === 'errorbar';
+    const supportsRef = cap.referencias;
+    const supportsTrend = cap.tendencia;
+    const supportsHighlight = cap.resalte;
+    const supportsAnnotations = cap.anotaciones;
 
     const applyTexts = () => {
         if (titleRef.current) setField('chartTitle', titleRef.current.value);
@@ -81,66 +85,9 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
 
     return (
         <>
-            {/* ── Headline Number ── */}
-            <Section title="Headline Number">
-                <Toggle label="Show Headline KPI" checked={headline.visible}
-                    onChange={v => setField('headline', { ...headline, visible: v })} />
-
-                {headline.visible && (
-                    <>
-                        <SelectField
-                            label="Metric"
-                            value={headline.metric}
-                            onChange={v => setField('headline', { ...headline, metric: v })}
-                            style={{ marginBottom: '6px' }}
-                        >
-                            <option value="total">Total (Sum)</option>
-                            <option value="average">Average</option>
-                            <option value="last">Last Value</option>
-                            <option value="first">First Value</option>
-                        </SelectField>
-                        <SelectField
-                            label="Compare With"
-                            value={headline.compareWith}
-                            onChange={v => setField('headline', { ...headline, compareWith: v })}
-                            style={{ marginBottom: '6px' }}
-                        >
-                            <option value="none">No Comparison</option>
-                            <option value="first">First Value</option>
-                            <option value="previous">Previous Value</option>
-                        </SelectField>
-                        <SelectField
-                            label="Position"
-                            value={headline.position || 'below'}
-                            onChange={v => setField('headline', { ...headline, position: v })}
-                            style={{ marginBottom: '6px' }}
-                        >
-                            <option value="below">Below the subtitle</option>
-                            <option value="header-right">Right of the title</option>
-                        </SelectField>
-                        <SelectField
-                            label="Font Size"
-                            value={headline.size}
-                            onChange={v => setField('headline', { ...headline, size: v })}
-                        >
-                            <option value="auto">Auto</option>
-                            <option value="custom">Custom</option>
-                        </SelectField>
-                        {headline.size === 'custom' && (
-                            <InputField
-                                label="Size (px)"
-                                type="number" min={12} max={72}
-                                value={headline.customSize}
-                                onChange={v => setField('headline', { ...headline, customSize: v })}
-                                style={{ marginTop: '4px' }}
-                            />
-                        )}
-                    </>
-                )}
-            </Section>
-
             {/* ── Title & Subtitle ── */}
-            <Section title="Storytelling">
+            <Section title="Texts">
+                <div key={JSON.stringify([chartTitle, chartSubtitle, chartFootnote, takeaway, chartSource])}>
                 <SelectField
                     label="Text Alignment"
                     value={textAlign}
@@ -220,6 +167,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                         {storyError}
                     </div>
                 )}
+                </div>
             </Section>
 
             {/* ── Editorial (Sterling-style figure shell) ── */}
@@ -253,6 +201,256 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                     </div>
                 )}
             </Section>
+
+            {/* ── Headline Number ── */}
+            <Section title="Headline Number">
+                <Toggle label="Show Headline KPI" checked={headline.visible}
+                    onChange={v => setField('headline', { ...headline, visible: v })} />
+
+                {headline.visible && (
+                    <>
+                        <SelectField
+                            label="Metric"
+                            value={headline.metric}
+                            onChange={v => setField('headline', { ...headline, metric: v })}
+                            style={{ marginBottom: '6px' }}
+                        >
+                            <option value="total">Total (Sum)</option>
+                            <option value="average">Average</option>
+                            <option value="last">Last Value</option>
+                            <option value="first">First Value</option>
+                        </SelectField>
+                        <SelectField
+                            label="Compare With"
+                            value={headline.compareWith}
+                            onChange={v => setField('headline', { ...headline, compareWith: v })}
+                            style={{ marginBottom: '6px' }}
+                        >
+                            <option value="none">No Comparison</option>
+                            <option value="first">First Value</option>
+                            <option value="previous">Previous Value</option>
+                        </SelectField>
+                        <SelectField
+                            label="Position"
+                            value={headline.position || 'below'}
+                            onChange={v => setField('headline', { ...headline, position: v })}
+                            style={{ marginBottom: '6px' }}
+                        >
+                            <option value="below">Below the subtitle</option>
+                            <option value="header-right">Right of the title</option>
+                        </SelectField>
+                        <SelectField
+                            label="Font Size"
+                            value={headline.size}
+                            onChange={v => setField('headline', { ...headline, size: v })}
+                        >
+                            <option value="auto">Auto</option>
+                            <option value="custom">Custom</option>
+                        </SelectField>
+                        {headline.size === 'custom' && (
+                            <InputField
+                                label="Size (px)"
+                                type="number" min={12} max={72}
+                                value={headline.customSize}
+                                onChange={v => setField('headline', { ...headline, customSize: v })}
+                                style={{ marginTop: '4px' }}
+                            />
+                        )}
+                    </>
+                )}
+            </Section>
+
+            {/* ── Focus: Highlight ── */}
+            {supportsHighlight && (
+                <Section title="Focus — Highlight">
+                    <SelectField
+                        value={highlightConfig.type}
+                        onChange={v => setField('highlightConfig', { ...highlightConfig, type: v })}
+                        style={{ marginBottom: '8px' }}
+                    >
+                        <option value="none">None</option>
+                        {!(isBox || chartType === 'strip') && <option value="max">Max Value</option>}
+                        {!(isBox || chartType === 'strip') && <option value="min">Min Value</option>}
+                        <option value="exact">Specific Category</option>
+                        {!(isBox || chartType === 'strip') && <option value="below">Values below…</option>}
+                        {!(isBox || chartType === 'strip') && <option value="above">Values above…</option>}
+                        {isLine && <option value="range">A stretch of the line</option>}
+                    </SelectField>
+
+                    {(highlightConfig.type === 'below' || highlightConfig.type === 'above') && (
+                        <input
+                            type="number" placeholder="Threshold, e.g. 1"
+                            value={highlightConfig.value}
+                            onChange={e => setField('highlightConfig', { ...highlightConfig, value: e.target.value })}
+                            style={{ ...panelStyles.input, marginBottom: '8px' }}
+                        />
+                    )}
+
+                    {highlightConfig.type === 'range' && (
+                        <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                            <input type="text" placeholder="From (e.g. 2025-06-10)" value={highlightConfig.value}
+                                onChange={e => setField('highlightConfig', { ...highlightConfig, value: e.target.value })}
+                                style={{ ...panelStyles.input, flex: 1 }} />
+                            <input type="text" placeholder="To" value={highlightConfig.value2 || ''}
+                                onChange={e => setField('highlightConfig', { ...highlightConfig, value2: e.target.value })}
+                                style={{ ...panelStyles.input, flex: 1 }} />
+                        </div>
+                    )}
+
+                    {highlightConfig.type === 'exact' && (
+                        <input
+                            type="text" placeholder="Category to highlight..."
+                            value={highlightConfig.value}
+                            onChange={e => setField('highlightConfig', { ...highlightConfig, value: e.target.value })}
+                            style={{ ...panelStyles.input, marginBottom: '8px' }}
+                        />
+                    )}
+
+                    {highlightConfig.type !== 'none' && (
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <SimpleColorPicker
+                                color={highlightConfig.color}
+                                onChange={val => setField('highlightConfig', { ...highlightConfig, color: val })}
+                            />
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Highlight Color</span>
+                        </div>
+                    )}
+                </Section>
+            )}
+
+            {/* ── End labels ── */}
+            {cap.finales && (
+                <Section title="Label the lines">
+                    <Toggle label="Name each line at its end (instead of a legend)" checked={!!endLabels}
+                        onChange={v => setField('endLabels', v)} />
+                </Section>
+            )}
+
+            {/* ── Goal Line ── */}
+            {supportsRef && (
+                <Section title="Goal Line">
+                    <Toggle label="Show Goal Line" checked={goalLine.enabled}
+                        onChange={v => setField('goalLine', { ...goalLine, enabled: v })} />
+
+                    {goalLine.enabled && (
+                        <>
+                            <InputField
+                                label="Value — a number, or mean / median" type="text"
+                                value={goalLine.value}
+                                onChange={v => setField('goalLine', { ...goalLine, value: v })}
+                                placeholder="e.g. 28000"
+                                style={{ marginBottom: '6px' }}
+                            />
+                            <InputField
+                                label="Label" type="text"
+                                value={goalLine.label}
+                                onChange={v => setField('goalLine', { ...goalLine, label: v })}
+                                placeholder="e.g. Goal"
+                                style={{ marginBottom: '6px' }}
+                            />
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
+                                <SimpleColorPicker
+                                    color={goalLine.color}
+                                    onChange={v => setField('goalLine', { ...goalLine, color: v })}
+                                />
+                                <SelectField
+                                    value={goalLine.style}
+                                    onChange={v => setField('goalLine', { ...goalLine, style: v })}
+                                    style={{ flex: 1 }}
+                                >
+                                    <option value="solid">Solid</option>
+                                    <option value="dashed">Dashed</option>
+                                    <option value="dotted">Dotted</option>
+                                </SelectField>
+                            </div>
+                        </>
+                    )}
+                </Section>
+            )}
+
+            {/* ── Reference Line ── */}
+            {supportsRef && (
+                <Section title="Reference Line">
+                    <InputField
+                        label="Value — a number, or mean / median" type="text"
+                        value={refLine.value}
+                        onChange={v => setField('refLine', { ...refLine, value: v })}
+                        placeholder="e.g. 1, mean, median"
+                        style={{ marginBottom: '6px' }}
+                    />
+                    <InputField
+                        label="Label" type="text"
+                        value={refLine.label}
+                        onChange={v => setField('refLine', { ...refLine, label: v })}
+                        placeholder="e.g. Target"
+                        style={{ marginBottom: '6px' }}
+                    />
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <SimpleColorPicker
+                            color={refLine.color}
+                            onChange={v => setField('refLine', { ...refLine, color: v })}
+                        />
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Color</span>
+                    </div>
+                </Section>
+            )}
+
+            {/* ── Reference Area ── */}
+            {supportsRef && (
+            <Section title="Reference Area">
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                    <InputField label="X Start" value={refArea.x1} onChange={v => setField('refArea', { ...refArea, x1: v })} placeholder="Start" style={{ flex: 1 }} />
+                    <InputField label="X End" value={refArea.x2} onChange={v => setField('refArea', { ...refArea, x2: v })} placeholder="End" style={{ flex: 1 }} />
+                </div>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                    <InputField label="Y Start" value={refArea.y1} onChange={v => setField('refArea', { ...refArea, y1: v })} placeholder="Start" style={{ flex: 1 }} />
+                    <InputField label="Y End" value={refArea.y2} onChange={v => setField('refArea', { ...refArea, y2: v })} placeholder="End" style={{ flex: 1 }} />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <SimpleColorPicker
+                        color={refArea.color}
+                        onChange={v => setField('refArea', { ...refArea, color: v })}
+                    />
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Area Color</span>
+                </div>
+            </Section>
+            )}
+            {/* ── Trend Line ── */}
+            {supportsTrend && (
+                <Section title="Trend & Average">
+                    <SelectField
+                        label="Overlay"
+                        value={trendLine.type}
+                        onChange={v => setField('trendLine', { ...trendLine, type: v })}
+                        style={{ marginBottom: '6px' }}
+                    >
+                        <option value="none">None</option>
+                        <option value="linear">{isScatter ? 'Regression line' : 'Linear Trend'}</option>
+                        {isScatter && <option value="loess">Smooth curve</option>}
+                        {!isScatter && <option value="moving-average">Moving Average</option>}
+                    </SelectField>
+
+                    {trendLine.type === 'moving-average' && (
+                        <InputField
+                            label="Window Size"
+                            type="number" min={2} max={50}
+                            value={trendLine.windowSize}
+                            onChange={v => setField('trendLine', { ...trendLine, windowSize: v })}
+                            style={{ marginBottom: '6px' }}
+                        />
+                    )}
+
+                    {trendLine.type !== 'none' && (
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <SimpleColorPicker
+                                color={trendLine.color}
+                                onChange={v => setField('trendLine', { ...trendLine, color: v })}
+                            />
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Trend Color</span>
+                        </div>
+                    )}
+                </Section>
+            )}
 
             {/* ── Annotations ── */}
             {supportsAnnotations && (
@@ -303,166 +501,6 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                 </Section>
             )}
 
-            {/* ── Focus: Highlight ── */}
-            {supportsHighlight && (
-                <Section title="Focus — Highlight">
-                    <SelectField
-                        value={highlightConfig.type}
-                        onChange={v => setField('highlightConfig', { ...highlightConfig, type: v })}
-                        style={{ marginBottom: '8px' }}
-                    >
-                        <option value="none">None</option>
-                        <option value="max">Max Value</option>
-                        <option value="min">Min Value</option>
-                        <option value="exact">Specific Category</option>
-                    </SelectField>
-
-                    {highlightConfig.type === 'exact' && (
-                        <input
-                            type="text" placeholder="Category to highlight..."
-                            value={highlightConfig.value}
-                            onChange={e => setField('highlightConfig', { ...highlightConfig, value: e.target.value })}
-                            style={{ ...panelStyles.input, marginBottom: '8px' }}
-                        />
-                    )}
-
-                    {highlightConfig.type !== 'none' && (
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <SimpleColorPicker
-                                color={highlightConfig.color}
-                                onChange={val => setField('highlightConfig', { ...highlightConfig, color: val })}
-                            />
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Highlight Color</span>
-                        </div>
-                    )}
-                </Section>
-            )}
-
-            {/* ── Goal Line ── */}
-            {supportsRef && (
-                <Section title="Goal Line">
-                    <Toggle label="Show Goal Line" checked={goalLine.enabled}
-                        onChange={v => setField('goalLine', { ...goalLine, enabled: v })} />
-
-                    {goalLine.enabled && (
-                        <>
-                            <InputField
-                                label="Y Value" type="text"
-                                value={goalLine.value}
-                                onChange={v => setField('goalLine', { ...goalLine, value: v })}
-                                placeholder="Enter value..."
-                                style={{ marginBottom: '6px' }}
-                            />
-                            <InputField
-                                label="Label" type="text"
-                                value={goalLine.label}
-                                onChange={v => setField('goalLine', { ...goalLine, label: v })}
-                                placeholder="e.g. Goal"
-                                style={{ marginBottom: '6px' }}
-                            />
-                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '6px' }}>
-                                <SimpleColorPicker
-                                    color={goalLine.color}
-                                    onChange={v => setField('goalLine', { ...goalLine, color: v })}
-                                />
-                                <SelectField
-                                    value={goalLine.style}
-                                    onChange={v => setField('goalLine', { ...goalLine, style: v })}
-                                    style={{ flex: 1 }}
-                                >
-                                    <option value="solid">Solid</option>
-                                    <option value="dashed">Dashed</option>
-                                    <option value="dotted">Dotted</option>
-                                </SelectField>
-                            </div>
-                        </>
-                    )}
-                </Section>
-            )}
-
-            {/* ── Trend Line ── */}
-            {supportsTrend && (
-                <Section title="Trend & Average">
-                    <SelectField
-                        label="Overlay"
-                        value={trendLine.type}
-                        onChange={v => setField('trendLine', { ...trendLine, type: v })}
-                        style={{ marginBottom: '6px' }}
-                    >
-                        <option value="none">None</option>
-                        <option value="linear">Linear Trend</option>
-                        <option value="moving-average">Moving Average</option>
-                    </SelectField>
-
-                    {trendLine.type === 'moving-average' && (
-                        <InputField
-                            label="Window Size"
-                            type="number" min={2} max={50}
-                            value={trendLine.windowSize}
-                            onChange={v => setField('trendLine', { ...trendLine, windowSize: v })}
-                            style={{ marginBottom: '6px' }}
-                        />
-                    )}
-
-                    {trendLine.type !== 'none' && (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <SimpleColorPicker
-                                color={trendLine.color}
-                                onChange={v => setField('trendLine', { ...trendLine, color: v })}
-                            />
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Trend Color</span>
-                        </div>
-                    )}
-                </Section>
-            )}
-
-            {/* ── Reference Line ── */}
-            {supportsRef && (
-                <Section title="Reference Line">
-                    <InputField
-                        label="Y Value" type="text"
-                        value={refLine.value}
-                        onChange={v => setField('refLine', { ...refLine, value: v })}
-                        placeholder="Enter value..."
-                        style={{ marginBottom: '6px' }}
-                    />
-                    <InputField
-                        label="Label" type="text"
-                        value={refLine.label}
-                        onChange={v => setField('refLine', { ...refLine, label: v })}
-                        placeholder="e.g. Target"
-                        style={{ marginBottom: '6px' }}
-                    />
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <SimpleColorPicker
-                            color={refLine.color}
-                            onChange={v => setField('refLine', { ...refLine, color: v })}
-                        />
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Color</span>
-                    </div>
-                </Section>
-            )}
-
-            {/* ── Reference Area ── */}
-            {supportsRef && (
-            <Section title="Reference Area">
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
-                    <InputField label="X Start" value={refArea.x1} onChange={v => setField('refArea', { ...refArea, x1: v })} placeholder="Start" style={{ flex: 1 }} />
-                    <InputField label="X End" value={refArea.x2} onChange={v => setField('refArea', { ...refArea, x2: v })} placeholder="End" style={{ flex: 1 }} />
-                </div>
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
-                    <InputField label="Y Start" value={refArea.y1} onChange={v => setField('refArea', { ...refArea, y1: v })} placeholder="Start" style={{ flex: 1 }} />
-                    <InputField label="Y End" value={refArea.y2} onChange={v => setField('refArea', { ...refArea, y2: v })} placeholder="End" style={{ flex: 1 }} />
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <SimpleColorPicker
-                        color={refArea.color}
-                        onChange={v => setField('refArea', { ...refArea, color: v })}
-                    />
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Area Color</span>
-                </div>
-            </Section>
-            )}
         </>
     );
 });

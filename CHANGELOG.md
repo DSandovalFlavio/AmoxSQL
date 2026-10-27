@@ -5,6 +5,155 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.18.0] — 2026-10-27
+
+**Los gráficos son Vega-Lite.** Story Flow dibuja con la gramática abierta de gráficos y un `.amoxvis` es un Vega-Lite válido: una consulta y su gráfico ya no son de AmoxSQL, se abren en cualquier herramienta que lea Vega-Lite (plan en `docs/dev/plan_graficos_vega_lite.md`). Los paneles y el código editan la misma figura, hay 26 tipos, y un `.sql` recuerda su gráfico. Esta versión reúne la 5.16 y la 5.17, que no se publicaron por separado.
+
+### Un gráfico, un documento
+
+#### Nuevo
+- **El gráfico de un `.sql` se recuerda con el archivo.** Pasa los resultados a gráfico, configúralo, cierra el archivo: al volver a abrirlo está igual. No hay nada que guardar ni ninguna pregunta al cerrar; Story Flow lo dice debajo de la cabecera (**Kept with ventas.sql**). Se guarda en `.amoxsql/borradores/` (ignorado por git, fuera del `.amoxproject`) y acompaña al archivo si lo renombras o lo mueves.
+- **Save as chart…** en los resultados de un `.sql`: crea un `.amoxvis` vinculado a la consulta, junto al archivo y con su nombre, y lo abre. Los gráficos guardados de ese `.sql` aparecen como **Saved as …** y se abren con un clic.
+- **La pestaña de un gráfico dice de dónde sale su consulta**: `ventas.sql › ventas.amoxvis` (el nombre del `.sql` lo abre) u **Own query**. La consulta propia se edita en la misma pestaña, en el panel **Query** (Ctrl+Enter ejecuta, Ctrl+S guarda el gráfico), y **Move to a .sql file…** la lleva a un archivo y deja el gráfico vinculado. «Edit with SQL» del explorador pasa a **Edit query**.
+- **Un gráfico vinculado sigue a su consulta**: al guardar el `.sql`, los gráficos que salen de él toman la consulta nueva (también los que están cerrados, y con ellos el deck que los usa). Si el archivo tiene varias consultas y no se sabe cuál seguía, el gráfico pregunta al abrirse. Renombrar el `.sql` actualiza sus gráficos.
+- **Paste JSON acepta Vega-Lite** (lo que escribe cualquier asistente): los datos se redirigen al resultado, los paneles toman lo que entienden y, si una columna no existe, avisa antes de aplicar.
+- **La skill descargable Data & Viz 4.0** enseña Vega-Lite con `"data": {"name": "dataset"}` en lugar de la configuración interna.
+- El asistente: `display_chart` dibuja una banda detrás de la línea (`band_low_key` / `band_high_key`); los skills de storytelling, series de tiempo, exploración inicial, investigación de métricas y calidad de datos conocen los tipos y resaltes nuevos (pendiente, mancuerna, bump, histograma, caja, umbrales, tramos, referencia en la media, etiquetas al final, múltiplos pequeños); los gráficos de un cuaderno generado y el nodo de gráfico de Data Flow ofrecen más tipos.
+
+#### Arreglado
+- El gráfico configurado sobre los resultados de un `.sql` volvía a la configuración de fábrica al cambiar de pestaña y volver (se guardaba con un nombre y se leía con otro); un cambio hecho medio segundo antes de cambiar de pestaña se perdía.
+- Dos `.amoxvis` abiertos compartían el mismo panel al cambiar de uno a otro, y uno con cambios sin guardar volvía a su versión del disco.
+- Abrir un gráfico lo marcaba como modificado.
+- **A pantalla completa** el gráfico quedaba detrás de los paneles del editor y parecía transparente; en la pestaña de un `.amoxvis` ni siquiera salía de su panel. Ahora ocupa la ventana, opaco, y **Escape** lo cierra.
+- Abrir un `.amoxvis` desde los resultados creaba una consulta sobre el archivo como si fuera un CSV.
+- **Save as chart** sobrescribía sin avisar un archivo con el mismo nombre.
+- Renombrar un `.sql` dejaba a sus gráficos apuntando a un archivo que ya no existía.
+
+### Story Flow: paneles y código, una sola figura
+
+#### Nuevo
+- **El código manda, y vuelve a los paneles.** Panels y Code editan la misma figura. Lo
+  que se escribe en código y los paneles saben representar (tipo, columnas, títulos de
+  eje, escala, cero, orden, rejilla, meta, referencia, etiquetas al final, facetas…) se
+  ve en el panel; lo demás se conserva aunque cambies los paneles, se anuncia al pie
+  («This chart has N settings written in code», con *Show in code* y *Remove custom
+  code*) y se marca en ámbar en el editor. Un `.amoxvis` editado fuera se reconoce al
+  abrirlo.
+- **Guardar siempre a la vista**, junto a la guía en la cabecera de Story Flow.
+- **Paneles reordenados** en el orden en que se lee una figura, desde una sola tabla de
+  lo que admite cada tipo. Data: *Columns → Shape the data → Small multiples*. Format:
+  *Numbers → Value axis → Axis titles & labels → Grid & legend → Labels & tooltip →
+  marcas → Interaction*. Style: paleta, series (color y **nombre en la leyenda**),
+  relleno, tipografía y la tarjeta entera. Story: los textos primero.
+- **Cinco tipos nuevos**: Lollipop, Dumbbell, Bump, Density y Strip plot (26 en total).
+- **Lo que Vega-Lite abre a los paneles**: pequeños múltiplos (una figura por valor de
+  una columna), leyenda interactiva, nombrar cada línea al final, banda de un intervalo
+  bajo la línea, columnas extra en el tooltip, escala raíz cuadrada, «empezar en cero»
+  y zoom (automático, siempre, nunca).
+
+#### Arreglado
+- Opciones que no hacían nada con Vega-Lite: el **eje derecho**, el **% del total** y el
+  **cambio frente al anterior** en el tooltip, la **posición de las etiquetas** en las
+  barras, los **nombres de serie** en la leyenda, el **trazo** discontinuo de una serie,
+  la **anotación sin Y** (ahora se coloca sobre el dato), **Step before / after** y el
+  **promedio** en el centro del anillo.
+- **Las fechas salían un día antes** en América («31 Dec 2022» por el 1 de enero).
+- Fuera: los márgenes y «Hide if space <» (eran del dibujo anterior) y la intensidad de
+  etiquetas repetida en Style.
+
+---
+
+### Sal con tu gráfico
+
+#### Nuevo
+- **Take it elsewhere** (Export): el gráfico como **Vega-Lite con los datos dentro**,
+  como **plantilla con los datos por nombre** (`dataset`, la convención de Deneb en
+  Power BI) o como **script de Python** (la consulta en DuckDB y la figura con Altair).
+  Con «Keep AmoxSQL's look», el aspecto viaja como `config` de Vega-Lite.
+- **Los totales salen de todas las filas**: si el resultado llegó recortado (10 000 filas
+  por defecto) y el gráfico suma por X, DuckDB hace la suma sobre la consulta entera; la
+  barra del lienzo lo dice.
+- **Zoom** con la rueda en las dispersiones y en las series de fechas largas.
+
+#### Arreglado
+- Un gráfico sobre una consulta de más de 10 000 filas sumaba solo las primeras 10 000.
+- La exportación a Word de un cuaderno no encontraba las figuras.
+
+#### Interno
+- **Recharts fuera del proyecto**: el Data Profiler dibuja su distribución con Vega.
+
+---
+
+## [5.17.0] — 2026-10-26 (sin publicar) — Escribe el gráfico
+
+### Nuevo
+
+- **Cuatro tipos nuevos**: **Histogram** (cómo se reparte una columna numérica, con
+  media y mediana opcionales), **Box plot** (mediana, cuartiles y atípicos por
+  categoría), **Bars + interval** (un valor con su intervalo bajo–alto) y **Slope**
+  (cada categoría de un momento a otro). Nueva categoría **Distribution** en Type.
+- **Resaltes nuevos**: las barras **bajo o sobre un umbral** y **un tramo de la línea**
+  (de una fecha a otra).
+- **La línea de referencia y la meta aceptan `mean` / `median`**: se calculan sobre lo
+  que dibuja la figura.
+- **Recta de regresión de verdad en la dispersión** (y curva suavizada): se ajusta sobre
+  el valor de X, no sobre el orden de las filas.
+- **Anillo**: «Group Small Slices» agrupa las porciones pequeñas en «Others».
+- **Modo Código: Add layer…** añade media, mediana, etiquetas de valor o recta de
+  regresión al spec.
+- **El asistente** usa los tipos y resaltes nuevos, y para lo que ningún tipo dice puede
+  entregar un **Vega-Lite completo**: el servidor lo compila y comprueba sus columnas
+  antes de aceptarlo, y si falla le devuelve el error para que lo corrija.
+
+### Arreglado
+
+- Un color `var(--…)` en un gráfico (el resaltado del asistente) salía negro.
+- Una serie cuyo nombre lleva una «T» mayúscula perdía el nombre en la leyenda.
+
+---
+
+## [5.16.0] — 2026-10-26 (sin publicar) — Vega-Lite por dentro
+
+Los gráficos de Story Flow se dibujan con **Vega-Lite** y el `.amoxvis` pasa a ser un
+Vega-Lite válido: un gráfico de AmoxSQL ya no queda encerrado en AmoxSQL. Plan en
+`docs/dev/plan_graficos_vega_lite.md`.
+
+### Nuevo
+
+- **El `.amoxvis` es Vega-Lite (v6).** Los datos llegan por nombre (`dataset`) y lo que
+  es de AmoxSQL —la consulta, el `.sql` de origen, el estado de los paneles— va en
+  `usermeta.amoxsql`, que el resto de herramientas ignora. El formato anterior se sigue
+  abriendo y se guarda en el nuevo. El mapa de rectángulos se guarda como spec de Vega.
+- **Paneles o código.** Un interruptor en la cabecera de Story Flow cambia la barra
+  lateral por un editor del Vega-Lite de la figura, con validación y autocompletado del
+  esquema. Al editar el código, el código manda; un error deja la última figura buena y
+  se explica debajo.
+- **Las capas de referencia funcionan en todos los gráficos con ejes**: meta, línea de
+  referencia, banda y anotaciones son capas de Vega-Lite; la tendencia se dibuja también
+  en dispersión y en barras horizontales.
+- La figura sigue al tema claro u oscuro y al acento al cambiarlos, sin recargar.
+
+### Arreglado
+
+- **La dispersión sumaba los puntos que compartían X** (100 filas se dibujaban como 41) y
+  el límite de 50 filas por defecto cortaba también series diarias y dispersiones; ahora
+  solo los rankings tienen límite.
+- **El mapa de calor** usa una escala divergente centrada en 0 cuando hay valores de los
+  dos signos.
+- Con la misma columna en X y en Y, la figura sumaba la X sobre sí misma; la Y por
+  defecto ya no repite la X.
+- Una pestaña de gráfico restaurada al abrir el proyecto salía «No query».
+
+### Interno
+
+- Recharts sale de Story Flow, del chat del asistente y de la galería (queda en el Data
+  Profiler). Las miniaturas de la galería salen directamente de Vega.
+- `scripts/probarGraficos.mjs` (101 comprobaciones con la 5.17): cada tipo, cada capa,
+  las capas del modo Código, la galería y la ida y vuelta del archivo;
+  `scripts/probarGraficoIA.mjs`: la herramienta `display_chart` del asistente.
+
+---
+
 ## [5.15.1] — 2026-10-25
 
 Arreglos encontrados al documentar la 5.15 con un proyecto real, la documentación con capturas nuevas y un mockup de la página web (`docs/dev/sitio-web/`).

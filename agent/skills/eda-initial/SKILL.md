@@ -28,7 +28,9 @@ Esto es un *workflow* (hay un orden sensato), pero **las queries que ejecutes so
    - ¿Una **columna de fecha**? → rango temporal y volumen por período.
    - Prioriza la pregunta que **más reduce incertidumbre** sobre el dataset.
 5. **Queries diagnósticas (máx 3)** — las que elegiste en el paso 4, no una lista fija.
-6. **Visualizar** — `display_chart`, eligiendo el tipo con el **marco de "Chart Selection" / storytelling** (NO por defecto `line` solo porque haya una fecha; con pocos períodos es comparación → barras).
+6. **Visualizar** — `display_chart`, eligiendo el tipo con el **marco de "Chart Selection" / storytelling** (NO por defecto `line` solo porque haya una fecha; con pocos períodos es comparación → barras o `slope`).
+   - **La distribución de la métrica dominante** → `histogram` sobre las filas crudas (no agregadas), con `histogram_stats: ["mean", "median"]`: la distancia entre media y mediana dice si está sesgada. Por categoría → `boxplot` (o `density` con `split_by`).
+   - **Top-N por una dimensión** → `bar-horizontal` o `lollipop` con `sort_mode: "y-desc"` y `limit`.
 7. **Cerrar** — `final_answer` con: hallazgos de calidad + 3 insights clave + sugerencia del siguiente análisis.
 
 ## Reglas

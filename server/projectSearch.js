@@ -21,6 +21,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const amoxvis = require('./amoxvis');
 
 // ── Categorías ──────────────────────────────────────────────────────────────
 const SOURCE_EXTS = new Set([
@@ -178,15 +179,15 @@ function lineasDeChain(raw) {
 
 function lineasDeGrafico(raw) {
     const out = [];
-    const doc = JSON.parse(raw);
-    const cfg = doc.config || doc;
+    // El archivo es Vega-Lite con los paneles en usermeta; también se lee el formato anterior.
+    const cfg = amoxvis.leer(raw);
     for (const clave of ['chartTitle', 'chartSubtitle', 'xAxisKey', 'rightYAxisKey', 'splitByKey']) {
         if (typeof cfg[clave] === 'string' && cfg[clave].trim()) out.push(linea(null, cfg[clave], clave));
     }
     for (const k of Array.isArray(cfg.yAxisKeys) ? cfg.yAxisKeys : []) {
         if (typeof k === 'string') out.push(linea(null, k, 'yAxisKeys'));
     }
-    const consulta = doc.query || cfg.query;
+    const consulta = cfg.query;
     if (typeof consulta === 'string') consulta.split(/\r?\n/).forEach((t, i) => out.push(linea(i + 1, t, 'consulta')));
     return out;
 }

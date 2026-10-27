@@ -1,0 +1,65 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 340,
+  "height": 300,
+  "encoding": {
+    "x": {
+      "field": "b",
+      "type": "nominal",
+      "sort": null,
+      "axis": {
+        "orient": "top",
+        "labelAngle": 0
+      },
+      "title": null
+    },
+    "y": {
+      "field": "a",
+      "type": "nominal",
+      "sort": null,
+      "title": null
+    }
+  },
+  "layer": [
+    {
+      "mark": "rect",
+      "encoding": {
+        "color": {
+          "field": "r",
+          "type": "quantitative",
+          "scale": {
+            "domain": [
+              -1,
+              1
+            ],
+            "domainMid": 0,
+            "range": [
+              "#2a7ab9",
+              "#f4f6f8",
+              "#f2545b"
+            ]
+          },
+          "legend": {
+            "orient": "top",
+            "direction": "horizontal"
+          }
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "text",
+        "fontSize": 12
+      },
+      "encoding": {
+        "text": {
+          "field": "r",
+          "format": ".2f"
+        }
+      }
+    }
+  ]
+}

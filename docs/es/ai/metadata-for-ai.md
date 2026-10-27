@@ -40,7 +40,7 @@ Todo esto es el "tercer camino" de la IA: no necesitas Ollama ni una clave confi
 ### Usarlo en un chat externo
 1. Pega (o adjunta) la Skill descargada como instrucción/system del asistente externo.
 2. Pega el documento de **Metadata para IA** de tus datos.
-3. Haz tu pregunta. El asistente responde con un bloque SQL (y, con la Skill avanzada, un bloque JSON de gráfico).
+3. Haz tu pregunta. El asistente responde con un bloque SQL (y, con la Skill avanzada, un gráfico en Vega-Lite).
 4. Copia el SQL a AmoxSQL y ejecútalo. Para el gráfico, abre Story Flow sobre el resultado y usa **Pegar JSON**.
 
 ## Referencia
@@ -69,13 +69,13 @@ Todo esto es el "tercer camino" de la IA: no necesitas Ollama ni una clave confi
 | Skill | Qué hace |
 |---|---|
 | Básica (*AmoxSQL Data Skill*) | Analista de DuckDB: responde con SQL ejecutable |
-| Avanzada (*AmoxSQL Data & Viz Skill*) | SQL + JSON de gráfico para Story Flow, con la lista de tipos, paletas y campos auto-derivada |
+| Avanzada (*AmoxSQL Data & Viz Skill*) | SQL + un gráfico en Vega-Lite con los datos por nombre (`dataset`), que se pega en Story Flow; la lista de tipos que los paneles saben editar sale del propio AmoxSQL |
 
 ## Tips y gemas
 
 - **Ojo al aviso de tamaño.** Por encima de ~12 KB, el documento puede exceder el límite de algunos chats. Baja las filas de muestra o desactiva el perfil si te pasas.
-- **El JSON lleva solo la configuración, no los datos.** Story Flow renderiza el JSON contra el resultado del SQL que tú ejecutaste, así que tus datos nunca salen de tu máquina.
-- **La Skill avanzada no se queda obsoleta.** Su lista de tipos de gráfico, paletas y campos se genera desde el propio esquema de AmoxSQL cada vez que la descargas.
+- **El gráfico no lleva datos.** El spec nombra los datos `dataset` y Story Flow lo dibuja con el resultado del SQL que tú ejecutaste, así que tus datos nunca salen de tu máquina.
+- **La Skill avanzada no se queda obsoleta.** Enseña Vega-Lite, que no cambia con AmoxSQL, y la lista de tipos que los paneles saben editar se genera desde AmoxSQL cada vez que la descargas.
 - **Excel: elige la hoja correcta** antes de generar — el contexto describe solo la hoja seleccionada.
 
 ## Relacionado

@@ -40,21 +40,27 @@ Algunos overlays dependen del tipo de gráfico, porque solo se dibujan donde tie
 ### Anotaciones
 1. En **Annotations**, añade **+ Text** (marca un punto) o **+ Box** (marca una región).
 2. Elige el valor X (y X final, en Box), un valor Y opcional (auto si se deja vacío) y el color.
-3. Disponibles en gráficos de línea, barra y combo.
+3. Disponibles en todos los gráficos con ejes: línea, área, barra, combo, dispersión, cascada y barras con intervalo.
 
 ### Foco (Highlight)
-1. En **Focus — Highlight**, elige qué resaltar: **Max**, **Min** o **Specific Category** (escribe la categoría).
-2. Elige el color del resaltado. El resto del gráfico se atenúa para que el protagonista destaque.
+1. En **Focus — Highlight**, elige qué resaltar:
+   - **Max**, **Min** o **Specific Category** (escribe la categoría).
+   - **Values below… / Values above…** — todas las barras bajo o sobre un umbral (p. ej. las campañas con ROAS menor que 1). Combínalo con una **Reference Line** en ese mismo valor.
+   - **A stretch of the line** — un tramo de la serie, de un valor de X a otro (p. ej. `2025-06-10` a `2025-06-26`), dibujado encima en el color del resaltado.
+2. Elige el color del resaltado. El resto del gráfico se queda en su color para que el protagonista destaque.
+
+### Nombrar las líneas al final
+En **Label the lines**, activa **Name each line at its end**: el nombre de cada serie (y su último valor) aparece junto al último punto. Es más fácil de leer que una leyenda aparte; con ella activada, puedes ocultar la leyenda en **Format**. Disponible en líneas, áreas y bump.
 
 ### Meta, referencia y área
 1. **Goal Line** — activa y define valor Y, etiqueta, color y estilo (sólida/discontinua/punteada).
-2. **Reference Line** — línea horizontal de referencia (media, mediana, benchmark) con etiqueta y color.
+2. **Reference Line** — línea de referencia con etiqueta y color. El valor puede ser un número o **`mean`** / **`median`**: la línea se calcula sobre los valores que dibuja la figura.
 3. **Reference Area** — banda rectangular por rango X e Y, con color y opacidad.
 
 ### Tendencia y media móvil
-1. En **Trend & Average**, elige **Linear Trend** o **Moving Average**.
+1. En **Trend & Average**, elige **Linear Trend** o **Moving Average**. En una dispersión las opciones son **Regression line** (la recta de mínimos cuadrados de Y sobre X) y **Smooth curve** (una curva suavizada).
 2. Para la media móvil, define el **tamaño de ventana**.
-3. Solo disponible en serie única (línea o barra vertical); con varias series o Split By no aplica.
+3. Solo en serie única (línea, barra, dispersión); con varias series o Split By no aplica.
 
 ## Referencia de opciones
 
@@ -68,19 +74,20 @@ Algunos overlays dependen del tipo de gráfico, porque solo se dibujan donde tie
 | | Text Alignment | Left · Center · Right |
 | | Auto Story | Genera textos con IA a partir de una muestra |
 | Annotations | + Text / + Box | Punto (X, Y) o región (X→X2, Y→Y2) + color |
-| Focus — Highlight | Type | None · Max · Min · Specific Category (+ color) |
+| Focus — Highlight | Type | None · Max · Min · Specific Category · Values below/above (umbral) · A stretch of the line (de X a X) (+ color) |
 | Goal Line | Enabled, Y Value, Label, Color, Style | Style: Solid · Dashed · Dotted |
-| Reference Line | Y Value, Label, Color | Línea horizontal |
+| Reference Line | Value, Label, Color | Un número, o `mean` / `median` |
 | Reference Area | X Start/End, Y Start/End, Color, Opacity | Banda rectangular |
-| Trend & Average | Overlay | None · Linear Trend · Moving Average (+ Window Size, + color) |
+| Trend & Average | Overlay | None · Linear Trend · Moving Average (+ Window Size) · en dispersión: Regression line · Smooth curve (+ color) |
 
 ### Soporte por tipo de gráfico
 | Overlay | Dónde se dibuja |
 |---|---|
-| Anotaciones | Línea, barra, combo |
-| Foco (Highlight) | Línea, barra |
-| Meta / Referencia / Área | Línea, barra, combo, scatter, waterfall |
-| Tendencia / Media móvil | Línea, barra vertical (serie única) |
+| Anotaciones | Línea, barra, combo, dispersión, cascada, barras con intervalo |
+| Foco (Highlight) | Línea, barra, caja (por categoría), barras con intervalo |
+| Meta / Referencia / Área | Línea, barra, combo, dispersión, cascada, barras con intervalo |
+| Tendencia / Media móvil / Regresión | Línea, barra, dispersión (serie única) |
+| Media y mediana del histograma | Histograma (en **Data**) |
 
 El panel solo muestra los overlays que el tipo activo puede dibujar, así nunca ofreces un control que no haría nada.
 

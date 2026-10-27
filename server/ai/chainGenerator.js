@@ -51,7 +51,7 @@ OUTPUT
 - publicar         config: { fuente (lowercase-with-hyphens), carpeta (local folder or s3://… / gs://…), formato: parquet|csv, esquemaRoto: detener|avisar, credencial? }   // publish a file other projects read as fuentes."name"; written aside and renamed; schema guarded
 - excel            config: { outputPath (.xlsx), modo: libro|plantilla, hojas?: [{ desde (input node id), nombre, formatos?: { column: moneda|porcentaje|entero|decimal|fecha|texto } }], plantilla? (.xlsx), destinos?: [{ desde, tabla } | { desde, hoja, celda, encabezado? }] }   // formatted workbook, one sheet per connected node; or fill the client's template
 - export_file      config: { outputPath (local path OR s3://… / gs://…), format: csv|parquet|xlsx|json, partitionBy?: [string], query? }   // query optional; partitionBy writes a partitioned directory
-- chart            config: { outputPath (.amoxvis), chartType: bar|line|area|pie|donut, xAxisKey?, yAxisKeys?, chartTitle?, query? }   // axes optional — auto-picked from the query's columns
+- chart            config: { outputPath (.amoxvis), chartType: bar|bar-horizontal|lollipop|line|area|donut|pie|treemap|funnel|waterfall, xAxisKey?, yAxisKeys?, chartTitle?, query? }   // axes optional — auto-picked from the query's columns
 - report           config: { outputPath (.sqlnb or .amoxdeck), outputType: notebook|deck, title?, chartType?, xAxisKey?, yAxisKeys?, chartTitle?, query? }   // deck mode also writes a .amoxvis next to it; chart fields only apply in deck mode
 CONTROL
 - assert            config: { assertType: not_empty|row_count_gt|no_nulls|unique|custom_query, column?, threshold?, query? }

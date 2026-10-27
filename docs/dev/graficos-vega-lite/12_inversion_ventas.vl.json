@@ -1,0 +1,42 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 440,
+  "height": 280,
+  "encoding": {
+    "x": {
+      "field": "inversion",
+      "type": "quantitative",
+      "title": "Inversión semanal (MXN)"
+    },
+    "y": {
+      "field": "ventas",
+      "type": "quantitative",
+      "title": "Ventas de la semana (MXN)"
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "circle",
+        "color": "#b8bcc4",
+        "size": 50
+      }
+    },
+    {
+      "mark": {
+        "type": "line",
+        "color": "#f2545b",
+        "strokeWidth": 2
+      },
+      "transform": [
+        {
+          "regression": "ventas",
+          "on": "inversion"
+        }
+      ]
+    }
+  ]
+}

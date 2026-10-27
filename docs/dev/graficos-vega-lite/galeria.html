@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Las 12 figuras en Vega-Lite</title>
+<style>body{font:14px system-ui,sans-serif;margin:24px;background:#fff;color:#1f2228}h1{font-size:20px}.f{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;border-top:1px solid #ddd;padding:16px 0}img{max-width:100%}pre{font-size:11px;background:#f6f7f9;padding:10px;overflow:auto;max-height:420px}</style></head><body>
+<h1>Las 12 figuras de referencia, escritas en Vega-Lite</h1><p>Cada figura: el SVG que produce el compilador y la especificación tal cual. Datos sintéticos (datos.mjs), tema común (tema.json). Ver ../plan_graficos_vega_lite.md.</p>
+<section class="f"><div><h2>01_cvr_diario</h2><img src="01_cvr_diario.svg" alt="01_cvr_diario"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 460,
+  "height": 240,
+  "encoding": {
+    "x": {
+      "field": "fecha",
+      "type": "temporal",
+      "timeUnit": "yearmonthdate",
+      "axis": {
+        "format": "%b",
+        "title": null
+      }
+    },
+    "y": {
+      "field": "cvr",
+      "type": "quantitative",
+      "axis": {
+        "format": ".1%",
+        "title": "CVR diario de Meta"
+      }
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "line",
+        "color": "#b8bcc4"
+      }
+    },
+    {
+      "transform": [
+        {
+          "filter": {
+            "field": "fecha",
+            "range": [
+              {
+                "year": 2025,
+                "month": 6,
+                "date": 10
+              },
+              {
+                "year": 2025,
+                "month": 6,
+                "date": 26
+              }
+            ]
+          }
+        }
+      ],
+      "mark": {
+        "type": "line",
+        "color": "#f2545b",
+        "strokeWidth": 2.5
+      }
+    }
+  ]
+}</pre></section>
+<section class="f"><div><h2>02_histograma_cpa</h2><img src="02_histograma_cpa.svg" alt="02_histograma_cpa"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 460,
+  "height": 240,
+  "layer": [
+    {
+      "mark": {
+        "type": "bar",
+        "color": "#b8bcc4",
+        "binSpacing": 1
+      },
+      "encoding": {
+        "x": {
+          "field": "cpa",
+          "bin": {
+            "maxbins": 20
+          },
+          "title": "CPA del mes (MXN)"
+        },
+        "y": {
+          "aggregate": "count",
+          "title": "Campañas-mes"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule",
+        "strokeWidth": 2
+      },
+      "encoding": {
+        "x": {
+          "aggregate": "mean",
+          "field": "cpa"
+        },
+        "color": {
+          "datum": "Media"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule",
+        "strokeWidth": 2
+      },
+      "encoding": {
+        "x": {
+          "aggregate": "median",
+          "field": "cpa"
+        },
+        "color": {
+          "datum": "Mediana"
+        }
+      }
+    }
+  ],
+  "encoding": {
+    "color": {
+      "scale": {
+        "domain": [
+          "Media",
+          "Mediana"
+        ],
+        "range": [
+          "#f2545b",
+          "#2a7ab9"
+        ]
+      },
+      "legend": {
+        "orient": "top",
+        "title": null
+      }
+    }
+  }
+}</pre></section>
+<section class="f"><div><h2>03_peso_calculo</h2><img src="03_peso_calculo.svg" alt="03_peso_calculo"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 420,
+  "mark": "bar",
+  "encoding": {
+    "y": {
+      "field": "canal",
+      "type": "nominal",
+      "sort": {
+        "op": "max",
+        "field": "peso",
+        "order": "descending"
+      },
+      "title": null
+    },
+    "yOffset": {
+      "field": "calculo",
+      "sort": [
+        "Promedio simple",
+        "CPA del cliente"
+      ]
+    },
+    "x": {
+      "field": "peso",
+      "type": "quantitative",
+      "axis": {
+        "format": ".0%"
+      },
+      "title": "Peso en el cálculo"
+    },
+    "color": {
+      "field": "calculo",
+      "scale": {
+        "domain": [
+          "Promedio simple",
+          "CPA del cliente"
+        ],
+        "range": [
+          "#b8bcc4",
+          "#f2545b"
+        ]
+      },
+      "legend": {
+        "orient": "top",
+        "title": null
+      }
+    }
+  }
+}</pre></section>
+<section class="f"><div><h2>04_caja_cpa</h2><img src="04_caja_cpa.svg" alt="04_caja_cpa"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 460,
+  "mark": {
+    "type": "boxplot",
+    "extent": 1.5,
+    "size": 16,
+    "median": {
+      "color": "#333"
+    }
+  },
+  "encoding": {
+    "y": {
+      "field": "campana",
+      "type": "nominal",
+      "title": null,
+      "sort": [
+        "Search - Marca",
+        "Meta - Prospección",
+        "Meta - Retargeting",
+        "Search - Genérica"
+      ]
+    },
+    "x": {
+      "field": "cpa",
+      "type": "quantitative",
+      "title": "CPA diario (MXN)"
+    },
+    "color": {
+      "condition": {
+        "test": "datum.campana === 'Meta - Retargeting'",
+        "value": "#f2545b"
+      },
+      "value": "#b8bcc4"
+    }
+  }
+}</pre></section>
+<section class="f"><div><h2>05_histograma_ingresos</h2><img src="05_histograma_ingresos.svg" alt="05_histograma_ingresos"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 460,
+  "height": 240,
+  "layer": [
+    {
+      "mark": {
+        "type": "bar",
+        "color": "#b8bcc4",
+        "binSpacing": 1
+      },
+      "encoding": {
+        "x": {
+          "field": "ingresos",
+          "bin": {
+            "maxbins": 40
+          },
+          "title": "Ingresos del día (MXN)"
+        },
+        "y": {
+          "aggregate": "count",
+          "title": "Días"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule",
+        "color": "#f2545b",
+        "strokeWidth": 2
+      },
+      "encoding": {
+        "x": {
+          "aggregate": "mean",
+          "field": "ingresos"
+        },
+        "strokeDash": {
+          "datum": "Media"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule",
+        "color": "#f2545b",
+        "strokeWidth": 2
+      },
+      "encoding": {
+        "x": {
+          "aggregate": "median",
+          "field": "ingresos"
+        },
+        "strokeDash": {
+          "datum": "Mediana"
+        }
+      }
+    }
+  ],
+  "encoding": {
+    "strokeDash": {
+      "scale": {
+        "domain": [
+          "Media",
+          "Mediana"
+        ],
+        "range": [
+          [
+            1,
+            0
+          ],
+          [
+            5,
+            3
+          ]
+        ]
+      },
+      "legend": {
+        "orient": "top",
+        "title": null
+      }
+    }
+  }
+}</pre></section>
+<section class="f"><div><h2>06_cupones_gasto</h2><img src="06_cupones_gasto.svg" alt="06_cupones_gasto"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 320,
+  "height": 260,
+  "transform": [
+    {
+      "fold": [
+        "cupones",
+        "gasto"
+      ],
+      "as": [
+        "serie",
+        "valor"
+      ]
+    },
+    {
+      "joinaggregate": [
+        {
+          "op": "min",
+          "field": "valor",
+          "as": "mn"
+        },
+        {
+          "op": "max",
+          "field": "valor",
+          "as": "mx"
+        }
+      ],
+      "groupby": [
+        "serie"
+      ]
+    },
+    {
+      "calculate": "(datum.valor - datum.mn) / (datum.mx - datum.mn)",
+      "as": "escala"
+    }
+  ],
+  "mark": {
+    "type": "line",
+    "point": true
+  },
+  "encoding": {
+    "x": {
+      "field": "mes",
+      "type": "ordinal",
+      "title": "Mes de 2025"
+    },
+    "y": {
+      "field": "escala",
+      "type": "quantitative",
+      "title": "Escala min-max (0 = mes más bajo)"
+    },
+    "color": {
+      "field": "serie",
+      "scale": {
+        "range": [
+          "#2a7ab9",
+          "#f2545b"
+        ]
+      },
+      "legend": {
+        "orient": "top",
+        "title": null
+      }
+    }
+  }
+}</pre></section>
+<section class="f"><div><h2>07_roas_meta</h2><img src="07_roas_meta.svg" alt="07_roas_meta"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 360,
+  "height": 260,
+  "encoding": {
+    "x": {
+      "field": "mes",
+      "type": "ordinal",
+      "title": "Mes de 2025",
+      "axis": {
+        "labelAngle": 0
+      }
+    },
+    "y": {
+      "field": "roas",
+      "type": "quantitative",
+      "scale": {
+        "zero": false
+      },
+      "title": "ROAS de Meta"
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "line",
+        "color": "#b8bcc4"
+      }
+    },
+    {
+      "mark": {
+        "type": "point",
+        "filled": true
+      },
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum.mes === 10",
+            "value": "#f2545b"
+          },
+          "value": "#6b7079"
+        },
+        "size": {
+          "condition": {
+            "test": "datum.mes === 10",
+            "value": 120
+          },
+          "value": 30
+        }
+      }
+    }
+  ]
+}</pre></section>
+<section class="f"><div><h2>08_tv_ventas</h2><img src="08_tv_ventas.svg" alt="08_tv_ventas"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 440,
+  "height": 280,
+  "mark": {
+    "type": "circle",
+    "size": 60,
+    "opacity": 0.9
+  },
+  "encoding": {
+    "x": {
+      "field": "tv",
+      "type": "quantitative",
+      "title": "Inversión semanal en TV (MXN)"
+    },
+    "y": {
+      "field": "ventas",
+      "type": "quantitative",
+      "title": "Ventas de la semana (MXN)"
+    },
+    "color": {
+      "field": "temporada",
+      "scale": {
+        "domain": [
+          "Baja",
+          "Alta"
+        ],
+        "range": [
+          "#b8bcc4",
+          "#f2545b"
+        ]
+      },
+      "legend": {
+        "orient": "top",
+        "title": "Temporada"
+      }
+    }
+  }
+}</pre></section>
+<section class="f"><div><h2>09_correlaciones</h2><img src="09_correlaciones.svg" alt="09_correlaciones"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 340,
+  "height": 300,
+  "encoding": {
+    "x": {
+      "field": "b",
+      "type": "nominal",
+      "sort": null,
+      "axis": {
+        "orient": "top",
+        "labelAngle": 0
+      },
+      "title": null
+    },
+    "y": {
+      "field": "a",
+      "type": "nominal",
+      "sort": null,
+      "title": null
+    }
+  },
+  "layer": [
+    {
+      "mark": "rect",
+      "encoding": {
+        "color": {
+          "field": "r",
+          "type": "quantitative",
+          "scale": {
+            "domain": [
+              -1,
+              1
+            ],
+            "domainMid": 0,
+            "range": [
+              "#2a7ab9",
+              "#f4f6f8",
+              "#f2545b"
+            ]
+          },
+          "legend": {
+            "orient": "top",
+            "direction": "horizontal"
+          }
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "text",
+        "fontSize": 12
+      },
+      "encoding": {
+        "text": {
+          "field": "r",
+          "format": ".2f"
+        }
+      }
+    }
+  ]
+}</pre></section>
+<section class="f"><div><h2>10_roas_campanas</h2><img src="10_roas_campanas.svg" alt="10_roas_campanas"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 440,
+  "title": {
+    "text": "Tres campañas no recuperan lo que cuestan",
+    "subtitle": "ROAS de Moda Nube, 2025. Línea punteada: ROAS = 1",
+    "anchor": "start"
+  },
+  "encoding": {
+    "y": {
+      "field": "campana",
+      "type": "nominal",
+      "sort": {
+        "field": "roas",
+        "op": "sum",
+        "order": "descending"
+      },
+      "title": null
+    },
+    "x": {
+      "field": "roas",
+      "type": "quantitative",
+      "axis": null
+    }
+  },
+  "layer": [
+    {
+      "mark": "bar",
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum.roas &lt; 1",
+            "value": "#f2545b"
+          },
+          "value": "#b8bcc4"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "text",
+        "align": "left",
+        "dx": 4
+      },
+      "encoding": {
+        "text": {
+          "field": "roas",
+          "format": ".2f"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "rule",
+        "strokeDash": [
+          3,
+          3
+        ],
+        "color": "#555"
+      },
+      "encoding": {
+        "x": {
+          "datum": 1
+        },
+        "y": null
+      }
+    }
+  ]
+}</pre></section>
+<section class="f"><div><h2>11_lift_intervalos</h2><img src="11_lift_intervalos.svg" alt="11_lift_intervalos"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 440,
+  "encoding": {
+    "y": {
+      "field": "grupo",
+      "type": "nominal",
+      "sort": null,
+      "title": null
+    }
+  },
+  "layer": [
+    {
+      "mark": "bar",
+      "encoding": {
+        "x": {
+          "field": "lift",
+          "type": "quantitative",
+          "title": "Lift en recuerdo de marca (pp)"
+        },
+        "color": {
+          "condition": {
+            "test": "datum.grupo === 'Ajustada'",
+            "value": "#f2545b"
+          },
+          "value": "#b8bcc4"
+        }
+      }
+    },
+    {
+      "mark": {
+        "type": "errorbar",
+        "color": "#333",
+        "thickness": 1.5
+      },
+      "encoding": {
+        "x": {
+          "field": "bajo",
+          "type": "quantitative"
+        },
+        "x2": {
+          "field": "alto"
+        }
+      }
+    }
+  ]
+}</pre></section>
+<section class="f"><div><h2>12_inversion_ventas</h2><img src="12_inversion_ventas.svg" alt="12_inversion_ventas"></div><pre>{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 440,
+  "height": 280,
+  "encoding": {
+    "x": {
+      "field": "inversion",
+      "type": "quantitative",
+      "title": "Inversión semanal (MXN)"
+    },
+    "y": {
+      "field": "ventas",
+      "type": "quantitative",
+      "title": "Ventas de la semana (MXN)"
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "circle",
+        "color": "#b8bcc4",
+        "size": 50
+      }
+    },
+    {
+      "mark": {
+        "type": "line",
+        "color": "#f2545b",
+        "strokeWidth": 2
+      },
+      "transform": [
+        {
+          "regression": "ventas",
+          "on": "inversion"
+        }
+      ]
+    }
+  ]
+}</pre></section>
+</body></html>

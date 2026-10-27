@@ -17,7 +17,7 @@ Esta página es la referencia de todos ellos. Para el detalle técnico del parse
 | `.sql` | Consulta SQL plana | Texto SQL | [Editor SQL](../editor/sql-editor.md) |
 | `.sqlnb` | Cuaderno (celdas + parámetros) | Markdown con cabecera | [Cuadernos](../notebooks/notebooks.md) |
 | `.sqlnb.state.json` | Estado visual del cuaderno | JSON | Generado (al lado) |
-| `.amoxvis` | Configuración de un gráfico | JSON | [Story Flow](../visualization/story-flow.md) |
+| `.amoxvis` | Un gráfico, con su consulta | JSON (Vega-Lite) | [Story Flow](../visualization/story-flow.md) |
 | `.amoxdeck` | Deck de presentación | Markdown + front-matter | [Report Flow](../reports/report-flow.md) |
 | `.sqlchain` | Pipeline de transformación | JSON (DAG) | [Data Flow](../data-flow/data-flow.md) |
 | `.amoxproject` | Un proyecto en un archivo, o una plantilla | ZIP con `amoxproject.json` | [Proyectos](../user-guide/projects-and-connections.md) |
@@ -79,17 +79,31 @@ Archivo hermano de un `.sqlnb` que guarda el estado visual (resultados, configur
 | Prioridad | Si existe, su estado gana sobre el `state` embebido en el `.sqlnb` — puedes editar el SQL sin perder resultados |
 | Se edita en | Generado automáticamente (no se edita a mano) |
 
-## `.amoxvis` — Configuración de gráfico
+## `.amoxvis` — Gráfico (Vega-Lite)
 
-Todo lo necesario para reconstruir un gráfico: tipo, ejes, títulos, tema de color, formato numérico, líneas de referencia y — clave — la propia consulta que lo alimenta. Un `.amoxvis` es autosuficiente: al abrirlo, AmoxSQL re-ejecuta su `query` y vuelve a dibujar.
+Un gráfico de AmoxSQL **es un spec de Vega-Lite válido** (esquema v6), así que no queda encerrado en AmoxSQL: cualquier herramienta que lea Vega-Lite lo dibuja. Lo que es solo de AmoxSQL va en `usermeta.amoxsql`, el campo que Vega-Lite reserva para metadatos de la aplicación y que los demás ignoran.
+
+```json
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "title": { "text": "Los 10 productos que más venden", "subtitle": "2024, en pesos" },
+  "data": { "name": "dataset" },
+  "mark": "bar",
+  "encoding": { "y": { "field": "producto", "type": "nominal" }, "x": { "field": "venta", "type": "quantitative" } },
+  "usermeta": { "amoxsql": { "version": 2, "modo": "interfaz", "consulta": "SELECT …", "interfaz": { "chartType": "bar-horizontal" } } }
+}
+```
 
 | Aspecto | Detalle |
 |---|---|
-| Estructura | JSON con `chartType`, `xAxisKey`, `yAxisKeys[]`, títulos, `colorTheme`, formato, líneas de referencia y `query` |
-| Lleva su consulta | Sí — el campo `query` hace el archivo independiente |
-| Tipos de gráfico | `bar`, `bar-stacked`, `bar-horizontal`, `bar-100`, `line`, `area`, `donut`, `scatter`, `bubble`, `combo`, `funnel`, `heatmap`, `treemap` |
+| Estructura | Vega-Lite v6 (`$schema`, `title`, `data`, `mark`/`layer`, `encoding`, `transform`…) + `usermeta.amoxsql` |
+| Los datos | Por nombre: `"data": {"name": "dataset"}`. AmoxSQL los llena con el resultado de la consulta |
+| Lleva su consulta | Sí — `usermeta.amoxsql.consulta`; `origen` si salió de un `.sql` guardado |
+| `modo` | `interfaz`: los paneles de Story Flow (en `interfaz`, solo lo que difiere de fábrica) generan el spec al abrir. `codigo`: el spec escrito a mano es la figura |
+| Mapa de rectángulos | Se guarda como spec de **Vega** (`$schema` de Vega): Vega-Lite no tiene diseño jerárquico |
+| Formato anterior | La configuración plana de antes (`chartType`, `xAxisKey`, `query`…) se sigue abriendo y se guarda en el formato nuevo |
 | Uso | Standalone, embebido en una celda de notebook (`state.chartConfig`) o referenciado desde un deck |
-| Se edita en | [Story Flow](../visualization/story-flow.md) |
+| Se edita en | [Story Flow](../visualization/story-flow.md) — con los paneles o directamente en código |
 
 ## `.amoxdeck` — Deck de Report Flow
 

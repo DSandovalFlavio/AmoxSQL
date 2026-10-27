@@ -44,7 +44,7 @@ No invocas las herramientas directamente — el agente las elige. Pero puedes:
 
 | Herramienta | Qué hace |
 |---|---|
-| `display_chart` | Genera un gráfico totalmente configurado (overlays, storytelling, razonamiento de color); linters del servidor corrigen elecciones malas |
+| `display_chart` | Genera un gráfico totalmente configurado (overlays, storytelling, razonamiento de color); linters del servidor corrigen elecciones malas. Además de los tipos de Story Flow puede entregar un **Vega-Lite** completo (`vega_lite`), que el servidor compila antes de aceptarlo: si no compila o usa una columna que no existe, el error vuelve al modelo para que lo corrija |
 | `build_notebook` | Construye un notebook `.sqlnb` con celdas y gráficos (Deep Dive) |
 | `write_file` | Propone una edición del archivo activo o escribe/anexa un archivo (Asistente) |
 

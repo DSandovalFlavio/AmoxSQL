@@ -155,6 +155,77 @@ const ChartIcon = ({ type, size = 28 }) => {
                 <rect x="18" y="18" width="5" height="5" rx="1" fill={color} opacity="0.9" />
             </svg>
         ),
+        'histogram': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <rect x="3" y="18" width="4" height="6" fill={color} opacity="0.5" />
+                <rect x="7.5" y="10" width="4" height="14" fill={color} opacity="0.75" />
+                <rect x="12" y="5" width="4" height="19" fill={color} />
+                <rect x="16.5" y="11" width="4" height="13" fill={color} opacity="0.75" />
+                <rect x="21" y="19" width="4" height="5" fill={color} opacity="0.5" />
+            </svg>
+        ),
+        'boxplot': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <line x1="3" y1="9" x2="25" y2="9" stroke={color} strokeWidth="1.2" opacity="0.6" />
+                <rect x="9" y="5.5" width="10" height="7" rx="1" fill={color} opacity="0.75" />
+                <line x1="13" y1="5.5" x2="13" y2="12.5" stroke="var(--panel-bg, #111)" strokeWidth="1.4" />
+                <line x1="5" y1="19" x2="21" y2="19" stroke={color} strokeWidth="1.2" opacity="0.6" />
+                <rect x="8" y="15.5" width="8" height="7" rx="1" fill={color} opacity="0.45" />
+                <circle cx="24" cy="19" r="1.3" fill={color} />
+            </svg>
+        ),
+        'errorbar': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <rect x="3" y="5" width="15" height="6" rx="1" fill={color} opacity="0.7" />
+                <rect x="3" y="16" width="9" height="6" rx="1" fill={color} opacity="0.45" />
+                <line x1="12" y1="8" x2="24" y2="8" stroke={color} strokeWidth="1.4" />
+                <line x1="12" y1="6" x2="12" y2="10" stroke={color} strokeWidth="1.4" />
+                <line x1="24" y1="6" x2="24" y2="10" stroke={color} strokeWidth="1.4" />
+                <line x1="6" y1="19" x2="17" y2="19" stroke={color} strokeWidth="1.4" />
+                <line x1="17" y1="17" x2="17" y2="21" stroke={color} strokeWidth="1.4" />
+            </svg>
+        ),
+        'slope': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <line x1="6" y1="20" x2="22" y2="7" stroke={color} strokeWidth="2" />
+                <line x1="6" y1="10" x2="22" y2="16" stroke={color} strokeWidth="2" opacity="0.5" />
+                <circle cx="6" cy="20" r="2" fill={color} /><circle cx="22" cy="7" r="2" fill={color} />
+                <circle cx="6" cy="10" r="2" fill={color} opacity="0.5" /><circle cx="22" cy="16" r="2" fill={color} opacity="0.5" />
+            </svg>
+        ),
+        'lollipop': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <line x1="4" y1="6" x2="20" y2="6" stroke={color} strokeWidth="1.6" /><circle cx="20" cy="6" r="2.6" fill={color} />
+                <line x1="4" y1="14" x2="15" y2="14" stroke={color} strokeWidth="1.6" opacity="0.7" /><circle cx="15" cy="14" r="2.6" fill={color} opacity="0.7" />
+                <line x1="4" y1="22" x2="10" y2="22" stroke={color} strokeWidth="1.6" opacity="0.5" /><circle cx="10" cy="22" r="2.6" fill={color} opacity="0.5" />
+            </svg>
+        ),
+        'dumbbell': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <line x1="7" y1="7" x2="21" y2="7" stroke={color} strokeWidth="1.6" opacity="0.5" /><circle cx="7" cy="7" r="2.6" fill={color} opacity="0.5" /><circle cx="21" cy="7" r="2.6" fill={color} />
+                <line x1="11" y1="15" x2="18" y2="15" stroke={color} strokeWidth="1.6" opacity="0.5" /><circle cx="11" cy="15" r="2.6" fill={color} opacity="0.5" /><circle cx="18" cy="15" r="2.6" fill={color} />
+                <line x1="5" y1="23" x2="13" y2="23" stroke={color} strokeWidth="1.6" opacity="0.5" /><circle cx="5" cy="23" r="2.6" fill={color} opacity="0.5" /><circle cx="13" cy="23" r="2.6" fill={color} />
+            </svg>
+        ),
+        'density': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <path d="M3 23 C8 23 9 6 14 6 C19 6 20 23 25 23 Z" fill={color} opacity="0.35" />
+                <path d="M3 23 C8 23 9 6 14 6 C19 6 20 23 25 23" stroke={color} strokeWidth="1.6" fill="none" />
+            </svg>
+        ),
+        'strip': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                {[5, 8, 9, 12, 16, 19].map(x => <line key={`a${x}`} x1={x} y1="5" x2={x} y2="11" stroke={color} strokeWidth="1.4" opacity="0.7" />)}
+                {[9, 13, 14, 15, 18, 23].map(x => <line key={`b${x}`} x1={x} y1="17" x2={x} y2="23" stroke={color} strokeWidth="1.4" opacity="0.7" />)}
+            </svg>
+        ),
+        'bump': (
+            <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
+                <polyline points="4,6 11,14 18,6 25,14" stroke={color} strokeWidth="2" fill="none" />
+                <polyline points="4,14 11,6 18,22 25,6" stroke={color} strokeWidth="2" fill="none" opacity="0.5" />
+                <circle cx="25" cy="14" r="2" fill={color} /><circle cx="25" cy="6" r="2" fill={color} opacity="0.5" />
+            </svg>
+        ),
         'treemap': (
             <svg width={s} height={s} viewBox="0 0 28 28" fill="none">
                 <rect x="4" y="4" width="12" height="12" rx="1" fill={color} opacity="0.8" />

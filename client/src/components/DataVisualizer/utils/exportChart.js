@@ -3,6 +3,7 @@
  */
 import { API_BASE } from '../../../api.js';
 import html2canvas from 'html2canvas-pro';
+import { textoAmoxvis } from '../vega/figura';
 
 /**
  * Export a DOM element as PNG at a specific resolution.
@@ -173,7 +174,7 @@ function slugTitle(titleHint, chartType) {
  * Export the chart's own SVG drawing (axes, marks, legend — not the title/
  * takeaway HTML around it) as a standalone, portable .svg file.
  *
- * Recharts renders colors as CSS custom properties (`fill="var(--text-
+ * A drawing can carry colors as CSS custom properties (`fill="var(--text-
  * primary)"`) so they repaint live with the app's theme — meaningful only
  * inside this page's stylesheet cascade. A raw var() reference in an
  * extracted file resolves to nothing. Every element's fill/stroke/color is
@@ -183,7 +184,8 @@ function slugTitle(titleHint, chartType) {
  */
 export const exportChartAsSvg = (element, chartType = 'chart', titleHint = '') => {
     if (!element) throw new Error('No chart element to export.');
-    const liveSvg = element.querySelector('svg.recharts-surface') || element.querySelector('svg');
+    // El dibujo de la figura, no un icono de la tarjeta.
+    const liveSvg = element.querySelector('.figura-vega svg') || element.querySelector('svg');
     if (!liveSvg) throw new Error('No chart drawing found to export as SVG.');
 
     const clone = liveSvg.cloneNode(true);
@@ -290,8 +292,8 @@ export const saveChartConfig = async (filename, config, query = '', source = nul
         filename += '.amoxvis';
     }
 
-    const payload = { ...config, query };
-    if (source) payload.source = source;
+    const plano = { ...config, query };
+    if (source) plano.source = source;
 
     try {
         const response = await fetch(`${API_BASE}/api/file`, {
@@ -299,7 +301,7 @@ export const saveChartConfig = async (filename, config, query = '', source = nul
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 path: filename,
-                content: JSON.stringify(payload, null, 2)
+                content: textoAmoxvis(plano)
             })
         });
         const result = await response.json();

@@ -71,14 +71,15 @@ async function captureCellChart(cellId) {
     const cellEl = document.querySelector(`[data-cell-id="${cellId}"]`);
     if (!cellEl) return null;
 
-    const figura = cellEl.querySelector('.recharts-wrapper');
+    // La figura de Vega-Lite (5.16): el contenedor exacto del dibujo.
+    const figura = cellEl.querySelector('.figura-vega');
     if (!figura) return null;
 
     const restoreTheme = forceLightTheme();
     try {
-        // Solo por el repintado del tema: aqui no se cambia ningun tamano, asi
-        // que no hay que esperar a que Recharts vuelva a dibujar.
-        await sleep(120);
+        // Solo por el repintado del tema: la figura se redibuja con los tokens
+        // claros (lo detecta FiguraVega al cambiar la clase del cuerpo).
+        await sleep(350);
         const canvas = await html2canvas(figura, {
             backgroundColor: '#ffffff',
             scale: 2,
@@ -98,7 +99,7 @@ async function captureCellChart(cellId) {
 function detectCellViewMode(cellId) {
     const cellEl = document.querySelector(`[data-cell-id="${cellId}"]`);
     if (!cellEl) return 'table';
-    return cellEl.querySelector('.recharts-wrapper') ? 'chart' : 'table';
+    return cellEl.querySelector('.figura-vega svg') ? 'chart' : 'table';
 }
 
 function captureChartAnnotations(cellId) {

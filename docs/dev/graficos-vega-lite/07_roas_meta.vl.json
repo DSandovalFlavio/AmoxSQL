@@ -1,0 +1,56 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "name": "dataset"
+  },
+  "width": 360,
+  "height": 260,
+  "encoding": {
+    "x": {
+      "field": "mes",
+      "type": "ordinal",
+      "title": "Mes de 2025",
+      "axis": {
+        "labelAngle": 0
+      }
+    },
+    "y": {
+      "field": "roas",
+      "type": "quantitative",
+      "scale": {
+        "zero": false
+      },
+      "title": "ROAS de Meta"
+    }
+  },
+  "layer": [
+    {
+      "mark": {
+        "type": "line",
+        "color": "#b8bcc4"
+      }
+    },
+    {
+      "mark": {
+        "type": "point",
+        "filled": true
+      },
+      "encoding": {
+        "color": {
+          "condition": {
+            "test": "datum.mes === 10",
+            "value": "#f2545b"
+          },
+          "value": "#6b7079"
+        },
+        "size": {
+          "condition": {
+            "test": "datum.mes === 10",
+            "value": 120
+          },
+          "value": 30
+        }
+      }
+    }
+  ]
+}

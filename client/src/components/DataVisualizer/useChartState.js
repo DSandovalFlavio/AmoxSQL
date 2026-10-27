@@ -4,6 +4,7 @@
  */
 import { useReducer, useCallback, useRef, useEffect } from 'react';
 import { DEFAULT_CONFIG } from './constants';
+import { esSpecVega, leerAmoxvis } from './vega/figura';
 
 // ─── Action Types ────────────────────────────────────────────
 export const ACTIONS = {
@@ -23,7 +24,9 @@ function chartReducer(state, action) {
             return { ...state, ...action.fields };
 
         case ACTIONS.LOAD_CONFIG: {
-            const cfg = action.config;
+            // Un .amoxvis nuevo (o un Vega-Lite pegado) llega como spec: se pasa
+            // al objeto plano de siempre.
+            const cfg = esSpecVega(action.config) ? leerAmoxvis(action.config) : action.config;
             const newState = { ...DEFAULT_CONFIG };
 
             // Map all known keys, preserving legacy migrations
@@ -66,6 +69,9 @@ function chartReducer(state, action) {
                 newState.chartType = 'bar-horizontal';
                 newState.barStackMode = 'expand';
             }
+
+            // El spec generado por los paneles no se guarda: se rehace desde ellos.
+            if (newState.modo !== 'codigo') { newState.modo = 'interfaz'; newState.spec = null; }
 
             return newState;
         }
@@ -156,8 +162,16 @@ export function useChartState(initialConfig = null) {
     // ── Debounced config change notification ──
     const configChangeTimer = useRef(null);
     const isInitialMount = useRef(true);
+    // Lo que se iba a avisar y todavía no se avisó. Al desmontar se avisa ya:
+    // cambiar de pestaña antes de medio segundo perdía el último cambio.
+    const pendienteRef = useRef(null);
 
     const useConfigChangeNotifier = (onConfigChange) => {
+        useEffect(() => () => {
+            const p = pendienteRef.current;
+            pendienteRef.current = null;
+            if (p) p.avisar(p.estado);
+        }, []);
         useEffect(() => {
             if (isInitialMount.current) {
                 isInitialMount.current = false;
@@ -172,7 +186,9 @@ export function useChartState(initialConfig = null) {
             if (!onConfigChange) return;
 
             if (configChangeTimer.current) clearTimeout(configChangeTimer.current);
+            pendienteRef.current = { avisar: onConfigChange, estado: state };
             configChangeTimer.current = setTimeout(() => {
+                pendienteRef.current = null;
                 onConfigChange(state);
             }, 500);
 
