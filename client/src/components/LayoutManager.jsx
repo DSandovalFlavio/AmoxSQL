@@ -22,6 +22,19 @@ import { decidirAviso, decidirGuardado, ACCIONES } from '../utils/conflictoArchi
 import { vigilar } from '../state/vigilante';
 import Retomar from './Retomar';
 import { leerAmoxvis, textoAmoxvis } from './DataVisualizer/vega/figura';
+import { leerBorrador } from '../utils/borradorGrafico';
+import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
+
+/**
+ * Un .sql se abre con el gráfico que tenía la última vez (Dec-79): la vista
+ * (tabla o gráfico) y su configuración, recordadas con el archivo.
+ */
+async function conBorrador(tab) {
+    if (!tab || !tab.path || !/\.sql$/i.test(tab.path) || (tab.type && tab.type !== 'sql')) return tab;
+    const b = await leerBorrador(tab.path);
+    if (!b) return tab;
+    return { ...tab, ...(b.grafico ? { initialChartConfig: b.grafico } : {}), ...(b.vista ? { viewMode: b.vista } : {}) };
+}
 
 const TAB_STORAGE_KEY = 'amoxsql-layout-v1';
 // 5.14 (F5): las pestañas, por proyecto. Con la clave global, al abrir otro
@@ -282,11 +295,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(t.path)}`);
                         const data = await res.json();
                         if (data.error) return null;
-                        const tipo = t.type || tipoDePestana(t.path);
-                        return {
+                        // Un .amoxvis vuelve como gráfico aunque se guardara la
+                        // vieja pestaña «Edit: …», que se declaraba SQL.
+                        const tipo = /\.amoxvis$/i.test(t.path) ? 'amoxvis' : (t.type || tipoDePestana(t.path));
+                        return conBorrador({
                             id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
                             path: t.path,
-                            name: t.name,
                             // Un gráfico restaurado necesita su configuración leída
                             // del archivo: sin ella abría «No query».
                             ...(tipo === 'amoxvis' ? { initialChartConfig: leerAmoxvis(data.content) } : {}),
@@ -294,12 +308,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                             // no `'sql'`: una pestaña guardada por una versión
                             // anterior a este cambio no trae `type`, y volvía
                             // declarándose ejecutable fuera lo que fuera.
-                            type: t.type || tipoDePestana(t.path),
+                            type: tipo,
+                            name: tipo === 'amoxvis' ? t.path.split(/[/\\]/).pop() : t.name,
                             content: data.content,
                             firma: data.firma || null,
                             results: null,
                             dirty: false
-                        };
+                        });
                     } catch { return null; }
                 };
 
@@ -996,6 +1011,60 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         });
     }, [updateTab]);
 
+    /**
+     * Guardado un .sql, los gráficos que salen de él van detrás de su consulta
+     * (Dec-81, `utils/seguirConsulta.js`). Un gráfico abierto y sin cambios se
+     * escribe con su firma nueva; uno abierto con cambios recibe la consulta en
+     * memoria y se escribirá cuando lo guardes; uno cerrado se escribe en disco.
+     * Si no se sabe a qué consulta sigue, no se toca: lo dice al abrirse.
+     */
+    const seguirGraficosDe = useCallback(async (rutaSql, anterior, nuevo) => {
+        let lista = [];
+        try {
+            const r = await fetch(`${API_BASE}/api/charts/using-source?path=${encodeURIComponent(rutaSql)}`);
+            if (r.ok) lista = await r.json();
+        } catch { return; }
+        if (!Array.isArray(lista) || !lista.length) return;
+        let seguidos = 0;
+        for (const { path: rutaGrafico } of lista) {
+            const { leftTabs, rightTabs } = stateRef.current;
+            const abierta = [...leftTabs, ...rightTabs].find(t => t.path === rutaGrafico && t.type === 'amoxvis');
+            try {
+                let texto = abierta ? abierta.content : null;
+                if (!abierta) {
+                    const r = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(rutaGrafico)}`);
+                    const d = await r.json();
+                    if (d.error) continue;
+                    texto = d.content;
+                }
+                const actual = leerAmoxvis(texto).query || '';
+                const sigue = consultaQueSigue(actual, anterior, nuevo);
+                if (sigue.estado !== 'sigue') continue;
+                const cambiado = conConsulta(texto, sigue.consulta);
+                if (!cambiado) continue;
+                const pane = abierta ? findTabPane(abierta.id) : null;
+                if (abierta && abierta.dirty) {
+                    updateTab(pane, abierta.id, { content: cambiado });
+                } else {
+                    const w = await fetch(`${API_BASE}/api/file`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: rutaGrafico, content: cambiado, firmaEsperada: abierta?.firma || undefined }),
+                    });
+                    if (!w.ok) continue;
+                    const d = await w.json().catch(() => ({}));
+                    if (abierta) updateTab(pane, abierta.id, { content: cambiado, firma: d.firma || null, dirty: false });
+                }
+                if (abierta) window.dispatchEvent(new CustomEvent('amox_consulta_seguida', { detail: { path: rutaGrafico, consulta: sigue.consulta } }));
+                seguidos++;
+            } catch { /* un gráfico que no se pudo seguir avisa al abrirse */ }
+        }
+        if (seguidos) {
+            const nombre = rutaSql.split(/[/\\]/).pop();
+            stateRef.current.toast.info(seguidos === 1 ? `1 chart follows the new query in ${nombre}` : `${seguidos} charts follow the new query in ${nombre}`);
+        }
+    }, [findTabPane, updateTab]);
+
     const saveTabInternal = useCallback(async (tab, isSilent = false, opciones = {}) => {
         const { onRequestSaveAs, toast } = stateRef.current;
         if (!tab || !tab.dirty) return;
@@ -1023,6 +1092,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 const config = tab.chartConfig || tab.initialChartConfig || {};
                 saveContent = textoAmoxvis({ ...config, query: tab.content });
             }
+            const esSql = tab.type === 'sql' && /\.sql$/i.test(tab.path);
 
             /**
              * **La firma dice de que version viene lo que estoy escribiendo.**
@@ -1045,6 +1115,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     path: tab.path,
                     content: saveContent,
                     firmaEsperada: opciones.forzar ? undefined : tab.firma,
+                    // Para que los gráficos que salen de este .sql sepan a qué
+                    // consulta seguir (Dec-81).
+                    ...(esSql ? { devolverAnterior: true } : {}),
                 })
             });
 
@@ -1065,6 +1138,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 updateTab(pane, tab.id, { dirty: false, firma: datos.firma || null });
                 if (tab.path) clearDraft(tab.path);
                 if (!isSilent) toast.success("Saved!");
+                if (esSql && typeof datos.anterior === 'string' && datos.anterior !== saveContent) {
+                    seguirGraficosDe(tab.path, datos.anterior, saveContent);
+                }
             } else {
                 console.error("Save failed");
                 if (!isSilent) toast.error("Save failed!");
@@ -1073,7 +1149,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             console.error("Error saving: " + e.message);
             if (!isSilent) toast.error("Error saving: " + e.message);
         }
-    }, [findTabPane, updateTab, resolverConflicto]);
+    }, [findTabPane, updateTab, resolverConflicto, seguirGraficosDe]);
 
     // `resolverConflicto` necesita volver a llamar a `saveTabInternal`, que se
     // define despues: el ref rompe el ciclo sin ordenarlas al reves.
@@ -1595,33 +1671,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         await openFile(config.source, sourceData.content, 'sql', {}, activePane);
                         return;
                     }
-                    // Source unreadable (moved/deleted) — fall through to the embedded-copy behavior.
+                    // Source unreadable (moved/deleted) — the chart's own copy is edited below.
                 }
 
-                const query = config.query || 'SELECT * FROM ... LIMIT 100;';
-
-                const newTab = {
-                    id: Date.now().toString(),
-                    path: filePath,
-                    name: `Edit: ${filePath.split(/[/\\]/).pop()}`,
-                    type: 'sql',
-                    content: query,
-                    results: null,
-                    dirty: false,
-                    initialChartConfig: config
-                };
-
-                const pane = activePane;
-                if (pane === 'left') {
-                    setLeftTabs(prev => [...prev, newTab]);
-                    setLeftActiveId(newTab.id);
-                } else {
-                    setRightTabs(prev => [...prev, newTab]);
-                    setRightActiveId(newTab.id);
-                }
-
-                // Trigger auto-execution
-                executeQuery(newTab.id, query);
+                // Sin .sql, la consulta es del gráfico: se edita en su misma
+                // pestaña, y ⌘S guarda el .amoxvis (Dec-80). Antes se abría una
+                // pestaña «Edit: x.amoxvis» que parecía un .sql y guardaba en
+                // el gráfico.
+                await openFile(filePath, data.content, 'amoxvis', { firma: data.firma || null, abrirConsulta: true }, activePane);
 
             } catch (err) {
                 setAlertData({ isOpen: true, message: `Failed to open chart configuration: ${err.message}`, title: 'Chart Error', type: 'error' });
@@ -1709,6 +1766,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         if (existing) {
             if (activePane === 'left') setLeftActiveId(existing.id);
             else setRightActiveId(existing.id);
+            if (options.abrirConsulta) updateTab(activePane, existing.id, { abrirConsulta: Date.now() });
         } else {
             // Check for an unsaved draft and offer recovery
             const draft = getDraft(path);
@@ -1743,7 +1801,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 }
             }
 
-            const newTab = {
+            const newTab = await conBorrador({
                 id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
                 path: path,
                 name: path.split(/[/\\]/).pop(),
@@ -1762,7 +1820,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 // forma de distinguir «cambio por fuera» de «lo guarde yo».
                 firma: options.firma || null,
                 initialChartConfig: initialChartConfig,
-            };
+                // «Edit query» desde el explorador: el gráfico se abre con su
+                // consulta a la vista, en la misma pestaña (Dec-80).
+                ...(options.abrirConsulta ? { abrirConsulta: Date.now() } : {}),
+            });
             if (activePane === 'left') {
                 setLeftTabs(prev => [...prev, newTab]);
                 setLeftActiveId(newTab.id);
@@ -1775,7 +1836,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     openFileRef.current = openFile;
 
     const openAmoxvisAsSql = useCallback(async (tab) => {
-        const config = tab.chartConfig || tab.initialChartConfig || {};
+        // Lo que dice la pestaña AHORA (con «Move to a .sql file» o «Unlink»
+        // sin guardar todavía), no lo que traía al abrirse.
+        let config = tab.chartConfig || tab.initialChartConfig || {};
+        try { if (tab.content) config = leerAmoxvis(tab.content); } catch { /* la de la pestaña */ }
         // The "Edit with SQL" button lives inside the amoxvis tab itself — the
         // opened tab must land in the SAME pane, not whichever pane happens to
         // be active (they can differ once split panes are independently
@@ -1786,9 +1850,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // file, "Edit SQL" opens THAT file directly, so edits land on the
         // file the query actually came from instead of a copy embedded in
         // the .amoxvis. Without a link (older charts, or ones built from an
-        // ad-hoc query with no saved source), fall back to the original
-        // behavior — a synthetic tab bound to the .amoxvis itself, saving
-        // back into its embedded query.
+        // ad-hoc query with no saved source) the query belongs to the chart.
         if (config.source) {
             try {
                 const response = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(config.source)}`);
@@ -1798,32 +1860,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 return;
             } catch (err) {
                 stateRef.current.toast.error(`Could not open source file: ${err.message}`);
-                // Fall through to the embedded-copy behavior below.
+                // Falls through: the chart's own copy is edited in its tab.
             }
         }
 
-        const query = config.query || 'SELECT * FROM ... LIMIT 100;';
-        const newTab = {
-            id: Date.now().toString(),
-            path: tab.path,
-            name: tab.name.startsWith('Edit: ') ? tab.name : `Edit: ${tab.name}`,
-            type: 'sql',
-            content: query,
-            results: null,
-            dirty: false,
-            initialChartConfig: config
-        };
-
-        if (pane === 'left') {
-            setLeftTabs(prev => [...prev, newTab]);
-            setLeftActiveId(newTab.id);
-        } else {
-            setRightTabs(prev => [...prev, newTab]);
-            setRightActiveId(newTab.id);
-        }
-
-        executeQuery(newTab.id, query);
-    }, [executeQuery, findTabPane, openFile]);
+        // Sin .sql la consulta es del gráfico y se edita en su misma pestaña
+        // (Dec-80): AmoxvisPane abre su panel de consulta.
+        updateTab(pane, tab.id, { abrirConsulta: Date.now() });
+    }, [findTabPane, openFile, updateTab]);
 
     // --- handleQueryFile: Standalone function for DnD + imperative handle ---
     // `targetPane` lets a caller that knows exactly where the drop happened
@@ -1840,6 +1884,21 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const normalizedPath = filePath.replace(/\\/g, '/');
         const lowerName = fileName.toLowerCase();
 
+        // Un gráfico se abre como gráfico (los resultados de un .sql abren así
+        // los .amoxvis que lo usan): antes caía abajo y salía una consulta
+        // sobre el archivo como si fuera un CSV.
+        if (lowerName.endsWith('.amoxvis')) {
+            try {
+                const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(filePath)}`);
+                const data = await res.json();
+                if (!data.error) {
+                    await openFileRef.current(filePath, data.content, 'amoxvis', { firma: data.firma || null }, activePane);
+                    setActivePane(activePane);
+                }
+            } catch (e) { console.error('[open] Failed to open chart:', e); }
+            return;
+        }
+
         // SQL and Markdown files: open directly
         if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.sqlchain') || lowerName.endsWith('.md')) {
             try {
@@ -1854,7 +1913,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         else { setRightActiveId(existing.id); setActivePane('right'); }
                         return;
                     }
-                    const newTab = { id: Date.now().toString(), path: filePath, name: fileName, type, content: data.content, results: null, dirty: false };
+                    const newTab = await conBorrador({ id: Date.now().toString(), path: filePath, name: fileName, type, content: data.content, firma: data.firma || null, results: null, dirty: false });
                     if (activePane === 'left') { setLeftTabs(prev => [...prev, newTab]); setLeftActiveId(newTab.id); }
                     else { setRightTabs(prev => [...prev, newTab]); setRightActiveId(newTab.id); }
                     setActivePane(activePane);

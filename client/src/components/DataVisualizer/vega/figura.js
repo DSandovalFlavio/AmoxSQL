@@ -136,3 +136,24 @@ export function escribirAmoxvis(plano = {}, { filas } = {}) {
 
 /** Atajo para quien escribe texto: el contenido del archivo, con sangría. */
 export const textoAmoxvis = (plano, op) => JSON.stringify(escribirAmoxvis(plano, op), null, 2);
+
+const estable = (v) => JSON.stringify(v, (_, x) => (x && typeof x === 'object' && !Array.isArray(x)
+    ? Object.fromEntries(Object.keys(x).sort().map(k => [k, x[k]])) : x));
+
+/**
+ * ¿Dicen lo mismo dos textos de `.amoxvis`? Cuenta lo elegido —los paneles, la
+ * consulta, el origen, el modo y, en modo código, el spec—. En modo interfaz el
+ * spec se rehace al abrir, así que un archivo escrito por el servidor con un spec
+ * sencillo y el mismo reescrito por Story Flow son el mismo gráfico: abrirlo no
+ * lo deja «con cambios».
+ */
+export function mismoGrafico(a, b) {
+    if (a === b) return true;
+    const normal = (t) => {
+        const p = leerAmoxvis(t);
+        const r = { query: (p.query || '').trim(), source: p.source || null, modo: p.modo === 'codigo' ? 'codigo' : 'interfaz', interfaz: soloCambios(p) };
+        if (r.modo === 'codigo') r.spec = specParaEditar(p.spec);
+        return estable(r);
+    };
+    return normal(a) === normal(b);
+}

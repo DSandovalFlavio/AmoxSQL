@@ -19,20 +19,23 @@ ${plannerTools}- **execute_sql**: Run DuckDB SQL queries against the database
   - Core: chart_type, title, subtitle (1-line insight), footnote (source/caveat), x_axis_key, y_axis_keys
   - **bar-horizontal key rule**: x_axis_key = CATEGORY column (products, regions — appears LEFT); y_axis_keys = VALUE column(s) (revenue, count — appears BOTTOM). Never swap them. x_axis_label labels the LEFT axis; y_axis_label labels the BOTTOM axis.
   - Axes: x_axis_label, y_axis_label (always set with units), x_axis_angle (45 for dates), date_aggregation (month/quarter/year)
-  - Data: sort_mode, limit (top-N ranking), split_by (breakdown by dimension), cumulative (running total)
+  - Data: sort_mode, limit (top-N ranking), split_by (breakdown by dimension), cumulative (running total), right_y_axis_key (second metric on its own scale), facet_by + facet_columns (small multiples: one small chart per value — better than 5+ tangled series), tooltip_fields (extra columns in the tooltip)
+  - Distributions (pass RAW rows, never pre-aggregated): histogram (bin_count, histogram_stats ["mean","median"]), boxplot / strip / density (orientation), errorbar (error_low_key, error_high_key)
+  - Comparisons between moments: slope (2 periods, split_by=category), dumbbell (y_axis_keys=[before, after]), bump (rank over periods), lollipop (lean ranking)
   - Style: color_theme (pick by intent — see "Color with intent"), show_data_labels (for ranked bars), legend_position, grid_mode, number_format
-  - Line: line_type (monotone/step), show_dots
+  - Line: line_type (monotone/step), show_dots, end_labels (name each series at the end of its line instead of a legend), band_low_key + band_high_key (an interval drawn behind the line)
   - Bar: bar_color_mode (series=ONE color, the default and right choice for a ranking; dimension=one color per category, ONLY for ≤5 truly distinct categories; intensity=fade by magnitude), bar_radius
   - **Storytelling layer** (make the chart argue your point — set these on every important chart):
     - takeaway: "one-sentence conclusion shown under the chart" — the message, not the metric
     - annotations: [{type:"text"|"box", x, y?, x2?, y2?, text, color?}] — callout on the exact point that carries the finding (max 3)
   - **Overlays** (use these to tell the story visually):
-    - trend_line: {type: "linear"|"moving-average", window_size?, color?} — reveals direction on time series
+    - trend_line: {type: "linear"|"moving-average"|"loess", window_size?, color?} — reveals direction on time series; loess = smooth curve on a scatter
     - goal_line: {value, label, color?, style?} — shows progress toward a target
-    - ref_line: {value, label?, color?} — marks mean, median, or benchmark
-    - highlight: {type: "max"|"min"|"exact", value?, color?} — draws attention to the peak/trough
+    - ref_line: {value: number | "mean" | "median", label?, color?} — a benchmark, or the mean/median computed from the plotted values
+    - highlight: {type: "max"|"min"|"exact"|"below"|"above"|"range", value?, value2?, color?} — the peak/trough, one category, everything under/over a threshold (e.g. ROAS below 1), or a stretch of a line from value to value2
     - headline_kpi: {metric: "total"|"average"|"last", compare_with?: "none"|"first"|"previous"} — big KPI number above chart
   - Donut: donut_center_kpi, donut_label_content
+  - vega_lite (LAST RESORT): a full Vega-Lite v6 spec with data {"name": "dataset"} when no chart_type + options can express the figure. Still pass chart_type, x_axis_key, y_axis_keys, and keep title/takeaway out of the spec
 - **lookup_duckdb_docs**: Look up the official DuckDB SQL docs (bundled offline) for a feature/clause. Call it BEFORE writing SQL when unsure of DuckDB-specific syntax (EXCLUDE, filtering columns by pattern with LIKE/GLOB, QUALIFY, PIVOT, COLUMNS(*), list comprehensions, ASOF joins, struct/map/list, SAMPLE, window functions). Returns the section + the doc's full table of contents (\`sections\`) — call again with \`section\` for a sibling section
 - **lookup_duckdb_function**: Get a function's EXACT signature from the running engine (duckdb_functions()) — authoritative, version-exact, cannot be hallucinated. Use when unsure a function exists or its argument types
 - **read_file**: Read a text file or list directory contents. mode='read': file content; mode='list': discover data files (CSV, Parquet, Excel, JSON)
@@ -56,7 +59,8 @@ ${mode === 'assistant' ? `- **write_file**: Update the active SQL file or notebo
       - Always set \`x_axis_label\`/\`y_axis_label\` (never leave raw column names). Add \`subtitle\` with the key insight and \`footnote\` with the data source.
       - Choose the palette by REASONING (see "Color is a design decision" + "Rendering context"): fit the intent, read on the current light/dark canvas, harmonize with the accent, one palette per analysis.
       - Dates: \`x_axis_angle="45"\` + \`date_aggregation\` (month for 1-3 yr, quarter for 3+ yr).
-      - Use overlays to tell the story: \`trend_line\` on time series; \`ref_line\` for mean/median; \`goal_line\` for targets; \`highlight:{type:"max"}\` to mark the peak; \`headline_kpi\` to anchor the total.
+      - Use overlays to tell the story: \`trend_line\` on time series; \`ref_line:{value:"mean"}\` (or "median") for the normal level; \`goal_line\` for targets; \`highlight:{type:"max"}\` to mark the peak, \`{type:"below", value:"<threshold>"}\` for what falls short, \`{type:"range", value, value2}\` for an incident window; \`headline_kpi\` to anchor the total.
+      - Several lines: \`end_labels=true\` instead of a legend; more than 4–5 series → \`facet_by\` (small multiples). Two periods per category → \`slope\` or \`dumbbell\`, not a line.
       - For ranking bars (ONE metric): \`sort_mode="y-desc"\`, \`limit=10\`, \`show_data_labels=true\`, keep \`bar_color_mode="series"\` (ONE color for all bars) — then \`highlight:{type:"max"}\` or \`{type:"exact", value:"<hero>"}\` to make the leader pop. Do NOT use \`bar_color_mode="dimension"\` on a ranking — a rainbow of one color per bar hides the message.
       - For breakdowns: \`split_by\` to pivot by region/segment/category.
       - Tell the chart's conclusion with \`takeaway\` (one line under the chart) and mark the key point with an \`annotations\` callout — set both on \`display_chart\` itself.

@@ -26,7 +26,7 @@ const MANIFIESTO = 'amoxproject.json';
 
 // Lo que nunca viaja: carpetas y archivos.
 const CARPETAS_FUERA = new Set(['.git', 'node_modules', 'target', 'dbt_packages', 'logs', '__pycache__', '.venv', 'venv']);
-const RUTAS_FUERA = [/^\.amoxsql\/(trabajo|entregas|temporal)(\/|$)/i, /^\.amox\/(?!snippets\.json$|bookmarks\.json$)/i];
+const RUTAS_FUERA = [/^\.amoxsql\/(trabajo|entregas|temporal|borradores)(\/|$)/i, /^\.amox\/(?!snippets\.json$|bookmarks\.json$)/i];
 const ARCHIVOS_FUERA = /(^|\/)(\.env(\..*)?|.*\.(pem|key|pfx|p12)|~\$.*|.*\.amoxtmp|.*\.(duckdb|db)\.wal|\.DS_Store|Thumbs\.db)$/i;
 // Lo que son datos: se elige.
 const BASES = /\.(duckdb|ducklake|db|sqlite|sqlite3)(\.sqlite)?$/i;

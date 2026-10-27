@@ -1183,7 +1183,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                 <LuChartBar size={14} /> Open Chart
                             </div>
                             <div onClick={() => onEditChartWithSql && onEditChartWithSql(contextMenu.file.path)} className="context-menu-item">
-                                <LuCode size={14} /> Edit with SQL
+                                <LuCode size={14} /> Edit query
                             </div>
                         </>
                     )}

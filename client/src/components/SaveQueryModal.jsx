@@ -1,7 +1,7 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 
-const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '', title = 'Save Query', placeholder = 'query.sql or notebook.sqlnb', hideDescription = false }) => {
+const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '', initialFolder = '', title = 'Save Query', placeholder = 'query.sql or notebook.sqlnb', hideDescription = false }) => {
     const [filename, setFilename] = useState(initialName);
     const [description, setDescription] = useState('');
     const [folders, setFolders] = useState([]);
@@ -15,6 +15,7 @@ const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '', title = 'Sa
     useEffect(() => {
         if (isOpen) {
             setFilename(initialName); // Reset name on open
+            setSelectedFolder(initialFolder);
             setSuccessSummary(null);
             setError(null);
             setSaving(false);

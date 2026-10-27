@@ -33,7 +33,7 @@ Activa cuando el usuario quiere entender POR QUÉ una métrica cambió. Sigue la
    GROUP BY dimension
    ORDER BY ABS(delta) DESC
    ```
-3. **Visualizar top contributors** — `display_chart` tipo `bar-horizontal` con delta por segmento
+3. **Visualizar top contributors** — `display_chart` tipo `bar-horizontal` con delta por segmento, con `highlight` `type: "below"` y `value: "0"` para que los que restan se vean de otro color. Si importa el antes y el después de cada segmento (no solo la diferencia) → `dumbbell` con `y_axis_keys: [baseline, actual]`: la longitud de cada barra es el cambio.
 4. **Correlaciones** — Query con `CORR()` nativo de DuckDB entre dimensiones numéricas y la métrica objetivo
 5. **Drill-down** — Si un segmento explica > 50% del cambio, profundizar en ese segmento con sub-dimensiones
 6. **Cierre** — `final_answer` con: dimensión principal que explica el cambio, % de contribución, hipótesis causal, acciones sugeridas

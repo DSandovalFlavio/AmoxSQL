@@ -53,6 +53,7 @@ const { applyRowLimit } = require('./_sqlUtils');
 const { detectResultType } = require('./_sqlClassify');
 const { crearVigilante, firmaDe } = require('./vigilanteArchivos');
 const amoxvis = require('./amoxvis');
+const borradores = require('./borradores');
 
 const app = express();
 const PORT = 3001;
@@ -3551,9 +3552,17 @@ app.post('/api/file', (req, res) => {
         }
     }
 
+    // Quien guarda un .sql pide lo que había antes: los gráficos vinculados
+    // siguen a SU consulta dentro del archivo, y para saber cuál era hace falta
+    // la versión anterior (Dec-81).
+    let anterior;
+    if (req.body.devolverAnterior) {
+        try { anterior = fs.readFileSync(fullPath, 'utf8'); } catch { anterior = null; }
+    }
+
     fs.writeFile(fullPath, content, 'utf8', (err) => {
         if (err) return res.status(500).json({ error: 'Failed to write file', details: err.message });
-        res.json({ success: true, firma: firmaDe(fullPath) });
+        res.json({ success: true, firma: firmaDe(fullPath), ...(anterior !== undefined ? { anterior } : {}) });
     });
 });
 
@@ -3572,6 +3581,39 @@ app.post('/api/folder', (req, res) => {
     });
 });
 
+/**
+ * Lo que va con un archivo cuando se renombra o se mueve (o la carpeta que lo
+ * tiene): su borrador de gráfico, y el origen de los `.amoxvis` que lo usan
+ * como consulta. Antes, renombrar `ventas.sql` dejaba sus gráficos apuntando a
+ * un archivo que ya no existía. Nunca impide el renombre.
+ */
+function acompanarRenombre(fullOld, fullNew) {
+    try { borradores.mover(ROOT_DIR, fullOld, fullNew); } catch (e) { console.warn('[borradores] move:', e.message); }
+    const rel = (p) => path.relative(ROOT_DIR, p).replace(/\\/g, '/');
+    const viejo = rel(fullOld), nuevo = rel(fullNew);
+    if (!viejo || viejo.startsWith('..')) return;
+    let esCarpeta = false;
+    try { esCarpeta = fs.statSync(fullNew).isDirectory(); } catch { return; }
+    if (!esCarpeta && !/\.sql$/i.test(viejo)) return;
+    try {
+        for (const f of findFilesByExtension(ROOT_DIR, '.amoxvis')) {
+            const full = path.join(ROOT_DIR, f.path);
+            let textoActual;
+            try { textoActual = fs.readFileSync(full, 'utf8'); } catch { continue; }
+            const origen = (amoxvis.leer(textoActual).source || '').replace(/\\/g, '/');
+            if (!origen) continue;
+            let destino = null;
+            if (origen === viejo) destino = nuevo;
+            else if (esCarpeta && origen.startsWith(`${viejo}/`)) destino = nuevo + origen.slice(viejo.length);
+            if (!destino) continue;
+            const cambiado = amoxvis.conCambios(textoActual, { origen: destino });
+            if (cambiado) fs.writeFileSync(full, cambiado, 'utf8');
+        }
+    } catch (e) {
+        console.warn('[amoxvis] rename follow-up:', e.message);
+    }
+}
+
 /* --- File Rename & Delete APIs --- */
 app.post('/api/file/rename', (req, res) => {
     const { oldPath, newPath } = req.body;
@@ -3585,6 +3627,7 @@ app.post('/api/file/rename', (req, res) => {
 
     try {
         fs.renameSync(fullOld, fullNew);
+        acompanarRenombre(fullOld, fullNew);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: 'Rename failed', details: err.message });
@@ -3604,6 +3647,7 @@ app.post('/api/file/delete', (req, res) => {
             fs.rmSync(fullPath, { recursive: true, force: true });
         } else {
             fs.unlinkSync(fullPath);
+            try { borradores.poner(ROOT_DIR, fullPath, null); } catch { /* sin borrador */ }
         }
         res.json({ success: true });
     } catch (err) {
@@ -3631,6 +3675,7 @@ app.post('/api/file/move', (req, res) => {
         // Ensure destination directory exists
         fs.mkdirSync(destDir, { recursive: true });
         fs.renameSync(fullSource, fullDest);
+        acompanarRenombre(fullSource, fullDest);
         res.json({ success: true, newPath: path.relative(ROOT_DIR, fullDest).replace(/\\/g, '/') });
     } catch (err) {
         res.status(500).json({ error: 'Move failed', details: err.message });
@@ -4965,6 +5010,20 @@ app.get('/api/docs/index', (req, res) => {
         console.error('Failed to index documents:', err.message);
         res.status(500).json({ error: 'Failed to index documents', details: err.message });
     }
+});
+
+/* --- El gráfico de un .sql, recordado con el archivo (Dec-79) --- */
+app.get('/api/borrador-grafico', (req, res) => {
+    if (!req.query.path) return res.status(400).json({ error: 'Path is required' });
+    try { res.json(borradores.leer(ROOT_DIR, req.query.path)); }
+    catch (err) { res.json(null); }
+});
+
+app.post('/api/borrador-grafico', (req, res) => {
+    const { path: ruta, cambios } = req.body || {};
+    if (!ruta || cambios === undefined) return res.status(400).json({ error: 'Path and changes are required' });
+    try { res.json({ success: true, borrador: borradores.poner(ROOT_DIR, ruta, cambios) }); }
+    catch (err) { res.status(500).json({ error: 'Failed to keep the chart', details: err.message }); }
 });
 
 /* --- Notebook State Persistence API --- */

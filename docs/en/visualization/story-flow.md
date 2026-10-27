@@ -35,10 +35,22 @@ The figure is drawn with **Vega-Lite**, the open grammar of graphics, and saved 
 2. In the results panel, switch from **Table** to **Chart** with the view toggle in the top bar.
 3. Story Flow appears with the chart and the six-stage sidebar. AmoxSQL preselects sensible axes from the columns.
 
+### A `.sql` file remembers its chart
+The chart you build on the result of a saved `.sql` is **a view of that query**: there is nothing to save. Switch tabs, close the file, come back tomorrow: when you run it again, the result shows up the way you left it (table or chart, with its settings). Under the Story Flow header it says so: **Kept with sales.sql**.
+
+It is kept in the project's `.amoxsql/borradores/`, which git ignores and which doesn't travel in the `.amoxproject`: it's how you look at the query on this machine. Rename or move the `.sql` and the chart goes with it. A new, unsaved tab keeps it while it's open; once you save it as a `.sql`, it starts being remembered.
+
+### Save as chart
+When the chart has to live on its own — in a [Report Flow](../reports/report-flow.md) deck, on the Canvas, to share it — save it as a document: on a result, the header's **Save** button is **Save as chart…**. It suggests `sales.amoxvis` next to the `.sql` and opens it in its own tab when saved. The `.amoxvis` stays **linked** to the query: the `.sql` results show it as **Saved as sales.amoxvis** (one click opens it).
+
 ### Open an `.amoxvis` file
 1. Double-click an `.amoxvis` file in the [File explorer](../data/file-explorer.md).
-2. It opens full-screen: it runs the saved query on mount and shows the chart.
-3. Use **Reload** to re-read the saved query from disk and re-run, or **Edit SQL** to open the same query as a SQL tab.
+2. It opens in its own tab: it runs the query and shows the chart.
+3. The bar at the top says **where the query comes from**:
+   - `sales.sql › sales.amoxvis` — the query lives in `sales.sql`. Click its name to edit it there; **when you save the `.sql`, the chart follows** (even if the chart is closed — and the deck that uses it with it). If the file has several queries and it's no longer clear which one the chart used, it asks you which to follow when you open it, or **Unlink** to make the query the chart's own.
+   - `sales.amoxvis · Own query` — the query belongs to the chart. **Query** unfolds it in the same tab: write it, **Run** (Ctrl+Enter) runs it and **Ctrl+S saves the `.amoxvis`**. **Move to a .sql file…** moves it to a new file and leaves the chart linked.
+4. **Ctrl+S always saves the file whose name you see on the tab**: on the chart's tab, the `.amoxvis`; on the `.sql` tab, the `.sql`.
+5. **Refresh** runs the query again with today's data. From the explorer, **Edit query** opens the chart with its query in view.
 
 ### Walk the stages
 1. Start at **Type** and pick the shape; then move through **Data → Format → Style → Story → Export**.
@@ -46,7 +58,7 @@ The figure is drawn with **Vega-Lite**, the open grammar of graphics, and saved 
 3. Each tab's footer shows a short hint ("What goes where?", etc.) to orient you.
 
 ### The code is in charge
-The sidebar header has the **Panels | Code** switch, the **Save** button (always visible; on an `.amoxvis` it saves the file, on a result it saves it as an `.amoxvis`) and the guide.
+The sidebar header has the **Panels | Code** switch, the **Save** button (always visible; on an `.amoxvis` it saves the file, on a result it is **Save as chart…**) and the guide.
 
 **Panels** and **Code** are two ways to edit **the same figure**, not two modes:
 

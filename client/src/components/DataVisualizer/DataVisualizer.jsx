@@ -17,7 +17,7 @@
  */
 import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { API_BASE } from '../../api';
-import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste, LuSlidersHorizontal, LuCode, LuBraces } from 'react-icons/lu';
+import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste, LuSlidersHorizontal, LuCode, LuBraces, LuHistory } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
 import AlertDialog from '../AlertDialog';
 
@@ -163,7 +163,7 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null, recordadoCon = null, onAbrirArchivo = null }) => {
     /**
      * Sin mandos, pero NO empotrada.
      *
@@ -564,15 +564,45 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     // it and opens that as a new unsaved tab for the user to name and save.
     const [saveIntent, setSaveIntent] = useState('save');
 
+    // ── El gráfico de un .sql (Dec-79) ──
+    // Se recuerda solo con el archivo; guardarlo como gráfico lo convierte en un
+    // documento (.amoxvis) vinculado a la consulta, que sí va a un deck, al
+    // Lienzo o a otra persona. Aquí se ve cuáles hay ya.
+    const nombreBase = sourcePath ? sourcePath.split(/[/\\]/).pop().replace(/\.sql$/i, '') : 'my_chart';
+    const carpetaBase = sourcePath ? sourcePath.replace(/\\/g, '/').split('/').slice(0, -1).join('/') : '';
+    const [vinculados, setVinculados] = useState([]);
+    const cargarVinculados = useCallback(async () => {
+        if (!sourcePath || !recordadoCon) return;
+        try {
+            const r = await fetch(`${API_BASE}/api/charts/using-source?path=${encodeURIComponent(sourcePath)}`);
+            if (r.ok) setVinculados(await r.json());
+        } catch { /* sin la lista, el gráfico sigue igual */ }
+    }, [sourcePath, recordadoCon]);
+    useEffect(() => { cargarVinculados(); }, [cargarVinculados]);
+    const nombreLibre = useMemo(() => {
+        const usados = new Set(vinculados.map(v => v.path.replace(/\\/g, '/').toLowerCase()));
+        const en = (n) => (carpetaBase ? `${carpetaBase}/${n}` : n).toLowerCase();
+        let n = `${nombreBase}.amoxvis`;
+        for (let i = 2; usados.has(en(n)); i++) n = `${nombreBase}_${i}.amoxvis`;
+        return n;
+    }, [vinculados, nombreBase, carpetaBase]);
+
     const performSaveConfig = useCallback(async (filename) => {
         // sourcePath links the new .amoxvis back to the .sql file this query
         // came from (Fase 3 — procedencia), so editing the query later can
         // go to that file instead of a copy embedded in the chart. Only set
         // for charts built from a saved .sql tab — an ad-hoc/notebook query
         // has no such file to point at.
+        const chartFile = filename.endsWith('.amoxvis') ? filename : `${filename}.amoxvis`;
+        // Guardar como no pisa otro archivo sin decirlo.
+        const existe = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(chartFile)}`).then(r => r.json()).catch(() => ({ error: true }));
+        if (!existe.error) return { success: false, error: `${chartFile.split(/[/\\]/).pop()} already exists. Choose another name.` };
         const result = await saveChartConfig(filename, { ...getConfigForSave(), spec: specRef.current }, query, sourcePath);
         if (result.success) {
             setIsSaveModalOpen(false);
+            cargarVinculados();
+            // El documento recién creado se abre al lado: es donde se edita.
+            if (saveIntent === 'save' && onAbrirArchivo) onAbrirArchivo(chartFile);
             if (saveIntent === 'presentation' && onCreateNew) {
                 const chartPath = filename.endsWith('.amoxvis') ? filename : `${filename}.amoxvis`;
                 const title = (state.chartTitle || chartPath.split(/[/\\]/).pop().replace(/\.amoxvis$/, '')).replace(/[^\w\s-]+/g, '');
@@ -582,7 +612,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
             }
         }
         return result;
-    }, [getConfigForSave, query, sourcePath, saveIntent, onCreateNew, state.chartTitle]);
+    }, [getConfigForSave, query, sourcePath, saveIntent, onCreateNew, state.chartTitle, cargarVinculados, onAbrirArchivo]);
 
     const handleGenerateStory = useCallback(async () => {
         if (!data || data.length === 0 || !state.xAxisKey || !state.yAxisKeys?.[0]) return null;
@@ -888,8 +918,9 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                 isOpen={isSaveModalOpen}
                 onClose={() => setIsSaveModalOpen(false)}
                 onSave={performSaveConfig}
-                initialName="my_chart.amoxvis"
-                title={saveIntent === 'presentation' ? 'Save Chart — then add to a new presentation' : 'Save Chart Layout'}
+                initialName={nombreLibre}
+                initialFolder={carpetaBase}
+                title={saveIntent === 'presentation' ? 'Save Chart — then add to a new presentation' : (recordadoCon ? `Save as a chart linked to ${recordadoCon}` : 'Save as chart')}
                 placeholder="my_chart.amoxvis"
                 hideDescription={true}
             />
@@ -924,7 +955,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                             {/* Guardar, siempre a la vista: antes estaba al fondo de Export. */}
                             <button
                                 onClick={() => { if (onGuardar) onGuardar(); else { setSaveIntent('save'); setIsSaveModalOpen(true); } }}
-                                title={onGuardar ? 'Save the chart (Ctrl+S)' : 'Save as an .amoxvis chart file'}
+                                title={onGuardar ? 'Save the chart (Ctrl+S)' : 'Save as chart… — an .amoxvis you can put in a deck, a canvas or share'}
                                 className="sf-cabecera-btn">
                                 <LuSave size={13} />
                             </button>
@@ -933,6 +964,25 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                             </button>
                         </div>
                     </div>
+
+                    {recordadoCon && (
+                        <div className="sf-recordado">
+                            <LuHistory size={12} />
+                            <span title={`This chart is remembered with ${recordadoCon} on this computer. Save it as a chart to put it in a deck, a canvas or share it.`}>
+                                Kept with {recordadoCon}
+                            </span>
+                            {vinculados.length > 0 && (<>
+                                <span aria-hidden="true">·</span>
+                                <span>Saved as</span>
+                                {vinculados.map(v => (
+                                    <button key={v.path} type="button" className="sf-recordado-chip" title={`Open ${v.path}`}
+                                        onClick={() => onAbrirArchivo && onAbrirArchivo(v.path)}>
+                                        <LuChartColumn size={11} /> {v.name}
+                                    </button>
+                                ))}
+                            </>)}
+                        </div>
+                    )}
 
                     {lateral === 'codigo' ? (
                         <EditorCodigo
@@ -1244,7 +1294,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
             <PasteJsonModal
                 isOpen={isPasteJsonOpen}
                 onClose={() => setIsPasteJsonOpen(false)}
-                onApply={(cfg) => { loadConfig(cfg); setAlertData({ isOpen: true, title: 'Config aplicada', type: 'success', message: 'The chart configuration was applied.' }); }}
+                onApply={(cfg) => { loadConfig(cfg); setAlertData({ isOpen: true, title: 'Chart applied', type: 'success', message: 'The pasted chart now draws this result.' }); }}
                 columns={columns}
             />
 

@@ -24,8 +24,11 @@ Activa cuando el análisis involucra una dimensión temporal: evolución de mét
    - Apunta a tener **suficientes puntos para ver forma** (idealmente ≥8–12) sin que sea ruido.
 3. **Serie principal** — `DATE_TRUNC('<gran>', fecha)` agrupando la métrica clave, ordenada por período.
 4. **Visualizar** — elige el tipo con el **marco de "Chart Selection" / storytelling**:
-   - Muchos puntos (≥4–5) → `line` / `area` (la evolución real).
-   - **Pocos períodos (2–3)** → NO es tendencia: usa barras (agrupadas con `split_by` si comparas categorías). Una línea de 2 puntos engaña.
+   - Muchos puntos (≥4–5) → `line` / `area` (la evolución real). Con varias series, `end_labels: true` (el nombre al final de cada línea, sin leyenda); con más de 4–5 series, `facet_by` (un gráfico pequeño por serie) en lugar de un espagueti.
+   - **Pocos períodos (2–3)** → NO es tendencia: `slope` (cada categoría de un momento a otro) o barras agrupadas con `split_by`. Una línea de 2 puntos engaña.
+   - **Cómo cambia el ranking** entre períodos → `bump` (`split_by` = categoría).
+   - Dos medidas a distinta escala (ventas y margen %) → `right_y_axis_key` o `combo`.
+   - Una banda (intervalo de confianza, rango de pronóstico, mín–máx) calculada en el SQL → `band_low_key` / `band_high_key`: se dibuja detrás de la línea.
 5. **Tasas de cambio** — `LAG()` para % período a período:
    ```sql
    SELECT periodo, metrica,
@@ -33,7 +36,7 @@ Activa cuando el análisis involucra una dimensión temporal: evolución de mét
        / NULLIF(LAG(metrica) OVER (ORDER BY periodo), 0) * 100, 1) AS pct_cambio
    FROM serie
    ```
-6. **Anomalías** — compara cada período vs media ± 2·desv. estándar con window functions (`AVG()`, `STDDEV()`).
+6. **Anomalías** — compara cada período vs media ± 2·desv. estándar con window functions (`AVG()`, `STDDEV()`). Al dibujarlas: `ref_line` con `value: "mean"` da el nivel normal, y `highlight` con `type: "range"` (`value` → `value2` en el eje X) marca el tramo anómalo; `above` / `below` resaltan los períodos que cruzan un umbral.
 7. **Cerrar** — `final_answer`: tendencia principal, tasa de crecimiento/caída, períodos anómalos.
 
 ## Reglas DuckDB útiles
@@ -41,4 +44,5 @@ Activa cuando el análisis involucra una dimensión temporal: evolución de mét
 - `DATE_TRUNC('month', col)` — truncar a inicio de mes · `DATE_PART('week', col)` — número de semana
 - `DATEDIFF('day', ini, fin)` — diferencia en días
 - Para series con huecos, `GENERATE_SERIES` para rellenar fechas faltantes (evita líneas que "saltan" períodos vacíos).
-- Línea de tendencia: solo con **una serie** y **≥5 puntos**; nunca sobre series partidas.
+- Línea de tendencia (`trend_line`): solo con **una serie** y **≥5 puntos**; nunca sobre series partidas. `moving-average` suaviza el ruido; `linear` da la dirección.
+- Fechas: `date_aggregation` agrupa en el gráfico (mes, trimestre…); si ya agregaste en el SQL, déjalo en `none`.

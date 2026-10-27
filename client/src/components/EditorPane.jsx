@@ -25,9 +25,22 @@ const TextEditor = lazy(() => import('./TextEditor'));
 const CuadernoEditor = lazy(() => import('./cuaderno/CuadernoEditor'));
 import AiDivingPanel from './ai/AiDivingPanel';
 import BarraModelo from './dbt/BarraModelo';
-import { textoAmoxvis } from './DataVisualizer/vega/figura';
+import { textoAmoxvis, mismoGrafico } from './DataVisualizer/vega/figura';
+import { guardarBorrador } from '../utils/borradorGrafico';
 
 // Discreet fallback while a lazy pane chunk loads (matches ChainEditor's style)
+/**
+ * Los resultados de UNA pestaña. La configuración del gráfico se toma al
+ * montar y después manda el propio gráfico: dársela en vivo la recargaba con
+ * cada aviso y se comía lo que se cambiaba entre aviso y aviso. Antes se montaba
+ * con `initialChartConfig` y se guardaba en `chartConfig`, así que al volver de
+ * otra pestaña el gráfico salía de fábrica (Dec-79).
+ */
+const ResultadosDePestana = ({ tab, ...resto }) => {
+    const [inicial] = useState(() => tab.chartConfig || tab.initialChartConfig || null);
+    return <ResultsTable initialChartConfig={inicial} initialViewMode={tab.viewMode} {...resto} />;
+};
+
 const PaneLoading = ({ label = 'Loading…' }) => (
     <div style={{ padding: 24, color: 'var(--text-tertiary)' }}>{label}</div>
 );
@@ -344,6 +357,23 @@ const EditorPane = ({
         }
     };
 
+    // Una pestaña sin archivo que se guarda como .sql se lleva su gráfico: el
+    // borrador empieza a recordarse con el archivo nuevo, sin esperar a que se
+    // vuelva a tocar el gráfico.
+    const rutaPreviaRef = useRef({});
+    useEffect(() => {
+        if (!activeTab) return;
+        const ruta = activeTab.path || null;
+        const previa = rutaPreviaRef.current[activeTab.id];
+        rutaPreviaRef.current[activeTab.id] = ruta;
+        if (previa === undefined || previa === ruta || !ruta || !/\.sql$/i.test(ruta) || activeTab.type !== 'sql') return;
+        const grafico = activeTab.chartConfig || activeTab.initialChartConfig;
+        if (grafico || activeTab.viewMode) {
+            guardarBorrador(ruta, { ...(grafico ? { grafico } : {}), ...(activeTab.viewMode ? { vista: activeTab.viewMode } : {}) });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTab?.id, activeTab?.path]);
+
     if (!activeTab) {
         return (
             <div
@@ -439,6 +469,12 @@ const EditorPane = ({
         return onRunQuery(tabId, query);
     };
 
+    // El gráfico de un .sql guardado se recuerda con el archivo (Dec-79). Una
+    // pestaña sin archivo lo conserva mientras está abierta; una con
+    // procedencia escribe en otro archivo y no es «este .sql».
+    const recordarGrafico = !!(activeTab && activeTab.type === 'sql' && activeTab.path
+        && /\.sql$/i.test(activeTab.path) && !activeTab.procedencia);
+
     // Results panel content (shared between both layouts)
     const resultsContent = (
         <>
@@ -449,7 +485,9 @@ const EditorPane = ({
             {activeTab.results && (
                 <>
                     {!isPoppedOut && (
-                        <ResultsTable
+                        <ResultadosDePestana
+                            key={activeTab.id}
+                            tab={activeTab}
                             data={activeTab.results.data}
                             types={activeTab.results.types}
                             executionTime={activeTab.results.executionTime}
@@ -458,8 +496,6 @@ const EditorPane = ({
                             currentEditorQuery={getCurrentEditorQuery}
                             onCreateNew={onCreateNew}
                             onDbChange={onDbChange}
-                            initialChartConfig={activeTab.initialChartConfig}
-                            initialViewMode={activeTab.viewMode}
                             editorSettings={editorSettings}
                             onPopout={handlePopout}
                             truncated={activeTab.results.truncated}
@@ -467,8 +503,16 @@ const EditorPane = ({
                             /* Lift view state to the tab so the AI assistant knows
                                which surface the user is on and what chart they're
                                building (session-awareness). View state only — no dirty. */
-                            onViewModeChange={onPersistUiState ? (m) => onPersistUiState(paneId, activeTab.id, { viewMode: m }) : undefined}
-                            onConfigChange={onPersistUiState ? (cfg) => onPersistUiState(paneId, activeTab.id, { chartConfig: cfg }) : undefined}
+                            onViewModeChange={(m) => {
+                                if (recordarGrafico && m !== (activeTab.viewMode || 'table')) guardarBorrador(activeTab.path, { vista: m });
+                                if (onPersistUiState) onPersistUiState(paneId, activeTab.id, { viewMode: m });
+                            }}
+                            onConfigChange={(cfg) => {
+                                if (recordarGrafico) guardarBorrador(activeTab.path, { grafico: cfg });
+                                if (onPersistUiState) onPersistUiState(paneId, activeTab.id, { chartConfig: cfg });
+                            }}
+                            recordadoCon={recordarGrafico ? activeTab.name : null}
+                            onAbrirArchivo={onOpenFile}
                             splitEnabled={splitEnabled}
                             onGetOtherPaneResults={handleGetOtherPaneResults}
                         />
@@ -545,11 +589,18 @@ const EditorPane = ({
                     <div className={`ep-notebook-wrapper${isActive ? ' active' : ''}`} style={{ backgroundColor: 'var(--surface-base)' }}>
                         <Suspense fallback={<PaneLoading />}>
                             <AmoxvisPane
+                                key={activeTab.id}
                                 tab={activeTab}
+                                onActualizarPestana={onPersistUiState ? (cambios) => onPersistUiState(paneId, activeTab.id, cambios) : undefined}
                                 onRunQuery={onRunQuery}
                                 onSave={onSave}
                                 onOpenAsSql={(tab) => onOpenAmoxvisAsSql && onOpenAmoxvisAsSql(tab)}
-                                onConfigChange={(config) => onContentChange(activeTab.id, textoAmoxvis(config))}
+                                onConfigChange={(config) => {
+                                    // Story Flow avisa también al dibujar por primera vez; si el
+                                    // archivo queda igual, la pestaña no tiene cambios.
+                                    const texto = textoAmoxvis(config);
+                                    if (!mismoGrafico(texto, activeTab.content)) onContentChange(activeTab.id, texto);
+                                }}
                                 onCreateNew={onCreateNew}
                             />
                         </Suspense>

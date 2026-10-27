@@ -5,6 +5,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [Unreleased] — Un gráfico, un documento
+
+### Nuevo
+- **El gráfico de un `.sql` se recuerda con el archivo.** Pasa los resultados a gráfico, configúralo, cierra el archivo: al volver a abrirlo está igual. No hay nada que guardar ni ninguna pregunta al cerrar; Story Flow lo dice debajo de la cabecera (**Kept with ventas.sql**). Se guarda en `.amoxsql/borradores/` (ignorado por git, fuera del `.amoxproject`) y acompaña al archivo si lo renombras o lo mueves.
+- **Save as chart…** en los resultados de un `.sql`: crea un `.amoxvis` vinculado a la consulta, junto al archivo y con su nombre, y lo abre. Los gráficos guardados de ese `.sql` aparecen como **Saved as …** y se abren con un clic.
+- **La pestaña de un gráfico dice de dónde sale su consulta**: `ventas.sql › ventas.amoxvis` (el nombre del `.sql` lo abre) u **Own query**. La consulta propia se edita en la misma pestaña, en el panel **Query** (Ctrl+Enter ejecuta, Ctrl+S guarda el gráfico), y **Move to a .sql file…** la lleva a un archivo y deja el gráfico vinculado. «Edit with SQL» del explorador pasa a **Edit query**.
+- **Un gráfico vinculado sigue a su consulta**: al guardar el `.sql`, los gráficos que salen de él toman la consulta nueva (también los que están cerrados, y con ellos el deck que los usa). Si el archivo tiene varias consultas y no se sabe cuál seguía, el gráfico pregunta al abrirse. Renombrar el `.sql` actualiza sus gráficos.
+- **Paste JSON acepta Vega-Lite** (lo que escribe cualquier asistente): los datos se redirigen al resultado, los paneles toman lo que entienden y, si una columna no existe, avisa antes de aplicar.
+- **La skill descargable Data & Viz 4.0** enseña Vega-Lite con `"data": {"name": "dataset"}` en lugar de la configuración interna.
+- El asistente: `display_chart` dibuja una banda detrás de la línea (`band_low_key` / `band_high_key`); los skills de storytelling, series de tiempo, exploración inicial, investigación de métricas y calidad de datos conocen los tipos y resaltes nuevos (pendiente, mancuerna, bump, histograma, caja, umbrales, tramos, referencia en la media, etiquetas al final, múltiplos pequeños); los gráficos de un cuaderno generado y el nodo de gráfico de Data Flow ofrecen más tipos.
+
+### Arreglado
+- El gráfico configurado sobre los resultados de un `.sql` volvía a la configuración de fábrica al cambiar de pestaña y volver (se guardaba con un nombre y se leía con otro); un cambio hecho medio segundo antes de cambiar de pestaña se perdía.
+- Dos `.amoxvis` abiertos compartían el mismo panel al cambiar de uno a otro, y uno con cambios sin guardar volvía a su versión del disco.
+- Abrir un gráfico lo marcaba como modificado.
+- Abrir un `.amoxvis` desde los resultados creaba una consulta sobre el archivo como si fuera un CSV.
+- **Save as chart** sobrescribía sin avisar un archivo con el mismo nombre.
+- Renombrar un `.sql` dejaba a sus gráficos apuntando a un archivo que ya no existía.
+
 ## [Unreleased] — Story Flow: paneles y código, una sola figura
 
 ### Nuevo

@@ -80,4 +80,27 @@ function escribir(plano = {}) {
 
 const texto = (plano) => JSON.stringify(escribir(plano), null, 2);
 
-module.exports = { leer, escribir, texto, esSpecVega, ESQUEMA_VL };
+/**
+ * Cambia SOLO lo propio de AmoxSQL (la consulta, el origen) y deja el resto del
+ * archivo como está: el spec completo que escribió Story Flow no se rehace. La
+ * huella cubre el spec sin `usermeta`, así que sigue valiendo.
+ * Devuelve el texto nuevo, o null si no es un `.amoxvis` que se entienda.
+ */
+function conCambios(textoActual, { consulta, origen } = {}) {
+    let o;
+    try { o = JSON.parse(textoActual); } catch { return null; }
+    if (!o || typeof o !== 'object') return null;
+    if (esSpecVega(o)) {
+        const am = (o.usermeta && o.usermeta.amoxsql) || null;
+        if (!am) return null;
+        if (consulta !== undefined) am.consulta = consulta;
+        if (origen !== undefined) { if (origen) am.origen = origen; else delete am.origen; }
+    } else {
+        // El formato anterior: configuración plana con `query` y `source` arriba.
+        if (consulta !== undefined) o.query = consulta;
+        if (origen !== undefined) { if (origen) o.source = origen; else delete o.source; }
+    }
+    return JSON.stringify(o, null, 2);
+}
+
+module.exports = { leer, escribir, texto, conCambios, esSpecVega, ESQUEMA_VL };

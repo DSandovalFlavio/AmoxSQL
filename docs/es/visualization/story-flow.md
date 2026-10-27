@@ -35,10 +35,22 @@ La figura se dibuja con **Vega-Lite**, la gramática de gráficos abierta, y se 
 2. En el panel de resultados, cambia de **Table** a **Chart** con el conmutador de vista de la barra superior.
 3. Aparece Story Flow con el gráfico y la barra lateral de seis etapas. AmoxSQL preselecciona ejes razonables a partir de las columnas.
 
+### El gráfico de un `.sql` se recuerda con el archivo
+El gráfico que armas sobre el resultado de un `.sql` guardado es **una vista de esa consulta**: no hay que guardarlo. Cambia de pestaña, cierra el archivo, vuelve mañana: al ejecutarlo de nuevo, el resultado aparece como lo dejaste (tabla o gráfico, con su configuración). Debajo de la cabecera de Story Flow lo dice: **Kept with ventas.sql**.
+
+Se guarda en `.amoxsql/borradores/` del proyecto, que git ignora y que no viaja en el `.amoxproject`: es tu forma de mirar la consulta en esta máquina. Si renombras o mueves el `.sql`, el gráfico lo acompaña. Una pestaña nueva sin guardar lo conserva mientras está abierta; al guardarla como `.sql`, empieza a recordarse.
+
+### Guardar como gráfico
+Cuando el gráfico tiene que vivir por su cuenta —en un deck de [Report Flow](../reports/report-flow.md), en el Lienzo, para compartirlo—, guárdalo como documento: el botón **Guardar** de la cabecera, en un resultado, es **Save as chart…**. Propone `ventas.amoxvis` junto al `.sql` y, al guardarlo, lo abre en su pestaña. El `.amoxvis` queda **vinculado** a la consulta: los resultados del `.sql` lo enseñan como **Saved as ventas.amoxvis** (un clic lo abre).
+
 ### Abrir un archivo `.amoxvis`
 1. Haz doble clic en un archivo `.amoxvis` en el [Explorador de archivos](../data/file-explorer.md).
-2. Se abre en pantalla completa: ejecuta la query guardada al montar y muestra el gráfico.
-3. Usa **Reload** para volver a leer la query guardada del disco y re-ejecutar, o **Edit SQL** para abrir la misma query como pestaña SQL.
+2. Se abre en su pestaña: ejecuta la consulta y muestra el gráfico.
+3. La barra de arriba dice **de dónde sale la consulta**:
+   - `ventas.sql › ventas.amoxvis` — la consulta vive en `ventas.sql`. Haz clic en su nombre para editarla allí; **al guardar el `.sql`, el gráfico la sigue** (también si el gráfico está cerrado, y con él el deck que lo usa). Si el archivo tiene varias consultas y ya no se sabe cuál usaba el gráfico, al abrirlo te pregunta cuál seguir, o **Unlink** para que la consulta pase a ser del gráfico.
+   - `ventas.amoxvis · Own query` — la consulta es del gráfico. **Query** la despliega en la misma pestaña: escríbela, **Run** (Ctrl+Enter) la ejecuta y **Ctrl+S guarda el `.amoxvis`**. **Move to a .sql file…** la lleva a un archivo nuevo y deja el gráfico vinculado.
+4. **Ctrl+S guarda siempre el archivo cuyo nombre ves en la pestaña**: en la pestaña del gráfico, el `.amoxvis`; en la del `.sql`, el `.sql`.
+5. **Refresh** vuelve a ejecutar la consulta con los datos de ahora. Desde el explorador, **Edit query** abre el gráfico con su consulta a la vista.
 
 ### Recorrer las etapas
 1. Empieza en **Type** y elige la forma; luego avanza por **Data → Format → Style → Story → Export**.
@@ -46,7 +58,7 @@ La figura se dibuja con **Vega-Lite**, la gramática de gráficos abierta, y se 
 3. El pie de cada pestaña muestra una pista corta ("What goes where?", etc.) para orientarte.
 
 ### El código manda
-En la cabecera de la barra lateral están el interruptor **Panels | Code**, el botón **Guardar** (siempre a la vista; en un `.amoxvis` guarda el archivo, en un resultado lo guarda como `.amoxvis`) y la guía.
+En la cabecera de la barra lateral están el interruptor **Panels | Code**, el botón **Guardar** (siempre a la vista; en un `.amoxvis` guarda el archivo, en un resultado es **Save as chart…**) y la guía.
 
 **Panels** y **Code** son dos maneras de editar **la misma figura**, no dos modos:
 

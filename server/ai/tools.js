@@ -403,6 +403,8 @@ function createTools(context) {
                 histogram_stats: z.array(z.enum(['mean', 'median'])).optional().describe('histogram only: draw a vertical rule at the mean and/or median. Use both when the distribution is skewed — the gap between them IS the story.'),
                 error_low_key: z.string().optional().describe('errorbar only: column with the low end of the interval.'),
                 error_high_key: z.string().optional().describe('errorbar only: column with the high end of the interval.'),
+                band_low_key: z.string().optional().describe('line/area: column with the low end of a band drawn behind the line (a confidence interval, a forecast range, min–max). Needs band_high_key.'),
+                band_high_key: z.string().optional().describe('line/area: column with the high end of the band.'),
                 facet_by: z.string().optional().describe('Small multiples: repeat the chart for each value of this column (≤12 values). Better than one crowded chart with many series.'),
                 facet_columns: z.number().int().min(1).max(6).optional().describe('Charts per row for facet_by (default 3).'),
                 end_labels: z.boolean().optional().describe('line/area/bump: name each series at the end of its line instead of a legend (direct labeling — usually clearer).'),
@@ -505,7 +507,7 @@ function createTools(context) {
                 trend_line, goal_line, ref_line, highlight,
                 headline_kpi, donut_center_kpi, donut_label_content,
                 takeaway, annotations,
-                bin_count, histogram_stats, error_low_key, error_high_key, orientation,
+                bin_count, histogram_stats, error_low_key, error_high_key, orientation, band_low_key, band_high_key,
                 facet_by, facet_columns, end_labels, tooltip_fields,
                 vega_lite,
             }) => {
@@ -531,7 +533,7 @@ function createTools(context) {
                 const availableColumns = queryResult.columns.map(c => c.name);
                 const missingX = !availableColumns.includes(x_axis_key);
                 const missingY = y_axis_keys.filter(k => !availableColumns.includes(k))
-                    .concat([error_low_key, error_high_key, facet_by, ...(tooltip_fields || [])].filter(k => k && !availableColumns.includes(k)));
+                    .concat([error_low_key, error_high_key, band_low_key, band_high_key, facet_by, ...(tooltip_fields || [])].filter(k => k && !availableColumns.includes(k)));
 
                 // Un Vega-Lite escrito por el modelo se compila AQUÍ: un error vuelve
                 // al modelo con el mensaje del compilador para que lo corrija.
@@ -640,6 +642,8 @@ function createTools(context) {
                     ...(bin_count       !== undefined && { binCount: bin_count }),
                     ...(histogram_stats !== undefined && { histogramStats: histogram_stats }),
                     ...(error_low_key   !== undefined && { errorLowKey: error_low_key }),
+                    ...(band_low_key    !== undefined && { bandLowKey: band_low_key }),
+                    ...(band_high_key   !== undefined && { bandHighKey: band_high_key }),
                     ...(error_high_key  !== undefined && { errorHighKey: error_high_key }),
                     ...(orientation     !== undefined && { orientation }),
                     ...(facet_by        !== undefined && { facetKey: facet_by }),
@@ -861,7 +865,7 @@ function createTools(context) {
                     type: z.enum(['markdown', 'code']).describe('"markdown" for analysis prose; "code" for standalone SQL queries.'),
                     content: z.string().describe('Markdown: analytical text with findings (GFM tables/lists supported). Code: executable SQL.'),
                     chart: z.object({
-                        chart_type: z.enum(['bar', 'bar-stacked', 'bar-horizontal', 'bar-100', 'line', 'area', 'donut', 'scatter', 'bubble', 'combo', 'funnel', 'heatmap', 'treemap']).describe('Pick by message + data shape (same rules as display_chart).'),
+                        chart_type: z.enum(['bar', 'bar-stacked', 'bar-horizontal', 'bar-100', 'line', 'area', 'donut', 'scatter', 'bubble', 'combo', 'funnel', 'heatmap', 'treemap', 'lollipop', 'slope', 'dumbbell', 'bump', 'histogram', 'boxplot', 'density', 'strip']).describe('Pick by message + data shape (same rules as display_chart): slope/dumbbell for two moments per category, bump for rank over periods, histogram/boxplot/density/strip for a distribution of RAW rows.'),
                         x_axis_key: z.string().describe('Column for the X axis / category.'),
                         y_axis_keys: z.array(z.string()).describe('Value column(s).'),
                         split_by: z.string().optional().describe('Column to split into one series per value (grouped bars / multi-line).'),

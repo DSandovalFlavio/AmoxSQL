@@ -679,11 +679,18 @@ const ChartAxisFields = ({ config, onChange }) => (
             onChange={(e) => onChange('chartType', e.target.value)}
             className="chain-config-select"
         >
-            <option value="bar">Bar</option>
+            {/* Los que se dibujan bien con los ejes elegidos solos (X = primera
+                columna, Y = primera numérica). El resto se elige en Story Flow. */}
+            <option value="bar">Column</option>
+            <option value="bar-horizontal">Bar</option>
+            <option value="lollipop">Lollipop</option>
             <option value="line">Line</option>
             <option value="area">Area</option>
-            <option value="pie">Pie</option>
             <option value="donut">Donut</option>
+            <option value="pie">Pie</option>
+            <option value="treemap">Treemap</option>
+            <option value="funnel">Funnel</option>
+            <option value="waterfall">Waterfall</option>
         </select>
         <label>X Axis <span className="chain-config-optional">(optional — auto-picked)</span></label>
         <input

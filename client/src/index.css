@@ -21602,3 +21602,77 @@ tr:hover td {
   cursor: pointer; padding: 3px; border-radius: 4px; display: flex; align-items: center;
 }
 .sf-cabecera-btn:hover { color: var(--text-primary); }
+
+/* ── La pestaña de un .amoxvis (Dec-80): un documento, y de dónde sale su consulta ── */
+.axp { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; }
+.axp-barra {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  padding: 6px 12px; border-bottom: 1px solid var(--border-color); background: var(--panel-bg);
+}
+.axp-miga { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; font-size: 12px; }
+.axp-miga-sql, .axp-miga-doc { display: inline-flex; align-items: center; gap: 5px; min-width: 0; white-space: nowrap; }
+.axp-miga-sql {
+  background: transparent; border: none; padding: 3px 6px; margin-left: -6px; border-radius: var(--radius-sm);
+  color: var(--text-secondary); cursor: pointer; font: inherit;
+}
+.axp-miga-sql:hover { background: var(--hover-bg, color-mix(in oklch, var(--text-primary) 6%, transparent)); color: var(--text-primary); }
+.axp-miga-sql:focus-visible, .axp-btn:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 1px; }
+.axp-miga-sep { color: var(--text-muted); flex: none; }
+.axp-miga-doc { color: var(--text-primary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.axp-miga-nota { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.axp-miga-nota::before { content: '·'; margin: 0 6px 0 2px; }
+.axp-punto { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-primary); flex: none; }
+.axp-acciones { display: flex; align-items: center; gap: 6px; flex: none; }
+.axp-btn {
+  display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+  padding: 4px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-default, var(--border-color));
+  background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer;
+}
+.axp-btn:hover:not(:disabled) { color: var(--text-primary); }
+.axp-btn:disabled { opacity: .5; cursor: default; }
+.axp-btn--activo { color: var(--text-primary); background: var(--accent-muted); border-color: transparent; }
+.axp-btn--primario { background: var(--accent-primary); border-color: transparent; color: var(--surface-base); font-weight: 600; }
+.axp-btn--primario:hover:not(:disabled) { color: var(--surface-base); filter: brightness(1.08); }
+.axp-galeria {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: var(--radius-sm);
+  background: var(--accent-muted); color: var(--text-secondary); font-size: 11px; font-weight: 600;
+}
+.axp-deriva {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; flex-shrink: 0;
+  padding: 8px 14px; border-bottom: 1px solid var(--border-color);
+  background: var(--feedback-warning-bg); color: var(--text-secondary); font-size: 12px;
+}
+.axp-deriva > svg { color: var(--color-warning); flex: none; }
+.axp-deriva-texto { flex: 1 1 260px; min-width: 0; }
+.axp-deriva-select {
+  max-width: 320px; height: 26px; font-size: 12px; border-radius: var(--radius-sm);
+  background: var(--input-bg, var(--panel-bg)); color: var(--text-primary); border: 1px solid var(--border-color);
+}
+.axp-consulta { display: flex; flex-direction: column; flex-shrink: 0; height: 200px; border-bottom: 1px solid var(--border-color); background: var(--panel-bg); }
+.axp-consulta-barra { display: flex; align-items: center; gap: 6px; padding: 6px 12px; flex-wrap: wrap; }
+.axp-consulta-titulo { flex: 1; min-width: 0; font-size: 11.5px; color: var(--text-muted); }
+.axp-consulta-titulo strong { color: var(--text-secondary); font-weight: 600; }
+.axp-sin-ejecutar { font-style: normal; color: var(--color-warning-text); }
+.axp-consulta-editor { flex: 1; min-height: 0; }
+.axp-figura { flex: 1; overflow: hidden; position: relative; contain: layout paint; }
+.axp-estado { display: flex; align-items: center; justify-content: center; gap: 8px; height: 100%; color: var(--text-muted); font-size: 14px; padding: 0 16px; text-align: center; }
+.axp-error {
+  margin: 20px; padding: 20px; border-radius: 8px; white-space: pre-wrap;
+  background: var(--color-error-bg); border: 1px solid var(--color-error); color: var(--color-error);
+  font-size: 13px; font-family: var(--font-mono);
+}
+
+/* ── El gráfico de un .sql: se recuerda con el archivo y dice dónde está guardado (Dec-79) ── */
+.sf-recordado {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px;
+  margin: -4px 0 12px; font-size: 11px; color: var(--text-muted);
+}
+.sf-recordado > svg { flex: none; }
+.sf-recordado-chip {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%;
+  padding: 1px 7px; border-radius: 999px; border: 1px solid var(--border-color);
+  background: transparent; color: var(--text-secondary); font-size: 11px; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sf-recordado-chip:hover { color: var(--text-primary); border-color: var(--accent-primary); }
+.sf-recordado-chip:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 1px; }

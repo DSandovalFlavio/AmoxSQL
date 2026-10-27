@@ -15,7 +15,7 @@ The **Export** stage ("Ship it") is step ⑥ of [Story Flow](story-flow.md). It 
 - **PNG** when you need an image to drop into a presentation, document, or social post.
 - **Copy to clipboard** when you're about to paste straight into another app.
 - **`.amoxvis`** when the chart outlives the moment: you'll reopen it, put it in a deck, or refresh it with new data.
-- **Paste JSON from AI** when the assistant hands you a configuration and you want to apply it to the current chart.
+- **Paste JSON from AI** when an assistant hands you a chart in Vega-Lite (or a Story Flow configuration) and you want to apply it to the current result.
 
 ## How to use it
 
@@ -47,9 +47,10 @@ An AmoxSQL chart is Vega-Lite, so it can leave AmoxSQL and still be the same cha
 - The treemap is saved as a **Vega** spec (not Vega-Lite), so it has no Python script.
 
 ### Paste JSON from the AI
-1. Click **Paste JSON from AI** and paste the configuration object.
-2. AmoxSQL **validates it against the columns** of the current result before applying, so the axes reference columns that exist.
-3. If valid, the configuration is applied to the on-screen chart.
+1. Click **Paste JSON from AI** and paste a **Vega-Lite** spec (what the *AmoxSQL Data & Viz Skill* and most assistants write) or a Story Flow configuration.
+2. The data is always the current result: if the spec brings its own data, it's replaced by `"data": {"name": "dataset"}`.
+3. AmoxSQL **checks the columns** the spec names. If one isn't in the result, or the data was replaced, it tells you first: **Apply anyway** applies it all the same.
+4. The chart is drawn from the spec; the panels take what they understand and the rest stays as your own code (see [Story Flow](story-flow.md#the-code-is-in-charge)).
 
 ## Reference
 
@@ -69,13 +70,13 @@ An AmoxSQL chart is Vega-Lite, so it can leave AmoxSQL and still be the same cha
 | Copy chart as image | Copies the chart to the clipboard as PNG |
 | Save as .amoxvis | Saves configuration + query to an `.amoxvis` file |
 | Load configuration | Loads an `.amoxvis`/`.json` into the current chart |
-| Paste JSON from AI | Applies a pasted config, validating it against the columns |
+| Paste JSON from AI | Applies a pasted Vega-Lite spec or config, checking the columns |
 
 ## Tips & gems
 
 - **The `.amoxvis` isn't an image:** it's the live recipe with the query; open it later and it re-runs with current data.
 - **Original size respects your layout:** if you tuned margins and proportions, "Original size" exports exactly that.
-- **Validation prevents broken axes:** pasting AI JSON won't apply a configuration that points at columns that don't exist.
+- **The check prevents broken axes:** if what you paste points at columns that aren't in the result, you see it before it's applied.
 - **PNG to share, `.amoxvis` to build:** use PNG when the destination is flat; use `.amoxvis` when the chart will go into a Report Flow deck.
 - **The `.amoxvis` already is Vega-Lite:** "Take it elsewhere" adds the data or the script, but the saved file also opens outside AmoxSQL.
 

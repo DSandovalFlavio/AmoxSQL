@@ -307,6 +307,53 @@ escala raíz cuadrada, «empezar en cero», zoom on/off. Tipos nuevos: piruleta,
 bump (`window rank`), densidad (`density`) y franjas (`tick`). Qué enseña cada panel lo
 decide una sola tabla (`panels/capacidades.js`).
 
+### Dec-79 — El gráfico de un `.sql` se recuerda con el archivo (2026-10-27)
+
+**El problema.** El autor configuró un gráfico sobre el resultado de un `.sql`, abrió otra pestaña y
+al volver el gráfico estaba de fábrica. Dos causas: `EditorPane` montaba los resultados con
+`initialChartConfig` y guardaba los cambios en `chartConfig` (al volver, el gráfico salía de cero), y
+Story Flow avisaba con medio segundo de retraso y el aviso pendiente se perdía al desmontar. Pero
+debajo había otra cosa: quien ve un gráfico en un `.sql` cree, con razón, que el `.sql` lo guarda.
+
+**La decisión.** El gráfico en los resultados de un `.sql` es **una vista de la consulta, no un
+documento**. Se recuerda solo, sin preguntar, con el archivo: la vista (tabla o gráfico) y su
+configuración van a `<proyecto>/.amoxsql/borradores/graficos.json` (`server/borradores.js`; una
+entrada por ruta relativa, con su `.gitignore` y fuera del `.amoxproject`: es estado de esta máquina).
+Al reabrir el archivo mañana, el gráfico está como lo dejaste. Story Flow lo dice debajo de la
+cabecera: **Kept with ventas.sql**. Renombrar o mover el archivo se lo lleva.
+
+Se descartaron: quitar el gráfico de los resultados (analizar es cambiar la consulta y mirar a la
+vez), y un `.amoxvis` automático con «¿guardar el gráfico?» al cerrar (dos documentos y un diálogo
+para algo que no es un documento).
+
+### Dec-80 — Una pestaña es un documento (2026-10-27)
+
+- **Guardar como gráfico.** Cuando el gráfico tiene que vivir por su cuenta (un deck, el Lienzo,
+  compartirlo), **Save as chart…** crea un `.amoxvis` vinculado al `.sql` (junto a él, con su
+  nombre) y lo abre en una pestaña. Los resultados del `.sql` enseñan los que ya hay: **Saved as
+  ventas.amoxvis**, que lo abre.
+- **Ctrl+S guarda el archivo cuyo nombre ves en la pestaña.** En un `.amoxvis` la barra lo dice con
+  una miga de pan: `ventas.sql › ventas.amoxvis` (la consulta vive en el `.sql`; su nombre lo abre) o
+  `ventas.amoxvis · Own query` (la consulta es del gráfico).
+- **La consulta propia se edita en la misma pestaña**: el panel **Query** (Ctrl+Enter ejecuta, Ctrl+S
+  guarda el `.amoxvis`) y **Move to a .sql file…**, que la saca a un archivo y deja el gráfico
+  vinculado. Desaparece la pestaña «Edit: x.amoxvis», que parecía un `.sql` y guardaba en el
+  gráfico. «Edit with SQL» del explorador pasa a **Edit query**.
+- Abrir un gráfico ya no lo deja «con cambios»: se compara lo elegido (`mismoGrafico`), no el texto
+  —un `.amoxvis` escrito por el servidor con un spec sencillo y el mismo reescrito por Story Flow
+  son el mismo gráfico—.
+
+### Dec-81 — Un gráfico vinculado sigue a su consulta (2026-10-27)
+
+El `.amoxvis` vinculado lleva una copia de la consulta para abrirse en cualquier sitio (un deck, Data
+Flow). Al guardar el `.sql`, el servidor devuelve la versión anterior y la copia de cada gráfico que
+lo usa va detrás **cuando se sabe a cuál de sus consultas seguía** (`utils/seguirConsulta.js`): la
+misma, el archivo entero, la sentencia i con el mismo número de sentencias, o la única que queda. Un
+gráfico abierto sin cambios se escribe con su firma nueva; con cambios, recibe la consulta en
+memoria; cerrado, en disco. Si no se sabe, no se toca, y al abrirlo pregunta cuál seguir (una lista de
+las sentencias del archivo) o **Unlink**. Renombrar o mover el `.sql` actualiza el origen de sus
+gráficos (`acompanarRenombre` en el servidor).
+
 ### Dec-75 — El PowerPoint nativo sigue
 
 `officeChartMapper` pasa a leer un subconjunto del spec: una sola vista, `bar`, `line`, `area` o
@@ -428,3 +475,4 @@ la vez haría imposible saber qué rompió qué.
 - **Queda para después**: la selección que filtra otras figuras del mismo Lienzo o deck (necesita un canal entre tarjetas que hoy no existe); el PowerPoint nativo sigue leyendo los paneles (un gráfico en modo código va como imagen, Dec-75 sin cambios); el empuje a DuckDB de `bin`/`timeUnit` para histogramas de millones de filas.
 - Pruebas: `scripts/probarGraficos.mjs` 115/115, `scripts/probarGraficoIA.mjs` 10/10.
 - 2026-10-27 — **Dec-77/78**: el código manda y vuelve a los paneles (`codigo.js`, `ubicar.js`), aviso y líneas en ámbar, Guardar en la cabecera; auditoría de los paneles (siete opciones que no hacían nada, ahora sí; márgenes y «Hide if space» fuera), paneles reescritos en orden lógico desde `capacidades.js`; cinco tipos nuevos y ocho opciones nuevas; fechas en UTC (salían un día antes). Pruebas: 177 + 12.
+- 2026-10-27 — **Dec-79–81**: el gráfico de un `.sql` se recuerda con el archivo (y ya no se resetea al cambiar de pestaña), **Save as chart…** con los gráficos guardados a la vista, la miga de pan y el panel **Query** en la pestaña del `.amoxvis`, el gráfico vinculado que sigue a su consulta y a su archivo renombrado, abrir sin dejar cambios. Skills al día: `data-storytelling`, `time-series`, `eda-initial`, `metric-investigation`, `data-quality`, el resumen de `display_chart` del prompt, `build_notebook`, el nodo de gráfico de Data Flow (10 tipos) y la skill descargable **Data & Viz 4.0**, que enseña Vega-Lite; **Paste JSON** acepta Vega-Lite, redirige los datos a `dataset` y avisa antes de aplicar. `display_chart` gana `band_low_key`/`band_high_key`. Pruebas: 177 + 14 + 22 (`scripts/probarFlujoGrafico.mjs`).

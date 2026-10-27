@@ -15,7 +15,7 @@ La etapa **Export** ("Ship it") es el paso ⑥ de [Story Flow](story-flow.md). T
 - **PNG** cuando necesitas una imagen para pegar en una presentación, documento o red social.
 - **Copiar al portapapeles** cuando vas a pegar de inmediato en otra app.
 - **`.amoxvis`** cuando el gráfico vive más de un momento: lo reabrirás, lo pondrás en un deck o lo refrescarás con datos nuevos.
-- **Pegar JSON de la IA** cuando el asistente te entrega una configuración y quieres aplicarla al gráfico actual.
+- **Pegar JSON de la IA** cuando un asistente te entrega un gráfico en Vega-Lite (o una configuración de Story Flow) y quieres aplicarlo al resultado actual.
 
 ## Cómo usarlo
 
@@ -47,9 +47,10 @@ Un gráfico de AmoxSQL es Vega-Lite, así que puede salir de AmoxSQL y seguir si
 - El mapa de rectángulos se guarda como spec de **Vega** (no Vega-Lite), así que no tiene script de Python.
 
 ### Pegar JSON desde la IA
-1. Pulsa **Paste JSON from AI** y pega el objeto de configuración.
-2. AmoxSQL lo **valida contra las columnas** del resultado actual antes de aplicarlo, para que los ejes referencien columnas que existen.
-3. Si es válido, la configuración se aplica al gráfico en pantalla.
+1. Pulsa **Paste JSON from AI** y pega un spec de **Vega-Lite** (lo que escribe la *AmoxSQL Data & Viz Skill* y casi cualquier asistente) o una configuración de Story Flow.
+2. Los datos son siempre el resultado actual: si el spec trae sus propios datos, se cambian por `"data": {"name": "dataset"}`.
+3. AmoxSQL **comprueba las columnas** que nombra el spec. Si alguna no está en el resultado, o si cambió los datos, te lo dice antes: **Apply anyway** lo aplica igual.
+4. El gráfico se dibuja con el spec; los paneles toman lo que entienden y el resto queda como código propio (ver [Story Flow](story-flow.md#el-código-manda)).
 
 ## Referencia de opciones
 
@@ -69,13 +70,13 @@ Un gráfico de AmoxSQL es Vega-Lite, así que puede salir de AmoxSQL y seguir si
 | Copy chart as image | Copia el gráfico al portapapeles como PNG |
 | Save as .amoxvis | Guarda configuración + query en un archivo `.amoxvis` |
 | Load configuration | Carga un `.amoxvis`/`.json` en el gráfico actual |
-| Paste JSON from AI | Aplica una config pegada, validándola contra las columnas |
+| Paste JSON from AI | Aplica un Vega-Lite o una config pegada, comprobando las columnas |
 
 ## Tips y gemas
 
 - **El `.amoxvis` no es una imagen:** es la receta viva con la query; ábrelo más tarde y se re-ejecuta con datos actuales.
 - **Original size respeta tu layout:** si ajustaste márgenes y proporción, "Original size" exporta exactamente eso.
-- **La validación evita ejes rotos:** pegar JSON de la IA no aplicará una configuración que apunte a columnas inexistentes.
+- **La comprobación evita ejes rotos:** si lo pegado apunta a columnas que no están en el resultado, lo verás antes de aplicarlo.
 - **PNG para compartir, `.amoxvis` para construir:** usa PNG cuando el destino es plano; usa `.amoxvis` cuando el gráfico entrará en un deck de Report Flow.
 - **El `.amoxvis` ya es Vega-Lite:** «Take it elsewhere» añade los datos o el script, pero el archivo guardado también se abre fuera de AmoxSQL.
 

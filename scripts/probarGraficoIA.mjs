@@ -77,5 +77,19 @@ const dibujar = (args) => tools.display_chart.execute({ query_id: 'qr_1', title:
     bien('facet_by con una columna que no existe es un error', !!r2.error);
 }
 
+{
+    queryResults.set('qr_2', {
+        query: 'SELECT …',
+        columns: [{ name: 'mes' }, { name: 'venta' }, { name: 'bajo' }, { name: 'alto' }],
+        data: [1, 2, 3, 4, 5].map(m => ({ mes: `2024-0${m}-01`, venta: 10 * m, bajo: 8 * m, alto: 12 * m })),
+        rowCount: 5,
+    });
+    const linea = (args) => tools.display_chart.execute({ query_id: 'qr_2', title: 'T', chart_type: 'line', x_axis_key: 'mes', y_axis_keys: ['venta'], ...args }, {});
+    const r = await linea({ band_low_key: 'bajo', band_high_key: 'alto' });
+    bien('banda detrás de la línea', r.chartConfig?.bandLowKey === 'bajo' && r.chartConfig.bandHighKey === 'alto', JSON.stringify(r).slice(0, 200));
+    const r2 = await linea({ band_low_key: 'nada', band_high_key: 'alto' });
+    bien('una columna de banda que no existe es un error', !!r2.error);
+}
+
 console.log(`\n${ok} bien, ${mal} mal`);
 process.exit(mal ? 1 : 0);

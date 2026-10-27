@@ -162,8 +162,16 @@ export function useChartState(initialConfig = null) {
     // ── Debounced config change notification ──
     const configChangeTimer = useRef(null);
     const isInitialMount = useRef(true);
+    // Lo que se iba a avisar y todavía no se avisó. Al desmontar se avisa ya:
+    // cambiar de pestaña antes de medio segundo perdía el último cambio.
+    const pendienteRef = useRef(null);
 
     const useConfigChangeNotifier = (onConfigChange) => {
+        useEffect(() => () => {
+            const p = pendienteRef.current;
+            pendienteRef.current = null;
+            if (p) p.avisar(p.estado);
+        }, []);
         useEffect(() => {
             if (isInitialMount.current) {
                 isInitialMount.current = false;
@@ -178,7 +186,9 @@ export function useChartState(initialConfig = null) {
             if (!onConfigChange) return;
 
             if (configChangeTimer.current) clearTimeout(configChangeTimer.current);
+            pendienteRef.current = { avisar: onConfigChange, estado: state };
             configChangeTimer.current = setTimeout(() => {
+                pendienteRef.current = null;
                 onConfigChange(state);
             }, 500);
 

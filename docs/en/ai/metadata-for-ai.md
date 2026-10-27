@@ -40,7 +40,7 @@ This is the AI's "third path": you don't need Ollama or a key configured in Amox
 ### Use it in an external chat
 1. Paste (or attach) the downloaded Skill as the external assistant's instructions/system prompt.
 2. Paste your data's **Metadata for AI** document.
-3. Ask your question. The assistant answers with a SQL block (and, with the advanced Skill, a chart JSON block).
+3. Ask your question. The assistant answers with a SQL block (and, with the advanced Skill, a chart in Vega-Lite).
 4. Copy the SQL into AmoxSQL and run it. For the chart, open Story Flow over the result and use **Paste JSON**.
 
 ## Reference
@@ -69,13 +69,13 @@ This is the AI's "third path": you don't need Ollama or a key configured in Amox
 | Skill | What it does |
 |---|---|
 | Basic (*AmoxSQL Data Skill*) | DuckDB analyst: answers with executable SQL |
-| Advanced (*AmoxSQL Data & Viz Skill*) | SQL + chart JSON for Story Flow, with the type/palette/field list auto-derived |
+| Advanced (*AmoxSQL Data & Viz Skill*) | SQL + a chart in Vega-Lite with its data by name (`dataset`), pasted into Story Flow; the list of types the panels can edit comes from AmoxSQL itself |
 
 ## Tips & gems
 
 - **Watch the size warning.** Above ~12 KB the document may exceed some chats' limits. Lower the sample rows or turn off the profile if you go over.
-- **The JSON carries only the configuration, not the data.** Story Flow renders the JSON against the result of the SQL you ran, so your data never leaves your machine.
-- **The advanced Skill doesn't go stale.** Its list of chart types, palettes and fields is generated from AmoxSQL's own schema every time you download it.
+- **The chart carries no data.** The spec names its data `dataset` and Story Flow draws it with the result of the SQL you ran, so your data never leaves your machine.
+- **The advanced Skill doesn't go stale.** It teaches Vega-Lite, which doesn't change with AmoxSQL, and its list of the types the panels can edit is generated from AmoxSQL every time you download it.
 - **Excel: pick the right sheet** before generating — the context describes only the selected sheet.
 
 ## Related
