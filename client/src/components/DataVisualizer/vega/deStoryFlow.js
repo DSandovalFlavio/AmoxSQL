@@ -47,6 +47,8 @@ export function tipoEfectivo(c) {
     if (t === 'bar-horizontal') return { tipo: 'bar', apilado: c.barStackMode || 'none', horizontal: true };
     if (t === 'bar') return { tipo: 'bar', apilado: c.barStackMode || 'none', horizontal: false };
     if (t === 'bubble') return { tipo: 'scatter', apilado: 'none', horizontal: false, burbuja: true };
+    // Piruleta y mancuerna: categorías a la izquierda salvo que se pida en vertical.
+    if (t === 'lollipop' || t === 'dumbbell') return { tipo: t, apilado: 'none', horizontal: c.orientation !== 'vertical' };
     return { tipo: t, apilado: 'none', horizontal: false };
 }
 
@@ -58,12 +60,23 @@ function conAlfa(color, a) {
     return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
 }
 
+/** La interpolación de línea de Story Flow en Vega-Lite (las tres de escalón incluidas). */
+export const INTERPOLACION = { monotone: 'monotone', linear: 'linear', step: 'step', stepBefore: 'step-before', stepAfter: 'step-after' };
+
+/** Los nombres que el usuario dio a las series, como `labelExpr` de la leyenda. */
+function etiquetasDeSeries(c, series) {
+    const pares = (series || []).filter(s => c.seriesConfig?.[s]?.label && c.seriesConfig[s].label !== s);
+    if (!pares.length) return null;
+    return pares.reduceRight((resto, s) => `datum.label === ${JSON.stringify(String(s))} ? ${JSON.stringify(c.seriesConfig[s].label)} : ${resto}`, 'datum.label');
+}
+
 const formato = (c) => ({ format: `${c.numberFormat || 'compact'}|${c.decimalPlaces ?? -1}`, formatType: FORMATO_AMOX });
 
-function leyenda(c) {
+function leyenda(c, series) {
     const pos = c.legendPosition;
     if (!pos || pos === 'inline' || pos === 'none') return null;
-    return { orient: pos, title: null };
+    const expr = etiquetasDeSeries(c, series);
+    return { orient: pos, title: null, ...(expr ? { labelExpr: expr } : {}) };
 }
 
 /** Los colores de cada serie, con los que el usuario eligió a mano encima. */
@@ -109,6 +122,8 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
     if (tipo === 'histogram' && X) return histograma(base, c, { X, colores });
     if (!X || !Ys.length) return conCapas(base, [], [{ rol: 'principal', mark: 'point' }]);
     if (tipo === 'boxplot') return caja(base, c, { X, Y: Ys[0], colores });
+    if (tipo === 'strip') return franjas(base, c, { X, Y: Ys[0], colores });
+    if (tipo === 'density') return densidad(base, c, { X: Ys[0] || X, colores });
     if (tipo === 'errorbar') return intervalo(base, c, { X, Y: Ys[0], colores });
 
     const muestra = filas.slice(0, 200);
@@ -133,21 +148,46 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
     // ── Transformaciones comunes ──
     const agrega = !['scatter', 'heatmap'].includes(tipo);
     if (unidad) T.push({ timeUnit: unidad, field: campo(X), as: X });
+    const faceta = c.facetKey && c.facetKey !== X && c.facetKey !== serie ? c.facetKey : null;
+    // Columnas extra para el tooltip: en un gráfico que suma solo pueden viajar
+    // las numéricas (se suman también); en uno de filas sueltas, todas.
+    const extraTooltip = (Array.isArray(c.tooltipFields) ? c.tooltipFields : []).filter(k => k && k !== X && k !== valor && k !== serie);
+    const esNum = (k) => { const v = muestra.find(f => f[k] != null)?.[k]; return typeof v === 'number' || (typeof v === 'string' && v !== '' && !isNaN(Number(v))); };
+    const extraSumable = agrega ? extraTooltip.filter(esNum) : extraTooltip;
+    const banda = (tipo === 'line' || tipo === 'area') && !serie && c.bandLowKey && c.bandHighKey ? [c.bandLowKey, c.bandHighKey] : [];
     if (agrega) {
-        T.push({ aggregate: [{ op: 'sum', field: campo(valor), as: valor }], groupby: [X, ...(serie ? [serie] : [])].map(String) });
+        T.push({
+            aggregate: [
+                { op: 'sum', field: campo(valor), as: valor },
+                ...[...extraSumable, ...banda].filter(k => k !== valor).map(k => ({ op: 'sum', field: campo(k), as: k })),
+            ],
+            groupby: [X, ...(serie ? [serie] : []), ...(faceta ? [faceta] : [])].map(String),
+        });
     }
     if (c.isCumulative && (tipo === 'line' || tipo === 'area')) {
         T.push({ window: [{ op: 'sum', field: campo(valor), as: valor }], sort: [{ field: campo(X) }], groupby: serie ? [serie] : [], frame: [null, 0] });
     }
-    const esRanking = (tipo === 'bar' || tipo === 'donut' || tipo === 'pie' || tipo === 'funnel');
+    const esRanking = (tipo === 'bar' || tipo === 'lollipop' || tipo === 'donut' || tipo === 'pie' || tipo === 'funnel');
     if (esRanking && Number(c.limit) > 0 && c.sortMode !== 'natural') {
         const orden = c.sortMode === 'y-asc' ? [{ field: '__total', order: 'ascending' }]
             : c.sortMode === 'x-asc' ? [{ field: campo(X), order: 'ascending' }]
                 : c.sortMode === 'x-desc' ? [{ field: campo(X), order: 'descending' }]
                     : [{ field: '__total', order: 'descending' }];
         T.push({ joinaggregate: [{ op: 'sum', field: campo(valor), as: '__total' }], groupby: [String(X)] });
-        T.push({ window: [{ op: 'dense_rank', as: '__puesto' }], sort: orden });
+        T.push({ window: [{ op: 'dense_rank', as: '__puesto' }], sort: orden, ...(faceta ? { groupby: [faceta] } : {}) });
         T.push({ filter: `datum.__puesto <= ${Number(c.limit)}` });
+    }
+
+    const pctTooltip = c.tooltipShowPercent && c.tooltipMode !== 'rich' && agrega;
+    if (pctTooltip) {
+        T.push({ joinaggregate: [{ op: 'sum', field: campo(valor), as: '__suma' }], ...(faceta ? { groupby: [faceta] } : {}) }, { calculate: `${dato(valor)} / datum.__suma`, as: '__pct' });
+    }
+    const deltaTooltip = c.tooltipMode === 'rich' && agrega && tipo !== 'donut' && tipo !== 'pie';
+    if (deltaTooltip) {
+        T.push(
+            { window: [{ op: 'lag', field: campo(valor), as: '__previo' }], sort: [{ field: campo(X) }], groupby: [serie, faceta].filter(Boolean) },
+            { calculate: `datum.__previo ? (${dato(valor)} - datum.__previo) / abs(datum.__previo) : null`, as: '__delta' },
+        );
     }
 
     if ((tipo === 'donut' || tipo === 'pie') && Number(c.donutGroupingThreshold) > 0) {
@@ -157,6 +197,7 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
             { aggregate: [{ op: 'sum', field: campo(valor), as: valor }], groupby: [String(X)] },
         );
     }
+    if (tipo === 'bump') T.push({ window: [{ op: 'rank', as: '__puesto' }], sort: [{ field: campo(valor), order: 'descending' }], groupby: [String(X)] });
     if (tipo === 'donut' || tipo === 'pie') return conCapas(base, T, anillo(c, { X, valor, colores, tipo }));
     if (tipo === 'funnel') return conCapas(base, T, embudo(c, { X, valor, colores }));
     if (tipo === 'heatmap') return mapaDeCalor(base, c, { X, Ys, colores, filas });
@@ -200,10 +241,13 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
 
     const normalizado = tipo === 'bar' && apilado === 'expand';
     const escalaVal = {};
-    if (c.yLogScale) escalaVal.type = 'log';
+    const tipoEscala = c.yScaleType && c.yScaleType !== 'linear' ? c.yScaleType : (c.yLogScale ? 'log' : null);
+    if (tipoEscala) escalaVal.type = tipoEscala;
     const dom = c.yAxisDomain || ['auto', 'auto'];
     if (dom[0] !== 'auto' && dom[0] !== '' && dom[1] !== 'auto' && dom[1] !== '') escalaVal.domain = [Number(dom[0]), Number(dom[1])];
-    if (tipo === 'scatter' || tipo === 'line') escalaVal.zero = false;
+    if (tipo === 'scatter' || tipo === 'line' || tipo === 'dumbbell') escalaVal.zero = false;
+    if (c.zeroBaseline === 'on') escalaVal.zero = true;
+    else if (c.zeroBaseline === 'off') escalaVal.zero = false;
     const encVal = {
         field: campo(valor), type: 'quantitative',
         axis: { title: tituloY, grid: horizontal ? gridV : gridH, domain: !!c.showAxisLines, ...(normalizado ? { format: '.0%' } : formato(c)) },
@@ -214,8 +258,12 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
     let encColor = null;
     const leg = leyenda(c);
     if (serie) {
-        encColor = { field: campo(serie), type: 'nominal', scale: { domain: series, range: rangoDeSeries(series, c, colores) }, legend: leg };
+        encColor = { field: campo(serie), type: 'nominal', scale: { domain: series, range: rangoDeSeries(series, c, colores) }, legend: leyenda(c, series) };
     }
+    // Leyenda interactiva: clic en una serie para resaltarla (solo con la
+    // leyenda de la figura; la tejida en el subtítulo es HTML de la tarjeta).
+    const leyendaViva = !!(c.interactiveLegend && serie && encColor?.legend);
+    const SELECCION = { name: 'serie_elegida', select: { type: 'point', fields: [String(serie)] }, bind: 'legend' };
 
     const enc = { [cat]: encCat, [val]: encVal };
     if (encColor) enc.color = encColor;
@@ -223,8 +271,15 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         { field: campo(X), type: encCat.type, ...(encCat.timeUnit ? { timeUnit: encCat.timeUnit } : {}), title: X },
         ...(serie ? [{ field: campo(serie), type: 'nominal', title: c.splitByKey || 'serie' }] : []),
         { field: campo(valor), type: 'quantitative', title: plegado ? 'valor' : valor, ...formato(c) },
+        ...(pctTooltip ? [{ field: '__pct', type: 'quantitative', title: '% of total', format: '.1%' }] : []),
+        ...(deltaTooltip ? [{ field: '__delta', type: 'quantitative', title: 'vs previous', format: '+.1%' }] : []),
+        ...extraSumable.map(k => ({ field: campo(k), title: k, ...(esNum(k) ? { type: 'quantitative', ...formato(c) } : { type: 'nominal' }) })),
     ];
     enc.tooltip = tooltip;
+    // El eje derecho: una de las Y con su propia escala (líneas, áreas, columnas, combo).
+    const derecha = plegado && !horizontal && c.rightYAxisKey && Ys.includes(c.rightYAxisKey)
+        && ['line', 'area', 'bar', 'combo'].includes(tipo) && apilado === 'none' ? c.rightYAxisKey : null;
+    const seriesOffset = derecha ? series.filter(x => x !== derecha) : series;
 
     const capas = [];
     const nPuntos = filas.length;
@@ -234,7 +289,7 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         const mark = { type: 'bar', ...(c.barRadius ? { cornerRadiusEnd: Number(c.barRadius) } : {}) };
         const e = { ...enc };
         if (serie) {
-            if (apilado === 'none') { e[horizontal ? 'yOffset' : 'xOffset'] = { field: campo(serie), scale: { domain: series } }; e[val] = { ...encVal, stack: null }; }
+            if (apilado === 'none') { e[horizontal ? 'yOffset' : 'xOffset'] = { field: campo(serie), scale: { domain: seriesOffset } }; e[val] = { ...encVal, stack: null }; }
             else e[val] = { ...encVal, stack: apilado === 'expand' ? 'normalize' : 'zero' };
         } else {
             if (c.barColorMode === 'dimension') e.color = { field: campo(X), type: 'nominal', scale: { range: colores }, legend: null };
@@ -249,17 +304,22 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         }
         capas.push({ rol: 'principal', mark, encoding: e });
         if (c.showLabels && apilado === 'none') {
+            // Fuera, al final de la barra (por defecto), o dentro de ella en blanco.
+            const dentro = String(c.dataLabelPosition || '').startsWith('inside');
+            const pos = horizontal
+                ? (dentro ? { align: 'right', dx: -6, color: '#ffffff' } : { align: 'left', dx: 4 })
+                : (dentro ? { baseline: 'top', dy: 6, color: '#ffffff' } : { baseline: 'bottom', dy: -4 });
             capas.push({
                 rol: 'etiquetas',
-                mark: { type: 'text', fontSize: Number(c.dataLabelSize) || 11, ...(horizontal ? { align: 'left', dx: 4 } : { baseline: 'bottom', dy: -4 }) },
-                encoding: { ...enc, ...(serie ? { [horizontal ? 'yOffset' : 'xOffset']: { field: campo(serie), scale: { domain: series } } } : {}), [val]: { ...encVal, stack: null }, text: { field: campo(valor), ...formato(c) }, color: undefined },
+                mark: { type: 'text', fontSize: Number(c.dataLabelSize) || 11, ...pos },
+                encoding: { ...enc, ...(serie ? { [horizontal ? 'yOffset' : 'xOffset']: { field: campo(serie), scale: { domain: seriesOffset } } } : {}), [val]: { ...encVal, stack: null }, text: { field: campo(valor), ...formato(c) }, color: undefined },
             });
         }
     }
 
     // ━━━ Línea y área ━━━
     if (tipo === 'line' || tipo === 'area') {
-        const interpolate = c.lineType === 'step' ? 'step-after' : (c.lineType || 'monotone');
+        const interpolate = INTERPOLACION[c.lineType] || 'monotone';
         const puntos = c.showDots && nPuntos <= MAX_PUNTOS * Math.max(1, series.length || 1);
         // Un área de UNA serie se ha dibujado siempre como línea con su degradado
         // debajo; apilar solo tiene sentido con varias.
@@ -282,8 +342,6 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
             }
             capas.push({
                 rol: 'principal',
-                // Una serie larga sobre un eje continuo se puede acercar en X.
-                ...(continuo && encCat.type === 'temporal' && nPuntos > MAX_PUNTOS ? { params: [ZOOM_X] } : {}),
                 mark: { type: 'line', interpolate, strokeWidth: 2, ...(serie ? {} : { color: colorUnico }), ...(puntos ? { point: { filled: true, size: 28 } } : {}) },
                 encoding: { ...enc, [val]: { ...encVal, stack: null } },
             });
@@ -331,7 +389,7 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         const enLista = (lista) => `indexof(${JSON.stringify(lista)}, datum.serie) >= 0`;
         if (plegado) {
             capas.push({ rol: 'principal', transform: [{ filter: enLista(barras) }], mark: { type: 'bar', ...(c.barRadius ? { cornerRadiusEnd: Number(c.barRadius) } : {}) }, encoding: { ...enc, xOffset: { field: 'serie', scale: { domain: barras } }, [val]: { ...encVal, stack: null } } });
-            capas.push({ rol: 'lineas', transform: [{ filter: enLista(lineas) }], mark: { type: 'line', interpolate: c.lineType || 'monotone', strokeWidth: 2, point: { filled: true, size: 28 } }, encoding: { ...enc, [val]: { ...encVal, stack: null } } });
+            capas.push({ rol: 'lineas', transform: [{ filter: enLista(lineas) }], mark: { type: 'line', interpolate: INTERPOLACION[c.lineType] || 'monotone', strokeWidth: 2, point: { filled: true, size: 28 } }, encoding: { ...enc, [val]: { ...encVal, stack: null } } });
         } else {
             capas.push({ rol: 'principal', mark: { type: 'bar', color: colorUnico }, encoding: enc });
         }
@@ -359,11 +417,44 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         if (!serie) e.color = undefined;
         if ((burbuja || c.bubbleSizeKey) && c.bubbleSizeKey) e.size = { field: campo(c.bubbleSizeKey), type: 'quantitative', scale: { range: [60, 600] }, legend: null };
         // Rueda para acercar, arrastrar para moverse; doble clic vuelve (5.18).
-        capas.push({ rol: 'principal', params: [ZOOM], mark: { type: 'circle', opacity: 0.85, size: 60, ...(serie ? {} : { color: colorUnico }) }, encoding: e });
+        capas.push({ rol: 'principal', mark: { type: 'circle', opacity: 0.85, size: 60, ...(serie ? {} : { color: colorUnico }) }, encoding: e });
         if (c.scatterQuadrants) {
             capas.push({ rol: 'cuadrante_x', mark: { type: 'rule', strokeDash: [5, 5], color: '#888' }, encoding: { x: { aggregate: 'mean', field: campo(X), type: 'quantitative' } } });
             capas.push({ rol: 'cuadrante_y', mark: { type: 'rule', strokeDash: [5, 5], color: '#888' }, encoding: { y: { aggregate: 'mean', field: campo(valor), type: 'quantitative' } } });
         }
+    }
+
+    // ━━━ Piruleta: un ranking con menos tinta que la barra ━━━
+    if (tipo === 'lollipop') {
+        const resalte = condicionDeResalte(c, { X, valor });
+        if (resalte) T.push(...resalte.transform);
+        const color = resalte ? { condition: { test: resalte.test, value: c.highlightConfig.color || '#ef4444' }, value: colorUnico } : { value: colorUnico };
+        capas.push({ rol: 'principal', mark: { type: 'rule', strokeWidth: 2 }, encoding: { [cat]: encCat, [val]: encVal, [`${val}2`]: { datum: 0 }, color } });
+        capas.push({ rol: 'puntos', mark: { type: 'circle', size: 140, opacity: 1 }, encoding: { [cat]: encCat, [val]: { ...encVal, axis: undefined }, color, tooltip } });
+        if (c.showLabels) capas.push({ rol: 'etiquetas', mark: { type: 'text', fontSize: Number(c.dataLabelSize) || 11, ...(horizontal ? { align: 'left', dx: 10 } : { baseline: 'bottom', dy: -10 }) }, encoding: { [cat]: encCat, [val]: encVal, text: { field: campo(valor), ...formato(c) } } });
+    }
+
+    // ━━━ Mancuerna: dos valores por categoría, unidos ━━━
+    if (tipo === 'dumbbell' && plegado) {
+        const [a, b] = Ys;
+        capas.push({
+            rol: 'principal',
+            transform: [{ pivot: 'serie', value: 'valor', groupby: [String(X)] }],
+            mark: { type: 'rule', strokeWidth: 3, color: '#9aa0aa', opacity: 0.6 },
+            encoding: { [cat]: encCat, [val]: { field: campo(a), type: 'quantitative', axis: encVal.axis, scale: encVal.scale }, [`${val}2`]: { field: campo(b) } },
+        });
+        capas.push({ rol: 'puntos', mark: { type: 'circle', size: 150, opacity: 1 }, encoding: { [cat]: encCat, [val]: { ...encVal, axis: undefined }, color: encColor, tooltip } });
+        if (c.showLabels) capas.push({ rol: 'etiquetas', mark: { type: 'text', fontSize: Number(c.dataLabelSize) || 11, baseline: 'bottom', dy: -10 }, encoding: { [cat]: encCat, [val]: encVal, text: { field: 'valor', ...formato(c) }, color: encColor } });
+    }
+
+    // ━━━ Bump: el puesto de cada categoría, momento a momento ━━━
+    if (tipo === 'bump') {
+        const puesto = { field: '__puesto', type: 'ordinal', axis: { title: tituloY ? 'Rank' : null, grid: false } };
+        capas.push({
+            rol: 'principal',
+            mark: { type: 'line', interpolate: 'monotone', strokeWidth: 3, point: { filled: true, size: 70 }, ...(serie ? {} : { color: colorUnico }) },
+            encoding: { [cat]: encCat, [val]: puesto, ...(encColor ? { color: encColor } : {}), tooltip: [...tooltip, { field: '__puesto', type: 'ordinal', title: 'Rank' }] },
+        });
     }
 
     // ━━━ Tendencia (una sola serie) ━━━
@@ -386,9 +477,82 @@ export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) 
         });
     }
 
-    capas.push(...capasDeReferencia(c, { cat, val, encCat, horizontal, valor }));
+    // Banda de un intervalo bajo la línea (confianza, mínimo–máximo).
+    if (banda.length) {
+        capas.unshift({ rol: 'banda_error', mark: { type: 'errorband', opacity: 0.25, color: colorUnico, borders: false }, encoding: { [cat]: encCat, [val]: { field: campo(banda[0]), type: 'quantitative' }, [`${val}2`]: { field: campo(banda[1]) } } });
+    }
 
-    return conCapas(base, T, capas);
+    // Etiquetas al final de cada línea: el nombre de la serie (o el valor) junto
+    // al último punto. Con ellas la leyenda sobra.
+    if (c.endLabels && ['line', 'area', 'bump'].includes(tipo)) {
+        const fin = serie ? `${dato(serie)} + '  ' + ${FORMATO_AMOX}(${dato(valor)}, ${texto(`${c.numberFormat}|${c.decimalPlaces}`)})` : `${FORMATO_AMOX}(${dato(valor)}, ${texto(`${c.numberFormat}|${c.decimalPlaces}`)})`;
+        capas.push({
+            rol: 'etiquetas_fin',
+            transform: [{ window: [{ op: 'row_number', as: '__ultimo' }], sort: [{ field: campo(X), order: 'descending' }], groupby: serie ? [serie] : [] }, { filter: 'datum.__ultimo === 1' }, { calculate: fin, as: '__etiqueta_fin' }],
+            mark: { type: 'text', align: 'left', dx: 8, fontWeight: 600, fontSize: Number(c.dataLabelSize) || 11 },
+            encoding: { [cat]: encCat, [val]: tipo === 'bump' ? { field: '__puesto', type: 'ordinal' } : { ...encVal, stack: null }, text: { field: '__etiqueta_fin' }, ...(encColor ? { color: encColor } : {}) },
+        });
+    }
+
+    // Eje derecho: la serie elegida sale de las demás capas y va en la suya.
+    if (derecha) {
+        for (const capa of capas) {
+            if (capa.encoding?.[val]?.field === 'valor') capa.transform = [{ filter: `datum.serie !== ${texto(derecha)}` }, ...(capa.transform || [])];
+        }
+        const domD = c.rightYAxisDomain || ['auto', 'auto'];
+        const conDominio = domD[0] !== 'auto' && domD[0] !== '' && domD[1] !== 'auto' && domD[1] !== '';
+        capas.push({
+            rol: 'secundaria',
+            transform: [{ filter: `datum.serie === ${texto(derecha)}` }],
+            mark: { type: 'line', interpolate: INTERPOLACION[c.lineType] || 'monotone', strokeWidth: 2, point: { filled: true, size: 28 } },
+            encoding: {
+                [cat]: encCat,
+                [val]: { field: 'valor', type: 'quantitative', axis: { orient: 'right', title: c.seriesConfig?.[derecha]?.label || derecha, grid: false, domain: !!c.showAxisLines, ...formato(c) }, ...(conDominio ? { scale: { domain: [Number(domD[0]), Number(domD[1])], zero: false } } : { scale: { zero: false } }) },
+                color: encColor, tooltip,
+            },
+        });
+    }
+
+    const principal = capas.find(x => x.rol === 'principal');
+    if (principal) {
+        const params = [];
+        if (leyendaViva) {
+            params.push(SELECCION);
+            principal.encoding = { ...principal.encoding, opacity: { condition: { param: 'serie_elegida', value: 1 }, value: 0.15 } };
+        }
+        // Zoom: rueda y arrastre. «auto» = en dispersión y series de fechas largas.
+        const zoomAuto = tipo === 'scatter' || (continuo && encCat.type === 'temporal' && nPuntos > MAX_PUNTOS);
+        const zoom = c.zoomMode === 'on' ? (ejeContinuoDe(encCat) || tipo === 'scatter') : c.zoomMode === 'off' ? false : zoomAuto;
+        principal.params = (principal.params || []).filter(p0 => p0.name !== 'zoom');
+        if (zoom) params.push(tipo === 'scatter' ? ZOOM : ZOOM_X);
+        if (params.length || principal.params.length) principal.params = [...principal.params, ...params];
+        else delete principal.params;
+    }
+
+    capas.push(...capasDeReferencia(c, { cat, val, encCat, horizontal, valor, faceta }));
+
+    const spec = conCapas(base, T, capas);
+    if (derecha) spec.resolve = { scale: { [val]: 'independent' } };
+    return faceta ? enFacetas(spec, c, faceta) : spec;
+}
+
+const ejeContinuoDe = (enc) => enc?.type === 'quantitative' || enc?.type === 'temporal';
+
+/**
+ * Pequeños múltiplos: la misma figura repetida por cada valor de una columna.
+ * Las capas con datos propios (una regla en un valor fijo) no caben dentro de una
+ * faceta y se quedan fuera: la meta y la banda solo aplican sin facetas.
+ */
+function enFacetas(spec, c, faceta) {
+    const { $schema, title, data, transform, layer, resolve } = spec;
+    const capas = layer.filter(l => !l.data);
+    return {
+        $schema, ...(title ? { title } : {}), data, ...(transform ? { transform } : {}),
+        facet: { field: campo(faceta), type: 'nominal', header: { title: null, labelFontWeight: 600 } },
+        columns: Math.max(1, Number(c.facetColumns) || 3),
+        spec: { layer: capas, ...(resolve ? { resolve } : {}) },
+        resolve: { axis: { x: 'independent', y: 'independent' } },
+    };
 }
 
 /**
@@ -488,7 +652,7 @@ const ESTADISTICOS = { mean: 'mean', media: 'mean', average: 'mean', median: 'me
 /** «mean» o «median» en lugar de un número: la línea se calcula sobre los datos. */
 const estadistico = (v) => ESTADISTICOS[String(v ?? '').trim().toLowerCase()] || null;
 
-function capasDeReferencia(c, { cat, val, valor }) {
+function capasDeReferencia(c, { cat, val, valor, faceta, encCat }) {
     const capas = [];
     const una = { values: [{}] };
     const regla = (rol, v, color, estilo, etiqueta, grosor = 1.5) => {
@@ -523,6 +687,15 @@ function capasDeReferencia(c, { cat, val, valor }) {
             if (num(n.y) !== null && num(n.y2) !== null) { enc[val] = { datum: num(n.y) }; enc[`${val}2`] = { datum: num(n.y2) }; }
             capas.push({ rol, data: una, mark: { type: 'rect', color, opacity: 0.12, stroke: color, strokeOpacity: 0.5 }, encoding: enc });
             if (n.text) capas.push({ rol: `${rol}_texto`, data: una, mark: { type: 'text', color, align: 'left', baseline: 'top', dx: 4, dy: 4, fontWeight: 600, [val === 'y' ? 'y' : 'x']: 0 }, encoding: { [cat]: { datum: valorDeEje(n.x) }, text: { value: n.text } } });
+        } else if (num(n.y) === null && valor && !faceta) {
+            // Sin Y: la marca va sobre el dato de esa X, leído de la figura.
+            // Una fecha se compara por su comienzo: «2024-03» acierta en el 1 de marzo.
+            const x = dato(c.xAxisKey);
+            const test = `isDate(${x}) ? indexof(timeFormat(${x}, '%Y-%m-%d'), ${texto(n.x)}) === 0 : '' + ${x} === ${texto(n.x)}`;
+            const { axis, ...ejeSinTitulo } = encCat || { field: campo(c.xAxisKey), type: 'nominal' };
+            const enc = { [cat]: ejeSinTitulo, [val]: { field: campo(valor), type: 'quantitative' } };
+            capas.push({ rol, transform: [{ filter: test }], mark: { type: 'point', filled: true, color, size: 60 }, encoding: enc });
+            if (n.text) capas.push({ rol: `${rol}_texto`, transform: [{ filter: test }], mark: { type: 'text', color, baseline: 'bottom', dy: -9, fontWeight: 600 }, encoding: { ...enc, text: { value: n.text } } });
         } else if (num(n.y) !== null) {
             const enc = { [cat]: { datum: valorDeEje(n.x) }, [val]: { datum: num(n.y) } };
             capas.push({ rol, data: una, mark: { type: 'point', filled: true, color, size: 50 }, encoding: enc });
@@ -616,6 +789,42 @@ function intervalo(base, c, { X, Y, colores }) {
     return conCapas(base, [], capas);
 }
 
+/** Franjas: cada fila es una raya en su categoría; se ve la forma del reparto sin resumirla. */
+function franjas(base, c, { X, Y, colores }) {
+    if (!Y) return conCapas(base, [], [{ rol: 'principal', mark: 'point' }]);
+    const vertical = c.orientation === 'vertical';
+    const cat = vertical ? 'x' : 'y', val = vertical ? 'y' : 'x';
+    const color = c.seriesConfig?.[Y]?.color || colores[0];
+    const resalte = c.highlightConfig?.type === 'exact' && c.highlightConfig.value !== '' ? c.highlightConfig : null;
+    return conCapas(base, [], [{
+        rol: 'principal',
+        mark: { type: 'tick', thickness: 2, opacity: 0.55 },
+        encoding: {
+            [cat]: { field: campo(X), type: 'nominal', axis: { title: null, grid: false } },
+            [val]: { field: campo(Y), type: 'quantitative', scale: { zero: false }, axis: { title: c.showYAxisTitle ? (c.customAxisTitles?.y || Y) : null, ...formato(c) } },
+            color: resalte ? { condition: { test: `'' + ${dato(X)} === ${texto(resalte.value)}`, value: resalte.color || '#ef4444' }, value: color } : { value: color },
+            tooltip: [{ field: campo(X), type: 'nominal' }, { field: campo(Y), type: 'quantitative', ...formato(c) }],
+        },
+    }, ...capasDeReferencia(c, { cat, val, valor: Y })]);
+}
+
+/**
+ * Densidad: la forma suave de cómo se reparte una columna numérica (una curva por
+ * grupo con «Split by»). Lo que el histograma dice con cubos, sin elegir cubos.
+ */
+function densidad(base, c, { X, colores }) {
+    const grupo = c.splitByKey || null;
+    return conCapas(base, [{ density: campo(X), ...(grupo ? { groupby: [String(grupo)] } : {}), as: ['__valor', '__densidad'] }], [{
+        rol: 'principal',
+        mark: { type: 'area', opacity: grupo ? 0.35 : 0.6, line: true, interpolate: 'monotone', ...(grupo ? {} : { color: c.seriesConfig?.[X]?.color || colores[0] }) },
+        encoding: {
+            x: { field: '__valor', type: 'quantitative', title: c.showXAxisTitle === false ? null : (c.customAxisTitles?.x || X), axis: { grid: false, ...formato(c) } },
+            y: { field: '__densidad', type: 'quantitative', stack: null, axis: { title: c.showYAxisTitle ? (c.customAxisTitles?.y || 'Density') : null, labels: false, ticks: false, grid: c.gridMode === 'both' || c.gridMode === 'horizontal' } },
+            ...(grupo ? { color: { field: campo(grupo), type: 'nominal', scale: { range: colores }, legend: leyenda(c) } } : {}),
+        },
+    }]);
+}
+
 function anillo(c, { X, valor, colores, tipo }) {
     const proporcion = tipo === 'pie' ? 0 : Math.min(0.85, Math.max(0.2, (Number(c.donutThickness) || 60) / 100));
     const radio = 'min(width, height) / 2 * 0.82';
@@ -643,7 +852,7 @@ function anillo(c, { X, valor, colores, tipo }) {
     if (tipo === 'donut' && c.donutCenterKpi && c.donutCenterKpi !== 'none' && proporcion > 0.3) {
         capas.push({
             rol: 'centro',
-            transform: [{ aggregate: [{ op: 'sum', field: campo(valor), as: '__total' }] }],
+            transform: [{ aggregate: [{ op: c.donutCenterKpi === 'average' ? 'mean' : 'sum', field: campo(valor), as: '__total' }] }],
             mark: { type: 'text', fontSize: 22, fontWeight: 700, x: { expr: 'width / 2' }, y: { expr: 'height / 2' } },
             encoding: { text: { field: '__total', ...formato(c) } },
         });

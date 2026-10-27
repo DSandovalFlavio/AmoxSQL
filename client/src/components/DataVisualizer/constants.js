@@ -166,6 +166,7 @@ export const CHART_TYPES = [
     { key: 'line', label: 'Line', category: 'trend', description: 'Line series' },
     { key: 'area', label: 'Stacked Area', category: 'trend', description: 'Filled area stacked' },
     { key: 'combo', label: 'Combo', category: 'trend', description: 'Bar + Line combined' },
+    { key: 'bump', label: 'Bump', category: 'trend', description: 'How the ranking of each category changes over time' },
     // Composition — parts of a whole
     { key: 'bar-stacked', label: 'Stacked Column', category: 'composition', description: 'Stacked vertically' },
     { key: 'bar-100', label: '100% Stacked', category: 'composition', description: 'Proportional stacked' },
@@ -178,11 +179,15 @@ export const CHART_TYPES = [
     { key: 'scatter', label: 'Scatter', category: 'relation', description: 'XY scatter plot' },
     { key: 'bubble', label: 'Bubble', category: 'relation', description: 'Scatter with size' },
     { key: 'heatmap', label: 'Heatmap', category: 'relation', description: 'Color intensity matrix' },
+    { key: 'lollipop', label: 'Lollipop', category: 'compare', description: 'A ranking with less ink than bars' },
+    { key: 'dumbbell', label: 'Dumbbell', category: 'compare', description: 'Two values per category, joined (before / after, plan / actual)' },
     { key: 'errorbar', label: 'Bars + interval', category: 'compare', description: 'Bars with a low–high interval (confidence, range)' },
     { key: 'slope', label: 'Slope', category: 'compare', description: 'From one moment to another, one line per category' },
     // Distribution — how values spread
     { key: 'histogram', label: 'Histogram', category: 'distribution', description: 'How many rows fall in each range of a number' },
     { key: 'boxplot', label: 'Box plot', category: 'distribution', description: 'Median, quartiles and outliers per category' },
+    { key: 'density', label: 'Density', category: 'distribution', description: 'The smooth shape of a distribution, one curve per group' },
+    { key: 'strip', label: 'Strip plot', category: 'distribution', description: 'Every row as a tick in its category' },
     // Flow — stages / pipeline
     { key: 'funnel', label: 'Funnel', category: 'flow', description: 'Funnel / pipeline' },
     { key: 'waterfall', label: 'Waterfall', category: 'flow', description: 'Cumulative bridge' },
@@ -204,8 +209,8 @@ export const CHART_CATEGORIES = [
     { key: 'compare', label: 'Compare' },
     { key: 'trend', label: 'Trend' },
     { key: 'composition', label: 'Composition' },
-    { key: 'relation', label: 'Relationship' },
     { key: 'distribution', label: 'Distribution' },
+    { key: 'relation', label: 'Relationship' },
     { key: 'flow', label: 'Flow' },
 ];
 
@@ -335,7 +340,6 @@ export const DEFAULT_CONFIG = {
     showLabels: false,
     dataLabelPosition: 'top',
     dataLabelSize: 11,
-    dataLabelMinSpace: 30,
     tooltipShowPercent: false,
     tooltipMode: 'standard', // 'standard' | 'rich'
 
@@ -426,7 +430,20 @@ export const DEFAULT_CONFIG = {
     histogramStats: [],        // histograma: ['mean', 'median'] dibuja esas reglas
     errorLowKey: '',           // barras con intervalo: columna del mínimo…
     errorHighKey: '',          // …y del máximo
-    orientation: 'horizontal', // caja y barras con intervalo: categorías a la izquierda
+    orientation: 'horizontal', // caja, franjas, intervalo, piruleta, mancuerna: categorías a la izquierda
+
+    // Lo que Vega-Lite abre a los paneles (Dec-78)
+    facetKey: '',          // pequeños múltiplos: una figura por cada valor de esta columna
+    facetColumns: 3,
+    tooltipFields: [],     // columnas extra en el tooltip
+    interactiveLegend: false, // clic en la leyenda resalta una serie
+    zoomMode: 'auto',      // auto | on | off
+    zeroBaseline: 'auto',  // auto | on | off: el eje de valores empieza en cero
+    yScaleType: 'linear',  // linear | log | sqrt (yLogScale se lee como 'log')
+    endLabels: false,      // el nombre de cada serie al final de su línea
+    bandLowKey: '',        // banda de un intervalo bajo la línea…
+    bandHighKey: '',       // …mínimo y máximo
+    extras: null,          // lo escrito en código que los paneles no muestran (vega/codigo.js)
 
     // Combo specific
     comboLineKeys: [],
@@ -497,10 +514,6 @@ export const DEFAULT_CONFIG = {
        interfaz. 'Free' recupera el comportamiento de ocupar todo el hueco. */
     canvasSize: '4:3',
 
-    // Margins & Spacing
-    marginTop: 20,
-    marginBottom: 10,
-    marginLeft: 20,
-    marginRight: 30,
+    // Aire entre el título y la figura (la tarjeta)
     titleSpacing: 10,
 };

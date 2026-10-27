@@ -149,12 +149,15 @@ export function describirExtras(p, codigo) {
 // ─── Del código a los paneles ───────────────────────────────
 
 const sinEscape = (f) => (typeof f === 'string' ? f.replace(/\\(.)/g, '$1') : f);
-function principalDe(spec) {
+/** Con pequeños múltiplos, la figura vive dentro de `spec`. */
+const cuerpo = (spec) => (spec?.facet && spec.spec ? spec.spec : spec);
+function principalDe(raiz) {
+    const spec = cuerpo(raiz);
     if (!spec) return null;
     if (Array.isArray(spec.layer)) return spec.layer.find(c => c?.name === `${PREFIJO}principal`) || spec.layer.find(c => c?.mark) || null;
     return spec.mark ? spec : null;
 }
-const capaDe = (spec, rol) => (Array.isArray(spec?.layer) ? spec.layer.find(c => c?.name === `${PREFIJO}${rol}`) : null);
+const capaDe = (raiz, rol) => { const spec = cuerpo(raiz); return Array.isArray(spec?.layer) ? spec.layer.find(c => c?.name === `${PREFIJO}${rol}`) : null; };
 const tipoMarca = (capa) => (typeof capa?.mark === 'string' ? capa.mark : capa?.mark?.type);
 const ejeValor = (enc) => (enc?.y?.type === 'quantitative' && enc?.x?.type !== 'quantitative' ? 'y'
     : enc?.x?.type === 'quantitative' && enc?.y?.type !== 'quantitative' ? 'x' : 'y');
@@ -184,6 +187,12 @@ function lentes(spec) {
         gridX: enc[cat]?.axis?.grid, gridY: enc[val]?.axis?.grid,
         lineasEje: enc[val]?.axis?.domain,
         log: enc[val]?.scale?.type,
+        cero: enc[val]?.scale?.zero,
+        faceta: sinEscape(spec?.facet?.field),
+        columnas: spec?.columns,
+        finales: !!capaDe(spec, 'etiquetas_fin'),
+        viva: !!(p.params || []).some(x => x?.name === 'serie_elegida'),
+        zoom: !!(p.params || []).some(x => x?.name === 'zoom'),
         dominio: enc[val]?.scale?.domain,
         orden: enc[cat]?.sort,
         interpolar: marca.interpolate,
@@ -246,7 +255,13 @@ export function leerPaneles(codigo, previo, { base }) {
         c.gridMode = h && v ? 'both' : h ? 'horizontal' : v ? 'vertical' : 'none';
     }
     if (cambio('lineasEje')) c.showAxisLines = !!b.lineasEje;
-    if (cambio('log')) c.yLogScale = b.log === 'log';
+    if (cambio('log')) { c.yScaleType = ['log', 'sqrt'].includes(b.log) ? b.log : 'linear'; c.yLogScale = b.log === 'log'; }
+    if (cambio('cero')) c.zeroBaseline = b.cero === true ? 'on' : b.cero === false ? 'off' : 'auto';
+    if (cambio('faceta')) c.facetKey = b.faceta || '';
+    if (cambio('columnas') && b.columnas) c.facetColumns = Number(b.columnas);
+    if (cambio('finales')) c.endLabels = b.finales;
+    if (cambio('viva')) c.interactiveLegend = b.viva;
+    if (cambio('zoom')) c.zoomMode = b.zoom ? 'on' : 'off';
     if (cambio('dominio')) c.yAxisDomain = Array.isArray(b.dominio) ? b.dominio.map(String) : ['auto', 'auto'];
     if (cambio('orden') && ORDEN(b.orden)) c.sortMode = ORDEN(b.orden);
     if (cambio('interpolar') && b.interpolar) c.lineType = b.interpolar.startsWith('step') ? 'step' : b.interpolar;
