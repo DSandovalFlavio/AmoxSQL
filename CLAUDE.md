@@ -84,7 +84,8 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - `DbtPanel.jsx` — DBT Studio. Its pieces live in `dbt/` (5.12): `EntornoDbt.jsx` (the project's environment, **Set up dbt…**), `BarraTarget.jsx`, `BarraModelo.jsx` (above a model in the editor: Compiled · Preview · Run · ±stream · Test; «Promote to dbt model» above a loose `.sql`), `useCorrerDbt.js` (run dbt from any screen, with the production confirmation), `PuenteDbt.jsx`. dbt completion is `client/src/utils/dbtCompletado.js` (pure), wired in `SqlEditor.jsx`; the catalog refreshes on the `amox_dbt_cambio` event
 - `lago/Lago.jsx` — DuckLake in the explorer (5.12): New lake…, Lake versions, As it was, maintenance
 - `ErDiagram.jsx` — ER diagram visualization
-- `CommandPalette.jsx` — Ctrl+Shift+P quick actions
+- `CommandPalette.jsx` — Ctrl+K quick actions
+- **A tab owns its state** (plan `docs/dev/plan_5_19_interaccion.md`, Dec-82–89): `utils/colaDeEjecucion.js` (one query per tab, a visible queue; the state lives in `tab.ejecucion`), `utils/memoriaDePestana.js` (one Monaco model per tab, results-table state), `tab.resultsRatio`, `tab.emergente` (one pop-out window per tab, `electron/main.js → emergentes`). **Shortcuts live in one table: `utils/atajos.js`** — add one there, not in `App.jsx` — then run `scripts/atajosADocs.mjs`. Monaco keeps Ctrl+K/L/Shift+F unless `utils/atajosEnMonaco.js` hands them back. Dialogs close with `hooks/useEscape.js`. `scripts/probarInteraccion.mjs` drives real Electron with a temporary home; the renderer's dev server defaults to port 3001, which is usually the installed app — use `?apiPort=` in a browser
 
 ### Backend (server/)
 - `index.js` (88KB) — All REST endpoints

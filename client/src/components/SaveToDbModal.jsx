@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useEscape } from '../hooks/useEscape';
 
 const SaveToDbModal = ({ isOpen, onClose, onSave }) => {
+    useEscape(onClose, isOpen);
     const [name, setName] = useState('');
     const [type, setType] = useState('TABLE'); // TABLE or VIEW
     const [saving, setSaving] = useState(false);

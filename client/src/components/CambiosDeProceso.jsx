@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LuGitCompareArrows, LuX, LuPlus, LuMinus, LuPencil, LuLink, LuUnlink, LuSlidersHorizontal, LuVariable, LuTriangleAlert } from 'react-icons/lu';
 import { API_BASE } from '../api.js';
+import { useEscape } from '../hooks/useEscape';
 
 /** `a` → `b` con los valores entre comillas inversas como código. */
 function Valor({ v }) {
@@ -106,6 +107,7 @@ export function CambiosDeProceso({ ruta, antes = 'HEAD', despues = 'disco' }) {
 }
 
 export default function VentanaCambiosDeProceso({ ruta, onClose }) {
+    useEscape(onClose);
     return createPortal((
         <div className="ww-backdrop" onClick={onClose}>
             <div className="ww-card cdp-card" role="dialog" aria-modal="true" aria-labelledby="cdp-titulo" onClick={e => e.stopPropagation()}>

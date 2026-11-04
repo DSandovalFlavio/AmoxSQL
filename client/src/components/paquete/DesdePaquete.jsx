@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LuPackageOpen, LuX, LuFolderOpen, LuTriangleAlert, LuCheck, LuKeyRound, LuInbox, LuPuzzle } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
+import { useEscape } from '../../hooks/useEscape';
 
 async function pedir(ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) });
@@ -20,6 +21,7 @@ async function pedir(ruta, cuerpo) {
 const MOTIVO = { sin_definicion: 'not defined here', sin_ubicar: 'no location on this machine', no_encontrada: 'its file is not here' };
 
 export default function DesdePaquete({ onAbrir, onClose }) {
+    useEscape(onClose);
     const [paquete, setPaquete] = useState(null);       // { ruta, manifiesto, entradas }
     const [carpeta, setCarpeta] = useState('');
     const [nombre, setNombre] = useState('');

@@ -10,6 +10,7 @@ import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
 import { tipoDePestana, nombreDe } from './utils/tiposDeArchivo.js';
 import { ATAJO_DE_EDITOR } from './utils/atajosEnMonaco.js';
+import { atajoDe } from './utils/atajos.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
@@ -442,193 +443,54 @@ function App() {
 
   // --- Global Keyboard Shortcuts ---
   useEffect(() => {
+    // Qué teclas: utils/atajos.js. Aquí solo qué hace cada una. El zoom lo atiende
+    // Electron (before-input-event) y a React le llega el resultado por IPC.
+    const ACCIONES = {
+      paleta: () => setIsCommandPaletteOpen(prev => !prev),
+      salto: () => setIsCommandPaletteOpen(prev => !prev),
+      paleta2: () => setIsCommandPaletteOpen(prev => !prev),
+      ejecutar: () => layoutRef.current?.handleTriggerRun(),
+      ejecutar2: () => layoutRef.current?.handleTriggerRun(),
+      lateral: () => setSidebarCollapsed(prev => !prev),
+      guardar: () => layoutRef.current?.handleTriggerSave(),
+      guardarComo: () => layoutRef.current?.handleTriggerSaveAs(),
+      analizar: () => layoutRef.current?.handleTriggerAnalyze(),
+      historial: () => handleShowHistorySidebar(),
+      buscar: () => handleSidebarTabClick('search'),
+      archivos: () => setActiveSidebarTab('files'),
+      esquema: () => setActiveSidebarTab('schema'),
+      ajustes: () => setIsSettingsOpen(true),
+      lista: () => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); },
+      cerrar: () => layoutRef.current?.closeActiveTab(),
+      nuevoSql: () => layoutRef.current?.createNew('sql'),
+      nuevoCuaderno: () => layoutRef.current?.createNew('notebook'),
+      siguiente: () => layoutRef.current?.navigateTab(1),
+      anterior: () => layoutRef.current?.navigateTab(-1),
+      reabrir: () => layoutRef.current?.reabrirUltima(),
+      fijar: () => layoutRef.current?.alternarFijada(),
+      atras: () => layoutRef.current?.navegarHistorial(true),
+      adelante: () => layoutRef.current?.navegarHistorial(false),
+      assist: () => setShowAiSidebar(v => !v),
+      dividir: () => layoutRef.current?.toggleSplit(),
+      duplicar: () => layoutRef.current?.duplicateActiveTabToOtherPane(),
+      // NOT Ctrl+Shift+Enter: el cuaderno ya la usa para ejecutar todas las celdas.
+      ambos: () => layoutRef.current?.runBothPanes(),
+    };
     const handler = (e) => {
-      // Zoom is handled by Electron main process (before-input-event)
-      // React only receives the result via IPC 'zoom:changed'
-
-      // Command Palette: Ctrl+K — alias visible del Ctrl+Shift+P de siempre.
-      // Es el atajo que anuncia el omnibox de la barra, y el que hace que la
-      // paleta deje de ser un secreto de teclado.
-      if (e.ctrlKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
-        e.preventDefault();
-        setIsCommandPaletteOpen(prev => !prev);
-        return;
-      }
-      // Command Palette: Ctrl+Shift+P
-      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
-        e.preventDefault();
-        setIsCommandPaletteOpen(prev => !prev);
-        return;
-      }
-      /**
-       * Ctrl+P — el mismo sitio, la tecla que la gente tiene en los dedos.
-       *
-       * Saltar a un archivo por su nombre ya funcionaba y esta bien hecho
-       * —busca archivos Y esquema en el mismo sitio—, pero solo respondia a
-       * Ctrl+K. Quien viene de un editor de codigo pulsa Ctrl+P, no encontraba
-       * nada, y concluia que la funcion no existe.
-       */
-      if (e.ctrlKey && !e.shiftKey && (e.key === 'p' || e.key === 'P')) {
-        e.preventDefault();
-        setIsCommandPaletteOpen(prev => !prev);
-        return;
-      }
-      // Only handle shortcuts in IDE phase
-      if (appPhase !== PHASE.IDE) return;
-
-      // Run Query: Ctrl+Enter (global fallback) or F5
-      if ((e.ctrlKey && !e.shiftKey && e.key === 'Enter') || e.key === 'F5') {
-        e.preventDefault();
-        layoutRef.current?.handleTriggerRun();
-        return;
-      }
-
       // Esc cancela la consulta de la pestaña activa, como dice el botón. Solo
       // si nadie lo ha usado ya: un modal abierto, o el editor cerrando su búsqueda
       // o sus sugerencias (Monaco no deja pasar esos).
-      if (e.key === 'Escape' && !e.defaultPrevented
-        && !document.querySelector('.modal-overlay, .command-palette-overlay, .ob-overlay, [role="dialog"]:not(.monaco-editor *)')) {
-        layoutRef.current?.cancelarActiva();
+      if (e.key === 'Escape') {
+        if (appPhase === PHASE.IDE
+          && !document.querySelector('.modal-overlay, .ww-backdrop, .command-palette-overlay, .ob-overlay, [role="dialog"]:not(.monaco-editor *)')) {
+          layoutRef.current?.cancelarActiva();
+        }
         return;
       }
-
-      // Toggle Sidebar: Ctrl+B
-      if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
-        e.preventDefault();
-        setSidebarCollapsed(prev => !prev);
-        return;
-      }
-
-      // Save: Ctrl+S
-      if (e.ctrlKey && !e.shiftKey && e.key === 's') {
-        e.preventDefault();
-        layoutRef.current?.handleTriggerSave();
-        return;
-      }
-      // Save As: Ctrl+Shift+S
-      if (e.ctrlKey && e.shiftKey && e.key === 'S') {
-        e.preventDefault();
-        layoutRef.current?.handleTriggerSaveAs();
-        return;
-      }
-      // Analyze: Ctrl+Shift+A
-      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
-        e.preventDefault();
-        layoutRef.current?.handleTriggerAnalyze();
-        return;
-      }
-      // File Explorer: Ctrl+Shift+E
-      if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
-        e.preventDefault();
-        handleSidebarTabClick('search');
-        return;
-      }
-      if (e.ctrlKey && e.shiftKey && e.key === 'E') {
-        e.preventDefault();
-        setActiveSidebarTab('files');
-        return;
-      }
-      // Database Explorer: Ctrl+Shift+D
-      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-        e.preventDefault();
-        setActiveSidebarTab('schema');
-        return;
-      }
-      // Settings: Ctrl+,
-      if (e.ctrlKey && e.key === ',') {
-        e.preventDefault();
-        setIsSettingsOpen(true);
-        return;
-      }
-      // Keyboard Shortcuts: Ctrl+Shift+/ — open Settings on Shortcuts tab
-      if (e.ctrlKey && e.shiftKey && e.key === '/') {
-        e.preventDefault();
-        setIsSettingsOpen(true);
-        setSettingsInitialTab('shortcuts');
-        return;
-      }
-      // Close Tab: Ctrl+W
-      if (e.ctrlKey && !e.shiftKey && e.key === 'w') {
-        e.preventDefault();
-        layoutRef.current?.closeActiveTab();
-        return;
-      }
-      // New SQL File: Ctrl+N
-      if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
-        e.preventDefault();
-        layoutRef.current?.createNew('sql');
-        return;
-      }
-      // New Notebook: Ctrl+Shift+N
-      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
-        e.preventDefault();
-        layoutRef.current?.createNew('notebook');
-        return;
-      }
-      // Next Tab: Ctrl+Tab
-      if (e.ctrlKey && !e.shiftKey && e.key === 'Tab') {
-        e.preventDefault();
-        layoutRef.current?.navigateTab(1);
-        return;
-      }
-      // Previous Tab: Ctrl+Shift+Tab
-      // Reabrir la ultima pestaña cerrada.
-      if (e.ctrlKey && e.shiftKey && (e.key === 'T' || e.key === 't')) {
-        e.preventDefault();
-        layoutRef.current?.reabrirUltima();
-        return;
-      }
-      // Fijar o soltar la pestaña activa.
-      if (e.altKey && !e.ctrlKey && !e.shiftKey && (e.key === 'p' || e.key === 'P')) {
-        e.preventDefault();
-        layoutRef.current?.alternarFijada();
-        return;
-      }
-      // Atras y adelante entre pestañas visitadas: deshace el salto que acabas
-      // de dar desde la paleta.
-      if (e.altKey && !e.ctrlKey && e.key === 'ArrowLeft') {
-        e.preventDefault();
-        layoutRef.current?.navegarHistorial(true);
-        return;
-      }
-      if (e.altKey && !e.ctrlKey && e.key === 'ArrowRight') {
-        e.preventDefault();
-        layoutRef.current?.navegarHistorial(false);
-        return;
-      }
-      if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
-        e.preventDefault();
-        layoutRef.current?.navigateTab(-1);
-        return;
-      }
-      // Toggle AI Assistant: Ctrl+L
-      if (e.ctrlKey && !e.shiftKey && e.key === 'l') {
-        e.preventDefault();
-        setShowAiSidebar(v => !v);
-        return;
-      }
-      // Toggle Split View: Ctrl+\
-      if (e.ctrlKey && !e.shiftKey && e.key === '\\') {
-        e.preventDefault();
-        layoutRef.current?.toggleSplit();
-        return;
-      }
-      // Duplicate active tab to the other pane: Ctrl+Shift+\ — the "compare
-      // a variant of this query" gesture, paired with Ctrl+\ (toggle split).
-      if (e.ctrlKey && e.shiftKey && e.key === '|') {
-        e.preventDefault();
-        layoutRef.current?.duplicateActiveTabToOtherPane();
-        return;
-      }
-      // Run both panes: Ctrl+Shift+R. NOT Ctrl+Shift+Enter — SqlNotebook
-      // already owns that globally for "Run All Cells" (its own window
-      // keydown listener, fires whenever any notebook tab is mounted), and
-      // window-level listeners don't stop each other via preventDefault.
-      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
-        e.preventDefault();
-        layoutRef.current?.runBothPanes();
-        return;
-      }
+      const atajo = atajoDe(e);
+      if (!atajo || (!atajo.siempre && appPhase !== PHASE.IDE)) return;
+      e.preventDefault();
+      ACCIONES[atajo.id]?.();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);

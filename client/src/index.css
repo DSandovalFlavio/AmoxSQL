@@ -21714,3 +21714,21 @@ tr:hover td {
 }
 .sf-recordado-chip:hover { color: var(--text-primary); border-color: var(--accent-primary); }
 .sf-recordado-chip:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 1px; }
+
+/* La búsqueda del editor (Dec-88): separada de la barra de acciones para que no
+   parezca que queda por debajo de ella, con borde en los cuatro lados y flechas
+   con más superficie de clic que los 16 px de serie. */
+.monaco-editor .find-widget.visible {
+  margin-top: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+.monaco-editor .find-widget > .find-part .find-actions .button,
+.monaco-editor .find-widget > .button.codicon-widget-close {
+  border-radius: var(--radius-sm);
+}
+.monaco-editor .find-widget > .find-part .find-actions .button:not(.disabled):hover,
+.monaco-editor .find-widget > .button.codicon-widget-close:hover {
+  background: color-mix(in oklch, var(--text-primary) 12%, transparent);
+}

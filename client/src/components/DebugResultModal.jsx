@@ -1,7 +1,9 @@
 import React from 'react';
 import ResultsTable from './ResultsTable';
+import { useEscape } from '../hooks/useEscape';
 
 const DebugResultModal = ({ isOpen, onClose, cteName, result, query }) => {
+    useEscape(onClose, isOpen);
     if (!isOpen) return null;
 
     return (

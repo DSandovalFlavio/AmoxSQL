@@ -2,6 +2,7 @@ import { API_BASE } from '../api.js';
 import { useState, useEffect, useMemo } from 'react';
 import { LuX, LuCopy, LuDownload, LuCheck, LuTriangleAlert, LuSparkles } from 'react-icons/lu';
 import { useToast } from './ToastProvider';
+import { useEscape } from '../hooks/useEscape';
 
 const SIZE_WARN_BYTES = 12 * 1024; // 12 KB — typical limit for external AI chats
 
@@ -29,6 +30,7 @@ function buildFileQuery(path, name, sheet) {
  *   - Archivo:     pasar `fileRef = { path, name }`. Para Excel muestra selector de hoja.
  */
 const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = null }) => {
+    useEscape(onClose, isOpen);
     const toast = useToast();
     const [sampleRows, setSampleRows] = useState(20);
     const [includeProfile, setIncludeProfile] = useState(false);

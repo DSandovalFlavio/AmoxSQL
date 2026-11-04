@@ -17,6 +17,7 @@ import {
 import { API_BASE } from '../api.js';
 import { marcarVistas } from './operacion/Atencion';
 import CompararEntrega from './CompararEntrega';
+import { useEscape } from '../hooks/useEscape';
 
 const ORIGEN = {
     interfaz: 'Run from Data Flow',
@@ -34,6 +35,7 @@ const duracion = (ms) => (ms == null ? '' : ms < 1000 ? `${ms} ms` : ms < 60000 
 const tamano = (b) => (b == null ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b / 1024).toFixed(1)} KB` : `${(b / 1048576).toFixed(1)} MB`);
 
 export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
+    useEscape(onClose);
     const [d, setD] = useState(null);
     const [error, setError] = useState(null);
     const [repitiendo, setRepitiendo] = useState(false);

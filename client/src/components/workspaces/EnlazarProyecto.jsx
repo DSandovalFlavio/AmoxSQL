@@ -12,8 +12,10 @@ import { useEffect, useState } from 'react';
 import { LuFolder, LuPlus, LuCheck, LuArrowRight, LuX, LuLink2Off } from 'react-icons/lu';
 import { useEtiqueta } from '../../etiqueta';
 import { listarWorkspaces, crearWorkspace, enlazarProyecto, COLORES, iniciales } from './api';
+import { useEscape } from '../../hooks/useEscape';
 
 export default function EnlazarProyecto({ enlace, onClose }) {
+    useEscape(onClose);
     const e = useEtiqueta();
     const [lista, setLista] = useState([]);
     const [elegido, setElegido] = useState(enlace?.workspace?.id || null);

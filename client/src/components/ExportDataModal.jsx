@@ -1,12 +1,14 @@
 import { API_BASE } from '../api.js';
 import { useState } from 'react';
 import { LuX, LuDownload, LuFileSpreadsheet, LuFile, LuCloud, LuHardDrive } from 'react-icons/lu';
+import { useEscape } from '../hooks/useEscape';
 
 /**
  * ExportDataModal — Export query results to CSV, Parquet, or Excel (XLSX)
  * Uses DuckDB's native COPY TO for high-performance export.
  */
 const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
+    useEscape(onClose, isOpen);
     const [format, setFormat] = useState('csv');
     const [filename, setFilename] = useState('export'); // For local
     const [destination, setDestination] = useState(''); // For cloud

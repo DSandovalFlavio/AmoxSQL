@@ -67,6 +67,39 @@ console.log('— la cola de ejecución');
         && marcaAlTerminar({ script: true, failCount: 1 }) === 'error' && marcaAlTerminar({ cancelled: true }) === null);
 }
 
+console.log('— la tabla de atajos');
+{
+    const { ATAJOS, atajoDe, coincide, seccionesDeAtajos } = await import(url('utils/atajos.js'));
+    const tecla = (key, m = {}) => ({ key, code: m.code, ctrlKey: !!m.ctrl, shiftKey: !!m.shift, altKey: !!m.alt, metaKey: !!m.meta });
+    const id = (e, mac = false) => atajoDe(e, mac)?.id;
+    bien('los ids no se repiten', new Set(ATAJOS.map(a => a.id)).size === ATAJOS.length);
+    bien('las teclas no se repiten', new Set(ATAJOS.map(a => a.teclas)).size === ATAJOS.length);
+    bien('Ctrl+S', id(tecla('s', { ctrl: true })) === 'guardar');
+    bien('Ctrl+S con Bloq Mayús', id(tecla('S', { ctrl: true })) === 'guardar');
+    bien('Ctrl+Shift+S no es Ctrl+S', id(tecla('S', { ctrl: true, shift: true })) === 'guardarComo');
+    bien('Ctrl+Shift+S con Bloq Mayús', id(tecla('s', { ctrl: true, shift: true })) === 'guardarComo');
+    bien('Ctrl+Shift+/ en teclado de EE. UU.', id(tecla('?', { ctrl: true, shift: true, code: 'Slash' })) === 'lista');
+    bien('Ctrl+Shift+/ con Shift+7', id(tecla('/', { ctrl: true, shift: true, code: 'Digit7' })) === 'lista');
+    bien('Ctrl+\\ por la tecla física', id(tecla('}', { ctrl: true, code: 'Backslash' })) === 'dividir');
+    bien('Ctrl+Shift+\\', id(tecla('|', { ctrl: true, shift: true, code: 'Backslash' })) === 'duplicar');
+    bien('AltGr (Ctrl+Alt) no dispara un atajo', id(tecla('k', { ctrl: true, alt: true })) === undefined);
+    bien('Alt+Izquierda', id(tecla('ArrowLeft', { alt: true })) === 'atras');
+    bien('F5', id(tecla('F5')) === 'ejecutar2');
+    bien('⌘S en Mac', id(tecla('s', { meta: true }), true) === 'guardar');
+    bien('la tecla de Windows no es Ctrl', id(tecla('s', { meta: true }), false) === undefined);
+    bien('Ajustes los lista', seccionesDeAtajos().flatMap(s => s.items).length === ATAJOS.length);
+    const paleta = fs.readFileSync(path.join(RAIZ, 'client/src/components/CommandPalette.jsx'), 'utf8');
+    const anunciadas = [...paleta.matchAll(/shortcut: '([^']+)'/g)].map(m => m[1]);
+    const desconocidas = anunciadas.filter(t => !ATAJOS.some(a => a.teclas === t));
+    bien('la paleta anuncia solo teclas de la tabla', desconocidas.length === 0, desconocidas);
+    for (const i of ['es', 'en']) {
+        const doc = fs.readFileSync(path.join(RAIZ, 'docs', i, 'reference', 'keyboard-shortcuts.md'), 'utf8');
+        const faltan = seccionesDeAtajos(i).flatMap(s => s.items).filter(x => !doc.includes(`| ${x.keys.replace('\\', '\\\\')} | ${x.description} |`));
+        bien(`la documentación (${i}) coincide`, faltan.length === 0, faltan.map(f => f.keys));
+    }
+    void coincide;
+}
+
 if (args.includes('--puro')) { console.log(`\n${ok} bien, ${mal} mal`); process.exit(mal ? 1 : 0); }
 
 // ── Arrancar la aplicación ──────────────────────────────────────────────────
@@ -177,7 +210,8 @@ try {
     const tour = await app.js(`return { hay: !!document.querySelector('.ob-overlay'), dentro: !!document.activeElement?.closest?.('.ob-overlay') };`);
     if (tour.hay) bien('el foco está en el tour', tour.dentro, tour);
     await app.js(`
-      for (let k = 0; k < 8; k++) { const b = t.boton('Skip') || t.boton('Continue'); if (!b) { await t.dormir(300); if (!(t.boton('Skip') || t.boton('Continue'))) break; continue; } b.click(); await t.dormir(400); }
+      for (let k = 0; k < 8; k++) { const b = t.boton('Skip') || t.boton('Continue') || t.boton('Not now') || t.boton('Skip for now') || t.boton('Maybe later'); if (!b) { await t.dormir(300); if (!(t.boton('Skip') || t.boton('Continue'))) break; continue; } b.click(); await t.dormir(400); }
+      document.querySelector('.ww-close-btn')?.click(); await t.dormir(400);
       for (const f of ['uno', 'dos', 'tres']) { const e = t.fila(f); t.pulsar(e); e.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); await t.dormir(800); }
       for (let k = 0; k < 6; k++) { const b = t.boton('Skip'); if (!b) break; b.click(); await t.dormir(400); }`);
     bien('el proyecto se abre con sus pestañas', (await app.js(`return document.querySelectorAll('.tab-item').length`)) === 3);
@@ -195,6 +229,13 @@ try {
 }
 console.log(`\n${ok} bien, ${mal} mal`);
 acabar(mal ? 1 : 0);
+
+// Con AMOX_CAPTURAS=<carpeta>, deja una imagen de los momentos clave.
+async function foto(pg, nombre) {
+    if (!process.env.AMOX_CAPTURAS) return;
+    const r = await pg.cdp('Page.captureScreenshot', { format: 'png' });
+    fs.writeFileSync(path.join(process.env.AMOX_CAPTURAS, `${nombre}.png`), Buffer.from(r.result.data, 'base64'));
+}
 
 // ── Fase 1: que nada se pierda ni se bloquee ────────────────────────────────
 async function fase1(app) {
@@ -324,6 +365,7 @@ async function fase3(app) {
     bien('se abre con los resultados de su pestaña', !!v1 && /200 rows/.test((await lee(v1)).filas), v1 && await lee(v1));
     let e = await app.js(`return { franja: document.querySelector('.ep-emergente')?.innerText, recogido: !!document.querySelector('.ep-results--vacio'), alto: t.alto() };`);
     bien('el panel se recoge y deja el sitio al código', !!e.franja && e.recogido && e.alto < 120, e);
+    await foto(app, 'franja');
     e = await app.js(`await t.ir('dos.sql'); t.boton('Run').click(); await t.dormir(900); return { franja: !!document.querySelector('.ep-emergente'), tabla: !!document.querySelector('.rt-view-btn') };`);
     bien('otra pestaña enseña sus resultados como siempre', !e.franja && e.tabla, e);
     const tras = await lee(v1);
@@ -357,4 +399,50 @@ async function fase3(app) {
     bien('cerrar la pestaña se lleva su ventana', (await emergentes()) === 0, await emergentes());
     await app.js(`const e = t.fila('dos'); t.pulsar(e); e.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); await t.dormir(800);`);
 }
-async function fase4() {}
+// ── Fase 4: atajos, Escape, búsqueda ────────────────────────────────────────
+async function fase4(app) {
+    const cuenta = () => app.js(`return [...document.querySelectorAll('.modal-overlay')].length`);
+    console.log('— atajos desde el editor');
+    await app.js(`await t.ir('tres.sql'); t.ed().focus();`);
+    const ancho = () => app.js(`const p = document.querySelector('.ai-panel'); return p && getComputedStyle(p).pointerEvents !== 'none' && getComputedStyle(p.parentElement).opacity !== '0' ? 100 : 0`);
+    const a0 = await ancho();
+    await app.tecla('ctrl+l'); await dormir(700);
+    const a1 = await ancho();
+    bien('Ctrl+L abre Assist', a1 > a0 + 50, { a0, a1 });
+    await app.js(`t.ed().focus();`);
+    await app.tecla('ctrl+l'); await dormir(700);
+    await app.js(`t.ed().focus();`);
+    const v = await app.js(`return t.ed().getValue();`);
+    await app.tecla('ctrl+shift+f'); await dormir(500);
+    let e = await app.js(`return { activo: document.querySelector('[class*=activity] [class*=active],[class*=rail] [class*=active]')?.getAttribute('title') || '', igual: t.ed().getValue() === ${'${'}JSON.stringify(v)} };`.replace('${JSON.stringify(v)}', JSON.stringify(v)));
+    bien('Ctrl+Shift+F busca en el proyecto', /Search/i.test(e.activo) && e.igual, e);
+    await app.tecla('ctrl+shift+e'); await dormir(300);
+
+    console.log('— Escape');
+    await app.js(`t.boton('Run').click(); await t.dormir(800); t.ed().focus();`);
+    await app.tecla('ctrl+shift+a'); await dormir(900);
+    const m0 = await cuenta();
+    await app.tecla('escape'); await dormir(400);
+    bien('Escape cierra el plan de ejecución', m0 > 0 && (await cuenta()) === m0 - 1, { m0, m1: await cuenta() });
+
+    console.log('— la búsqueda');
+    await app.js(`t.ed().focus();`);
+    await app.tecla('ctrl+f'); await dormir(500);
+    e = await app.js(`
+      const w = document.querySelector('.find-widget.visible');
+      const barra = document.querySelector('.ep-action-bar').getBoundingClientRect().bottom;
+      const botones = [...w.querySelectorAll('.button, .monaco-custom-toggle, textarea')].filter(b => b.getBoundingClientRect().width > 0);
+      const tapados = botones.filter(b => { const q = b.getBoundingClientRect(); const x = document.elementFromPoint(q.x + q.width / 2, q.y + q.height / 2); return !(x === b || b.contains(x) || w.contains(x)); }).map(b => { const q = b.getBoundingClientRect(); const x = document.elementFromPoint(q.x + q.width / 2, q.y + q.height / 2); return b.getAttribute('aria-label') + ' @' + Math.round(q.x) + ',' + Math.round(q.y) + ' por ' + (x?.tagName + '.' + String(x?.className).slice(0, 50)); });
+      return { hueco: Math.round(w.getBoundingClientRect().top - barra), tapados, n: botones.length };`);
+    await foto(app, 'busqueda');
+    bien('separada de la barra y sin nada encima', e.hueco >= 4 && e.tapados.length === 0 && e.n > 5, e);
+    await app.tecla('escape'); await dormir(300);
+    bien('Esc cierra la búsqueda', await app.js(`return !document.querySelector('.find-widget.visible');`));
+
+    console.log('— cerrar la principal');
+    await app.js(`await t.ir('uno.sql'); t.boton('Run').click(); await t.dormir(900); [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.startsWith('Pop out')).click(); await t.dormir(1500);`);
+    await app.js(`setTimeout(() => window.electronAPI.windowControl.close(), 100); return 1;`).catch(() => {});
+    await dormir(3000);
+    const vivas = await paginas().catch(() => []);
+    bien('cerrar la principal cierra también sus ventanas', vivas.length === 0, vivas.map(p => p.url));
+}

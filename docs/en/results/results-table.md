@@ -45,7 +45,7 @@ Drag the right edge of a column header to adjust its width (minimum 50 px). Widt
 At the bottom, move between pages with **‹ ›** and choose how many rows to show per page: **50 / 100 / 500 / 1000**.
 
 ### Pop out to a separate window
-The **Pop-out** button (when available) sends the results to a standalone window — handy for viewing them on a second monitor while you keep editing.
+The **Pop-out** button sends the results to a standalone window — handy for viewing them on a second monitor while you keep editing. The window belongs to that tab: running in another one doesn't change it. See [Tabs and panes](../editor/layout-tabs-and-panes.md).
 
 ## Value-formatting reference
 

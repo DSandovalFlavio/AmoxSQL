@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useEscape } from '../hooks/useEscape';
 
 const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, itemName, itemType }) => {
+    useEscape(onClose, isOpen);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 

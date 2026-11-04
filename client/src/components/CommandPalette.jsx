@@ -341,7 +341,7 @@ export function buildDefaultActions({
         { id: 'shortcuts', label: 'Show Keyboard Shortcuts', category: 'Settings', icon: LuKeyboard, shortcut: 'Ctrl+Shift+/', action: () => { setIsSettingsOpen(true); setSettingsInitialTab?.('shortcuts'); } },
 
         // View / Appearance
-        { id: 'zoom-in', label: 'Zoom In UI', category: 'View', icon: LuSearch, shortcut: 'Ctrl++', action: () => setUiZoomLevel?.(prev => Math.min(prev + 0.1, 2.0)) },
+        { id: 'zoom-in', label: 'Zoom In UI', category: 'View', icon: LuSearch, shortcut: 'Ctrl+=', action: () => setUiZoomLevel?.(prev => Math.min(prev + 0.1, 2.0)) },
         { id: 'zoom-out', label: 'Zoom Out UI', category: 'View', icon: LuSearch, shortcut: 'Ctrl+-', action: () => setUiZoomLevel?.(prev => Math.max(prev - 0.1, 0.5)) },
         { id: 'zoom-reset', label: 'Reset UI Zoom', category: 'View', icon: LuSearch, shortcut: 'Ctrl+0', action: () => setUiZoomLevel?.(1.0) },
         { id: 'toggle-minimap', label: 'Toggle Editor Minimap', category: 'View', icon: LuCode, action: () => setEditorSettings?.(prev => ({...prev, minimap: !prev.minimap})) },

@@ -1,8 +1,10 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useRef } from 'react';
 import { LuX, LuClipboard, LuStar, LuHistory, LuBookmark } from "react-icons/lu";
+import { useEscape } from '../hooks/useEscape';
 
 const QueryHistoryModal = ({ isOpen, onClose, onSelect }) => {
+    useEscape(onClose, isOpen);
     const [history, setHistory] = useState([]);
     const [bookmarks, setBookmarks] = useState([]);
     const [loading, setLoading] = useState(false);

@@ -45,7 +45,7 @@ Haz **clic derecho** sobre el encabezado de una columna para:
 En la parte inferior, navega entre páginas con **‹ ›** y elige cuántas filas mostrar por página: **50 / 100 / 500 / 1000**.
 
 ### Sacar a una ventana aparte
-El botón **Pop-out** (cuando está disponible) envía los resultados a una ventana independiente, útil para verlos en un segundo monitor mientras sigues editando.
+El botón **Pop-out** envía los resultados a una ventana independiente, útil para verlos en un segundo monitor mientras sigues editando. La ventana es de esa pestaña: ejecutar en otra no la cambia. Ver [Pestañas y paneles](../editor/layout-tabs-and-panes.md).
 
 ## Referencia de formato de valores
 

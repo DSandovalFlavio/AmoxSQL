@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LuX, LuCheck, LuTriangleAlert } from 'react-icons/lu';
 import { esSpecVega } from '../vega/figura';
+import { useEscape } from '../../../hooks/useEscape';
 
 /** Los campos que nombra un spec de Vega-Lite (encodings, capas, facetas). */
 function camposDe(spec, fuera = new Set()) {
@@ -37,6 +38,7 @@ function camposCreados(spec, dentro = new Set()) {
  *   columns     - string[]  columnas del dataset actual (para validar keys)
  */
 const PasteJsonModal = ({ isOpen, onClose, onApply, columns = [] }) => {
+    useEscape(onClose, isOpen);
     const [json, setJson] = useState('');
     const [error, setError] = useState(null);
     const [warnings, setWarnings] = useState([]);

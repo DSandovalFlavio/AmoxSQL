@@ -1,6 +1,6 @@
 # Plan 5.19 — mejoras acumulativas · Tanda 1: cada pestaña es suya
 
-**Estado:** descubrimiento hecho, plan pendiente de aprobar (2026-11-04). Nada implementado.
+**Estado:** las cuatro fases de la tanda 1 implementadas (2026-11-04), sin publicar. Pruebas: `scripts/probarInteraccion.mjs`, 67/67 en Electron.
 
 La 5.19 se construye por acumulación: varias entregas `5.18.x` hasta llegar a ella. Esta es la primera
 tanda, y este documento irá creciendo con las que el autor vaya pidiendo.
@@ -212,6 +212,24 @@ AmoxSQL instalado.
 5. **Ctrl+F (A5).** Una captura de cuando pasa, y si tenías Assist abierto, panel dividido o zoom distinto de 100 %.
 6. **Al cerrar la emergente (A4).** Si te sigue pasando en la 5.18: ¿con la X, o con la pestaña en otro estado?
 
-## 7. Bitácora
+## 7. Decisiones del autor (2026-11-04)
 
-- 2026-11-04 — Descubrimiento en Electron y navegador, con home temporal. Base real sin tocar. Plan escrito; sin implementar.
+Las cuatro recomendaciones de §6: Ctrl+K siempre paleta, Ctrl+L siempre Assist, Ctrl+Shift+F siempre búsqueda en el proyecto, y una emergente por pestaña. Quedan abiertas la captura de Ctrl+F (5) y el caso de la emergente (6).
+
+## 8. Lo que cambió al implementar
+
+- **Stop nunca interrumpía** (nuevo, no estaba en §2). `req.on('close')` salta en cuanto se lee el cuerpo de un POST: la consulta salía del registro al empezar y el cancelar respondía 404. Ahora `res.on('close')`.
+- **F: «Ctrl+L sin efecto fuera del editor» era un falso negativo** de la prueba: Assist está montado con ancho 0. Funcionaba.
+- **G3 no es un fallo:** los tours se encolan a propósito. Se queda igual.
+- **G4 no se tocó:** al buscar una coincidencia fuera de la vista, Monaco desplaza para enseñarla. Es lo correcto.
+- **Dec-85 con más alcance:** una pestaña con una consulta en marcha no admite otra (avisa), en vez de encolarse consigo misma.
+- **Escape:** además de los 23 de `modal-overlay`, otra familia de diálogos (`ww-backdrop`) tampoco lo tenía. Se añadió a 7. **No se añadió** a los formularios largos (`EditorDeFuente`, `ContratoDeFuente`, `ContextoWorkspace`), para no perder lo escrito, ni a los que obligan a elegir (`EleccionEtiqueta`, `WorkspaceWizard`). No se mira `defaultPrevented`: Monaco lo deja puesto sin haber usado la tecla.
+- **Coste asumido:** los acordes de Monaco que empiezan por Ctrl+K desaparecen en el editor SQL.
+- **Menú:** en Windows y Linux no hay menú de aplicación; en macOS queda el de Edición, que hace falta para copiar y pegar. Las herramientas de desarrollo: `F12` / `Ctrl+Shift+I` en desarrollo o con `AMOX_DEVTOOLS=1`.
+
+**Sin verificar a mano** (no se puede por el protocolo de depuración): Bloq Mayús físico, distribuciones de teclado reales, copiar y pegar sin menú en el instalador, y Ctrl+R en el instalador (en desarrollo, probado).
+
+## 9. Bitácora
+
+- 2026-11-04 — Descubrimiento en Electron y navegador, con home temporal. Base real sin tocar. Plan escrito.
+- 2026-11-04 — Fases 1 a 4 implementadas en `claude/plan-5-19-interaccion`. Sin subir versión ni publicar.

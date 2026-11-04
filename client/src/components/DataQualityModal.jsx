@@ -1,12 +1,14 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuX, LuShieldCheck, LuCircleAlert, LuCircleCheck, LuLoader } from 'react-icons/lu';
+import { useEscape } from '../hooks/useEscape';
 
 /**
  * DataQualityModal — Runs automated quality checks on a table using DuckDB.
  * Checks: null%, duplicate rows, cardinality, data type consistency, outliers.
  */
 const DataQualityModal = ({ isOpen, onClose, tableName, schema }) => {
+    useEscape(onClose, isOpen);
     const [loading, setLoading] = useState(false);
     const [report, setReport] = useState(null);
     const [error, setError] = useState(null);

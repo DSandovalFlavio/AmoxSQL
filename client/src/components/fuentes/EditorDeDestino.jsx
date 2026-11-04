@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LuFolderOpen, LuSend, LuX } from 'react-icons/lu';
 import { guardarDestino, elegirCarpeta, avisarCambioDestinos, NOMBRE_VALIDO } from './api';
+import { useEscape } from '../../hooks/useEscape';
 
 const hoyCon = (plantilla) => {
     const d = new Date();
@@ -20,6 +21,7 @@ const hoyCon = (plantilla) => {
 };
 
 export default function EditorDeDestino({ destino = null, workspaceId = null, workspaceNombre = null, enProyecto = true, onClose }) {
+    useEscape(onClose);
     const [nombre, setNombre] = useState(destino?.nombre || '');
     const [descripcion, setDescripcion] = useState(destino?.descripcion || '');
     const [subcarpeta, setSubcarpeta] = useState(destino?.subcarpeta || '');

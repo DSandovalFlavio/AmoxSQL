@@ -7,9 +7,11 @@ import { createPortal } from 'react-dom';
 import { LuX, LuLoader, LuTable2 } from 'react-icons/lu';
 
 import { API_BASE as _API } from '../../api.js';
+import { useEscape } from '../../hooks/useEscape';
 const API_BASE = `${_API}/api/chains`;
 
 const ChainDataPreview = ({ tableName, chainFile = '', base = null, onClose }) => {
+    useEscape(onClose);
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);

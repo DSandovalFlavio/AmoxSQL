@@ -5,6 +5,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [Unreleased] — Cada pestaña es suya
+
+Primera tanda hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
+
+### Nuevo
+- **Una consulta por pestaña.** Si ejecutas en otra pestaña mientras una corre, queda en espera, dice de cuál y empieza sola. La pestaña enseña si corre o espera, y un punto si terminó mientras mirabas otra. **Stop** y **Esc** cancelan solo la de la pestaña en la que estás; cerrar la pestaña cancela la suya.
+- **La pestaña recuerda:** su altura de resultados, Ctrl+Z, el orden, los filtros, la página, las columnas y el scroll de la tabla, y las variables abiertas.
+- **La ventana emergente es de su pestaña.** Solo la actualiza una ejecución de esa pestaña, sin quitarte el foco. Una por pestaña, para comparar. **Pin** conserva sus resultados y avisa de los nuevos. El panel se recoge en una línea en vez de dejar medio panel en blanco.
+
+### Cambiado
+- **Ctrl+K abre siempre la paleta**, también en el editor SQL. **Ctrl+L** abre Assist y **Ctrl+Shift+F** busca en el proyecto también desde el editor. Formatear queda en **Shift+Alt+F**. Los acordes del editor que empezaban por Ctrl+K dejan de existir; en Markdown, Ctrl+K sigue insertando un enlace.
+- **Ctrl+Shift+H** (historial) funciona fuera del editor. En Mac, ⌘ sirve para todos los atajos globales.
+- La búsqueda del editor queda separada de la barra de acciones.
+
+### Arreglado
+- **Stop nunca interrumpía la consulta en el motor:** liberaba la interfaz y la consulta seguía ocupando la conexión hasta terminar.
+- Ejecutar en una segunda pestaña dejaba la primera corriendo sin ningún botón para pararla, y bloqueaba todas las consultas.
+- **Ctrl+R recargaba toda la aplicación** y te devolvía a la bienvenida, perdiendo los resultados.
+- **Ctrl+Z dejaba de funcionar** al cambiar de pestaña. Lo que trae el asistente o el disco ahora también se puede deshacer.
+- **Ctrl+K reformateaba tu SQL** con el foco en el editor.
+- La ventana emergente cambiaba de resultados al ejecutar en otra pestaña; **Bring back** la dejaba abierta y huérfana; cerrar la principal la dejaba viva sin forma de volver.
+- Con Bloq Mayús activado no respondían Ctrl+S, B, W, N ni L fuera del editor. Ctrl+Shift+/ y Ctrl+\ ya no dependen de la distribución del teclado.
+- **Escape** cierra también el plan de ejecución, el historial, exportar, guardar, importar y casi 30 diálogos en total. Se queda fuera en los formularios largos (fuente, contrato, contexto del workspace), para no perder lo escrito.
+- El tour de bienvenida no se quedaba con el foco: lo que escribías iba al archivo de detrás.
+- La documentación de atajos decía que Ctrl+D duplicaba (selecciona la siguiente coincidencia; duplicar es Shift+Alt+Abajo). Ahora Ajustes y la documentación salen de la misma tabla.
+
+### Interno
+- `utils/colaDeEjecucion.js`, `utils/memoriaDePestana.js`, `utils/atajos.js`, `utils/atajosEnMonaco.js`, `hooks/useEscape.js`. Sin `KeyboardShortcutsModal.jsx`, que era código muerto.
+- `scripts/probarInteraccion.mjs`: maneja Electron real con home temporal. `scripts/atajosADocs.mjs`: las tablas de atajos de la documentación.
+
 ## [5.18.0] — 2026-10-27
 
 **Los gráficos son Vega-Lite.** Story Flow dibuja con la gramática abierta de gráficos y un `.amoxvis` es un Vega-Lite válido: una consulta y su gráfico ya no son de AmoxSQL, se abren en cualquier herramienta que lea Vega-Lite (plan en `docs/dev/plan_graficos_vega_lite.md`). Los paneles y el código editan la misma figura, hay 26 tipos, y un `.sql` recuerda su gráfico. Esta versión reúne la 5.16 y la 5.17, que no se publicaron por separado.
