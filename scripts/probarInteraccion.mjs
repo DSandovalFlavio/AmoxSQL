@@ -248,6 +248,54 @@ async function fase1(app) {
     bien('Ctrl+R no recarga la aplicación', await app.js(`return !!window.__marca && !!window.t`).catch(() => false));
 }
 
-async function fase2() {}
+// ── Fase 2: la pestaña recuerda ─────────────────────────────────────────────
+async function fase2(app) {
+    console.log('— la altura es de la pestaña');
+    await app.js(`await t.ir('uno.sql'); t.boton('Run').click(); await t.dormir(900); await t.ir('dos.sql'); t.boton('Run').click(); await t.dormir(900);`);
+    let e = await app.js(`
+      await t.ir('uno.sql'); const a = await t.redim(220);
+      await t.ir('dos.sql'); const b = await t.redim(600);
+      await t.ir('uno.sql'); const a2 = t.alto();
+      await t.ir('dos.sql'); const b2 = t.alto();
+      return { a, b, a2, b2 };`);
+    bien('cada una conserva la suya', Math.abs(e.a - e.a2) <= 1 && Math.abs(e.b - e.b2) <= 1 && Math.abs(e.a - e.b) > 100, e);
+    e = await app.js(`
+      await t.ir('tres.sql'); t.boton('Run').click(); await t.dormir(900); const c = t.alto();
+      await t.ir('uno.sql'); await t.redim(300);
+      await t.ir('tres.sql'); return { c, c2: t.alto() };`);
+    bien('una pestaña ya vista no se mueve al arrastrar en otra', Math.abs(e.c - e.c2) <= 1, e);
+
+    console.log('— Ctrl+Z');
+    await app.js(`await t.ir('tres.sql'); t.ed().focus(); t.ed().setPosition({ lineNumber: 1, column: 1 });`);
+    const original = await app.js(`return t.ed().getValue();`);
+    await app.escribir('-- nota\n');
+    await dormir(300);
+    e = await app.js(`const escrito = t.ed().getValue(); await t.ir('uno.sql'); const otra = t.ed().getValue(); await t.ir('tres.sql'); t.ed().focus(); return { escrito, otra, vuelto: t.ed().getValue() };`);
+    bien('el texto de cada pestaña es el suyo', e.escrito.startsWith('-- nota') && !e.otra.includes('-- nota') && e.vuelto === e.escrito, e);
+    for (let i = 0; i < 3 && (await app.js(`return t.ed().getValue();`)) !== original; i++) { await app.tecla('ctrl+z'); await dormir(250); }
+    e = await app.js(`return { v: t.ed().getValue(), puede: t.ed().getModel().canUndo(), foco: t.ed().hasTextFocus(), activo: document.activeElement?.className };`);
+    bien('Ctrl+Z deshace lo escrito antes de cambiar de pestaña', e.v === original, { ...e, original });
+    bien('hay un modelo por pestaña', (await app.js(`return monaco.editor.getModels().filter(m => m.uri.path.includes('pestana')).length`)) >= 3);
+
+    console.log('— la tabla');
+    e = await app.js(`
+      await t.ir('uno.sql');
+      const fila = () => document.querySelector('.rt-content tbody tr td:nth-child(2)')?.innerText;
+      const antes = fila();
+      const ordenar = [...document.querySelectorAll('.rt-content th .rt-th-inner')].filter(x => x.innerText.startsWith('id'))[0];
+      const pulsa = (el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      pulsa(ordenar); await t.dormir(200); pulsa(ordenar); await t.dormir(300);
+      const ordenado = fila();
+      const c = document.querySelector('.rt-content'); c.scrollTop = 150; await t.dormir(100); const s0 = c.scrollTop;
+      await t.ir('dos.sql'); await t.ir('uno.sql'); await t.dormir(300);
+      return { antes, ordenado, vuelta: fila(), s0, s1: document.querySelector('.rt-content').scrollTop };`);
+    bien('el orden sobrevive', e.ordenado !== e.antes && e.vuelta === e.ordenado, e);
+    bien('el scroll sobrevive', e.s0 > 0 && Math.abs(e.s0 - e.s1) <= 2, e);
+    e = await app.js(`
+      const fila = () => document.querySelector('.rt-content tbody tr td:nth-child(2)')?.innerText;
+      const ordenado = fila(); t.boton('Run').click(); await t.dormir(1000);
+      return { ordenado, tras: fila() };`);
+    bien('ejecutar otra vez empieza de cero', e.tras !== e.ordenado, e);
+}
 async function fase3() {}
 async function fase4() {}

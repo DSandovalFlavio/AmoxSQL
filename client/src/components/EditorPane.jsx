@@ -38,7 +38,7 @@ import { guardarBorrador } from '../utils/borradorGrafico';
  */
 const ResultadosDePestana = ({ tab, ...resto }) => {
     const [inicial] = useState(() => tab.chartConfig || tab.initialChartConfig || null);
-    return <ResultsTable initialChartConfig={inicial} initialViewMode={tab.viewMode} {...resto} />;
+    return <ResultsTable initialChartConfig={inicial} initialViewMode={tab.viewMode} clavePestana={tab.id} {...resto} />;
 };
 
 const PaneLoading = ({ label = 'Loading…' }) => (
@@ -156,7 +156,11 @@ const EditorPane = ({
     // on every keystroke; PaneTimestamps refreshes the label on its own tick.
     const lastEditTimeRef = useRef(null);
     const lastRunTimeRef = useRef(null);
-    const [varsExpanded, setVarsExpanded] = useState(false);
+    // De la pestaña, como la altura: abrir las variables en una no las abre en otra.
+    const varsExpanded = !!activeTab?.variablesAbiertas;
+    const setVarsExpanded = (abiertas) => {
+        if (activeTab && onPersistUiState) onPersistUiState(paneId, activeTab.id, { variablesAbiertas: abiertas });
+    };
 
     // Close save dropdown on outside click
     useEffect(() => {
@@ -882,7 +886,7 @@ const EditorPane = ({
                                     <VariablesToggle
                                         count={(variables || []).length}
                                         isExpanded={varsExpanded}
-                                        onToggle={() => setVarsExpanded(v => !v)}
+                                        onToggle={() => setVarsExpanded(!varsExpanded)}
                                         onAdd={() => {
                                             const vars = variables || [];
                                             const name = `var_${vars.length + 1}`;
@@ -942,6 +946,7 @@ const EditorPane = ({
                                 <div className={`ep-editor-wrapper${isActive ? ' active' : ''}`}>
                                     <SqlEditor
                                         tabId={activeTab.id}
+                                        modeloPorPestana
                                         value={activeTab.content}
                                         // La línea que era toda la premisa:
                                         // `md ? 'markdown' : 'sql'`. Lo dice la

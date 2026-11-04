@@ -25,6 +25,7 @@ import { leerAmoxvis, textoAmoxvis } from './DataVisualizer/vega/figura';
 import { leerBorrador } from '../utils/borradorGrafico';
 import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
 import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
+import { olvidarPestanas } from '../utils/memoriaDePestana';
 
 /**
  * Un .sql se abre con el gráfico que tenía la última vez (Dec-79): la vista
@@ -87,12 +88,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     // --- Split geometry (Fase 3/4) ---
     // splitRatio: the LEFT pane's share of the horizontal space, 0.2-0.8.
-    // resultsRatios: each pane's own results-panel share (height when the
-    // editor is horizontal, width when vertical) — used only while UNlinked.
-    // linkedResultsRatio: the single shared value both panes use while linked.
-    // resultsLinked defaults to true: dragging one pane's results divider
-    // moves both, which is what you want the moment you're comparing two
-    // queries side by side — that's the whole point of opening a split.
+    // La altura de resultados es de cada pestaña (`tab.resultsRatio`, Dec-82).
+    // ultimaAltura: la última que se eligió; la hereda una pestaña la primera vez
+    // que se ve. resultsLinked defaults to true: dragging one pane's results
+    // divider moves the tabs visible in both, which is what you want the moment
+    // you're comparing two queries side by side.
     //
     // Restored via LAZY initializers (read localStorage synchronously on the
     // very first render), not a post-mount effect — an effect-based restore
@@ -110,11 +110,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const v = readSplitStorage().resultsLinked;
         return typeof v === 'boolean' ? v : true;
     });
-    const [resultsRatios, setResultsRatios] = useState(() => {
-        const v = readSplitStorage().resultsRatios;
-        return { left: 0.35, right: 0.35, ...(v && typeof v === 'object' ? v : {}) };
-    });
-    const [linkedResultsRatio, setLinkedResultsRatio] = useState(() => {
+    const [ultimaAltura, setUltimaAltura] = useState(() => {
         const v = readSplitStorage().linkedResultsRatio;
         return typeof v === 'number' ? v : 0.35;
     });
@@ -186,7 +182,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     stateRef.current = {
         leftTabs, rightTabs, leftActiveId, rightActiveId, activePane, splitEnabled,
         queryVariables, draggedTab,
-        resultsLinked, resultsRatios, linkedResultsRatio,
+        resultsLinked, ultimaAltura,
         editorSettings, onRequestSaveAs, onQueryResult, onDbChange,
         toast, dialog,
     };
@@ -201,8 +197,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const [retomar, setRetomar] = useState(null);
     useEffect(() => {
         const tabMeta = {
-            leftTabs: leftTabs.map(t => ({ path: t.path, name: t.name, type: t.type })),
-            rightTabs: rightTabs.map(t => ({ path: t.path, name: t.name, type: t.type })),
+            leftTabs: leftTabs.map(t => ({ path: t.path, name: t.name, type: t.type, resultsRatio: t.resultsRatio })),
+            rightTabs: rightTabs.map(t => ({ path: t.path, name: t.name, type: t.type, resultsRatio: t.resultsRatio })),
             leftActiveId,
             rightActiveId,
             splitEnabled
@@ -308,6 +304,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                             // anterior a este cambio no trae `type`, y volvía
                             // declarándose ejecutable fuera lo que fuera.
                             type: tipo,
+                            ...(typeof t.resultsRatio === 'number' ? { resultsRatio: t.resultsRatio } : {}),
                             name: tipo === 'amoxvis' ? t.path.split(/[/\\]/).pop() : t.name,
                             content: data.content,
                             firma: data.firma || null,
@@ -347,10 +344,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     useEffect(() => {
         try {
             localStorage.setItem(SPLIT_STORAGE_KEY, JSON.stringify({
-                splitRatio, resultsLinked, resultsRatios, linkedResultsRatio,
+                splitRatio, resultsLinked, linkedResultsRatio: ultimaAltura,
             }));
         } catch { /* ignore */ }
-    }, [splitRatio, resultsLinked, resultsRatios, linkedResultsRatio]);
+    }, [splitRatio, resultsLinked, ultimaAltura]);
 
     // Helpers — stable identities (read current state via stateRef)
     const getActiveTab = useCallback(() => {
@@ -414,14 +411,17 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         for (const id of colaRef.current.pestanas()) {
             if (!vivas.has(id)) colaRef.current.cancelar(id);
         }
+        olvidarPestanas(vivas);
     }, [leftTabs, rightTabs]);
 
     // Volver a una pestaña apaga la marca de «terminó mientras no mirabas».
     useEffect(() => {
         for (const t of [...leftTabs, ...rightTabs]) {
-            if (t.avisoEjecucion && (t.id === leftActiveId || t.id === rightActiveId)) {
-                actualizarPestana(t.id, { avisoEjecucion: null });
-            }
+            if (t.id !== leftActiveId && t.id !== rightActiveId) continue;
+            if (t.avisoEjecucion) actualizarPestana(t.id, { avisoEjecucion: null });
+            // La primera vez que se ve hereda la última altura, y desde ahí es suya:
+            // arrastrar en otra pestaña ya no la mueve.
+            if (typeof t.resultsRatio !== 'number') actualizarPestana(t.id, { resultsRatio: ultimaAltura });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [leftActiveId, rightActiveId, actualizarPestana]);
@@ -2277,12 +2277,16 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // linked, BOTH panes write to the same shared value; while unlinked, each
     // pane keeps its own entry in `resultsRatios`.
     const handleResultsRatioChange = useCallback((paneId, ratio) => {
-        if (stateRef.current.resultsLinked) {
-            setLinkedResultsRatio(ratio);
+        const { resultsLinked, splitEnabled, leftActiveId, rightActiveId } = stateRef.current;
+        setUltimaAltura(ratio);
+        if (resultsLinked && splitEnabled) {
+            if (leftActiveId) actualizarPestana(leftActiveId, { resultsRatio: ratio });
+            if (rightActiveId) actualizarPestana(rightActiveId, { resultsRatio: ratio });
         } else {
-            setResultsRatios(prev => ({ ...prev, [paneId]: ratio }));
+            const id = paneId === 'left' ? leftActiveId : rightActiveId;
+            if (id) actualizarPestana(id, { resultsRatio: ratio });
         }
-    }, []);
+    }, [actualizarPestana]);
     const handleLeftResultsRatioChange = useCallback((ratio) => handleResultsRatioChange('left', ratio), [handleResultsRatioChange]);
     const handleRightResultsRatioChange = useCallback((ratio) => handleResultsRatioChange('right', ratio), [handleResultsRatioChange]);
 
@@ -2307,16 +2311,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         setResultsLinked(prev => {
             const next = !prev;
             if (next) {
-                // Turning ON: adopt the ACTIVE pane's current ratio as the shared
-                // value, so the OTHER pane visibly animates to match it instead of
-                // jumping to some unrelated number.
-                const { activePane, resultsRatios } = stateRef.current;
-                setLinkedResultsRatio(resultsRatios[activePane] ?? 0.35);
-            } else {
-                // Turning OFF: both panes keep exactly the size they had while
-                // linked — nothing should visibly move at the moment of unlinking.
-                const shared = stateRef.current.linkedResultsRatio;
-                setResultsRatios({ left: shared, right: shared });
+                // Turning ON: the tab visible in the other pane adopts the ACTIVE
+                // pane's height. Turning OFF moves nothing: each tab keeps its own.
+                const { activePane, leftActiveId, rightActiveId, leftTabs, rightTabs } = stateRef.current;
+                const [origen, destino] = activePane === 'left' ? [leftActiveId, rightActiveId] : [rightActiveId, leftActiveId];
+                const altura = [...leftTabs, ...rightTabs].find(t => t.id === origen)?.resultsRatio;
+                if (destino && typeof altura === 'number') actualizarPestana(destino, { resultsRatio: altura });
             }
             return next;
         });
@@ -2437,7 +2437,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onShowHistory={onShowHistorySidebar}
                         onOpenAmoxvisAsSql={openAmoxvisAsSql}
                         onPersistUiState={updateTab}
-                        resultsRatio={resultsLinked ? linkedResultsRatio : resultsRatios.left}
+                        resultsRatio={leftTabs.find(t => t.id === leftActiveId)?.resultsRatio ?? ultimaAltura}
                         onResultsRatioChange={handleLeftResultsRatioChange}
                         splitEnabled={splitEnabled}
                         onGetOtherPaneResults={getOtherPaneResults}
@@ -2495,7 +2495,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                                 onCancelQuery={cancelQuery}
                                 onOpenAmoxvisAsSql={openAmoxvisAsSql}
                                 onPersistUiState={updateTab}
-                                resultsRatio={resultsLinked ? linkedResultsRatio : resultsRatios.right}
+                                resultsRatio={rightTabs.find(t => t.id === rightActiveId)?.resultsRatio ?? ultimaAltura}
                                 onResultsRatioChange={handleRightResultsRatioChange}
                                 splitEnabled={splitEnabled}
                                 onGetOtherPaneResults={getOtherPaneResults}

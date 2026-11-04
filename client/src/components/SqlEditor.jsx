@@ -6,6 +6,7 @@ import { getSharedSqlWorkerBridge, initSharedSqlWorkerBridge } from '../utils/sq
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import { splitSqlStatements } from '../utils/sqlSplitter';
 import { atajosGlobalesEnMonaco } from '../utils/atajosEnMonaco.js';
+import { modeloDe } from '../utils/memoriaDePestana.js';
 import * as dbtCompletado from '../utils/dbtCompletado.js';
 
 // 5.12 (I12, Dec-35): el catálogo de dbt del proyecto abierto, compartido por todos
@@ -166,8 +167,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     const programmaticRef = useRef(false);
     const setValueSilently = (editor, next) => {
         programmaticRef.current = true;
-        try { editor.setValue(next || ''); }
-        finally { programmaticRef.current = false; }
+        try {
+            // Con un modelo por pestaña el cambio entra en la historia: lo que trae
+            // el asistente o el disco se puede deshacer. `setValue` la borraría.
+            if (props.modeloPorPestana) {
+                const model = editor.getModel();
+                editor.pushUndoStop();
+                model.pushEditOperations([], [{ range: model.getFullModelRange(), text: next || '' }], () => null);
+                editor.pushUndoStop();
+            } else {
+                editor.setValue(next || '');
+            }
+        } finally { programmaticRef.current = false; }
     };
 
     // Save view state on unmount
@@ -193,7 +204,15 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 globalViewStateCache.set(activeTabIdRef.current, editor.saveViewState());
             }
             activeTabIdRef.current = props.tabId;
-            setValueSilently(editor, value);
+            if (props.modeloPorPestana && monacoRef.current) {
+                const modelo = modeloDe(monacoRef.current, props.tabId, value, props.language);
+                monacoRef.current.editor.setModelLanguage(modelo, props.language || 'sql');
+                editor.setModel(modelo);
+                // Lo que cambió mientras no estaba activa (el asistente, el disco).
+                if (modelo.getValue() !== (value ?? '')) setValueSilently(editor, value);
+            } else {
+                setValueSilently(editor, value);
+            }
             lastBroadcastRef.current = null;
 
             const savedState = globalViewStateCache.get(props.tabId);
@@ -364,6 +383,17 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         // Clear any previous disposables (safety for re-mount scenarios)
         disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
         disposablesRef.current = [];
+
+        // El modelo de esta pestaña, si ya lo tenía: vuelve con su historia.
+        if (props.modeloPorPestana && props.tabId) {
+            const inicial = editor.getModel();
+            const modelo = modeloDe(monaco, props.tabId, value, props.language);
+            if (modelo !== inicial) {
+                editor.setModel(modelo);
+                inicial?.dispose();
+            }
+            if (modelo.getValue() !== (value ?? '')) setValueSilently(editor, value);
+        }
 
         // Monaco measures glyph widths at init; if the editor font finishes
         // loading afterwards, cursor and selection are painted with stale
@@ -576,6 +606,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             cteDebounceTimer = setTimeout(updateCteDecorations, 250);
         });
         disposablesRef.current.push(contentChangeDisposable);
+        // Cambiar de modelo no cuenta como cambio de contenido.
+        disposablesRef.current.push(editor.onDidChangeModel(() => updateCteDecorations()));
         disposablesRef.current.push({ dispose: () => { if (cteDebounceTimer) clearTimeout(cteDebounceTimer); } });
 
         // Handle Click
@@ -753,6 +785,12 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             }, 300);
         });
         disposablesRef.current.push(changeModelDisposable);
+        disposablesRef.current.push(editor.onDidChangeModel(() => {
+            const text = editor.getValue();
+            marcarDbt();
+            if (workerBridgeRef.current) workerBridgeRef.current.syncDocument(docIdRef.current, text);
+            scanAndCacheFileSchemas(text);
+        }));
 
         // Always update the autocomplete resolver (ref pattern bypasses React HMR closure traps)
         completionProviderRef.current = async (model, position, token) => {
@@ -1204,6 +1242,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             beforeMount={handleEditorWillMount}
             options={editorOptions}
             onMount={handleEditorDidMount}
+            keepCurrentModel={!!props.modeloPorPestana}
         />
     );
 };
