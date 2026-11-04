@@ -297,5 +297,64 @@ async function fase2(app) {
       return { ordenado, tras: fila() };`);
     bien('ejecutar otra vez empieza de cero', e.tras !== e.ordenado, e);
 }
-async function fase3() {}
+// ── Fase 3: la ventana emergente ────────────────────────────────────────────
+async function fase3(app) {
+    const emergentes = async () => (await paginas()).filter(p => p.url.includes('popout=true')).length;
+    const abrirEmergente = () => app.js(`[...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.startsWith('Pop out')).click(); await t.dormir(300);`);
+    const ventana = async (n) => {
+        for (let i = 0; i < 30; i++) {
+            for (const p of (await paginas()).filter(x => x.url.includes('popout=true'))) {
+                const ws = new WebSocket(p.webSocketDebuggerUrl);
+                await new Promise((r) => { ws.onopen = r; });
+                const pg = new Pagina(ws);
+                const titulo = await pg.js(`return document.querySelector('.popout-title')?.innerText || ''`);
+                if (titulo.includes(n)) return pg;
+                ws.close();
+            }
+            await dormir(300);
+        }
+        return null;
+    };
+    const lee = (pg) => pg.js(`return { titulo: document.querySelector('.popout-title')?.innerText, filas: document.querySelector('.popout-badge')?.innerText }`);
+
+    console.log('— anclada a su pestaña');
+    await app.js(`await t.ir('uno.sql'); t.boton('Run').click(); await t.dormir(900);`);
+    await abrirEmergente();
+    const v1 = await ventana('uno.sql');
+    bien('se abre con los resultados de su pestaña', !!v1 && /200 rows/.test((await lee(v1)).filas), v1 && await lee(v1));
+    let e = await app.js(`return { franja: document.querySelector('.ep-emergente')?.innerText, recogido: !!document.querySelector('.ep-results--vacio'), alto: t.alto() };`);
+    bien('el panel se recoge y deja el sitio al código', !!e.franja && e.recogido && e.alto < 120, e);
+    e = await app.js(`await t.ir('dos.sql'); t.boton('Run').click(); await t.dormir(900); return { franja: !!document.querySelector('.ep-emergente'), tabla: !!document.querySelector('.rt-view-btn') };`);
+    bien('otra pestaña enseña sus resultados como siempre', !e.franja && e.tabla, e);
+    const tras = await lee(v1);
+    bien('ejecutar en otra pestaña no la toca', /uno\.sql/.test(tras.titulo) && /200 rows/.test(tras.filas), tras);
+
+    console.log('— varias, y sigue a su pestaña');
+    await abrirEmergente();
+    const v2 = await ventana('dos.sql');
+    bien('una ventana por pestaña', !!v2 && (await emergentes()) === 2, await emergentes());
+    await app.js(`await t.ir('uno.sql'); t.ed().executeEdits('p', [{ range: t.ed().getModel().getFullModelRange(), text: 'SELECT i AS id FROM range(7) t(i);' }]); await t.dormir(200); t.boton('Run').click(); await t.dormir(900); await t.ir('tres.sql');`);
+    await dormir(600);
+    bien('una ejecución nueva de su pestaña la actualiza', /7 rows/.test((await lee(v1)).filas), await lee(v1));
+    await v1.js(`[...document.querySelectorAll('.popout-accion')].find(b => b.textContent.includes('Pin')).click(); await new Promise(r => setTimeout(r, 200));`);
+    await app.js(`await t.ir('uno.sql'); t.ed().executeEdits('p', [{ range: t.ed().getModel().getFullModelRange(), text: 'SELECT i AS id FROM range(3) t(i);' }]); await t.dormir(200); t.boton('Run').click(); await t.dormir(900);`);
+    await dormir(600);
+    e = await v1.js(`return { filas: document.querySelector('.popout-badge')?.innerText, hay: [...document.querySelectorAll('.popout-accion')].some(b => b.textContent.includes('Newer')) };`);
+    bien('fijada conserva lo suyo y avisa de lo nuevo', /7 rows/.test(e.filas) && e.hay, e);
+
+    console.log('— cierres');
+    await app.js(`document.querySelectorAll('.ep-emergente button')[1].click(); await t.dormir(1200);`);
+    bien('Bring back cierra la ventana', (await emergentes()) === 1, await emergentes());
+    e = await app.js(`return { franja: !!document.querySelector('.ep-emergente'), tabla: !!document.querySelector('.rt-view-btn'), alto: t.alto() };`);
+    bien('y la tabla vuelve con su altura', !e.franja && e.tabla && e.alto > 120, e);
+    await v2.js(`document.querySelector('.control-btn.close').click(); return 1;`).catch(() => {});
+    await dormir(1200);
+    e = await app.js(`await t.ir('dos.sql'); return { franja: !!document.querySelector('.ep-emergente'), tabla: !!document.querySelector('.rt-view-btn') };`);
+    bien('cerrar la ventana con su X devuelve la tabla', !e.franja && e.tabla && (await emergentes()) === 0, e);
+    await abrirEmergente();
+    await dormir(1200);
+    await app.js(`t.item('dos.sql').querySelector('.tab-close').click(); await t.dormir(1200);`);
+    bien('cerrar la pestaña se lleva su ventana', (await emergentes()) === 0, await emergentes());
+    await app.js(`const e = t.fila('dos'); t.pulsar(e); e.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); await t.dormir(800);`);
+}
 async function fase4() {}

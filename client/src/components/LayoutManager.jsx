@@ -414,6 +414,61 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         olvidarPestanas(vivas);
     }, [leftTabs, rightTabs]);
 
+    // ── Ventanas emergentes (Dec-86/87) ──
+    const datosDeEmergente = (t) => ({
+        tabId: t.id,
+        data: t.results.data,
+        types: t.results.types,
+        executionTime: t.results.executionTime,
+        truncated: t.results.truncated,
+        rowLimit: t.results.rowLimit,
+        query: t.resultsQuery || t.content,
+        cellTitle: t.name,
+        viewMode: t.viewMode || null,
+        chartConfig: t.chartConfig || t.initialChartConfig || null,
+    });
+    const enviadosRef = useRef(new Map()); // tabId → los resultados que ya tiene su ventana
+
+    const abrirEmergente = useCallback((tabId) => {
+        const { leftTabs, rightTabs } = stateRef.current;
+        const t = [...leftTabs, ...rightTabs].find(x => x.id === tabId);
+        if (!t?.results || !window.electronAPI?.openPopout) return;
+        enviadosRef.current.set(tabId, t.results);
+        window.electronAPI.openPopout(datosDeEmergente(t));
+        actualizarPestana(tabId, { emergente: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [actualizarPestana]);
+
+    // La ventana cerrada, por donde sea: los resultados vuelven a su pestaña.
+    // Al montar se cierran las que hubiera: son de pestañas que ya no existen.
+    useEffect(() => {
+        window.electronAPI?.closeAllPopouts?.();
+        const quitar = window.electronAPI?.onPopoutClosed?.((tabId) => {
+            enviadosRef.current.delete(tabId);
+            actualizarPestana(tabId, { emergente: false });
+        });
+        return () => quitar?.();
+    }, [actualizarPestana]);
+
+    // Solo una ejecución de ESA pestaña la actualiza, esté activa o no.
+    useEffect(() => {
+        const vivas = new Set();
+        for (const t of [...leftTabs, ...rightTabs]) {
+            vivas.add(t.id);
+            if (!t.emergente || !t.results || enviadosRef.current.get(t.id) === t.results) continue;
+            enviadosRef.current.set(t.id, t.results);
+            window.electronAPI?.updatePopout?.(datosDeEmergente(t));
+        }
+        // La pestaña que se cerró se lleva su ventana.
+        for (const id of [...enviadosRef.current.keys()]) {
+            if (!vivas.has(id)) {
+                enviadosRef.current.delete(id);
+                window.electronAPI?.closePopout?.(id);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [leftTabs, rightTabs]);
+
     // Volver a una pestaña apaga la marca de «terminó mientras no mirabas».
     useEffect(() => {
         for (const t of [...leftTabs, ...rightTabs]) {
@@ -2172,7 +2227,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             path: '',
             dirty: true,
             results: null, resultsQuery: null, resultsError: null, scriptRun: null, errorMarker: null,
-            ejecucion: null, avisoEjecucion: null,
+            ejecucion: null, avisoEjecucion: null, emergente: false,
         };
         setSplitEnabled(true);
         if (target === 'left') { setLeftTabs(prev => [...prev, clone]); setLeftActiveId(clone.id); }
@@ -2433,7 +2488,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         availableTables={availableTables}
                         onExportNotebook={onExportNotebook}
                         onExportAmoxvis={onExportAmoxvis}
-                        onCancelQuery={cancelQuery}
+                        onCancelQuery={cancelQuery} onAbrirEmergente={abrirEmergente}
                         onShowHistory={onShowHistorySidebar}
                         onOpenAmoxvisAsSql={openAmoxvisAsSql}
                         onPersistUiState={updateTab}
@@ -2492,7 +2547,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                                 availableTables={availableTables}
                                 onExportNotebook={onExportNotebook}
                                 onExportAmoxvis={onExportAmoxvis}
-                                onCancelQuery={cancelQuery}
+                                onCancelQuery={cancelQuery} onAbrirEmergente={abrirEmergente}
                                 onOpenAmoxvisAsSql={openAmoxvisAsSql}
                                 onPersistUiState={updateTab}
                                 resultsRatio={rightTabs.find(t => t.id === rightActiveId)?.resultsRatio ?? ultimaAltura}

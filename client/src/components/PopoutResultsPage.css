@@ -116,3 +116,21 @@
 @keyframes popout-spin {
     to { transform: rotate(360deg); }
 }
+
+.popout-accion {
+    -webkit-app-region: no-drag;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-default);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+}
+.popout-accion:hover { color: var(--text-primary); }
+.popout-accion--activa { background: var(--accent-muted); border-color: transparent; color: var(--text-primary); }
+.popout-accion--nuevos { background: var(--accent-primary); border-color: transparent; color: var(--surface-base); font-weight: 600; }
+.popout-accion--nuevos:hover { color: var(--surface-base); }

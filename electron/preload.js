@@ -46,9 +46,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     // Pop-out Results Window
     openPopout: (data) => ipcRenderer.invoke('popout:open', data),
+    updatePopout: (data) => ipcRenderer.invoke('popout:update', data),
+    focusPopout: (tabId) => ipcRenderer.invoke('popout:focus', tabId),
+    closePopout: (tabId) => ipcRenderer.invoke('popout:close', tabId),
+    closeAllPopouts: () => ipcRenderer.invoke('popout:closeAll'),
     onPopoutClosed: (callback) => {
-        ipcRenderer.on('popout:closed', callback);
-        return () => ipcRenderer.removeListener('popout:closed', callback);
+        const handler = (_event, tabId) => callback(tabId);
+        ipcRenderer.on('popout:closed', handler);
+        return () => ipcRenderer.removeListener('popout:closed', handler);
     },
     // Child window: receive popout data
     onPopoutData: (callback) => {

@@ -4350,19 +4350,27 @@ tr:hover .rt-td--pinned {
 }
 .ep-espera button:hover { color: var(--text-primary); }
 
-.ep-popout-notice {
-  padding: var(--space-6);
-  text-align: center;
+.ep-emergente {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
   color: var(--text-secondary);
-  font-style: italic;
-  background-color: var(--surface-raised);
-  border-radius: var(--radius-md);
-  margin: var(--space-4);
+  font-size: var(--text-xs);
 }
-
-.ep-popout-notice button {
-  margin-top: var(--space-3);
+.ep-emergente > svg { flex-shrink: 0; color: var(--accent-primary); }
+.ep-emergente > span { flex: 1; min-width: 0; }
+.ep-emergente button {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
 }
+.ep-emergente button:hover { color: var(--text-primary); }
 
 /* ── Editor Pane File Drop Overlay ── */
 

@@ -359,8 +359,8 @@ function atajosDeVentana(win) {
 }
 
 let mainWindow;
-let popoutWindow = null;
-let pendingPopoutData = null;
+// Una ventana emergente por pestaña (Dec-86): tabId → { win, pendiente }.
+const emergentes = new Map();
 let serverProcess = null;
 // Distingue "el servidor se murio" de "lo estamos matando nosotros al salir":
 // solo el primer caso merece avisar al usuario.
@@ -467,6 +467,9 @@ const createWindow = () => {
     // then apply our own zoom factor and notify the renderer to sync UI state.
     atajosDeVentana(mainWindow);
 
+    // Sin la principal no hay forma de volver: las emergentes se van con ella.
+    mainWindow.on('closed', () => cerrarEmergentes());
+
     // Load the App
     if (!app.isPackaged) {
         // AMOX_DEV_URL lets a second checkout/worktree run alongside another
@@ -487,16 +490,23 @@ const createWindow = () => {
 };
 
 // --- Pop-out Results Window IPC ---
+// Cada ventana es de una pestaña: solo la actualiza una ejecución de esa pestaña.
+
+const entradaDe = (tabId) => {
+    const e = emergentes.get(tabId);
+    return e && !e.win.isDestroyed() ? e : null;
+};
 
 ipcMain.handle('popout:open', async (_event, data) => {
-    // If there's already a popout window, focus it and send new data
-    if (popoutWindow && !popoutWindow.isDestroyed()) {
-        popoutWindow.focus();
-        popoutWindow.webContents.send('popout:data', data);
+    const tabId = data?.tabId;
+    if (!tabId) return false;
+    const abierta = entradaDe(tabId);
+    if (abierta) {
+        abierta.win.show();
+        abierta.win.focus();
+        abierta.win.webContents.send('popout:data', data);
         return true;
     }
-
-    pendingPopoutData = data;
 
     // Mismo origen que la ventana principal: si no, la emergente tendria su
     // propio localStorage y sus propios ajustes.
@@ -504,7 +514,7 @@ ipcMain.handle('popout:open', async (_event, data) => {
         ? 'http://localhost:5173'
         : `${APP_ORIGIN}/index.html`;
 
-    popoutWindow = new BrowserWindow({
+    const win = new BrowserWindow({
         width: 1000,
         height: 700,
         // Sin marco, igual que la principal: la cabecera de PopoutResultsPage
@@ -522,36 +532,60 @@ ipcMain.handle('popout:open', async (_event, data) => {
             spellcheck: false,
         }
     });
+    emergentes.set(tabId, { win, pendiente: data });
 
-    atajosDeVentana(popoutWindow);
-    popoutWindow.loadURL(`${baseUrl}?popout=true`);
+    atajosDeVentana(win);
+    win.loadURL(`${baseUrl}?popout=true`);
 
-    popoutWindow.webContents.on('did-finish-load', () => {
-        // Data will be requested by the child via popout:requestData
-        // We keep pendingPopoutData available for that request
-    });
-
-    popoutWindow.on('closed', () => {
-        popoutWindow = null;
-        pendingPopoutData = null;
+    win.on('closed', () => {
+        emergentes.delete(tabId);
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('popout:closed');
+            mainWindow.webContents.send('popout:closed', tabId);
         }
     });
 
     return true;
 });
 
+// Una ejecución nueva de la pestaña: sin robar el foco, que estás en la principal.
+ipcMain.handle('popout:update', (_event, data) => {
+    entradaDe(data?.tabId)?.win.webContents.send('popout:data', data);
+});
+
+ipcMain.handle('popout:focus', (_event, tabId) => {
+    const e = entradaDe(tabId);
+    if (e) { e.win.show(); e.win.focus(); }
+});
+
+ipcMain.handle('popout:close', (_event, tabId) => {
+    entradaDe(tabId)?.win.close();
+});
+
+function cerrarEmergentes() {
+    for (const { win } of emergentes.values()) {
+        if (!win.isDestroyed()) win.close();
+    }
+}
+
+// Al montarse la interfaz (recarga, otro proyecto): las pestañas son otras, así
+// que las ventanas de antes ya no son de nadie.
+ipcMain.handle('popout:closeAll', () => cerrarEmergentes());
+
 // Child window requests its initial data after React mounts
-ipcMain.handle('popout:requestData', () => {
-    const data = pendingPopoutData;
-    pendingPopoutData = null;
-    return data;
+ipcMain.handle('popout:requestData', (event) => {
+    for (const e of emergentes.values()) {
+        if (!e.win.isDestroyed() && e.win.webContents === event.sender) {
+            const data = e.pendiente;
+            e.pendiente = null;
+            return data;
+        }
+    }
+    return null;
 });
 
 ipcMain.handle('popout:isPopout', (event) => {
-    if (popoutWindow && !popoutWindow.isDestroyed()) {
-        return event.sender === popoutWindow.webContents;
+    for (const e of emergentes.values()) {
+        if (!e.win.isDestroyed() && e.win.webContents === event.sender) return true;
     }
     return false;
 });

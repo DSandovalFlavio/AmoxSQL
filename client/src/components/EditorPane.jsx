@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo } from 'react';
-import { LuPlay, LuHourglass, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2, LuLayoutDashboard } from "react-icons/lu";
+import { LuPlay, LuHourglass, LuExternalLink, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2, LuLayoutDashboard } from "react-icons/lu";
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
@@ -104,6 +104,7 @@ const EditorPane = ({
     onExportNotebook, // Data Diving only
     onExportAmoxvis, // Data Diving chart export
     onCancelQuery,    // (tabId) -> cancel that tab's query, running or waiting
+    onAbrirEmergente, // (tabId) -> open that tab's results in their own window
     onShowHistory,    // () -> navigate left sidebar to 'history' tab
     onOpenAmoxvisAsSql, // (tab) -> switch amoxvis tab to SQL editor mode
     onPersistUiState, // (pane, tabId, patch) -> persist view state to the tab (for AI session-awareness)
@@ -127,17 +128,6 @@ const EditorPane = ({
     // File Drop State
     const [showDropZone, setShowDropZone] = useState(false);
     const dropCounterRef = useRef(0);
-
-    const [isPoppedOut, setIsPoppedOut] = useState(false);
-
-    // Listen for popout window being closed by the user
-    useEffect(() => {
-        if (!window.electronAPI?.onPopoutClosed) return;
-        const cleanup = window.electronAPI.onPopoutClosed(() => {
-            setIsPoppedOut(false);
-        });
-        return cleanup;
-    }, []);
 
     const activeTab = tabs.find(t => t.id === activeTabId);
     // Latest active tab, readable from stable callbacks/getters without
@@ -182,19 +172,12 @@ const EditorPane = ({
         return () => document.removeEventListener('mousedown', handler);
     }, [showExportMenu]);
 
+    // La emergente es de la pestaña (Dec-86): LayoutManager la abre, la actualiza
+    // con las ejecuciones de esa pestaña y sabe cuándo se cierra.
     const handlePopout = useCallback(() => {
         const tab = activeTabRef.current;
-        if (!tab?.results) return;
-        const payload = {
-            data: tab.results.data,
-            types: tab.results.types,
-            executionTime: tab.results.executionTime,
-            query: tab.resultsQuery || tab.content,
-            cellTitle: tab.name,
-        };
-        window.electronAPI?.openPopout(payload);
-        setIsPoppedOut(true);
-    }, []);
+        if (tab?.results) onAbrirEmergente?.(tab.id);
+    }, [onAbrirEmergente]);
 
     // Stable getter for the live editor content — passed to ResultsTable instead
     // of the content string itself, so its memo survives keystrokes (G4).
@@ -207,20 +190,6 @@ const EditorPane = ({
         () => (onGetOtherPaneResults ? onGetOtherPaneResults(paneId) : null),
         [onGetOtherPaneResults, paneId]
     );
-
-    // Auto-update the pop-out window when results change
-    useEffect(() => {
-        if (!isPoppedOut || !activeTab?.results) return;
-        const payload = {
-            data: activeTab.results.data,
-            types: activeTab.results.types,
-            executionTime: activeTab.results.executionTime,
-            query: activeTab.resultsQuery || activeTab.content,
-            cellTitle: activeTab.name,
-        };
-        window.electronAPI?.openPopout(payload);
-    }, [isPoppedOut, activeTab?.results]);
-
 
     // Resizing Logic specific to this pane
     const startResizing = (e) => {
@@ -451,7 +420,11 @@ const EditorPane = ({
     // La consulta de ESTA pestaña; la de otra no le cambia nada aquí (Dec-84).
     const ejecucion = activeTab.ejecucion || null;
     const isRunning = !!ejecucion;
-    const resultadosVacios = !activeTab.results && !activeTab.resultsError && !activeTab.scriptRun && !isRunning && !isPoppedOut;
+    const enEmergente = !!activeTab.emergente;
+    // Con el resultado en su ventana, el panel se recoge igual que sin resultados:
+    // un aviso que ocupaba media pantalla le quitaba el sitio al código (Dec-87).
+    const resultadosVacios = enEmergente
+        || (!activeTab.results && !activeTab.resultsError && !activeTab.scriptRun && !isRunning);
 
     // Track last edit time on content change — ref only, no setState per keystroke
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -498,7 +471,7 @@ const EditorPane = ({
 
             {activeTab.results && (
                 <>
-                    {!isPoppedOut && (
+                    {!enEmergente && (
                         <ResultadosDePestana
                             key={activeTab.id}
                             tab={activeTab}
@@ -532,14 +505,12 @@ const EditorPane = ({
                         />
                     )}
 
-                    {isPoppedOut && (
-                        <div className="ep-popout-notice">
-                            Results for {activeTab.name} are actively displayed in a detached window.
-                            <div>
-                                <button onClick={() => setIsPoppedOut(false)}>
-                                    Bring Back Here
-                                </button>
-                            </div>
+                    {enEmergente && (
+                        <div className="ep-emergente" role="status">
+                            <LuExternalLink size={13} />
+                            <span>Results are in a separate window.</span>
+                            <button type="button" onClick={() => window.electronAPI?.focusPopout?.(activeTab.id)}>Show</button>
+                            <button type="button" onClick={() => window.electronAPI?.closePopout?.(activeTab.id)}>Bring back</button>
                         </div>
                     )}
                 </>
