@@ -32,14 +32,17 @@ import '@fontsource/jetbrains-mono/700.css'
 import './index.css'
 import App from './App.jsx'
 import { ToastProvider } from './components/ToastProvider.jsx'
+import FalloDeInterfaz from './components/FalloDeInterfaz.jsx'
 import { DialogProvider } from './components/dialogs/DialogProvider.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <ToastProvider>
-      <DialogProvider>
-        <App />
-      </DialogProvider>
-    </ToastProvider>
+    <FalloDeInterfaz>
+      <ToastProvider>
+        <DialogProvider>
+          <App />
+        </DialogProvider>
+      </ToastProvider>
+    </FalloDeInterfaz>
   </StrictMode>,
 )

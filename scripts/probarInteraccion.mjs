@@ -216,8 +216,10 @@ try {
       for (let k = 0; k < 6; k++) { const b = t.boton('Skip'); if (!b) break; b.click(); await t.dormir(400); }`);
     bien('el proyecto se abre con sus pestañas', (await app.js(`return document.querySelectorAll('.tab-item').length`)) === 3);
 
-    const fases = { fase1, fase2, fase3, fase4 };
-    for (const [n, f] of Object.entries(fases)) { if (!SOLO || SOLO === n) await f(app); }
+    // La 5 va antes que la 4, que termina cerrando la ventana principal.
+    let actual = app;
+    const fases = { fase1, fase2, fase3, fase5, fase4 };
+    for (const [n, f] of Object.entries(fases)) { if (!SOLO || SOLO === n) actual = (await f(actual)) || actual; }
 } catch (e) {
     hubo = e;
     console.log('  MAL la prueba se cayó →', e.message);
@@ -399,6 +401,51 @@ async function fase3(app) {
     bien('cerrar la pestaña se lleva su ventana', (await emergentes()) === 0, await emergentes());
     await app.js(`const e = t.fila('dos'); t.pulsar(e); e.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); await t.dormir(800);`);
 }
+// ── Fase 5: nunca atrapado ──────────────────────────────────────────────────
+async function fase5(app0) {
+    let app = app0;
+    const enIde = (pg) => pg.js(`return { tabs: document.querySelectorAll('.tab-item').length, editor: !!document.querySelector('.monaco-editor, .ep-action-bar'), bienvenida: document.body.innerText.includes('Open a project') };`);
+    console.log('— un error al pintar');
+    // Un fallo de verdad: el estado de las pestañas pasa a ser inválido y React revienta al pintar.
+    await app.js(`
+      window.t.romper = () => {
+        const dom = document.querySelector('.ep-container');
+        const fibra = dom[Object.keys(dom).find(k => k.startsWith('__reactFiber'))];
+        for (let f = fibra; f; f = f.return) {
+          for (let h = f.memoizedState; h && typeof h === 'object' && 'queue' in h; h = h.next) {
+            if (Array.isArray(h.memoizedState) && h.memoizedState[0]?.content !== undefined && h.queue?.dispatch) { h.queue.dispatch(null); return true; }
+          }
+        }
+        return false;
+      };
+      return t.romper();`);
+    await dormir(800);
+    let e = await app.js(`return { aviso: document.querySelector('.fallo-interfaz h1')?.innerText, boton: !!t.boton('Reload') };`);
+    bien('la ventana enseña qué pasó y una salida, no se queda vacía', !!e.aviso && e.boton, e);
+    await app.js(`t.boton('Reload').click(); return 1;`).catch(() => {});
+    await dormir(6000);
+    app = await abrir(p => !p.url.includes('popout=true'));
+    await app.js(AYUDAS);
+    e = await enIde(app);
+    bien('Reload vuelve a las pestañas, no a la selección de proyectos', e.tabs >= 1 && !e.bienvenida, e);
+    e = await app.js(`const p = (await import('/src/api.js')).API_BASE; return (await (await fetch(p + '/api/sesion')).json()).proyecto;`);
+    bien('el proyecto sigue abierto', typeof e === 'string' && e.length > 0, e);
+
+    console.log('— muere el proceso de la ventana');
+    app.cdp('Page.crash');
+    await dormir(7000);
+    app = await abrir(p => !p.url.includes('popout=true'));
+    let listo = null;
+    for (let i = 0; i < 20; i++) { listo = await app.js('return 1').catch(() => null); if (listo === 1) break; await dormir(500); }
+    await app.js(AYUDAS);
+    await dormir(1500);
+    e = await enIde(app);
+    bien('se recupera sola con sus pestañas', e.tabs >= 1 && !e.bienvenida, e);
+    e = await app.js(`const p = (await import('/src/api.js')).API_BASE; const r = await fetch(p + '/api/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'select 1 x' }) }); return r.ok;`);
+    bien('y puede consultar', e === true, e);
+    return app;
+}
+
 // ── Fase 4: atajos, Escape, búsqueda ────────────────────────────────────────
 async function fase4(app) {
     const cuenta = () => app.js(`return [...document.querySelectorAll('.modal-overlay')].length`);

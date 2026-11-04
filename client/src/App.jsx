@@ -437,8 +437,37 @@ function App() {
   }, [sidebarWidth]);
 
   // Initialize Data
+  // Tras recuperar la ventana (`?reanudar=1`: un fallo de pintado, o Electron al
+  // morir el proceso de la ventana) el servidor sigue con su proyecto y su base,
+  // vistas temporales incluidas: se vuelve a la sesión sin reabrir ni reconectar.
   useEffect(() => {
-    setAppPhase(PHASE.WELCOME);
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('reanudar')) {
+      setAppPhase(PHASE.WELCOME);
+      return;
+    }
+    const motivo = params.get('motivo');
+    params.delete('reanudar');
+    params.delete('motivo');
+    const resto = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (resto ? `?${resto}` : ''));
+    (async () => {
+      try {
+        const sesion = await (await fetch(`${API_BASE}/api/sesion`)).json();
+        if (!sesion.proyecto) { setAppPhase(PHASE.WELCOME); return; }
+        setProjectPath(sesion.proyecto);
+        setCurrentDb(sesion.base || ':memory:');
+        setDbReadOnly(!!sesion.soloLectura);
+        setRefreshDbTrigger(prev => prev + 1);
+        setAppPhase(PHASE.IDE);
+        toast.info(motivo === 'ventana'
+          ? 'The window stopped and was restored. Run your queries again to see their results.'
+          : 'Reloaded. Run your queries again to see their results.');
+      } catch {
+        setAppPhase(PHASE.WELCOME);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Global Keyboard Shortcuts ---

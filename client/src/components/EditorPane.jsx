@@ -4,6 +4,7 @@ import { LuPlay, LuHourglass, LuExternalLink, LuActivity, LuSave, LuChevronDown,
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
+import FalloDeInterfaz from './FalloDeInterfaz';
 import ScriptRunSummary from './ScriptRunSummary';
 import ExportDataModal from './ExportDataModal';
 import ExportAiContextModal from './ExportAiContextModal';
@@ -38,7 +39,11 @@ import { guardarBorrador } from '../utils/borradorGrafico';
  */
 const ResultadosDePestana = ({ tab, ...resto }) => {
     const [inicial] = useState(() => tab.chartConfig || tab.initialChartConfig || null);
-    return <ResultsTable initialChartConfig={inicial} initialViewMode={tab.viewMode} clavePestana={tab.id} {...resto} />;
+    return (
+        <FalloDeInterfaz compacto>
+            <ResultsTable initialChartConfig={inicial} initialViewMode={tab.viewMode} clavePestana={tab.id} {...resto} />
+        </FalloDeInterfaz>
+    );
 };
 
 const PaneLoading = ({ label = 'Loading…' }) => (

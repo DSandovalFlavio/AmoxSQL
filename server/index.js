@@ -151,6 +151,15 @@ app.get('/api/project/path', (req, res) => {
     res.json({ path: ROOT_DIR });
 });
 
+// Lo que sigue abierto aquí, para que una ventana recuperada vuelva a la sesión.
+app.get('/api/sesion', (req, res) => {
+    res.json({
+        proyecto: PROYECTO_ABIERTO ? ROOT_DIR : null,
+        base: dbManager.getCurrentPath(),
+        soloLectura: !!dbManager._readOnly,
+    });
+});
+
 app.post('/api/project/open', async (req, res) => {
     const { path: newPath } = req.body;
     if (!newPath) return res.status(400).json({ error: 'Path is required' });

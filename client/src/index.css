@@ -21732,3 +21732,49 @@ tr:hover td {
 .monaco-editor .find-widget > .button.codicon-widget-close:hover {
   background: color-mix(in oklch, var(--text-primary) 12%, transparent);
 }
+
+/* Cuando algo no se puede pintar (fase 5). Usa colores de reserva: puede salir
+   antes de que el tema esté aplicado. */
+.fallo-interfaz {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  background: var(--surface-base, #0f1012);
+  color: var(--text-primary, #e8e8ea);
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+.fallo-interfaz h1 { margin: 0; font-size: 18px; font-weight: 600; }
+.fallo-interfaz p { margin: 0; max-width: 480px; font-size: 13px; line-height: 1.5; color: var(--text-secondary, #a8a8ad); }
+.fallo-interfaz > svg { color: var(--color-warning, #d9a406); flex-shrink: 0; }
+.fallo-interfaz button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default, #3a3a40);
+  background: var(--accent-primary, #2bb);
+  color: var(--surface-base, #0f1012);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fallo-interfaz details { max-width: 560px; font-size: 12px; color: var(--text-tertiary, #85858a); }
+.fallo-interfaz pre { white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
+.fallo-interfaz--compacto {
+  height: auto;
+  flex-direction: row;
+  justify-content: flex-start;
+  text-align: left;
+  padding: 12px;
+  font-size: 12px;
+  background: transparent;
+}
+.fallo-interfaz--compacto > span { flex: 1; min-width: 0; color: var(--text-secondary, #a8a8ad); }
+.fallo-interfaz--compacto code { overflow-wrap: anywhere; font-family: var(--font-mono, monospace); }
+.fallo-interfaz--compacto button { background: transparent; color: var(--text-secondary, #a8a8ad); font-weight: 400; flex-shrink: 0; }

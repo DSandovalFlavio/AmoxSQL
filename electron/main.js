@@ -359,6 +359,51 @@ function atajosDeVentana(win) {
 }
 
 let mainWindow;
+/**
+ * **Nunca atrapado** (fase 5). Si el proceso de la ventana muere —falta de memoria,
+ * un fallo del motor de pintado— la ventana se quedaba abierta y muerta, con el
+ * servidor vivo. Se recarga sola y vuelve a la sesión (`?reanudar=1`, App.jsx). Si
+ * muere una y otra vez, va a la bienvenida para no entrar en bucle.
+ */
+const recuperaciones = [];
+function urlDeLaVentana() {
+    return !app.isPackaged
+        ? (process.env.AMOX_DEV_URL || 'http://localhost:5173')
+        : `${APP_ORIGIN}/index.html`;
+}
+function vigilarVentana(win) {
+    win.webContents.on('render-process-gone', (_e, detalle) => {
+        if (detalle.reason === 'clean-exit' || win.isDestroyed()) return;
+        console.error('[Main] Window process gone:', detalle.reason, detalle.exitCode);
+        const ahora = Date.now();
+        while (recuperaciones.length && ahora - recuperaciones[0] > 120000) recuperaciones.shift();
+        recuperaciones.push(ahora);
+        if (recuperaciones.length >= 3) {
+            dialog.showErrorBox('AmoxSQL', 'The window keeps stopping, so AmoxSQL went back to the start. Your files are safe.');
+            win.loadURL(urlDeLaVentana()).catch(() => {});
+            return;
+        }
+        win.loadURL(`${urlDeLaVentana()}?reanudar=1&motivo=ventana`).catch(() => {});
+    });
+
+    let preguntando = false;
+    win.on('unresponsive', async () => {
+        if (preguntando || win.isDestroyed()) return;
+        preguntando = true;
+        const { response } = await dialog.showMessageBox(win, {
+            type: 'warning',
+            title: 'AmoxSQL',
+            message: 'The window is not responding',
+            detail: 'A large result may still be loading. You can wait, or reload to go back to your tabs (results will need to run again).',
+            buttons: ['Wait', 'Reload'],
+            defaultId: 0,
+            cancelId: 0,
+        });
+        preguntando = false;
+        if (response === 1 && !win.isDestroyed()) win.webContents.forcefullyCrashRenderer();
+    });
+}
+
 // Una ventana emergente por pestaña (Dec-86): tabId → { win, pendiente }.
 const emergentes = new Map();
 let serverProcess = null;
@@ -466,6 +511,7 @@ const createWindow = () => {
     // We intercept Ctrl+Plus/Minus/0, preventDefault to stop Chromium's default,
     // then apply our own zoom factor and notify the renderer to sync UI state.
     atajosDeVentana(mainWindow);
+    vigilarVentana(mainWindow);
 
     // Sin la principal no hay forma de volver: las emergentes se van con ella.
     mainWindow.on('closed', () => cerrarEmergentes());
