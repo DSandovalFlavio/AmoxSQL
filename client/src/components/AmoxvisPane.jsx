@@ -27,6 +27,7 @@ import SaveQueryModal from './SaveQueryModal';
 import { useToast } from './ToastProvider';
 import { leerAmoxvis } from './DataVisualizer/vega/figura';
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
+import { atajosGlobalesEnMonaco } from '../utils/atajosEnMonaco.js';
 import { splitSqlStatements } from '../utils/sqlSplitter';
 import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
 
@@ -204,6 +205,7 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
     const guardarRef = useRef(null);
     guardarRef.current = () => onSave && onSave();
     const alMontarEditor = useCallback((editor, monaco) => {
+        atajosGlobalesEnMonaco(editor, monaco);
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => ejecutarRef.current());
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => guardarRef.current());
     }, []);

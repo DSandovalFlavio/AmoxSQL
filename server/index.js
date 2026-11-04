@@ -3923,8 +3923,11 @@ app.post('/api/query', async (req, res) => {
     });
 
     // If the client disconnects (AbortController / network drop), interrupt DuckDB
-    req.on('close', () => {
-        if (activeQueries.has(qid) && !res.headersSent && dbManager.isRunning('main', qid)) {
+    // En `res` y no en `req`: en un POST, `req` se cierra en cuanto se ha leído el
+    // cuerpo. Con `req` la consulta se borraba del registro nada más empezar, y Stop
+    // respondía 404 sin interrumpir nada: el motor seguía ocupado hasta acabar.
+    res.on('close', () => {
+        if (activeQueries.has(qid) && !res.writableFinished && dbManager.isRunning('main', qid)) {
             dbManager.interruptQuery('main');
         }
         activeQueries.delete(qid);
@@ -4107,8 +4110,11 @@ app.post('/api/cuaderno/celda', async (req, res) => {
             if (dbManager.isRunning('main', qid)) dbManager.interruptQuery('main');
         },
     });
-    req.on('close', () => {
-        if (activeQueries.has(qid) && !res.headersSent && dbManager.isRunning('main', qid)) {
+    // En `res` y no en `req`: en un POST, `req` se cierra en cuanto se ha leído el
+    // cuerpo. Con `req` la consulta se borraba del registro nada más empezar, y Stop
+    // respondía 404 sin interrumpir nada: el motor seguía ocupado hasta acabar.
+    res.on('close', () => {
+        if (activeQueries.has(qid) && !res.writableFinished && dbManager.isRunning('main', qid)) {
             dbManager.interruptQuery('main');
         }
         activeQueries.delete(qid);

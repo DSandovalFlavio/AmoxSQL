@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import { LuCopy, LuCheck, LuTriangleAlert, LuWandSparkles } from 'react-icons/lu';
 import { registerMonaco, MONACO_THEME_NAME } from '../../../monacoTheme.js';
+import { atajosGlobalesEnMonaco } from '../../../utils/atajosEnMonaco.js';
 import { specParaEditar, esVegaCompleto } from './figura';
 import { ESQUEMA_VL } from './deStoryFlow';
 import { CAPAS, anadirCapa, capaPosible } from './capas';
@@ -103,7 +104,7 @@ const EditorCodigo = ({ spec, onAplicar, estado, extras }) => {
        ubican en el texto TAL COMO ESTÁ escrito, no en uno reformateado. */
     const editorRef = useRef(null);
     const decoraciones = useRef(null);
-    const alMontar = useCallback((editor, monaco) => { editorRef.current = { editor, monaco }; }, []);
+    const alMontar = useCallback((editor, monaco) => { editorRef.current = { editor, monaco }; atajosGlobalesEnMonaco(editor, monaco); }, []);
     const nExtras = useMemo(() => rutasDeExtras(extras || undefined).length, [extras]);
     useEffect(() => {
         const ed = editorRef.current;

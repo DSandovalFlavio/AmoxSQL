@@ -22,6 +22,7 @@ import DocPanel from './markdown/DocPanel';
 import InsertMenu from './markdown/InsertMenu';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
+import { atajosGlobalesEnMonaco } from '../utils/atajosEnMonaco.js';
 
 // ── Editor manipulation helpers ───────────────────────────────────────────────
 
@@ -704,6 +705,8 @@ const MarkdownEditor = ({
         setEditorInstance(editor);
         const { CtrlCmd, Shift } = monaco.KeyMod;
         const { KeyS, KeyB, KeyI, KeyK, KeyV, KeyE, KeyT } = monaco.KeyCode;
+        // Aquí Ctrl+K es insertar un enlace; el resto, como en toda la aplicación.
+        atajosGlobalesEnMonaco(editor, monaco, { sinPaleta: true });
         editor.addCommand(CtrlCmd | KeyS, () => handleSave());
         editor.addCommand(CtrlCmd | KeyB, () => wrapSelection(editor, '**'));
         editor.addCommand(CtrlCmd | KeyI, () => wrapSelection(editor, '_'));

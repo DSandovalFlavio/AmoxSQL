@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
-const { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess, protocol, net, safeStorage } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell, utilityProcess, protocol, net, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -319,6 +319,45 @@ ipcMain.on('window-control:close', (event) => {
     senderWindow(event)?.close();
 });
 
+/**
+ * Sin menú de aplicación (Dec-89). El de serie de Electron, aunque esté oculto,
+ * sigue atendiendo sus teclas: Ctrl+R recargaba la aplicación entera y te dejaba
+ * en la bienvenida sin un resultado. En macOS hace falta el de Edición para que
+ * copiar y pegar funcionen; en Windows y Linux los atiende el propio motor.
+ */
+function ponerMenu() {
+    Menu.setApplicationMenu(process.platform === 'darwin'
+        ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }])
+        : null);
+}
+
+/**
+ * Las teclas de ventana, en todas las ventanas de la app: zoom y, solo en
+ * desarrollo, las herramientas de depuración (ya no las trae el menú).
+ */
+function atajosDeVentana(win) {
+    const conDepuracion = !app.isPackaged || process.env.AMOX_DEVTOOLS === '1';
+    win.webContents.setVisualZoomLevelLimits(1, 1);
+    win.webContents.on('before-input-event', (event, input) => {
+        if (input.type !== 'keyDown') return;
+        if (conDepuracion && (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i'))) {
+            event.preventDefault();
+            win.webContents.toggleDevTools();
+            return;
+        }
+        if (input.control && !input.shift && !input.alt) {
+            let factor = null;
+            if (input.key === '=' || input.key === '+') factor = Math.min(win.webContents.getZoomFactor() + 0.1, 2.0);
+            else if (input.key === '-') factor = Math.max(win.webContents.getZoomFactor() - 0.1, 0.5);
+            else if (input.key === '0') factor = 1.0;
+            if (factor === null) return;
+            event.preventDefault();
+            win.webContents.setZoomFactor(factor);
+            win.webContents.send('zoom:changed', factor);
+        }
+    });
+}
+
 let mainWindow;
 let popoutWindow = null;
 let pendingPopoutData = null;
@@ -426,29 +465,7 @@ const createWindow = () => {
     // Zoom is managed centrally from main process via webContents.setZoomFactor().
     // We intercept Ctrl+Plus/Minus/0, preventDefault to stop Chromium's default,
     // then apply our own zoom factor and notify the renderer to sync UI state.
-    mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
-
-    mainWindow.webContents.on('before-input-event', (event, input) => {
-        if (input.control && !input.shift && !input.alt && input.type === 'keyDown') {
-            if (input.key === '=' || input.key === '+') {
-                event.preventDefault();
-                const current = mainWindow.webContents.getZoomFactor();
-                const next = Math.min(current + 0.1, 2.0);
-                mainWindow.webContents.setZoomFactor(next);
-                mainWindow.webContents.send('zoom:changed', next);
-            } else if (input.key === '-') {
-                event.preventDefault();
-                const current = mainWindow.webContents.getZoomFactor();
-                const next = Math.max(current - 0.1, 0.5);
-                mainWindow.webContents.setZoomFactor(next);
-                mainWindow.webContents.send('zoom:changed', next);
-            } else if (input.key === '0') {
-                event.preventDefault();
-                mainWindow.webContents.setZoomFactor(1.0);
-                mainWindow.webContents.send('zoom:changed', 1.0);
-            }
-        }
-    });
+    atajosDeVentana(mainWindow);
 
     // Load the App
     if (!app.isPackaged) {
@@ -506,6 +523,7 @@ ipcMain.handle('popout:open', async (_event, data) => {
         }
     });
 
+    atajosDeVentana(popoutWindow);
     popoutWindow.loadURL(`${baseUrl}?popout=true`);
 
     popoutWindow.webContents.on('did-finish-load', () => {
@@ -755,6 +773,7 @@ app.on('before-quit', async (event) => {
 });
 
 app.whenReady().then(() => {
+    ponerMenu();
     // Sin el bloqueo, este arranque sólo entrega una orden y espera (o ya salió).
     if (!gotTheLock) return;
     initApp();

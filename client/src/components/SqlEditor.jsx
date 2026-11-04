@@ -5,6 +5,7 @@ import { format } from 'sql-formatter';
 import { getSharedSqlWorkerBridge, initSharedSqlWorkerBridge } from '../utils/sqlWorkerBridge';
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import { splitSqlStatements } from '../utils/sqlSplitter';
+import { atajosGlobalesEnMonaco } from '../utils/atajosEnMonaco.js';
 import * as dbtCompletado from '../utils/dbtCompletado.js';
 
 // 5.12 (I12, Dec-35): el catálogo de dbt del proyecto abierto, compartido por todos
@@ -443,7 +444,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             }
         });
 
-        // 4. Format Code (Ctrl+K)
+        // 4. Format Code
         const formatSql = () => {
             if (props.language === 'markdown') return;
             const model = editor.getModel();
@@ -484,13 +485,12 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             }
         };
 
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, formatSql);
-
-        // 4b. Format Code (Ctrl+Shift+F) — secondary keybinding
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF, formatSql);
-
-        // 4c. Format Code (Shift+Alt+F)
+        // Format Code (Shift+Alt+F). Ctrl+K y Ctrl+Shift+F eran también formatear:
+        // con el foco en el editor la paleta que anuncia la barra te reescribía el SQL.
         editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, formatSql);
+
+        // Ctrl+K, Ctrl+L y Ctrl+Shift+F hacen lo mismo que en el resto de la app.
+        atajosGlobalesEnMonaco(editor, monaco);
 
         // Query History (Ctrl+Shift+H)
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => {
@@ -505,7 +505,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         // 4c. Context menu action for Format SQL
         const formatAction = editor.addAction({
             id: 'format-sql-action',
-            label: 'Format SQL (Ctrl+K / Ctrl+Shift+F)',
+            label: 'Format SQL (Shift+Alt+F)',
             contextMenuGroupId: '1_modification',
             contextMenuOrder: 1.5,
             run: formatSql

@@ -33,6 +33,7 @@
  */
 import { useCallback, useMemo } from 'react';
 import Editor from '@monaco-editor/react';
+import { atajosGlobalesEnMonaco } from '../utils/atajosEnMonaco.js';
 import { LuFileText, LuFileLock2 } from 'react-icons/lu';
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import { tipoDeArchivo } from '../utils/tiposDeArchivo.js';
@@ -95,6 +96,7 @@ const TextEditor = ({ tab, onChange, editorSettings = {} }) => {
                     language={info.idioma || 'plaintext'}
                     theme={MONACO_THEME_NAME}
                     beforeMount={alMontar}
+                    onMount={(editor, monaco) => atajosGlobalesEnMonaco(editor, monaco)}
                     onChange={(val) => onChange(val ?? '')}
                     options={opciones}
                 />

@@ -24,6 +24,7 @@ import Retomar from './Retomar';
 import { leerAmoxvis, textoAmoxvis } from './DataVisualizer/vega/figura';
 import { leerBorrador } from '../utils/borradorGrafico';
 import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
+import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
 
 /**
  * Un .sql se abre con el gráfico que tenía la última vez (Dec-79): la vista
@@ -140,8 +141,6 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
 
     // Query Cancellation State
-    const [runningQueryId, setRunningQueryId] = useState(null);
-    const queryAbortControllerRef = useRef(null);
     const lmContainerRef = useRef(null);
     // Real rendered width of .lm-container (== .lm-panes' width, since
     // .lm-panes is its only flex:1 child with no siblings taking horizontal
@@ -186,7 +185,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const stateRef = useRef({});
     stateRef.current = {
         leftTabs, rightTabs, leftActiveId, rightActiveId, activePane, splitEnabled,
-        queryVariables, draggedTab, runningQueryId,
+        queryVariables, draggedTab,
         resultsLinked, resultsRatios, linkedResultsRatio,
         editorSettings, onRequestSaveAs, onQueryResult, onDbChange,
         toast, dialog,
@@ -245,7 +244,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // que no esté en esta lista existe en el estado y no se pinta nunca.
         // `fijada` se quedó fuera al añadirla, y el resultado fue una pestaña
         // que se negaba a cerrarse sin nada que lo anunciara.
-        const metaOf = (t) => ({ id: t.id, name: t.name, dirty: !!t.dirty, path: t.path || '', type: t.type, fijada: !!t.fijada });
+        const metaOf = (t) => ({ id: t.id, name: t.name, dirty: !!t.dirty, path: t.path || '', type: t.type, fijada: !!t.fijada, ejecucion: t.ejecucion || null, avisoEjecucion: t.avisoEjecucion || null });
         const leftMeta = leftTabs.map(metaOf);
         const rightMeta = rightTabs.map(metaOf);
         const payload = {
@@ -381,6 +380,51 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             setRightTabs(prev => prev.map(t => t.id === tabId ? { ...t, ...updates } : t));
         }
     }, []);
+
+    // Por id, sin decir el panel: lo que termina más tarde (una consulta) no sabe
+    // en qué panel está ya la pestaña, porque se ha podido mover entre tanto.
+    const actualizarPestana = useCallback((tabId, updates) => {
+        const aplicar = (prev) => (prev.some(t => t.id === tabId)
+            ? prev.map(t => t.id === tabId ? { ...t, ...updates } : t)
+            : prev);
+        setLeftTabs(aplicar);
+        setRightTabs(aplicar);
+    }, []);
+
+    // La cola de ejecución (Dec-84/85): el estado de cada pestaña va en la propia
+    // pestaña (`ejecucion`), así la barra y el panel lo leen sin más props.
+    const colaRef = useRef(null);
+    if (!colaRef.current) {
+        colaRef.current = crearCola({
+            alCambiar: (tabId, info) => actualizarPestana(tabId, { ejecucion: info }),
+            nombreDe: (tabId) => {
+                const { leftTabs, rightTabs } = stateRef.current;
+                return [...leftTabs, ...rightTabs].find(t => t.id === tabId)?.name || 'another query';
+            },
+            cancelarEnServidor: (queryId) => {
+                fetch(`${API_BASE}/api/query/cancel/${queryId}`, { method: 'POST' }).catch(() => {});
+            },
+        });
+    }
+
+    // Una pestaña que deja de existir, por el camino que sea (cerrar, cerrar las
+    // demás, cambiar de proyecto), se lleva su consulta.
+    useEffect(() => {
+        const vivas = new Set([...leftTabs, ...rightTabs].map(t => t.id));
+        for (const id of colaRef.current.pestanas()) {
+            if (!vivas.has(id)) colaRef.current.cancelar(id);
+        }
+    }, [leftTabs, rightTabs]);
+
+    // Volver a una pestaña apaga la marca de «terminó mientras no mirabas».
+    useEffect(() => {
+        for (const t of [...leftTabs, ...rightTabs]) {
+            if (t.avisoEjecucion && (t.id === leftActiveId || t.id === rightActiveId)) {
+                actualizarPestana(t.id, { avisoEjecucion: null });
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [leftActiveId, rightActiveId, actualizarPestana]);
 
     // Actions
     const handleContentChange = useCallback((tabId, newContent) => {
@@ -578,26 +622,30 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         return { line, column: column || 1, message };
     };
 
-    const cancelQuery = useCallback(async () => {
-        const { runningQueryId } = stateRef.current;
-        if (!runningQueryId) return;
-        // Abort the in-flight fetch immediately so the UI unblocks
-        queryAbortControllerRef.current?.abort();
-        // Also tell the server to interrupt the DuckDB query
-        try {
-            await fetch(`${API_BASE}/api/query/cancel/${runningQueryId}`, { method: 'POST' });
-        } catch {}
-        setRunningQueryId(null);
-    }, []);
+    // Cancela la consulta de ESA pestaña: la que corre o la que espera su turno.
+    const cancelQuery = useCallback((tabId) => colaRef.current.cancelar(tabId), []);
+
+    // Entra en la cola y, si terminó con la pestaña en segundo plano, lo deja dicho.
+    const enCola = useCallback(async (tabId, trabajo) => {
+        const resultado = await colaRef.current.poner(tabId, trabajo);
+        if (resultado?.yaEnMarcha) {
+            stateRef.current.toast.info('This tab is already running a query. Stop it first.');
+            return resultado;
+        }
+        const { leftActiveId, rightActiveId } = stateRef.current;
+        const marca = marcaAlTerminar(resultado);
+        if (marca && tabId !== leftActiveId && tabId !== rightActiveId) {
+            actualizarPestana(tabId, { avisoEjecucion: marca });
+        }
+        return resultado;
+    }, [actualizarPestana]);
 
     // Run a multi-statement script sequentially, stopping at the first error.
     // Produces a `scriptRun` log (one step per statement) rather than N tables;
     // the last statement that yields rows still shows its table, preserving the
     // "one query → one table" model for the tabular part.
-    const runAsScript = useCallback(async (pane, tabId, statements, rowLimit) => {
+    const runAsScript = useCallback(async (tabId, statements, rowLimit, { controller, ponerQueryId }) => {
         const { onQueryResult, onDbChange } = stateRef.current;
-        const controller = new AbortController();
-        queryAbortControllerRef.current = controller;
 
         const steps = [];
         let finalTable = null;        // last statement's tabular data
@@ -612,7 +660,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 const stmt = statements[idx];
                 const stepStart = performance.now();
                 const qid = crypto.randomUUID();
-                setRunningQueryId(qid); // so cancelQuery targets the running statement
+                ponerQueryId(qid); // so a cancel targets the running statement
                 const step = {
                     index: idx,
                     sqlPreview: stmt.code.replace(/\s+/g, ' ').slice(0, 120),
@@ -621,7 +669,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 };
                 steps.push(step);
                 // Live snapshot so the summary fills in as it runs.
-                updateTab(pane, tabId, {
+                actualizarPestana(tabId, {
                     scriptRun: { steps: steps.map(s => ({ ...s })), running: true, total: statements.length },
                     results: finalTable, resultsQuery: finalTableQuery, resultsError: null,
                 });
@@ -671,15 +719,15 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     finalTableQuery = stmt.raw;
                 }
             }
-        } finally {
-            setRunningQueryId(null);
-            queryAbortControllerRef.current = null;
+        } catch (err) {
+            // Solo llega aquí lo inesperado; lo de cada sentencia se atrapa dentro.
+            console.error('[Script] Failed:', err);
         }
 
         const totalMs = (performance.now() - scriptStart).toFixed(0);
         const failCount = steps.filter(s => s.status === 'error').length;
         const okCount = steps.filter(s => s.status === 'ok').length;
-        updateTab(pane, tabId, {
+        actualizarPestana(tabId, {
             scriptRun: {
                 steps, totalMs, okCount, failCount, cancelled,
                 stoppedAtError: failCount > 0,
@@ -696,12 +744,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         if (onQueryResult) onQueryResult({ executionTime: totalMs, rowCount: finalTable?.data?.length ?? null });
 
         return { script: true, okCount, failCount, cancelled };
-    }, [updateTab]);
+    }, [actualizarPestana]);
 
     const executeQuery = useCallback(async (tabId, query) => {
         const { leftTabs, rightTabs, queryVariables, editorSettings, dialog, onQueryResult, onDbChange } = stateRef.current;
         const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
-        const pane = leftTabs.find(t => t.id === tabId) ? 'left' : 'right';
         // Resolve variables before execution
         const resolvedQuery = resolveVariables(query, queryVariables);
         const rowLimit = editorSettings?.queryResultLimit ?? 10000;
@@ -745,25 +792,24 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 return { cancelled: true };
             }
 
-            return await runAsScript(pane, tabId, statements, rowLimit);
+            return await enCola(tabId, (ctx) => runAsScript(tabId, statements, rowLimit, ctx));
         }
 
         // ── Single statement (original behavior) ────────────────────────────
+        return await enCola(tabId, async ({ signal, ponerQueryId }) => {
         const qid = crypto.randomUUID();
-        const controller = new AbortController();
-        queryAbortControllerRef.current = controller;
-        setRunningQueryId(qid);
+        ponerQueryId(qid);
         try {
             const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: rowLimit }),
-                signal: controller.signal,
+                signal,
             });
             const data = await response.json();
 
             if (response.ok) {
-                updateTab(pane, tabId, { results: data, resultsQuery: resolvedQuery, resultsError: null, errorMarker: null, scriptRun: null });
+                actualizarPestana(tabId, { results: data, resultsQuery: resolvedQuery, resultsError: null, errorMarker: null, scriptRun: null });
 
                 // Notify parent of query result for status bar
                 if (onQueryResult) {
@@ -794,23 +840,21 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 };
             } else {
                 const marker = parseDuckDBError(data.error);
-                updateTab(pane, tabId, { results: null, resultsError: data.error, errorMarker: marker, scriptRun: null });
+                actualizarPestana(tabId, { results: null, resultsError: data.error, errorMarker: marker, scriptRun: null });
                 return { error: data.error };
             }
         } catch (err) {
             if (err.name === 'AbortError') {
                 // User cancelled — clear state silently, no error shown
-                updateTab(pane, tabId, { results: null, resultsError: null, errorMarker: null, scriptRun: null });
+                actualizarPestana(tabId, { results: null, resultsError: null, errorMarker: null, scriptRun: null });
                 return { cancelled: true };
             }
             const marker = parseDuckDBError(err.message);
-            updateTab(pane, tabId, { results: null, resultsError: err.message, errorMarker: marker, scriptRun: null });
+            actualizarPestana(tabId, { results: null, resultsError: err.message, errorMarker: marker, scriptRun: null });
             return { error: err.message };
-        } finally {
-            setRunningQueryId(null);
-            queryAbortControllerRef.current = null;
         }
-    }, [updateTab, runAsScript]); // reads the rest via stateRef; createNew (stable) resolved by closure
+        });
+    }, [actualizarPestana, enCola, runAsScript]); // reads the rest via stateRef; createNew (stable) resolved by closure
 
     const handleRunActive = useCallback(async () => {
         const tab = getActiveTab();
@@ -1404,6 +1448,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             createNew('datadiving', convId || '');
         },
         handleTriggerRun: () => handleRunActive(),
+        // Esc: la consulta de la pestaña activa, si tiene. Dice si hizo algo.
+        cancelarActiva: () => {
+            const tab = getActiveTab();
+            return tab ? colaRef.current.cancelar(tab.id) : false;
+        },
         handleTriggerSave: (isSilent = false) => handleSaveActive(isSilent),
         handleTriggerAnalyze: () => handleAnalyzeActive(),
         handleTriggerSaveAs: () => {
@@ -2123,6 +2172,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             path: '',
             dirty: true,
             results: null, resultsQuery: null, resultsError: null, scriptRun: null, errorMarker: null,
+            ejecucion: null, avisoEjecucion: null,
         };
         setSplitEnabled(true);
         if (target === 'left') { setLeftTabs(prev => [...prev, clone]); setLeftActiveId(clone.id); }
@@ -2383,7 +2433,6 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         availableTables={availableTables}
                         onExportNotebook={onExportNotebook}
                         onExportAmoxvis={onExportAmoxvis}
-                        isRunning={!!runningQueryId}
                         onCancelQuery={cancelQuery}
                         onShowHistory={onShowHistorySidebar}
                         onOpenAmoxvisAsSql={openAmoxvisAsSql}
@@ -2443,7 +2492,6 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                                 availableTables={availableTables}
                                 onExportNotebook={onExportNotebook}
                                 onExportAmoxvis={onExportAmoxvis}
-                                isRunning={!!runningQueryId}
                                 onCancelQuery={cancelQuery}
                                 onOpenAmoxvisAsSql={openAmoxvisAsSql}
                                 onPersistUiState={updateTab}

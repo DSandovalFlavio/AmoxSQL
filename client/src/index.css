@@ -3008,6 +3008,13 @@ body {
   flex-shrink: 0;
 }
 
+/* Lo que está haciendo la consulta de la pestaña, o lo que hizo mientras no
+   mirabas (Dec-84). */
+.tab-item .tab-ejecucion { color: var(--accent-primary); flex-shrink: 0; }
+.tab-item .tab-aviso { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.tab-item .tab-aviso--ok { background: var(--color-success, var(--accent-primary)); }
+.tab-item .tab-aviso--error { background: var(--color-error); }
+
 /* Una pestaña fijada. La chincheta va delante del nombre para que se distinga
    de un vistazo cuál no se va a cerrar, sin llegar al final del rótulo. */
 .tab-item .tab-pin {
@@ -4319,6 +4326,29 @@ tr:hover .rt-td--pinned {
   color: var(--text-tertiary);
   font-size: var(--text-xs);
 }
+
+.ep-espera {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+.ep-espera > svg { flex-shrink: 0; color: var(--accent-primary); }
+.ep-espera > span { flex: 1; min-width: 0; }
+.ep-espera strong { font-weight: 600; color: var(--text-primary); }
+.ep-espera button {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.ep-espera button:hover { color: var(--text-primary); }
 
 .ep-popout-notice {
   padding: var(--space-6);

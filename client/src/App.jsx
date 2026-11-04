@@ -9,6 +9,7 @@ import { themeClassFor, modeClassFor, migrateTheme } from './theme.js';
 import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
 import { tipoDePestana, nombreDe } from './utils/tiposDeArchivo.js';
+import { ATAJO_DE_EDITOR } from './utils/atajosEnMonaco.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
@@ -482,6 +483,15 @@ function App() {
         return;
       }
 
+      // Esc cancela la consulta de la pestaña activa, como dice el botón. Solo
+      // si nadie lo ha usado ya: un modal abierto, o el editor cerrando su búsqueda
+      // o sus sugerencias (Monaco no deja pasar esos).
+      if (e.key === 'Escape' && !e.defaultPrevented
+        && !document.querySelector('.modal-overlay, .command-palette-overlay, .ob-overlay, [role="dialog"]:not(.monaco-editor *)')) {
+        layoutRef.current?.cancelarActiva();
+        return;
+      }
+
       // Toggle Sidebar: Ctrl+B
       if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
         e.preventDefault();
@@ -623,6 +633,18 @@ function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [appPhase]);
+
+  // Lo que el editor no deja llegar a la ventana (utils/atajosEnMonaco.js).
+  useEffect(() => {
+    const handler = (e) => {
+      const accion = e.detail?.accion;
+      if (accion === 'paleta') setIsCommandPaletteOpen(prev => !prev);
+      else if (accion === 'assist') setShowAiSidebar(v => !v);
+      else if (accion === 'buscar') handleSidebarTabClick('search');
+    };
+    window.addEventListener(ATAJO_DE_EDITOR, handler);
+    return () => window.removeEventListener(ATAJO_DE_EDITOR, handler);
+  }, []);
 
   // Listen for file system changes from AI tools (e.g., build_notebook)
   useEffect(() => {

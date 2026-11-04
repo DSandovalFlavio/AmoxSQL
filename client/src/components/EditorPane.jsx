@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo } from 'react';
-import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2, LuLayoutDashboard } from "react-icons/lu";
+import { LuPlay, LuHourglass, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2, LuLayoutDashboard } from "react-icons/lu";
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
@@ -103,8 +103,7 @@ const EditorPane = ({
     availableTables,  // Data Diving only
     onExportNotebook, // Data Diving only
     onExportAmoxvis, // Data Diving chart export
-    isRunning,        // boolean — a query is currently executing
-    onCancelQuery,    // () -> cancel the running query
+    onCancelQuery,    // (tabId) -> cancel that tab's query, running or waiting
     onShowHistory,    // () -> navigate left sidebar to 'history' tab
     onOpenAmoxvisAsSql, // (tab) -> switch amoxvis tab to SQL editor mode
     onPersistUiState, // (pane, tabId, patch) -> persist view state to the tab (for AI session-awareness)
@@ -445,6 +444,9 @@ const EditorPane = ({
      * tipo en la pestaña.
      */
     const isTexto = activeTab.type === 'texto';
+    // La consulta de ESTA pestaña; la de otra no le cambia nada aquí (Dec-84).
+    const ejecucion = activeTab.ejecucion || null;
+    const isRunning = !!ejecucion;
     const resultadosVacios = !activeTab.results && !activeTab.resultsError && !activeTab.scriptRun && !isRunning && !isPoppedOut;
 
     // Track last edit time on content change — ref only, no setState per keystroke
@@ -478,6 +480,14 @@ const EditorPane = ({
     // Results panel content (shared between both layouts)
     const resultsContent = (
         <>
+            {ejecucion?.estado === 'en_espera' && (
+                <div className="ep-espera" role="status">
+                    <LuHourglass size={13} />
+                    <span>Waiting for <strong>{ejecucion.tras}</strong> to finish. Queries run one at a time.</span>
+                    <button type="button" onClick={() => onCancelQuery(activeTab.id)}>Cancel</button>
+                </div>
+            )}
+
             {activeTab.resultsError && <div className="ep-error">Error: {activeTab.resultsError}</div>}
 
             {activeTab.scriptRun && <ScriptRunSummary scriptRun={activeTab.scriptRun} compact={!!activeTab.results} />}
@@ -533,7 +543,7 @@ const EditorPane = ({
 
             {!activeTab.results && !activeTab.resultsError && !activeTab.scriptRun && (
                 <div className="ep-no-results">
-                    Run query (Ctrl+Enter) to see results.
+                    {ejecucion?.estado === 'corriendo' ? 'Running…' : (ejecucion ? null : 'Run query (Ctrl+Enter) to see results.')}
                 </div>
             )}
         </>
@@ -768,7 +778,7 @@ const EditorPane = ({
                                         {isRunning ? (
                                             <button
                                                 className="ep-action-run sql-btn-stop"
-                                                onClick={onCancelQuery}
+                                                onClick={() => onCancelQuery(activeTab.id)}
                                                 title="Cancel (Esc)"
                                                 aria-label="Cancel running query"
                                             >

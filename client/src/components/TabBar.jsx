@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LuPin, LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown, LuGitBranch, LuPresentation, LuChartBar, LuShare2, LuLayoutDashboard } from 'react-icons/lu';
+import { LuLoader, LuHourglass, LuPin, LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown, LuGitBranch, LuPresentation, LuChartBar, LuShare2, LuLayoutDashboard } from 'react-icons/lu';
 
 const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart, onReorder, onCreateNew, onTabContextMenu, onTabRename }) => {
     const [showNewMenu, setShowNewMenu] = useState(false);
@@ -122,6 +122,12 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                             >
                                 {tab.name}
                             </span>
+                            {tab.ejecucion?.estado === 'corriendo' && <LuLoader size={11} className="spin tab-ejecucion" aria-label="Running" />}
+                            {tab.ejecucion?.estado === 'en_espera' && <LuHourglass size={11} className="tab-ejecucion" aria-label={`Waiting for ${tab.ejecucion.tras}`} />}
+                            {!tab.ejecucion && tab.avisoEjecucion && (
+                                <span className={`tab-aviso tab-aviso--${tab.avisoEjecucion}`}
+                                    title={tab.avisoEjecucion === 'error' ? 'The query failed' : 'The query finished'} />
+                            )}
                             {tab.dirty && <span className="tab-dirty">●</span>}
                             {/* En una fijada no se pinta la X: un boton de cerrar
                                 que no cierra es peor que no tener boton. */}

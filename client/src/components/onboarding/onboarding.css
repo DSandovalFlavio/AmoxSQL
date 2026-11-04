@@ -25,6 +25,8 @@
   animation: ob-overlay-in var(--duration-base) var(--ease-out);
 }
 
+.ob-panel:focus { outline: none; }
+
 .ob-panel {
   width: 100%;
   max-width: 520px;
