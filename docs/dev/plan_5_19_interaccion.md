@@ -233,3 +233,88 @@ Las cuatro recomendaciones de §6: Ctrl+K siempre paleta, Ctrl+L siempre Assist,
 
 - 2026-11-04 — Descubrimiento en Electron y navegador, con home temporal. Base real sin tocar. Plan escrito.
 - 2026-11-04 — Fases 1 a 4 implementadas en `claude/plan-5-19-interaccion`. Sin subir versión ni publicar.
+
+---
+
+# Tanda 2 — Archivos grandes: detener sin colgarse
+
+**Estado:** auditoría hecha (2026-11-04), sin implementar. Mediciones reproducibles con
+`scripts/medirArchivosGrandes.mjs`, en Electron real con home temporal: esta máquina, 4 hilos y 16 GB.
+
+**El síntoma del autor:** con Excel o parquet grandes, Stop no terminaba nunca, la app se trababa y la
+pantalla se quedaba sin contenido; solo Ctrl+R la sacaba, de vuelta a la selección de proyectos.
+
+## T2.1 Qué se midió
+
+| Prueba | Tiempo | Tras Stop, motor libre en | Peor congelación del servidor | Memoria |
+|---|---|---|---|---|
+| Parquet 5 M, `SELECT *` (con tope) | 0,5 s | — | 0 s | — |
+| Parquet 5 M, consulta lenta, Stop | — | **0,5 s** | 0,2 s | 1,3 GB |
+| Excel 1 M, `SELECT *` (con tope) | 1,6–2,4 s | — | 0,2 s | — |
+| Excel 1 M, consulta lenta, Stop | — | **0,3 s** | 0,2 s | — |
+| `FROM parquet` **sin tope**, 2 M, Stop a los 3 s | — | **10,1 s** | **12,1 s** | — |
+| `FROM parquet` sin tope, 2 M, sin Stop | 19,9 s | — | 12,2 s (ventana: 5,2 s) | 2 GB |
+| `FROM parquet` sin tope, 3 M | 18,6 s → `Invalid string length` | — | **17,1 s** | 2,3 GB |
+| `FROM parquet` sin tope, 5 M | 30,6 s → `Invalid string length` | — | **29,2 s** | 4,5 GB |
+| Excel 1 M, abrir **Perfil** | — | **19,8 s ocupado** | 0,1 s | — |
+| Excel 1 M, abrir **Gráfico** con resultado recortado | — | **4,6 s ocupado** | 0,2 s | — |
+
+## T2.2 Causas
+
+**C1 — Stop no interrumpía nada (ya arreglado en la tanda 1).** Liberaba la interfaz y la consulta seguía
+hasta acabar. Es la explicación más directa de «no terminaba nunca de detenerse» en las versiones
+publicadas. Con el arreglo, Stop libera el motor en 0,3–0,5 s también sobre Excel.
+
+**C2 — El límite de filas se salta con facilidad.** `applyRowLimit` solo actúa si el texto empieza por
+`SELECT` o `WITH`. `FROM 'x.parquet'`, la forma natural en DuckDB, se trae el archivo entero; lo mismo
+`TABLE`, `VALUES` o `PIVOT`, y cualquier consulta si el ajuste de filas está en 0. Entonces:
+- Convertir las filas (`getRowObjectsJson`) y `res.json` bloquean el hilo del servidor. **Durante ese rato
+  Stop ni siquiera puede llegar**: de ahí los 12–29 s de congelación.
+- Pasado el medio GB de JSON, termina en `Invalid string length`: un mensaje que no dice nada.
+- Si cabe, la ventana se traga el resultado: 5–7 s congelada y 1,5 GB por cada 2 M de filas.
+
+**C3 — Recalcular en segundo plano, sobre el archivo entero, sin freno.** El **Perfil** (`/api/profile`)
+y los totales del **Gráfico** (`vega/agregar.js`, añadidos en la 5.18) releen todo el archivo por la
+conexión principal, sin `queryId` ni cancelación y sin indicador en la pestaña. Cambiar de vista o de
+pestaña no los detiene. Tu consulta siguiente espera detrás sin explicación: parece que Stop o Run no
+funcionan. En mi primera medición, un Stop de 0,3 s pareció de 20 s por un Perfil anterior.
+`/api/db/file-schema` también usa esa conexión.
+
+**C4 — Nada recupera la ventana (el más grave).** No hay un `ErrorBoundary` raíz: cualquier error de
+render desmonta toda la interfaz y deja la pantalla sin contenido. No hay manejador de
+`render-process-gone` ni de `unresponsive`: **probado**, al morir el proceso de la ventana esta se queda
+abierta sin responder y el servidor sigue vivo. Ctrl+R era la única salida **y la tanda 1 la quitó**, así
+que hoy se quedaría atrapado hasta cerrar la ventana.
+
+## T2.3 Lo que no se confirmó
+
+- **La pantalla en blanco en un flujo real no se reprodujo aquí.** Con 2 M de filas, gráfico y perfil la
+  ventana sobrevivió (1,56 GB de 4,3 GB de montón). Tres pestañas así superarían el límite: es una
+  proyección, no una medición. La muerte de la ventana se forzó con `Page.crash`.
+- **No se probaron** archivos de varios GB, ni Excel de más de 1 M de filas (el formato no admite más),
+  ni con poca RAM libre, ni las versiones publicadas.
+- **La CPU no parece ser el problema:** durante consultas pesadas la ventana respondió en 0,1–0,4 s. No se
+  propone limitar hilos.
+
+## T2.4 Propuesta
+
+**Fase 5 — Nunca atrapado (5.18.5) · tamaño S. Va primero: tapa lo que la tanda 1 dejó al descubierto.**
+- `ErrorBoundary` raíz con **Reload** y el detalle del error.
+- `render-process-gone`: recarga sola y lo dice. `unresponsive`: pregunta **Esperar / Recargar**.
+- Las pestañas vuelven con sus archivos y borradores (ya se guardan); la sesión se reabre sin pasar por la
+  selección de proyectos.
+
+**Fase 6 — Un tope que no se salta (5.18.6) · tamaño M.**
+- Decidir por el tipo de sentencia del motor, no por el texto: toda sentencia que devuelva filas lleva tope.
+- Con el ajuste en 0, un tope duro de seguridad, y un aviso que lleve a exportar.
+- Leer el resultado por lotes cediendo el hilo, para que el servidor siga atendiendo y Stop llegue.
+- Mensaje útil en lugar de `Invalid string length`.
+
+**Fase 7 — Lo de fondo, a la vista y cancelable (5.18.7) · tamaño M.**
+- Perfil y totales del gráfico con `queryId`: se cancelan al cambiar de vista, de pestaña o de consulta.
+- Una ejecución tuya tiene prioridad: cancela lo de fondo en vez de esperar detrás.
+- Perfil con «Calculating…» y **Cancel**. Totales del gráfico con espera antes de lanzar, y cancelando el anterior.
+- `file-schema` a la conexión de metadatos.
+
+**Hecho cuando:** `medirArchivosGrandes.mjs` da menos de 1 s de Stop a motor libre y menos de 1 s de
+congelación del servidor en todos los casos, y una ventana forzada a morir vuelve sola con sus pestañas.
