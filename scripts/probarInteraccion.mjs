@@ -218,7 +218,7 @@ try {
 
     // La 5 va antes que la 4, que termina cerrando la ventana principal.
     let actual = app;
-    const fases = { fase1, fase2, fase3, fase5, fase4 };
+    const fases = { fase1, fase2, fase3, fase6, fase5, fase4 };
     for (const [n, f] of Object.entries(fases)) { if (!SOLO || SOLO === n) actual = (await f(actual)) || actual; }
 } catch (e) {
     hubo = e;
@@ -401,6 +401,55 @@ async function fase3(app) {
     bien('cerrar la pestaña se lleva su ventana', (await emergentes()) === 0, await emergentes());
     await app.js(`const e = t.fila('dos'); t.pulsar(e); e.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); await t.dormir(800);`);
 }
+// ── Fase 6: un tope que no se salta ─────────────────────────────────────────
+async function fase6(app) {
+    console.log('— el tope de filas');
+    const q = (query, limit) => app.js(`const p = (await import('/src/api.js')).API_BASE; const r = await fetch(p + '/api/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(${JSON.stringify({ query, limit })}) }); const d = await r.json(); return { ok: r.ok, n: d.data?.length, truncated: d.truncated, rowLimit: d.rowLimit, error: d.error, primera: d.data?.[0], tipo: d.resultType, afectadas: d.rowsAffected };`);
+    const V = "(SELECT i AS id, i * 2 AS doble FROM range(5000) t(i))";
+    let e = await q(`SELECT * FROM ${V}`, 100);
+    bien('SELECT lleva tope', e.n === 100 && e.truncated && e.rowLimit === 100, e);
+    e = await q(`FROM ${V}`, 100);
+    bien('FROM primero también', e.n === 100 && e.truncated, e);
+    e = await q(`-- comentario\nFROM ${V}`, 100);
+    bien('con un comentario delante', e.n === 100 && e.truncated, e);
+    e = await q(`VALUES (1), (2), (3)`, 2);
+    bien('VALUES', e.n === 2 && e.truncated, e);
+    e = await q(`SELECT 1 AS a`, 100);
+    bien('lo que cabe no se marca recortado', e.n === 1 && !e.truncated && e.primera?.a === 1, e);
+    e = await q(`SELECT * FROM range(1200000)`, 0);
+    bien('con el ajuste en 0 hay tope de seguridad', e.n === 1000000 && e.truncated, { n: e.n, t: e.truncated });
+    e = await q(`SELECT 1 AS x, 2 AS x`, 10);
+    bien('columnas repetidas no se pisan', e.ok && Object.keys(e.primera || {}).length === 2, e);
+    e = await q(`SELECT 12345678901234567890::HUGEINT AS h, DATE '2024-01-31' AS d, NULL AS n, [1,2] AS l`, 10);
+    bien('tipos como antes', e.ok && typeof e.primera?.h === 'string' && e.primera?.n === null && Array.isArray(e.primera?.l) && String(e.primera?.d).startsWith('2024-01-31'), e);
+    e = await q(`CREATE OR REPLACE TABLE prueba_tope AS SELECT 1 AS a`, 10);
+    bien('crear una tabla pasa', e.ok, e);
+    e = await q(`INSERT INTO prueba_tope VALUES (2), (3)`, 10);
+    bien('insertar dice cuántas', e.ok && e.afectadas === 2, e);
+    e = await q(`DESCRIBE prueba_tope`, 10);
+    bien('DESCRIBE pasa', e.ok && e.n === 1, e);
+    e = await q(`DROP TABLE prueba_tope`, 10);
+    bien('borrar pasa', e.ok, e);
+    e = await q(`SELEC 1`, 10);
+    bien('un error de sintaxis se dice', !e.ok && /syntax|Parser/i.test(e.error || ''), e);
+    e = await q(`FROM no_existe_esta_tabla`, 10);
+    bien('un error de verdad no se esconde', !e.ok && /no_existe/i.test(e.error || ''), e);
+
+    console.log('— Stop mientras se convierte');
+    e = await app.js(`
+      const p = (await import('/src/api.js')).API_BASE; const c = new AbortController();
+      const t0 = performance.now();
+      const peticion = fetch(p + '/api/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: c.signal, body: JSON.stringify({ query: "SELECT i, md5(i::VARCHAR) a, md5((i+1)::VARCHAR) b FROM range(1000000) t(i)", limit: 0 }) }).catch(() => null);
+      await t.dormir(1200);
+      let peor = 0; const vivo = setInterval(() => {}, 1000); clearInterval(vivo);
+      const a = performance.now(); await fetch(p + '/api/sesion'); peor = performance.now() - a;
+      c.abort(); await peticion;
+      const b = performance.now(); await fetch(p + '/api/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'select 1 x' }) });
+      return { servidorDuranteMs: Math.round(peor), libreTrasStopMs: Math.round(performance.now() - b) };`);
+    bien('el servidor atiende mientras tanto', e.servidorDuranteMs < 1000, e);
+    bien('y al cancelar queda libre', e.libreTrasStopMs < 1000, e);
+}
+
 // ── Fase 5: nunca atrapado ──────────────────────────────────────────────────
 async function fase5(app0) {
     let app = app0;

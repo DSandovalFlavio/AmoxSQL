@@ -49,7 +49,7 @@ const lineaDeComandos  = require('./ejecucion/lineaDeComandos');
 // La apertura de la base de AmoxSQL y del llavero (ver startServer).
 let arranque = Promise.resolve();
 const scaffolder       = require('./projectScaffolder');
-const { applyRowLimit } = require('./_sqlUtils');
+const { applyRowLimit, TOPE_FILAS, TOPE_BYTES } = require('./_sqlUtils');
 const { detectResultType } = require('./_sqlClassify');
 const { crearVigilante, firmaDe } = require('./vigilanteArchivos');
 const amoxvis = require('./amoxvis');
@@ -144,7 +144,52 @@ function rearmarVigilante() {
 }
 
 // Track in-flight user queries for cancellation support
-const activeQueries = new Map(); // queryId → { interrupt }
+const activeQueries = new Map(); // queryId → { interrupt, cancelada, deFondo }
+
+/**
+ * Apunta una consulta cancelable y la ata a su respuesta.
+ *
+ * En `res` y no en `req`: en un POST, `req` se cierra en cuanto se ha leído el
+ * cuerpo. Con `req` la consulta se borraba del registro nada más empezar, y Stop
+ * respondía 404 sin interrumpir nada: el motor seguía ocupado hasta acabar.
+ *
+ * `cancelada` la mira quien está esperando su turno o convirtiendo filas, donde
+ * interrumpir al motor no serviría de nada.
+ */
+function registrarConsulta(qid, res, { deFondo = false } = {}) {
+    const registro = {
+        deFondo,
+        cancelada: false,
+        interrupt() {
+            this.cancelada = true;
+            if (dbManager.isRunning('main', qid)) dbManager.interruptQuery('main');
+        },
+    };
+    activeQueries.set(qid, registro);
+    res.on('close', () => {
+        if (activeQueries.get(qid) === registro && !res.writableFinished) registro.interrupt();
+        activeQueries.delete(qid);
+    });
+    return registro;
+}
+
+/**
+ * El JSON de un resultado, a trozos. `res.json` lo escribía de una vez: el servidor
+ * se quedaba sin atender a nadie, y por encima del medio GB, «Invalid string length».
+ */
+async function responderFilas(res, filas, resto) {
+    const POR_TROZO = 5000;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.write('{"data":[');
+    for (let i = 0; i < filas.length; i += POR_TROZO) {
+        if (res.destroyed) return;
+        const trozo = JSON.stringify(filas.slice(i, i + POR_TROZO)).slice(1, -1);
+        const sigue = res.write((i > 0 ? ',' : '') + trozo);
+        if (!sigue) await new Promise(r => { const fin = () => { res.off('drain', fin); res.off('close', fin); r(); }; res.on('drain', fin); res.on('close', fin); });
+        else await new Promise(setImmediate);
+    }
+    res.end(`],${JSON.stringify(resto).slice(1)}`);
+}
 
 /* --- Project Management APIs --- */
 app.get('/api/project/path', (req, res) => {
@@ -3917,7 +3962,8 @@ app.post('/api/query', async (req, res) => {
         return res.status(400).json({ error: 'Query is required' });
     }
 
-    const { sql: limitedSql, limited, limit: rowLimit } = applyRowLimit(query, limit);
+    const topeFilas = limit > 0 ? Math.min(limit, TOPE_FILAS) : TOPE_FILAS;
+    const { sql: limitedSql, limited, limit: rowLimit } = applyRowLimit(query, topeFilas);
 
     const qid = queryId || require('crypto').randomUUID();
     // User cancellation targets ONLY the 'main' lane, and ONLY if THIS query is
@@ -3925,22 +3971,7 @@ app.post('/api/query', async (req, res) => {
     // interrupt with nothing running kills the NEXT statement — which is why
     // opening a chart used to fail with "Interrupted!" when a previous fetch
     // had been aborted client-side (e.g. dev double-mount).
-    activeQueries.set(qid, {
-        interrupt: () => {
-            if (dbManager.isRunning('main', qid)) dbManager.interruptQuery('main');
-        },
-    });
-
-    // If the client disconnects (AbortController / network drop), interrupt DuckDB
-    // En `res` y no en `req`: en un POST, `req` se cierra en cuanto se ha leído el
-    // cuerpo. Con `req` la consulta se borraba del registro nada más empezar, y Stop
-    // respondía 404 sin interrumpir nada: el motor seguía ocupado hasta acabar.
-    res.on('close', () => {
-        if (activeQueries.has(qid) && !res.writableFinished && dbManager.isRunning('main', qid)) {
-            dbManager.interruptQuery('main');
-        }
-        activeQueries.delete(qid);
-    });
+    const registro = registrarConsulta(qid, res);
 
     // Mientras dbt tiene la base, se dice; lo que sólo lee fuentes o memoria corre.
     if (dbManager.prestada && !/^\s*(SELECT|WITH|FROM|DESCRIBE|SUMMARIZE|PRAGMA)\b[\s\S]*\bfuentes\s*\./i.test(query) && baseOcupadaPorDbt(res)) {
@@ -3954,16 +3985,26 @@ app.post('/api/query', async (req, res) => {
         // puedan leer (sin red, sin credencial): se anotan antes de correr.
         anotarFuentesDelSql(query);
         const start = performance.now();
-        const result = await dbManager.queryWithMetadata(limitedSql, { trackId: qid });
+        const opciones = { trackId: qid, cancelada: () => registro.cancelada, maxFilas: topeFilas + 1, maxBytes: TOPE_BYTES };
+        let result;
+        try {
+            result = await dbManager.queryWithMetadata(limitedSql, opciones);
+        } catch (err) {
+            // Lo poco que no admite ir de subconsulta se ejecuta tal cual; el tope
+            // de filas y de tamaño sigue valiendo.
+            if (!limited || /^\s*(SELECT|WITH)\b/i.test(query) || !/Parser Error|syntax error/i.test(err.message)) throw err;
+            result = await dbManager.queryWithMetadata(query, opciones);
+        }
         const end = performance.now();
 
         // Detect truncation: we fetched limit+1 rows, if we got them all it means there are more
         let rows = result.rows;
         let truncated = false;
-        if (limited && rows.length > rowLimit) {
-            rows = rows.slice(0, rowLimit);
+        if (rows.length > topeFilas) {
+            rows = rows.slice(0, topeFilas);
             truncated = true;
         }
+        if (result.cortadoPor === 'tamano') truncated = true;
 
         // Invalidate table context cache if query may have changed schema
         const upperQuery = query.toUpperCase().trim();
@@ -4002,20 +4043,21 @@ app.post('/api/query', async (req, res) => {
             if (count !== undefined && count !== null) rowsAffected = Number(count);
         }
 
-        res.json({
-            data: rows,
+        await responderFilas(res, rows, {
             types: result.types,
             executionTime: (end - start).toFixed(2),
             rowCount: rows.length,
             truncated,
-            rowLimit: limited ? rowLimit : null,
+            rowLimit: truncated ? rows.length : (limited ? rowLimit : null),
+            topePorTamano: result.cortadoPor === 'tamano',
             queryId: qid,
             resultType,
             resultDetails,
             rowsAffected,
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        if (res.headersSent) res.end();
+        else res.status(500).json({ error: err.message });
     } finally {
         activeQueries.delete(qid);
     }
@@ -4112,52 +4154,42 @@ app.post('/api/cuaderno/celda', async (req, res) => {
         }
     }
 
-    const { sql: lectorLimitado, limited, limit: rowLimit } = applyRowLimit(lector, limit);
+    const topeFilas = limit > 0 ? Math.min(limit, TOPE_FILAS) : TOPE_FILAS;
+    const { sql: lectorLimitado, limited, limit: rowLimit } = applyRowLimit(lector, topeFilas);
     const qid = queryId || require('crypto').randomUUID();
-    activeQueries.set(qid, {
-        interrupt: () => {
-            if (dbManager.isRunning('main', qid)) dbManager.interruptQuery('main');
-        },
-    });
-    // En `res` y no en `req`: en un POST, `req` se cierra en cuanto se ha leído el
-    // cuerpo. Con `req` la consulta se borraba del registro nada más empezar, y Stop
-    // respondía 404 sin interrumpir nada: el motor seguía ocupado hasta acabar.
-    res.on('close', () => {
-        if (activeQueries.has(qid) && !res.writableFinished && dbManager.isRunning('main', qid)) {
-            dbManager.interruptQuery('main');
-        }
-        activeQueries.delete(qid);
-    });
+    const registro = registrarConsulta(qid, res);
 
     try {
         const start = performance.now();
-        if (preparacion) await dbManager.queryWithMetadata(preparacion, { trackId: qid });
-        const result = await dbManager.queryWithMetadata(lectorLimitado, { trackId: qid });
+        const cancelada = () => registro.cancelada;
+        if (preparacion) await dbManager.queryWithMetadata(preparacion, { trackId: qid, cancelada });
+        const result = await dbManager.queryWithMetadata(lectorLimitado, { trackId: qid, cancelada, maxFilas: topeFilas + 1, maxBytes: TOPE_BYTES });
         const end = performance.now();
 
         let rows = result.rows;
         let truncated = false;
-        if (limited && rows.length > rowLimit) {
-            rows = rows.slice(0, rowLimit);
+        if (rows.length > topeFilas) {
+            rows = rows.slice(0, topeFilas);
             truncated = true;
         }
+        if (result.cortadoPor === 'tamano') truncated = true;
 
         // La celda ha podido crear o tapar objetos: el contexto de tablas que
         // alimenta el autocompletado y a la IA deja de valer.
         if (preparacion) invalidateTableContextCache();
 
-        res.json({
-            data: rows,
+        await responderFilas(res, rows, {
             types: result.types,
             executionTime: (end - start).toFixed(2),
             rowCount: rows.length,
             truncated,
-            rowLimit: limited ? rowLimit : null,
+            rowLimit: truncated ? rows.length : (limited ? rowLimit : null),
             queryId: qid,
             vista: vista || null,
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        if (res.headersSent) res.end();
+        else res.status(500).json({ error: err.message });
     } finally {
         activeQueries.delete(qid);
     }

@@ -24,6 +24,7 @@ const fs = require('fs');
  *     happen on 'main' only — other lanes rely on DuckDB's extension
  *     autoloading (on by default) if they ever touch extension functions.
  */
+const { JsonDuckDBValueConverter } = require('@duckdb/node-api');
 const LANES = ['main', 'meta', 'ai'];
 
 /**
@@ -673,6 +674,30 @@ class DatabaseManager {
     }
 
     /**
+     * Las consultas que se pueden cancelar van de una en una por carril. Una
+     * conexión ya las serializa por dentro, pero sin esto `_running` decía que
+     * corría la última en llegar, aunque siguiera esperando detrás de otra: Stop
+     * no encontraba a la que corría de verdad. La que se canceló mientras esperaba
+     * ni llega a empezar.
+     */
+    async _porTurno(lane, options, trabajo) {
+        if (!options.trackId) return trabajo();
+        if (!this._turnos) this._turnos = {};
+        const anterior = this._turnos[lane] || Promise.resolve();
+        let soltar;
+        this._turnos[lane] = new Promise(r => { soltar = r; });
+        await anterior;
+        try {
+            if (options.cancelada?.()) throw new Error('INTERRUPT Error: Interrupted!');
+            this._setRunning(lane, options.trackId);
+            return await trabajo();
+        } finally {
+            this._clearRunning(lane, options.trackId);
+            soltar();
+        }
+    }
+
+    /**
      * Run SQL and return rows as JSON-safe objects.
      * @param {string} sql
      * @param {{lane?: 'main'|'meta'|'ai', trackId?: string}} [options] - lane defaults to 'main'
@@ -689,9 +714,8 @@ class DatabaseManager {
         }
 
         try {
-            if (options.trackId) this._setRunning(lane, options.trackId);
             // Neo API: run() returns a result with reader-style methods.
-            const reader = await connection.run(sql);
+            const reader = await this._porTurno(lane, options, () => connection.run(sql));
 
             // getRowObjectsJson() handles BigInts safely (as strings) and maps headers.
             const rows = await reader.getRowObjectsJson();
@@ -718,8 +742,7 @@ class DatabaseManager {
         }
 
         try {
-            if (options.trackId) this._setRunning(lane, options.trackId);
-            const reader = await connection.run(sql);
+            const reader = await this._porTurno(lane, options, () => connection.run(sql));
 
             const types = {};
             if (reader.columnNames && reader.columnTypes) {
@@ -730,13 +753,41 @@ class DatabaseManager {
                 }
             }
 
-            const rows = await reader.getRowObjectsJson();
-            return { rows, types };
+            const { rows, cortadoPor } = await this._leerPorLotes(reader, options);
+            return { rows, types, cortadoPor };
 
         } catch (err) {
             throw new Error(err?.message || String(err));
-        } finally {
-            if (options.trackId) this._clearRunning(lane, options.trackId);
+        }
+    }
+
+    /**
+     * Convierte el resultado a JSON por lotes, cediendo el hilo entre uno y otro.
+     * De una vez, con un resultado grande, el servidor no atendía a nadie durante
+     * decenas de segundos: Stop ni siquiera podía llegar.
+     */
+    async _leerPorLotes(result, { maxFilas = Infinity, maxBytes = Infinity, cancelada = null } = {}) {
+        const nombres = result.deduplicatedColumnNames();
+        const rows = [];
+        let bytes = 0;
+        for (;;) {
+            if (cancelada?.()) throw new Error('INTERRUPT Error: Interrupted!');
+            const chunk = await result.fetchChunk();
+            if (!chunk || chunk.rowCount === 0) return { rows, cortadoPor: null };
+            const lote = chunk.convertRows(JsonDuckDBValueConverter).map((fila) => {
+                const o = {};
+                for (let i = 0; i < nombres.length; i++) o[nombres[i]] = fila[i];
+                return o;
+            });
+            for (const f of lote) {
+                rows.push(f);
+                if (rows.length >= maxFilas) return { rows, cortadoPor: 'filas' };
+            }
+            if (maxBytes !== Infinity) {
+                bytes += JSON.stringify(lote).length;
+                if (bytes >= maxBytes) return { rows, cortadoPor: 'tamano' };
+            }
+            await new Promise(setImmediate);
         }
     }
 

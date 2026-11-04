@@ -655,7 +655,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                 {data.length !== totalRows && ` [Filtered from ${data.length}]`}
                                 {truncated && (
                                     <span style={{ marginLeft: 8, color: 'var(--feedback-warning)', fontWeight: 500 }}
-                                          title={`Result capped at ${rowLimit?.toLocaleString()} rows. Adjust "Max Rows" in Settings → Editor, or use LIMIT in your query, or Export for full data.`}>
+                                          title={`Result capped at ${rowLimit?.toLocaleString()} rows, so the window stays responsive. Adjust "Max Rows" in Settings → Editor (there is a safety limit of 1,000,000 rows or 256 MB), use LIMIT or an aggregate in your query, or Export for the full data.`}>
                                         ⚠ first {rowLimit?.toLocaleString()} rows shown
                                     </span>
                                 )}

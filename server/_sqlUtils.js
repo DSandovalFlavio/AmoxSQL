@@ -15,8 +15,10 @@
 function applyRowLimit(sql, limit) {
     if (!limit || limit <= 0) return { sql, limited: false };
     const stripped = sql.replace(/--[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '').trim();
-    const upper = stripped.toUpperCase();
-    if (!upper.startsWith('SELECT') && !upper.startsWith('WITH')) return { sql, limited: false };
+    // No solo SELECT/WITH: `FROM 'x.parquet'`, lo natural en DuckDB, se traía el
+    // archivo entero al navegador (5 M de filas: 29 s de servidor congelado y
+    // 4,5 GB para acabar en «Invalid string length»).
+    if (!DEVUELVEN_FILAS.test(stripped)) return { sql, limited: false };
     // Strip trailing semicolons so the subquery wrapping stays valid
     const cleanSql = sql.trimEnd().replace(/;+$/, '');
     return {
@@ -26,4 +28,12 @@ function applyRowLimit(sql, limit) {
     };
 }
 
-module.exports = { applyRowLimit };
+// Lo que empieza así devuelve filas y admite ir de subconsulta.
+const DEVUELVEN_FILAS = /^\(*\s*(SELECT|WITH|FROM|VALUES|TABLE|PIVOT|UNPIVOT)\b/i;
+
+// El tope de seguridad, también con el ajuste de filas en 0: lo que cabe en una
+// ventana sin ponerla en peligro. Para más, exportar: no pasa por aquí.
+const TOPE_FILAS = 1000000;
+const TOPE_BYTES = 256 * 1024 * 1024;
+
+module.exports = { applyRowLimit, TOPE_FILAS, TOPE_BYTES };
