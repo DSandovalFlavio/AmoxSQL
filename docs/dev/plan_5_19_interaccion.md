@@ -238,7 +238,7 @@ Las cuatro recomendaciones de §6: Ctrl+K siempre paleta, Ctrl+L siempre Assist,
 
 # Tanda 2 — Archivos grandes: detener sin colgarse
 
-**Estado:** auditoría hecha (2026-11-04), sin implementar. Mediciones reproducibles con
+**Estado:** fases 5, 6 y 7 implementadas (2026-11-04), sin publicar; resultado en T2.5. Mediciones reproducibles con
 `scripts/medirArchivosGrandes.mjs`, en Electron real con home temporal: esta máquina, 4 hilos y 16 GB.
 
 **El síntoma del autor:** con Excel o parquet grandes, Stop no terminaba nunca, la app se trababa y la
@@ -318,3 +318,44 @@ que hoy se quedaría atrapado hasta cerrar la ventana.
 
 **Hecho cuando:** `medirArchivosGrandes.mjs` da menos de 1 s de Stop a motor libre y menos de 1 s de
 congelación del servidor en todos los casos, y una ventana forzada a morir vuelve sola con sus pestañas.
+
+## T2.5 Qué quedó (2026-11-04)
+
+Misma máquina, parquet de 5 M de filas (388 MB) y Excel de 1 M (58 MB).
+
+| Prueba | Antes | Ahora |
+|---|---|---|
+| `FROM parquet` sin tope, 5 M | 30,6 s → `Invalid string length`, servidor congelado 29,2 s | **0,6 s**, primeras 10.000 filas |
+| `FROM parquet` sin tope, 2 M, Stop | motor libre en 10,1 s | no hace falta Stop: 0,5 s |
+| Consulta lenta sobre parquet, Stop | motor libre en 0,5 s | **0,5 s** |
+| Excel 1 M ordenado, Stop | 0,3 s | **menos de 0,1 s** |
+| Abrir el Perfil sobre Excel 1 M | 19,8 s con el motor ocupado | **tu consulta entra en menos de 0,1 s** |
+| Abrir el Gráfico sobre Excel 1 M | 4,6 s con el motor ocupado | **0,4 s** |
+| Max Rows en 0, 5 M | 19,9 s o error | **10,1 s, 1 M de filas**, servidor 0,1 s, **ventana 2,0 s** |
+
+**Hecho cuando:** se cumple Stop → motor libre (máximo 0,8 s) y servidor (máximo 0,2 s) en todos los casos,
+y la ventana forzada a morir vuelve con sus pestañas, también las que aún no tienen archivo.
+
+**Decisiones**
+- **Dec-90.** El tope se decide por cómo empieza la sentencia (`SELECT`, `WITH`, `FROM`, `VALUES`, `TABLE`,
+  `PIVOT`, `UNPIVOT`, con paréntesis y comentarios delante), no por el tipo del motor como proponía T2.4: es una
+  sola línea y el resto de sentencias ya pasa por el tope de la conversión. Si la envoltura no se puede analizar,
+  se ejecuta tal cual, y la conversión sigue cortando.
+- **Dec-91.** Tope de seguridad de 1.000.000 de filas o 256 MB, aunque Max Rows esté en 0. Más que eso va por Export.
+- **Dec-92.** Lectura materializada y conversión por lotes, no streaming: un resultado abierto en la conexión
+  principal lo cerraría cualquier consulta sin seguimiento de la misma conexión.
+- **Dec-93.** Las consultas con seguimiento van por turnos en cada carril (`_porTurno`). Sin eso, `_running` decía
+  que corría la última en llegar, aunque esperara detrás de otra. Una cancelada mientras espera no empieza, pero
+  su respuesta llega cuando le toca el turno.
+- **Dec-94.** Lo de fondo (Perfil, totales del gráfico) cede ante `/api/query` y `/api/cuaderno/celda`. Los
+  totales cancelados se reintentan hasta 3 veces: sin ellos un resultado recortado dibujaría de menos.
+- **Dec-95.** La copia de las pestañas sin archivo solo se lee al recuperar la ventana (`?reanudar=1`). Al abrir
+  con normalidad no vuelven: quien cerró sin guardar ya contestó. Tope de 1 MB por pestaña.
+- **Dec-96.** Un gráfico guardado recuerda sus datos por pestaña hasta 200.000 filas: volver a la pestaña no
+  relee el archivo, pero tampoco ve datos nuevos hasta **Refresh**.
+
+**Sigue sin confirmarse**
+- La pantalla en blanco de un flujo real no se reprodujo; la muerte de la ventana se forzó con `Page.crash`.
+- No se probaron archivos de varios GB, poca RAM libre ni el instalador con estos cambios.
+- Con Max Rows en 0 la ventana se congela 2,0 s al recibir 1 M de filas, y `Export` no se cancela al ejecutar otra
+  consulta. Ninguno de los dos se resolvió aquí.

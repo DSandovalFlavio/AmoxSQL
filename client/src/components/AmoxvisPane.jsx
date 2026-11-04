@@ -17,6 +17,7 @@
  */
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { recordarDatosDeGrafico, leerDatosDeGrafico } from '../utils/memoriaDePestana';
 import Editor from '@monaco-editor/react';
 import {
     LuLoader, LuChevronDown, LuChevronRight, LuRefreshCw, LuBookOpen, LuSave, LuUnlink,
@@ -69,7 +70,15 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
     const [queryExpanded, setQueryExpanded] = useState(!!tab.abrirConsulta && !config.source);
     const [moviendo, setMoviendo] = useState(false);
 
+    const tabId = tab.id;
+    const peticionRef = useRef(null);
+    // Irse de la pestaña detiene la lectura: si no, seguía ocupando el motor.
+    useEffect(() => () => peticionRef.current?.abort(), []);
+
     const executeQuery = useCallback(async (q) => {
+        peticionRef.current?.abort();
+        const peticion = new AbortController();
+        peticionRef.current = peticion;
         setIsLoading(true);
         setError(null);
         try {
@@ -77,20 +86,22 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: q }),
+                signal: peticion.signal,
             });
             const result = await response.json();
             if (response.ok) {
                 setData(result.data);
                 setConsultaEjecutada(q);
+                recordarDatosDeGrafico(tabId, q, result.data);
             } else {
                 setError(result.error || 'Query failed');
             }
         } catch (err) {
-            setError(err.message);
+            if (!peticion.signal.aborted) setError(err.message);
         } finally {
-            setIsLoading(false);
+            if (peticionRef.current === peticion) setIsLoading(false);
         }
-    }, []);
+    }, [tabId]);
 
     // El documento cambió: la consulta, el vínculo o lo que avisa el gráfico.
     const avisar = useCallback((cambios = {}) => {
@@ -147,7 +158,14 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
                     // El .sql se movió o se borró: se dibuja la copia del gráfico.
                 }
             }
-            if (!cancelado && currentQuery) executeQuery(currentQuery);
+            if (cancelado || !currentQuery) return;
+            const recordados = leerDatosDeGrafico(tabId, currentQuery);
+            if (recordados) {
+                setData(recordados);
+                setConsultaEjecutada(currentQuery);
+            } else {
+                executeQuery(currentQuery);
+            }
         })();
         return () => { cancelado = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps

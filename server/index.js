@@ -174,6 +174,18 @@ function registrarConsulta(qid, res, { deFondo = false } = {}) {
 }
 
 /**
+ * Lo que corre por su cuenta (perfil, totales de un gráfico) cede ante lo que pides.
+ * Antes tu consulta esperaba detrás sin explicación: parecía que Run no funcionaba.
+ */
+function cancelarLoDeFondo() {
+    let cuantas = 0;
+    for (const r of activeQueries.values()) {
+        if (r.deFondo && !r.cancelada) { r.interrupt(); cuantas++; }
+    }
+    return cuantas;
+}
+
+/**
  * El JSON de un resultado, a trozos. `res.json` lo escribía de una vez: el servidor
  * se quedaba sin atender a nadie, y por encima del medio GB, «Invalid string length».
  */
@@ -893,7 +905,7 @@ app.get('/api/db/file-schema', async (req, res) => {
         let fullSourcePath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
         fullSourcePath = fullSourcePath.replace(/\\/g, '/');
 
-        const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
+        const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`, { lane: 'meta' });
         res.json(describe);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch file schema', details: err.message });
@@ -3957,7 +3969,7 @@ app.get('/api/charts/using-source', (req, res) => {
 // applyRowLimit lives in ./_sqlUtils (shared with ai/tools.js execute_sql).
 
 app.post('/api/query', async (req, res) => {
-    const { query, queryId, limit } = req.body;
+    const { query, queryId, limit, deFondo } = req.body;
     if (!query) {
         return res.status(400).json({ error: 'Query is required' });
     }
@@ -3971,7 +3983,8 @@ app.post('/api/query', async (req, res) => {
     // interrupt with nothing running kills the NEXT statement — which is why
     // opening a chart used to fail with "Interrupted!" when a previous fetch
     // had been aborted client-side (e.g. dev double-mount).
-    const registro = registrarConsulta(qid, res);
+    const cedieron = deFondo ? 0 : cancelarLoDeFondo();
+    const registro = registrarConsulta(qid, res, { deFondo: !!deFondo });
 
     // Mientras dbt tiene la base, se dice; lo que sólo lee fuentes o memoria corre.
     if (dbManager.prestada && !/^\s*(SELECT|WITH|FROM|DESCRIBE|SUMMARIZE|PRAGMA)\b[\s\S]*\bfuentes\s*\./i.test(query) && baseOcupadaPorDbt(res)) {
@@ -3988,7 +4001,14 @@ app.post('/api/query', async (req, res) => {
         const opciones = { trackId: qid, cancelada: () => registro.cancelada, maxFilas: topeFilas + 1, maxBytes: TOPE_BYTES };
         let result;
         try {
-            result = await dbManager.queryWithMetadata(limitedSql, opciones);
+            result = await dbManager.queryWithMetadata(limitedSql, opciones).catch((err) => {
+                // Interrumpir lo de fondo justo cuando acababa deja el aviso puesto
+                // y se lo lleva la siguiente: la tuya. Se repite una vez.
+                if (cedieron && !registro.cancelada && /Interrupted/i.test(err.message)) {
+                    return dbManager.queryWithMetadata(limitedSql, opciones);
+                }
+                throw err;
+            });
         } catch (err) {
             // Lo poco que no admite ir de subconsulta se ejecuta tal cual; el tope
             // de filas y de tamaño sigue valiendo.
@@ -4157,6 +4177,7 @@ app.post('/api/cuaderno/celda', async (req, res) => {
     const topeFilas = limit > 0 ? Math.min(limit, TOPE_FILAS) : TOPE_FILAS;
     const { sql: lectorLimitado, limited, limit: rowLimit } = applyRowLimit(lector, topeFilas);
     const qid = queryId || require('crypto').randomUUID();
+    cancelarLoDeFondo();
     const registro = registrarConsulta(qid, res);
 
     try {
@@ -4232,10 +4253,16 @@ app.post('/api/query/cancel/:queryId', (req, res) => {
 });
 
 app.post('/api/profile', async (req, res) => {
-    const { query } = req.body;
+    const { query, queryId } = req.body;
     if (!query) {
         return res.status(400).json({ error: 'Query is required' });
     }
+
+    // El perfil relee la consulta entera, varias veces. Va de fondo: se cancela al
+    // salir de la vista (se cierra la petición) o cuando corres otra consulta.
+    const qid = queryId || require('crypto').randomUUID();
+    const registro = registrarConsulta(qid, res, { deFondo: true });
+    const opciones = { trackId: qid, cancelada: () => registro.cancelada };
 
     try {
         // Strip trailing semicolons to prevent syntax errors when nesting
@@ -4244,7 +4271,7 @@ app.post('/api/profile', async (req, res) => {
         // 1. DuckDB SUMMARIZE for core statistics
         const profileQuery = `SUMMARIZE ${cleanQuery}`;
         const start = performance.now();
-        const profileData = await dbManager.systemQuery(profileQuery);
+        const profileData = await dbManager.systemQuery(profileQuery, opciones);
 
         // 2. Fetch Global Stats
         const globalRowsQuery = `SELECT COUNT(*) as total_rows FROM (${cleanQuery}) as sq`;
@@ -4340,7 +4367,7 @@ app.post('/api/profile', async (req, res) => {
 
         let visuals = {};
         if (visualQueries.length > 0) {
-            const visualResults = await Promise.all(visualQueries.map(q => dbManager.systemQuery(q)));
+            const visualResults = await Promise.all(visualQueries.map(q => dbManager.systemQuery(q, opciones)));
             visualResults.forEach(res => {
                 if (!res || res.length === 0) return;
                 const colName = res[0].col_name;
@@ -4355,11 +4382,11 @@ app.post('/api/profile', async (req, res) => {
 
         // 5. Execute Global & Advanced queries in parallel
         const parallelExecutions = [
-            dbManager.systemQuery(globalRowsQuery),
-            dbManager.systemQuery(globalDupesQuery)
+            dbManager.systemQuery(globalRowsQuery, opciones),
+            dbManager.systemQuery(globalDupesQuery, opciones)
         ];
         if (advancedQuery) {
-            parallelExecutions.push(dbManager.systemQuery(advancedQuery));
+            parallelExecutions.push(dbManager.systemQuery(advancedQuery, opciones));
         }
 
         const parallelResults = await Promise.all(parallelExecutions);
@@ -4378,7 +4405,7 @@ app.post('/api/profile', async (req, res) => {
                 const top2 = [...profileData].sort((a, b) => parseInt(b.approx_unique) - parseInt(a.approx_unique)).slice(0, 2);
                 const c1 = top2[0].column_name;
                 const c2 = top2[1].column_name;
-                const r = await dbManager.systemQuery(`SELECT (COUNT(*) = COUNT(DISTINCT (CAST("${c1}" AS VARCHAR), CAST("${c2}" AS VARCHAR)))) as is_key FROM (${cleanQuery}) __amox_ck`);
+                const r = await dbManager.systemQuery(`SELECT (COUNT(*) = COUNT(DISTINCT (CAST("${c1}" AS VARCHAR), CAST("${c2}" AS VARCHAR)))) as is_key FROM (${cleanQuery}) __amox_ck`, opciones);
                 const v = r[0]?.is_key;
                 if (v === true || v === 1 || String(v).toLowerCase() === 'true') candidateKey = [c1, c2];
             }
@@ -4414,7 +4441,10 @@ app.post('/api/profile', async (req, res) => {
             executionTime: (end - start).toFixed(2)
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        if (registro.cancelada) res.json({ cancelada: true });
+        else res.status(500).json({ error: err.message });
+    } finally {
+        activeQueries.delete(qid);
     }
 });
 

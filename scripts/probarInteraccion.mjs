@@ -218,7 +218,7 @@ try {
 
     // La 5 va antes que la 4, que termina cerrando la ventana principal.
     let actual = app;
-    const fases = { fase1, fase2, fase3, fase6, fase5, fase4 };
+    const fases = { fase1, fase2, fase3, fase6, fase7, fase5, fase4 };
     for (const [n, f] of Object.entries(fases)) { if (!SOLO || SOLO === n) actual = (await f(actual)) || actual; }
 } catch (e) {
     hubo = e;
@@ -450,6 +450,98 @@ async function fase6(app) {
     bien('y al cancelar queda libre', e.libreTrasStopMs < 1000, e);
 }
 
+// ── Fase 7: lo de fondo, a la vista y cancelable ────────────────────────────
+async function fase7(app) {
+    const LENTA = "SELECT count(*) c FROM range(4000000000) t(i) WHERE md5(i::VARCHAR) = 'x'";
+    const GRANDE = "SELECT i, md5(i::VARCHAR) m FROM range(30000000) t(i)";
+    const AUX = `const p = (await import('/src/api.js')).API_BASE;
+      const post = (ruta, cuerpo, signal) => fetch(p + ruta, { method: 'POST', headers: { 'Content-Type': 'application/json' }, signal, body: JSON.stringify(cuerpo) });
+      const cronometro = async (fn) => { const a = performance.now(); const r = await fn(); return [Math.round(performance.now() - a), r]; };
+      const uno = () => post('/api/query', { query: 'select 1 x' }).then(r => r.json());`;
+
+    console.log('— tu consulta tiene prioridad');
+    let e = await app.js(`${AUX}
+      const fondo = post('/api/query', { query: ${JSON.stringify(LENTA)}, deFondo: true }).then(async r => ({ ok: r.ok, ...(await r.json()) }));
+      await t.dormir(800);
+      const [ms, r] = await cronometro(uno);
+      const f = await fondo;
+      return { ms, x: r.data?.[0]?.x, fondoOk: f.ok, error: f.error };`);
+    bien('no espera detrás de lo de fondo', e.ms < 1500 && e.x === 1, e);
+    bien('lo de fondo cedió', !e.fondoOk && /Interrupted/i.test(e.error || ''), e);
+
+    e = await app.js(`${AUX}
+      const perfil = post('/api/profile', { query: ${JSON.stringify(GRANDE)} }).then(r => r.json());
+      await t.dormir(3000); console.log('dbg', JSON.stringify(Object.entries(localStorage).filter(([k]) => /sin-guardar|layout-v1/.test(k)).map(([k,v]) => [k.slice(0,40), v.slice(0,400)]))); window.__dbg = [...document.querySelectorAll('.tab-item')].map(x => x.className + ':' + x.textContent);
+      const [ms, r] = await cronometro(uno);
+      return { ms, x: r.data?.[0]?.x, perfil: await perfil };`);
+    bien('el perfil cede ante tu consulta', e.ms < 1500 && e.x === 1 && e.perfil.cancelada === true, { ms: e.ms, p: e.perfil });
+
+    e = await app.js(`${AUX}
+      const c = new AbortController();
+      const perfil = post('/api/profile', { query: ${JSON.stringify(GRANDE)} }, c.signal).catch(() => null);
+      await t.dormir(3000); console.log('dbg', JSON.stringify(Object.entries(localStorage).filter(([k]) => /sin-guardar|layout-v1/.test(k)).map(([k,v]) => [k.slice(0,40), v.slice(0,400)]))); window.__dbg = [...document.querySelectorAll('.tab-item')].map(x => x.className + ':' + x.textContent);
+      c.abort(); await perfil;
+      const [ms] = await cronometro(() => post('/api/query', { query: 'select 1 x', deFondo: true }).then(r => r.json()));
+      return { ms };`);
+    bien('cerrar la petición del perfil libera el motor', e.ms < 1000, e);
+
+    console.log('— cada consulta, su turno');
+    e = await app.js(`${AUX}
+      const correr = (id) => post('/api/query', { query: ${JSON.stringify(LENTA)}, queryId: id }).then(r => r.json());
+      const a = correr('turno-a'); const b = correr('turno-b'); const c = correr('turno-c');
+      await t.dormir(600);
+      // La que espera se cancela sin tocar a la que corre.
+      await post('/api/query/cancel/turno-b', {});
+      await t.dormir(300);
+      const ra = await Promise.race([a, t.dormir(50).then(() => 'sigue')]);
+      // Stop llega a la que corre de verdad, y luego a la siguiente.
+      const [msA] = await cronometro(async () => { await post('/api/query/cancel/turno-a', {}); return a; });
+      const rb = await Promise.race([b, t.dormir(1000).then(() => 'sigue')]);
+      const [msC] = await cronometro(async () => { await t.dormir(300); await post('/api/query/cancel/turno-c', {}); return c; });
+      const [msLibre, r] = await cronometro(uno);
+      return { b: rb?.error || rb, a: ra === 'sigue', msA, msC, msLibre, x: r.data?.[0]?.x };`);
+    bien('la que espera se cancela sin empezar', /Interrupted/i.test(String(e.b)), e);
+    bien('y la que corre sigue a lo suyo', e.a === true, e);
+    bien('Stop llega a la que corre', e.msA < 1000, e);
+    bien('y a la siguiente', e.msC < 1300, e);
+    bien('el motor queda libre', e.msLibre < 1000 && e.x === 1, e);
+
+    console.log('— el perfil, a la vista');
+    await app.js(`
+      await t.ir('uno.sql'); t.ed().setValue(${JSON.stringify(GRANDE)}); await t.dormir(200);
+      t.boton('Run').click(); await t.dormir(1500);
+      t.boton('Profile').click(); await t.dormir(700);`);
+    e = await app.js(`return { texto: document.querySelector('.dp-espera')?.textContent || '', cancelar: !!t.boton('Cancel') };`);
+    bien('dice que calcula y se puede cancelar', /Profiling/.test(e.texto) && e.cancelar, e);
+    e = await app.js(`${AUX}
+      t.boton('Cancel').click(); await t.dormir(300);
+      const [ms] = await cronometro(() => post('/api/query', { query: 'select 1 x', deFondo: true }).then(r => r.json()));
+      return { ms, texto: document.querySelector('.dp-espera')?.textContent || '', recalcular: !!t.boton('Recalculate') };`);
+    bien('Cancel libera el motor', e.ms < 1000, e);
+    bien('y deja volver a calcular', /stopped/.test(e.texto) && e.recalcular, e);
+    e = await app.js(`
+      t.boton('Table').click(); await t.dormir(200); t.boton('Profile').click(); await t.dormir(500);
+      return { sigueDetenido: !!t.boton('Recalculate') };`);
+    bien('volver a la vista no lo relanza solo', e.sigueDetenido, e);
+    e = await app.js(`${AUX}
+      t.boton('Recalculate').click(); await t.dormir(600);
+      const calculando = !!t.boton('Cancel');
+      t.boton('Table').click(); await t.dormir(300);
+      const [ms] = await cronometro(() => post('/api/query', { query: 'select 1 x', deFondo: true }).then(r => r.json()));
+      return { calculando, ms };`);
+    bien('Recalculate calcula', e.calculando, e);
+    bien('salir de la vista lo cancela', e.ms < 1000, e);
+    e = await app.js(`
+      t.ed().setValue('SELECT i AS id, i % 3 AS g FROM range(500) t(i)'); await t.dormir(200);
+      t.boton('Run').click(); await t.dormir(900);
+      t.boton('Profile').click();
+      for (let i = 0; i < 30 && document.querySelector('.dp-espera'); i++) await t.dormir(200);
+      const texto = document.querySelector('.ep-results')?.textContent || '';
+      t.boton('Table').click();
+      return { espera: !!document.querySelector('.dp-espera'), tieneColumnas: texto.includes('id') && texto.includes('BIGINT'), texto: texto.slice(0, 200) };`);
+    bien('un perfil normal sale', !e.espera && e.tieneColumnas, e);
+}
+
 // ── Fase 5: nunca atrapado ──────────────────────────────────────────────────
 async function fase5(app0) {
     let app = app0;
@@ -481,6 +573,12 @@ async function fase5(app0) {
     bien('el proyecto sigue abierto', typeof e === 'string' && e.length > 0, e);
 
     console.log('— muere el proceso de la ventana');
+    // Con una pestaña sin guardar delante, lo más fácil de perder.
+    await app.tecla('ctrl+n'); await dormir(900);
+    const antes = await app.js(`
+      for (let i = 0; i < 20 && !window.monaco?.editor.getEditors().length; i++) await t.dormir(300);
+      const ed = monaco.editor.getEditors().find(x => x.getDomNode()?.offsetParent); ed.focus(); ed.setValue('SELECT 42 AS sin_guardar'); await t.dormir(1500);
+      return { tabs: [...document.querySelectorAll('.tab-label')].map(x => x.textContent.trim()), v: ed.getValue() };`);
     app.cdp('Page.crash');
     await dormir(7000);
     app = await abrir(p => !p.url.includes('popout=true'));
@@ -490,6 +588,12 @@ async function fase5(app0) {
     await dormir(1500);
     e = await enIde(app);
     bien('se recupera sola con sus pestañas', e.tabs >= 1 && !e.bienvenida, e);
+    e = await app.js(`
+      for (let i = 0; i < 20 && !window.monaco?.editor.getEditors().length; i++) await t.dormir(300);
+      await t.dormir(3000); console.log('dbg', JSON.stringify(Object.entries(localStorage).filter(([k]) => /sin-guardar|layout-v1/.test(k)).map(([k,v]) => [k.slice(0,40), v.slice(0,400)]))); window.__dbg = [...document.querySelectorAll('.tab-item')].map(x => x.className + ':' + x.textContent);
+      return { tabs: [...document.querySelectorAll('.tab-label')].map(x => x.textContent.trim()), hayEditor: !!window.monaco?.editor.getEditors().length, valor: window.monaco?.editor.getEditors().find(x => x.getDomNode()?.offsetParent)?.getValue() };`);
+    bien('hay un editor al volver', e.hayEditor, { antes, e });
+    bien('la pestaña sin guardar sigue, con su texto', e.tabs.length === antes.tabs.length && e.valor === 'SELECT 42 AS sin_guardar', { antes, e });
     e = await app.js(`const p = (await import('/src/api.js')).API_BASE; const r = await fetch(p + '/api/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: 'select 1 x' }) }); return r.ok;`);
     bien('y puede consultar', e === true, e);
     return app;

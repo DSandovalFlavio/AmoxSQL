@@ -13,6 +13,7 @@
  */
 const modelos = new Map();
 const resultados = new Map();
+const datosDeGrafico = new Map();
 
 export function tieneModelo(tabId) {
     const m = modelos.get(tabId);
@@ -35,6 +36,21 @@ export function leerResultados(tabId, datos) {
     return e && e.datos === datos ? e : null;
 }
 
+/**
+ * Los datos de un gráfico en su pestaña, para no releer el archivo cada vez que se
+ * vuelve a ella. **Refresh** relee. Lo muy grande no se guarda: pesa más en memoria
+ * de lo que cuesta volver a pedirlo con el tope de filas.
+ */
+const MAX_FILAS_RECORDADAS = 200000;
+export function recordarDatosDeGrafico(tabId, consulta, filas) {
+    if (filas?.length > MAX_FILAS_RECORDADAS) datosDeGrafico.delete(tabId);
+    else datosDeGrafico.set(tabId, { consulta, filas });
+}
+export function leerDatosDeGrafico(tabId, consulta) {
+    const d = datosDeGrafico.get(tabId);
+    return d && d.consulta === consulta ? d.filas : null;
+}
+
 /** Suelta lo de las pestañas que ya no existen. */
 export function olvidarPestanas(vivas) {
     for (const [id, m] of modelos) {
@@ -42,5 +58,8 @@ export function olvidarPestanas(vivas) {
     }
     for (const id of resultados.keys()) {
         if (!vivas.has(id)) resultados.delete(id);
+    }
+    for (const id of datosDeGrafico.keys()) {
+        if (!vivas.has(id)) datosDeGrafico.delete(id);
     }
 }

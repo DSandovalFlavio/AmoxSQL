@@ -271,15 +271,40 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         () => ((truncado || (data?.length || 0) > 20000) && !extrasAgregan ? sqlDeAgregado(state, query, { xEsFecha: isDateCol }) : null),
         [truncado, data, state, query, isDateCol, extrasAgregan]);
     const [agregadas, setAgregadas] = useState(null);
+    const [sumando, setSumando] = useState(false);
+    // Los totales que pidieron no calcular: no se vuelven a lanzar solos.
+    const [sinTotales, setSinTotales] = useState(null);
     useEffect(() => {
-        if (!sqlMotor) return undefined;
-        let vivo = true;
-        fetch(`${API_BASE}/api/query`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: sqlMotor, limit: 100000 }) })
-            .then(r => (r.ok ? r.json() : null))
-            .then(r => { if (vivo && r?.data && !r.truncated) setAgregadas({ sql: sqlMotor, filas: r.data }); })
-            .catch(() => { /* se queda con las filas del resultado */ });
-        return () => { vivo = false; };
-    }, [sqlMotor]);
+        if (!sqlMotor || !isActive || sinTotales === sqlMotor || agregadas?.sql === sqlMotor) return undefined;
+        const peticion = new AbortController();
+        let espera = null;
+        let intentos = 0;
+        const pedir = async () => {
+            setSumando(true);
+            try {
+                const res = await fetch(`${API_BASE}/api/query`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: peticion.signal,
+                    body: JSON.stringify({ query: sqlMotor, limit: 100000, deFondo: true }),
+                });
+                const r = await res.json();
+                if (res.ok && r?.data && !r.truncated) {
+                    setAgregadas({ sql: sqlMotor, filas: r.data });
+                } else if (/Interrupted/i.test(r?.error || '') && ++intentos <= 3) {
+                    // Cedió ante otra consulta. Sin los totales, un resultado
+                    // recortado dibujaría de menos: se vuelve a la cola.
+                    espera = setTimeout(pedir, 1500);
+                    return;
+                }
+                setSumando(false);
+            } catch {
+                // Se queda con las filas del resultado.
+                if (!peticion.signal.aborted) setSumando(false);
+            }
+        };
+        // Cambiar varios mandos seguidos no lanza una lectura del archivo por cada uno.
+        espera = setTimeout(pedir, 400);
+        return () => { clearTimeout(espera); peticion.abort(); setSumando(false); };
+    }, [sqlMotor, isActive, sinTotales, agregadas]);
     const filasFigura = (agregadas && agregadas.sql === sqlMotor) ? agregadas.filas : data;
     const enMotor = filasFigura !== data;
 
@@ -1255,6 +1280,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                     {enMotor && (
                         <span className="sf-en-motor" title="The result was cut at the row limit, so DuckDB added up the whole query for this chart">
                             Totals from all rows (DuckDB)
+                        </span>
+                    )}
+                    {sumando && !enMotor && (
+                        <span className="sf-en-motor" title="The result was cut at the row limit. Until the totals arrive, the chart draws the rows you have.">
+                            Adding up all rows…
+                            <button type="button" className="sf-en-motor-cancelar" onClick={() => setSinTotales(sqlMotor)}>Cancel</button>
                         </span>
                     )}
                     <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Size</span>

@@ -21627,6 +21627,21 @@ tr:hover td {
   height: 24px; font-size: 11px; padding: 0 6px; border-radius: var(--radius-sm);
   background: var(--input-bg, transparent); color: var(--text-secondary); border: 1px solid var(--border-color);
 }
+.dp-espera {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    height: 100%; padding: 40px; font-size: 13px; color: var(--text-secondary);
+}
+.dp-espera small { font-size: 12px; color: var(--text-tertiary); }
+.dp-espera button {
+    margin-top: 4px; padding: 4px 12px; font: inherit; font-size: 12px; cursor: pointer;
+    color: var(--text-primary); background: transparent;
+    border: 1px solid var(--border-default, var(--border-color)); border-radius: 4px;
+}
+.dp-espera button:hover { background: var(--surface-hover, rgba(127, 127, 127, 0.12)); }
+.sf-en-motor-cancelar {
+    margin-left: 8px; padding: 0; font: inherit; color: inherit; cursor: pointer;
+    background: none; border: 0; text-decoration: underline;
+}
 .sf-en-motor {
   font-size: 10px; letter-spacing: .04em; color: var(--accent-primary);
   background: var(--accent-muted); border-radius: var(--radius-sm); padding: 2px 7px;

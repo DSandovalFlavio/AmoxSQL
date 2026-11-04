@@ -75,7 +75,7 @@ The table formats each value by its type for readability; hover a cell to see th
 
 ## Tips & gems
 
-- **Truncation warning:** if your query returns more rows than the "Max Rows" limit (Settings → Editor), you'll see "⚠ first N rows". For the full set, use **Export** in the editor or add your own `LIMIT` (see [Saving results](saving-results.md)).
+- **Truncation warning:** if your query returns more rows than the "Max Rows" limit (Settings → Editor), you'll see "⚠ first N rows". With Max Rows at 0, a safety limit of 1,000,000 rows or 256 MB still applies. For the full set, use **Export** in the editor or add your own `LIMIT` (see [Saving results](saving-results.md)).
 - **Searching doesn't re-run:** search, filters, and sorting operate **in memory** on the already-loaded rows — they're instant and don't re-query the engine.
 - **Download ≠ Export:** **Download** grabs only the rows loaded in the table (already filtered and sorted); the editor's **Export** re-runs the whole query. The distinction is explained in [Saving results](saving-results.md).
 

@@ -723,8 +723,6 @@ class DatabaseManager {
 
         } catch (err) {
             throw new Error(err?.message || String(err));
-        } finally {
-            if (options.trackId) this._clearRunning(lane, options.trackId);
         }
     }
 

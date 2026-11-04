@@ -191,7 +191,7 @@ try {
         H: ['H. Excel entero ordenado sin tope, Stop a 2 s', `SELECT categoria, texto, row_number() OVER (ORDER BY texto) r FROM read_xlsx(${X}) ORDER BY r DESC`, { detenerA: 2000, maximo: 120000 }],
         I: ['I. Resultado de 3 M de filas sin límite', `FROM ${P} LIMIT 3000000`, { maximo: 180000 }],
         J: ['J. Resultado de 5 M de filas sin límite', `FROM ${P}`, { maximo: 240000 }],
-        K: ['K. 2 M de filas que SÍ llegan a la ventana', `FROM ${P} LIMIT 2000000`, { maximo: 240000 }],
+        K: ['K. Max Rows en 0: el tope de seguridad, 1 M de filas en la ventana', `FROM ${P}`, { maximo: 240000 }],
         O: ['O. Excel 1 M: tabla y luego Gráfico', `SELECT * FROM read_xlsx(${X})`, { maximo: 180000 }],
         Q: ['Q. Excel 1 M: tabla y luego Perfil', `SELECT * FROM read_xlsx(${X})`, { maximo: 180000 }],
         L: ['L. Excel 1 M con tope', `SELECT * FROM read_xlsx(${X})`, { maximo: 180000 }],
@@ -209,6 +209,10 @@ try {
     }
     for (const [k, [n, sql, op]] of Object.entries(ESC)) {
         if (SOLO && !SOLO.includes(k)) continue;
+        if (k === 'K') {
+            // Como con Max Rows en 0, sin recargar: lo que la tabla pide al servidor.
+            await app.js(`const f = window.fetch; window.fetch = (u, o) => { if (String(u).endsWith('/api/query') && o?.body) { const b = JSON.parse(o.body); if (!b.deFondo) o = { ...o, body: JSON.stringify({ ...b, limit: 0 }) }; } return f(u, o); }; return 1;`);
+        }
         await medir(app, puertoApi, n, sql, op);
         if (k === 'O' || k === 'Q') {
             const vista = k === 'O' ? 'Chart view' : 'Profile view';

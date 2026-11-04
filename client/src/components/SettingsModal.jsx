@@ -1469,7 +1469,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         </div>
                                         {editorSettings.queryResultLimit === 0 && (
                                             <div className="stg-alert stg-alert--warning stg-mt8">
-                                                <strong>Warning:</strong> removing the result limit can eat a lot of memory or freeze the interface if the table has too many records. We recommend using SQL notebooks with aggregate queries to explore very large data.
+                                                <strong>Warning:</strong> without a limit, a result can use a lot of memory and slow the interface. A safety limit of 1,000,000 rows or 256 MB still applies; use Export for more. We recommend using SQL notebooks with aggregate queries to explore very large data.
                                             </div>
                                         )}
                                     </div>

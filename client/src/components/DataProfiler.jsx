@@ -264,24 +264,36 @@ const DataProfiler = ({ data, isActive, query }) => {
     const [execTime, setExecTime] = useState(null);
     const [isCalculating, setIsCalculating] = useState(false);
     const [processedQueryRef, setProcessedQueryRef] = useState(null);
+    // La consulta cuyo perfil se detuvo: no se vuelve a lanzar sola.
+    const [detenido, setDetenido] = useState(null);
+    const peticionRef = useRef(null);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [expanded, setExpanded] = useState(null);
     const profilerRef = useRef(null);
     const { dialogProps } = useModalA11y(isFullScreen ? profilerRef : { current: null }, () => setIsFullScreen(false));
 
     useEffect(() => {
-        if (!(isActive && processedQueryRef !== query)) return;
+        if (!(isActive && processedQueryRef !== query) || detenido === query) return undefined;
         if (!query || !data || data.length === 0) {
             setProfile([]); setGlobalStats(null); setCorrelations([]); setProcessedQueryRef(query);
-            return;
+            return undefined;
         }
+        // Salir de la vista lo cancela: relee la consulta entera y, sin esto, seguía
+        // ocupando el motor sin que nada lo dijera.
+        const peticion = new AbortController();
+        peticionRef.current = peticion;
         const fetchProfile = async () => {
             setIsCalculating(true);
             try {
                 const res = await fetch(`${API_BASE}/api/profile`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }),
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }), signal: peticion.signal,
                 });
                 const result = await res.json();
+                if (result.cancelada) {
+                    setDetenido(query);
+                    setIsCalculating(false);
+                    return;
+                }
                 if (result.profile && Array.isArray(result.profile)) {
                     const totalRows = result.global?.totalRows || data.length;
                     const adv = result.advanced || {};
@@ -333,6 +345,10 @@ const DataProfiler = ({ data, isActive, query }) => {
                     setProfile([]);
                 }
             } catch (err) {
+                if (peticion.signal.aborted) {
+                    setIsCalculating(false);
+                    return;
+                }
                 console.error('DuckDB Profiler Error:', err);
                 setProfile([]);
             }
@@ -340,7 +356,8 @@ const DataProfiler = ({ data, isActive, query }) => {
             setProcessedQueryRef(query);
         };
         fetchProfile();
-    }, [isActive, query, processedQueryRef, data]);
+        return () => peticion.abort();
+    }, [isActive, query, processedQueryRef, data, detenido]);
 
     const findings = useMemo(() => buildFindings(profile, globalStats, correlations), [profile, globalStats, correlations]);
     const headline = useMemo(() => buildHeadline(profile, globalStats, findings), [profile, globalStats, findings]);
@@ -358,11 +375,22 @@ const DataProfiler = ({ data, isActive, query }) => {
     if (!data || data.length === 0) {
         return <div style={{ padding: '20px', color: 'var(--text-tertiary)', textAlign: 'center' }}>No data to profile</div>;
     }
-    if (isCalculating || !processedQueryRef) {
+    if (detenido === query && processedQueryRef !== query) {
         return (
-            <div style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', height: '100%' }}>
-                <LuLoader size={22} className="dbt-spin" style={{ marginBottom: '12px', color: 'var(--accent-primary)' }} />
-                <span style={{ fontSize: '13px' }}>Profiling the result…</span>
+            <div className="dp-espera">
+                <span>Profile stopped</span>
+                <small>It reads the whole query, which can take a while with large files.</small>
+                <button type="button" onClick={() => setDetenido(null)}>Recalculate</button>
+            </div>
+        );
+    }
+    if (isCalculating || processedQueryRef !== query) {
+        return (
+            <div className="dp-espera">
+                <LuLoader size={22} className="dbt-spin" style={{ color: 'var(--accent-primary)' }} />
+                <span>Profiling the result…</span>
+                <small>It reads the whole query, which can take a while with large files.</small>
+                <button type="button" onClick={() => { setDetenido(query); peticionRef.current?.abort(); }}>Cancel</button>
             </div>
         );
     }

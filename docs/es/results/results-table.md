@@ -75,7 +75,7 @@ La tabla formatea cada valor según su tipo para que se lea mejor; pasa el curso
 
 ## Tips y gemas
 
-- **Aviso de truncado:** si tu query devuelve más filas que el límite de "Max Rows" (Ajustes → Editor), verás "⚠ primeras N filas". Para el conjunto completo, usa **Export** en el editor o añade tu propio `LIMIT` (ver [Guardar resultados](saving-results.md)).
+- **Aviso de truncado:** si tu query devuelve más filas que el límite de "Max Rows" (Ajustes → Editor), verás "⚠ primeras N filas". Con Max Rows en 0 sigue habiendo un tope de seguridad de 1.000.000 de filas o 256 MB. Para el conjunto completo, usa **Export** en el editor o añade tu propio `LIMIT` (ver [Guardar resultados](saving-results.md)).
 - **Buscar no re-ejecuta:** la búsqueda, los filtros y el orden operan **en memoria** sobre las filas ya cargadas —son instantáneos y no vuelven a consultar el motor—.
 - **Descargar ≠ Exportar:** **Download** baja solo las filas cargadas en la tabla (ya filtradas y ordenadas); el **Export** del editor re-ejecuta la query completa. La distinción se explica en [Guardar resultados](saving-results.md).
 
