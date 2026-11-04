@@ -3,6 +3,7 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
+import { marcarReanudada } from './utils/copiaSinGuardar';
 import { API_BASE } from './api.js';
 import { importarRecientesUnaVez, requisitosQueFaltan, describirFaltantes, avisoDePurgaUnaVez } from './central.js';
 import { themeClassFor, modeClassFor, migrateTheme } from './theme.js';
@@ -455,6 +456,7 @@ function App() {
       try {
         const sesion = await (await fetch(`${API_BASE}/api/sesion`)).json();
         if (!sesion.proyecto) { setAppPhase(PHASE.WELCOME); return; }
+        marcarReanudada();
         setProjectPath(sesion.proyecto);
         setCurrentDb(sesion.base || ':memory:');
         setDbReadOnly(!!sesion.soloLectura);

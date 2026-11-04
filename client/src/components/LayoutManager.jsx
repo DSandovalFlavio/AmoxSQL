@@ -1,3 +1,4 @@
+import { guardarCopia, leerCopia, consumirReanudada } from '../utils/copiaSinGuardar';
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect, useCallback, memo } from 'react';
 import { LuColumns2, LuMaximize2 } from "react-icons/lu";
@@ -195,6 +196,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     projectPathRef.current = projectPath;
     // 5.14 (F5, Dec-46): «Donde lo dejaste», con las pestañas que volvieron.
     const [retomar, setRetomar] = useState(null);
+    const copiaRef = useRef(null);
     useEffect(() => {
         const tabMeta = {
             leftTabs: leftTabs.map(t => ({ path: t.path, name: t.name, type: t.type, resultsRatio: t.resultsRatio })),
@@ -211,6 +213,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             try {
                 localStorage.setItem(clavePestanas(projectPath), JSON.stringify(tabMeta));
             } catch { /* ignore */ }
+            guardarCopia(projectPath, leftTabs, rightTabs);
         }, 600);
         return () => clearTimeout(timer);
     }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled]);
@@ -332,7 +335,32 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             }
             return [];
         };
-        restoreTabs().then((nombres) => setRetomar({ pestanas: nombres || [] })).finally(() => {
+        // Lee la copia antes de que se pueda escribir encima. En una ref y con ids fijos:
+        // en desarrollo este efecto corre dos veces, y la segunda restauración pisaba
+        // lo que había añadido la primera.
+        if (!copiaRef.current) {
+            const copia = consumirReanudada() ? leerCopia(projectPath) : [];
+            const base = Date.now();
+            copiaRef.current = copia.map((t, i) => ({
+                id: `${base}-copia-${i}`, path: null, name: t.name, type: t.type, content: t.content,
+                results: null, dirty: true, panel: t.panel,
+            }));
+        }
+        restoreTabs().then((nombres) => {
+            setRetomar({ pestanas: nombres || [] });
+            const izquierda = copiaRef.current.filter(t => t.panel !== 'right');
+            const derecha = copiaRef.current.filter(t => t.panel === 'right');
+            const sumar = (prev, nuevas) => [...prev.filter(t => !nuevas.some(n => n.id === t.id)), ...nuevas];
+            if (izquierda.length) {
+                setLeftTabs(prev => sumar(prev, izquierda));
+                setLeftActiveId(izquierda[izquierda.length - 1].id);
+            }
+            if (derecha.length) {
+                setRightTabs(prev => sumar(prev, derecha));
+                setRightActiveId(derecha[derecha.length - 1].id);
+                setSplitEnabled(true);
+            }
+        }).finally(() => {
             // Persisting is allowed only after the restore attempt so the initial
             // empty tab state never overwrites the saved layout.
             restoreAttemptedRef.current = true;
