@@ -24,6 +24,43 @@
 - **El chat, para conversar:** la respuesta primero, el trabajo plegado en una línea, un inicio que sabe qué archivo
   tienes y en qué estado está.
 
+## En qué archivos trabaja hoy (revisado el 2026-11-07)
+
+El panel se liga a **cualquier pestaña con archivo** (`activeFilePath`): con **Ctrl+L** se abre sobre todos. El botón
+**Assist** solo está en cuatro editores. Lo que ve es `getActiveTabInfo` (el texto entero de la pestaña, y en un `.sql`
+también su resultado y su gráfico). Lo que cambia es `write_file`, que en modo `overwrite` **reescribe el archivo
+completo**, sea del tipo que sea. El prompt solo le habla de «the SQL editor or notebook».
+
+| Archivo | Botón | Qué ve | Qué puede cambiar hoy | Riesgo |
+|---|---|---|---|---|
+| `.sql` | sí | consulta, objetos que lee, resultado, gráfico | reescribe el archivo; aplica un gráfico al de sus resultados | medio (A1, A2) |
+| `.sqlnb` notebook | sí | el texto entero del cuaderno; **no** la celda activa ni sus resultados (el cuaderno ejecuta por su cuenta) | reescribe **todo** el cuaderno (celdas, marcas, parámetros) | alto |
+| `.md` | sí | el documento | reescribe todo el documento | medio |
+| `.amoxdeck` Report Flow | sí | el markdown del deck | reescribe todo el deck | alto |
+| `.amoxvis`, `.sqlchain`, `.amoxcanvas`, `.amoxdiagram`, texto | no (solo Ctrl+L) | el archivo **crudo** (JSON o mermaid) | lo reescribiría entero: puede dejar un JSON roto | alto |
+| cualquiera | — | — | `write_file` con `create` o `append` **escribe en disco sin revisión** | **alto** |
+
+**A14 (Alta, nuevo).** `write_file` en modo `create` o `append` escribe en disco directamente, sin Accept ni aviso
+(`server/ai/tools.js:1105`). Todo lo demás del Assistant pasa por el editor y se guarda a mano; esto no.
+
+**A15 (Media, nuevo).** El Assistant no sabe qué es cada archivo: no tiene instrucciones para un notebook, un deck o
+un `.amoxvis`, ni ve la celda o la lámina en la que estás.
+
+### Qué cambia el plan por tipo
+
+- **E1** se amplía: `create` y `append` piden confirmación como cualquier propuesta (A14); en archivos estructurados
+  (`.amoxvis`, `.sqlchain`, `.amoxcanvas`, `.amoxdiagram`) el Assistant **explica pero no reescribe** hasta tener
+  herramientas propias; el prompt dice qué tipo de archivo es y qué puede tocar (A15).
+- **E2** por tipo: en el **notebook**, el Assistant ve la celda activa, su resultado y su error, y las puertas
+  (selección, Fix, Explain) viven en cada celda; en **Report Flow**, la lámina en la que estás; en **Markdown**, la
+  selección del texto.
+- **E3** por tipo: en `.sql` el diff va en el editor; en el **notebook** la propuesta es **por celda** (cambia una
+  celda o añade una nueva), nunca el cuaderno entero; en **Report Flow**, por lámina; en **Markdown**, en la vista de
+  código. «Insert at cursor» significa en el notebook «nueva celda debajo» y en el deck «nueva lámina después».
+- **E4** igual para todos.
+- Fuera de este plan, como trabajo propio: herramientas del Assistant para `.amoxvis` (cambiar el gráfico por sus
+  paneles) y `.sqlchain` (proponer pasos de Data Flow).
+
 ## Fases
 
 ### E1 — Que no engañe ni rompa (sin cambiar la forma)
