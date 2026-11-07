@@ -6,6 +6,7 @@ import { NarrativeCard, makeMdComponents, citeUrlTransform } from '../ChatMessag
 import { textoDeInterrupcion } from '../informeDeepDive';
 import StreamingMarkdown from '../StreamingMarkdown';
 import ChatResultsBlock from '../ChatResultsBlock';
+import SqlActivityBlock from '../SqlActivityBlock';
 
 /**
  * El informe de Deep Dive (plan UX, entrega 2). Una columna de lectura:
@@ -68,6 +69,16 @@ function Bloques({ seccion, enVivo, allMessages, acciones }) {
                         onExportNotebook={acciones.exportarNotebook}
                         onExportAmoxvis={acciones.exportarAmoxvis}
                     />
+                </div>
+            );
+        }
+        if (b.tipo === 'consultas' && acciones.detalleTecnico) {
+            // Technical detail (F7): the SQL and its rows right here, for the analyst.
+            return (
+                <div key={i} className="ddr-sql-en-linea">
+                    {b.tcs.map((tc, j) => (
+                        <SqlActivityBlock key={tc.toolCallId || j} tc={tc} onRunSql={acciones.ejecutarSql} onAskAbout={acciones.preguntar} abierto />
+                    ))}
                 </div>
             );
         }

@@ -648,6 +648,18 @@ const AiDivingPanel = ({
         </div>
     );
 
+    // Technical detail (F7): the SQL inside each step, without opening the panel.
+    // Remembered per person: the analyst wants it, the business user doesn't.
+    const [detalleTecnico, setDetalleTecnico] = useState(() => {
+        try { return localStorage.getItem('amoxsql-dd-detalle') === '1'; } catch { return false; }
+    });
+    const cambiarDetalle = useCallback(() => {
+        setDetalleTecnico(v => {
+            try { localStorage.setItem('amoxsql-dd-detalle', v ? '0' : '1'); } catch { /* sin almacenamiento */ }
+            return !v;
+        });
+    }, []);
+
     // What the analyst is doing right now (the tool still running), in words.
     const enCursoTool = isGenerating
         ? [...activeToolCalls].reverse().find(tc => !tc.result && !['create_plan', 'update_plan'].includes(tc.toolName))
@@ -672,7 +684,9 @@ const AiDivingPanel = ({
         },
         esperandoCuota: !!esperaCuota,
         actividad,
-    }), [handleAskAbout, sendFollowUp, onExportNotebook, onExportAmoxvis, esperaCuota, actividad]);
+        detalleTecnico,
+        ejecutarSql: onRunSql,
+    }), [handleAskAbout, sendFollowUp, onExportNotebook, onExportAmoxvis, esperaCuota, actividad, detalleTecnico, onRunSql]);
     const episodiosRef = useRef(episodios);
     episodiosRef.current = episodios;
 
@@ -739,6 +753,13 @@ const AiDivingPanel = ({
                                 <LuSquare size={11} /> Stop
                             </button>
                         </>
+                    )}
+                    {hayInforme && (
+                        <button className={`ddr-interruptor${detalleTecnico ? ' ddr-interruptor--on' : ''}`} onClick={cambiarDetalle}
+                            role="switch" aria-checked={detalleTecnico}
+                            title="Show the SQL and its rows inside each step">
+                            <i aria-hidden="true" /> Technical detail
+                        </button>
                     )}
                     {/* It never deleted anything: it empties the view and starts over.
                         The session stays in the list, where it can be deleted. */}
