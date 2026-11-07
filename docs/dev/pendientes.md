@@ -31,6 +31,14 @@ cajón de "lo dejamos para después" para no perderlo.
   se rendericen FUERA del contenedor que se transforme (en FileExplorer el context menu
   es hermano de `.file-list`, así que sería seguro). NO transformar `.sidebar` entero.
 
+### [PEND-002] `build_notebook` en modo `update` no puede leer un `.sqlnb`
+- **Visto:** 2026-11-07, en la auditoría del Assistant por archivo.
+- **Qué pasa:** `server/ai/tools.js` (`build_notebook`, `mode === 'update'`) hace `JSON.parse` del archivo, pero
+  el `.sqlnb` es markdown con front matter desde la reconstrucción del cuaderno. Añadir celdas a un cuaderno
+  existente desde Deep Dive falla con un error de JSON.
+- **Arreglo:** leer y escribir con el mismo formato que `client/src/utils/cuadernoFile.js`
+  (`leerCuaderno` / `escribirCuaderno`), o mover esa mitad a un módulo que puedan usar los dos lados.
+
 ---
 
 ## Cerrados
