@@ -151,5 +151,23 @@ const ingles = preguntasSugeridas({ columnas: [{ tabla: 'orders', columna: 'orde
 ok(ingles.idioma === 'en' && ingles.preguntas[0].texto === 'How does "amount" change month by month?', 'sin métricas: desde las columnas, en inglés');
 ok(preguntasSugeridas({}).preguntas.length === 0, 'sin nada que mirar, ninguna pregunta inventada');
 
+console.log('— un análisis se vuelve deck de Report Flow (F8)');
+const { deckDeInforme, slugDe } = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/deckDeInforme.js')).href);
+const { parseDeck } = await import(pathToFileURL(path.join(RAIZ, 'client/src/utils/deckParser.js')).href).catch(() => ({}));
+const epDeck = { ...ep, respuesta: { resultado: { tldr: 'Faltan datos', findings: [{ point: 'Meses completos', value: '90,4 %', so_what: 'La brecha real es chica' }], suggested_actions: ['Revisar la carga: "15 de octubre"'], caveats: ['Octubre tiene 15 días'] }, prosa: '' } };
+const s1Deck = epDeck.secciones.find(s => s.stepId === 's1');
+const iGraf = s1Deck.bloques.findIndex(b => b.tipo === 'grafico');
+const md = deckDeInforme(epDeck, { titulo: 'Meta 2024', fecha: '7 nov 2026', graficos: new Map([[`${s1Deck.key}-g${iGraf}`, 'charts/deep-dive/meta-1.amoxvis']]) });
+ok(md.startsWith('---\ntitle: "Meta 2024"') && md.includes('<!-- layout: cover -->\n# ¿Por qué?'), 'portada con la pregunta y título en el front matter');
+ok(md.includes('<!-- layout: summary -->\n## Faltan datos') && md.includes('- **Meses completos** — 90,4 %. La brecha real es chica'), 'resumen con los hallazgos y su valor');
+ok(md.includes('<!-- layout: finding -->\n## Pareja') && md.includes('src: "charts/deep-dive/meta-1.amoxvis"'), 'un hallazgo por gráfico: la conclusión del paso como título y su .amoxvis');
+ok(md.includes('- action: "Revisar la carga: \\"15 de octubre\\""'), 'las acciones con comillas y dos puntos no rompen el YAML');
+ok(md.includes('## Caveats') && md.split('\n---\n').length >= 5, 'salvedades al final');
+if (parseDeck) {
+    const d = parseDeck(md);
+    ok(d.slides?.length >= 5 && d.slides[0].layout === 'cover' && d.slides.some(s => s.layout === 'finding'), `el lector de Report Flow lo abre (${d.slides?.length} láminas)`);
+}
+ok(slugDe('¿Por qué no llegamos a la meta 2024?') === 'por-que-no-llegamos-a-la-meta-2024', 'nombre de archivo sin acentos ni signos');
+
 console.log(`\n${bien} bien, ${mal} mal`);
 process.exit(mal ? 1 : 0);

@@ -1,7 +1,7 @@
 # Plan — Deep Dive como informe vivo
 
 **Sale de:** [auditoria_ux_deep_dive.md](auditoria_ux_deep_dive.md) (hallazgos H1–H17)
-**Estado:** entrega 1 (F0 + F1) implementada el 2026-11-07, sin publicar; resto pendiente. Mockups en el artifact
+**Estado:** las tres entregas (F0–F9) implementadas el 2026-11-07, sin publicar. Falta probarlo con un modelo real. Mockups en el artifact
 «Informe vivo de Deep Dive». Las cuatro decisiones del final se tomaron como se proponen.
 
 **Entrega 1, lo que quedó y lo que no:**
@@ -173,7 +173,17 @@ tablas a la caja, como antes.
 - Interruptor «Detalle técnico»: SQL y filas dentro de cada sección, sin abrir el panel. Se recuerda por persona.
 - Bajo ~1100 px el índice se pliega a una tira de puntos y «Cómo lo obtuve» se superpone al informe.
 
+**F7 hecha el 2026-11-07, sin publicar.** El interruptor «Technical detail» (localStorage `amoxsql-dd-detalle`). Lo
+de anchos pequeños quedó como estaba en la entrega 2: índice de 200 px y «How I got this» superpuesto bajo 1080 px;
+no se hizo la tira de puntos.
+
 ### F8 — Salidas
+**Hecha el 2026-11-07, sin publicar.** «Send to Report Flow» en el índice: `ai/deckDeInforme.js` (puro) arma el
+`.amoxdeck` (portada, resumen, una lámina `finding` por gráfico, «Along the way» con las conclusiones sin gráfico,
+`actions`, salvedades) y cada gráfico se escribe como `.amoxvis` con `planoDeGraficoIA` + su consulta. Word sale por
+la exportación de Report Flow, no por un botón aparte. Arreglado de paso: abrir por ruta un `.amoxdeck`,
+`.amoxdiagram` o `.amoxcanvas` lo trataba como archivo de datos (`LayoutManager.handleQueryFile`).
+La lámina de hallazgo deja vacía la zona «detail» junto a la figura; el Studio muestra su pista ahí.
 - «Entregables» en el encabezado: guardar como notebook (existe), **enviar a Report Flow** (cada sección como
   diapositiva, la respuesta como portada) y Word.
 - Los gráficos de la sesión se abren en Story Flow desde el índice (hoy no se abren: **H13**).

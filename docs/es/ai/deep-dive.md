@@ -69,6 +69,12 @@ Si se quedó sin iteraciones, la tarjeta ofrece cuatro formas de seguir:
 - **Si aun así se corta** (cuota diaria, error del proveedor, Stop o la ventana que se cierra), lo hecho se conserva: los pasos terminados con sus gráficos siguen en el informe y una línea dice dónde y por qué se cortó. Encima de la caja aparece la tarjeta para seguir. Con una cuota por minuto, **Continue in 31 s** sigue solo al llegar a cero si lo pulsas. Con una cuota diaria, elige otro modelo en la caja y continúa. El error del proveedor está en **Details**.
 - Continuar retoma el mismo plan donde quedó, no lo empieza de nuevo.
 
+### Ver el SQL sin abrir nada
+**Technical detail**, en el encabezado, pone el SQL de cada consulta y sus filas dentro de cada paso. Es para quien quiere auditarlo todo de un vistazo; se recuerda la próxima vez.
+
+### Llevarlo a una presentación
+**Send to Report Flow**, en el índice, crea un deck en `reports/`: la pregunta y la respuesta de portada, un resumen con los hallazgos, una lámina por gráfico (con la conclusión del paso como título), los siguientes pasos y las salvedades. Cada gráfico se guarda como `.amoxvis` en `charts/deep-dive/` con su consulta, así **Refresh all** lo actualiza. Desde Report Flow se exporta a PowerPoint o Word.
+
 ### Construir un notebook
 Cuando lo pides (o cuando encaja en el análisis), el agente crea un notebook `.sqlnb` con el análisis y sus gráficos, y lo abre. Ver [Notebooks](../notebooks/notebooks.md).
 

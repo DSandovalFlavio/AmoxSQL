@@ -69,6 +69,12 @@ If it ran out of iterations, the card offers four ways to go on:
 - **If it still stops** (a daily quota, a provider error, Stop, or the window closing), what was done is kept: the finished steps with their charts stay in the report, and a line says where and why it stopped. The card to go on appears above the box. With a per-minute quota, **Continue in 31 s** goes on by itself at zero if you press it. With a daily quota, pick another model in the box and continue. The provider's error is under **Details**.
 - Continuing resumes the same plan where it stopped; it doesn't start over.
 
+### See the SQL without opening anything
+**Technical detail**, in the header, puts each query's SQL and rows inside each step. It's for whoever wants to audit everything at a glance; it is remembered next time.
+
+### Turn it into a presentation
+**Send to Report Flow**, in the index, creates a deck in `reports/`: the question and the answer as cover, a summary with the findings, one slide per chart (with the step's conclusion as title), the next steps and the caveats. Each chart is saved as an `.amoxvis` in `charts/deep-dive/` with its query, so **Refresh all** updates it. From Report Flow it exports to PowerPoint or Word.
+
 ### Build a notebook
 When you ask (or when it fits the analysis), the agent creates a `.sqlnb` notebook with the analysis and its charts, and opens it. See [Notebooks](../notebooks/notebooks.md).
 

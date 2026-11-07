@@ -2048,8 +2048,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             return;
         }
 
-        // SQL and Markdown files: open directly
-        if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.sqlchain') || lowerName.endsWith('.md')) {
+        // SQL, Markdown and AmoxSQL's own documents: open directly. A deck, a
+        // diagram or a canvas fell through to the data-file branch below and opened
+        // as a SQL query over the file (seen with Deep Dive's "Send to Report Flow").
+        if (/\.(sql|sqlnb|sqlchain|md|amoxdeck|amoxdiagram|amoxcanvas)$/.test(lowerName)) {
             try {
                 const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(filePath)}`);
                 const data = await res.json();
