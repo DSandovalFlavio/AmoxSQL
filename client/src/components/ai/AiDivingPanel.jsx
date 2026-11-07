@@ -12,6 +12,10 @@ import ComoLoObtuve from './deepDive/ComoLoObtuve';
 import InicioDeepDive from './deepDive/InicioDeepDive';
 import ModelDropdown from './ModelDropdown';
 import { etiquetaHerramienta } from './ToolCallBlock';
+import { planoDeGraficoIA } from './ChatResultsBlock';
+import { deckDeInforme, slugDe } from './deckDeInforme';
+import { escribirAmoxvis } from '../DataVisualizer/vega/figura';
+import { useToast } from '../ToastProvider';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
@@ -711,6 +715,67 @@ const AiDivingPanel = ({
         return { graficos, notebooks };
     }, [episodios, messages]);
 
+    // ─── Send to Report Flow (plan UX, F8) ───
+    // The analysis becomes a deck: the answer as cover and summary, one finding
+    // slide per chart (written as .amoxvis so "Refresh all" re-queries them), next
+    // steps and caveats. From Report Flow it exports to PowerPoint and Word.
+    const toast = useToast();
+    const [enviandoDeck, setEnviandoDeck] = useState(false);
+    const enviarAReportFlow = useCallback(async () => {
+        const ep = [...episodios].reverse().find(e => e.respuesta) || episodios[episodios.length - 1];
+        if (!ep) return;
+        setEnviandoDeck(true);
+        try {
+            const ahora = new Date();
+            const sello = `${ahora.getFullYear()}${String(ahora.getMonth() + 1).padStart(2, '0')}${String(ahora.getDate()).padStart(2, '0')}-${String(ahora.getHours()).padStart(2, '0')}${String(ahora.getMinutes()).padStart(2, '0')}`;
+            const base = `${slugDe(displayName || ep.pregunta)}-${sello}`;
+            const post = async (url, body) => {
+                const r = await fetch(`${API}${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
+                return d;
+            };
+            await post('/api/folder', { path: 'charts/deep-dive' });
+            await post('/api/folder', { path: 'reports' });
+
+            // Each chart as an .amoxvis with its own query (the deck re-runs it).
+            const sqlDe = (qid) => {
+                for (const m of messages) for (const tc of m.toolCalls || []) {
+                    if (tc.toolName === 'execute_sql' && tc.result?.queryId === qid) return tc.args?.query || '';
+                }
+                return '';
+            };
+            const graficos = new Map();
+            let n = 0;
+            for (const s of [ep.intro, ...ep.secciones]) {
+                for (const [i, b] of s.bloques.entries()) {
+                    if (b.tipo !== 'grafico') continue;
+                    const cc = b.tc.result.chartConfig;
+                    const query = sqlDe(cc.queryId);
+                    if (!query) continue; // no query, no chart that can refresh
+                    const ruta = `charts/deep-dive/${base}-${++n}.amoxvis`;
+                    const contenido = escribirAmoxvis({ ...planoDeGraficoIA(cc), query });
+                    await post('/api/file', { path: ruta, content: JSON.stringify(contenido, null, 2) });
+                    graficos.set(`${s.key}-g${i}`, ruta);
+                }
+            }
+            const deck = deckDeInforme(ep, {
+                titulo: displayName || ep.pregunta || 'Deep Dive',
+                fecha: ahora.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }),
+                graficos,
+            });
+            const rutaDeck = `reports/${base}.amoxdeck`;
+            await post('/api/file', { path: rutaDeck, content: deck });
+            window.dispatchEvent(new Event('amox_files_changed'));
+            onOpenFile?.(rutaDeck);
+            toast.success(`Saved ${rutaDeck}, with ${graficos.size} ${graficos.size === 1 ? 'chart' : 'charts'}. Export it to PowerPoint or Word from Report Flow.`);
+        } catch (err) {
+            toast.error(`Could not create the deck: ${err.message}`);
+        } finally {
+            setEnviandoDeck(false);
+        }
+    }, [episodios, messages, displayName, onOpenFile, toast]);
+
     const hayInforme = episodios.length > 0;
     const pasoVivo = isGenerating ? ultimoEpisodio?.indice?.find(p => p.estado === 'in_progress') : null;
 
@@ -800,6 +865,8 @@ const AiDivingPanel = ({
                             entregables={entregables}
                             onGuardarNotebook={() => sendFollowUp('Save this analysis as a notebook — include the queries, the charts, and a short narrative for each section.')}
                             onExportar={() => exportConversationToMarkdown(messages, displayName || 'Deep Dive')}
+                            onReportFlow={enviarAReportFlow}
+                            enviandoDeck={enviandoDeck}
                             onAbrirArchivo={onOpenFile}
                         />
                     )}

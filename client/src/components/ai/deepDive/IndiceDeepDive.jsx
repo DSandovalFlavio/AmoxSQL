@@ -1,4 +1,4 @@
-import { LuCircleCheck, LuCircle, LuCircleMinus, LuCircleX, LuCirclePause, LuLoader, LuSparkles, LuMessageSquare, LuChartColumn, LuBookOpen, LuNotebookPen, LuDownload, LuSkipForward } from 'react-icons/lu';
+import { LuCircleCheck, LuCircle, LuCircleMinus, LuCircleX, LuCirclePause, LuLoader, LuSparkles, LuMessageSquare, LuChartColumn, LuBookOpen, LuNotebookPen, LuDownload, LuSkipForward, LuPresentation } from 'react-icons/lu';
 
 /**
  * El índice del informe (plan UX, entrega 2): el plan convertido en algo que se
@@ -15,7 +15,7 @@ const ICONO = {
     pending: [LuCircle, 'gris', 'Pending'],
 };
 
-export default function IndiceDeepDive({ episodios, isGenerating, onIr, onSaltar, entregables, onGuardarNotebook, onExportar, onAbrirArchivo }) {
+export default function IndiceDeepDive({ episodios, isGenerating, onIr, onSaltar, entregables, onGuardarNotebook, onExportar, onAbrirArchivo, onReportFlow, enviandoDeck }) {
     const ultimo = episodios[episodios.length - 1];
     return (
         <nav className="ddr-indice" aria-label="Contents of this analysis">
@@ -74,6 +74,12 @@ export default function IndiceDeepDive({ episodios, isGenerating, onIr, onSaltar
                         <LuBookOpen size={13} /> <span className="ddr-ind-txt">{n.nombre}</span>
                     </button>
                 ))}
+                {onReportFlow && (
+                    <button className="ddr-ind-item ddr-ind-item--accion" onClick={onReportFlow} disabled={isGenerating || enviandoDeck}
+                        title="A deck with the answer, one slide per chart, next steps and caveats. Export it to PowerPoint or Word from Report Flow.">
+                        <LuPresentation size={13} /> <span>{enviandoDeck ? 'Creating the deck…' : 'Send to Report Flow'}</span>
+                    </button>
+                )}
                 <button className="ddr-ind-item ddr-ind-item--accion" onClick={onGuardarNotebook} disabled={isGenerating}>
                     <LuNotebookPen size={13} /> <span>Save as notebook</span>
                 </button>
