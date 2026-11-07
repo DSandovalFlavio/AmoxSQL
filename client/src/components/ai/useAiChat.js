@@ -806,7 +806,7 @@ export default function useAiChat({
         continueOptsRef.current = { finalize: false };
         const text = (typeof instruction === 'string' && instruction.trim())
             ? instruction.trim()
-            : 'Continúa con el plan donde lo dejaste.';
+            : 'Continue the plan where you left off.';
         handleSend(text);
     }, [handleSend]);
 
@@ -814,7 +814,8 @@ export default function useAiChat({
     // budget of 1 so the wrap-up turn forces a synthesis immediately.
     const handleFinalizeNow = useCallback(() => {
         continueOptsRef.current = { finalize: true };
-        handleSend('Finaliza el análisis AHORA con lo que ya tienes: no corras más queries ni pasos nuevos. Llama final_answer con un resumen de los hallazgos hasta ahora y marca lo que quedó pendiente en caveats.');
+        // Se ve en el hilo como mensaje del usuario: en el idioma de la interfaz.
+        handleSend('Finish the analysis now with what you already have: no more queries or new steps. Call final_answer with a summary of the findings so far, and list what is still pending under caveats.');
     }, [handleSend]);
 
     const handleDeclineContinue = useCallback(() => {
@@ -969,6 +970,8 @@ export default function useAiChat({
                 });
 
                 setMessages(loadedMessages);
+                // Whatever the previous session was waiting for doesn't carry over.
+                setPendingContinue(null);
                 setStreamingText('');
                 setActiveToolCalls([]);
                 setErrorMsg(null);
@@ -1021,6 +1024,25 @@ export default function useAiChat({
                     }
                 }
                 setPlanState(reconstructedPlan);
+
+                // A question the analyst asked and nobody answered: the conversation
+                // ends on an assistant message with an ask_user call. Reopening it
+                // brings the question back where you type (it was lost on reload).
+                const ultimo = loadedMessages[loadedMessages.length - 1];
+                const pregunta = ultimo?.role === 'assistant'
+                    ? (ultimo.toolCalls || []).find(tc => tc.toolName === 'ask_user' && !tc.result?.error)
+                    : null;
+                if (pregunta) {
+                    const a = pregunta.result || pregunta.args || {};
+                    setPendingContinue(null);
+                    setPendingAskUser({
+                        question: a.question || pregunta.args?.question || '',
+                        options:  a.options || pregunta.args?.options || [],
+                        context:  a.context || pregunta.args?.context || '',
+                    });
+                } else {
+                    setPendingAskUser(null);
+                }
 
                 // Restore persisted context objects (diving mode)
                 if (mode === 'diving' && Array.isArray(conv.context_objects) && conv.context_objects.length > 0) {

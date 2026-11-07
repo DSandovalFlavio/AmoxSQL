@@ -197,6 +197,15 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // 5.14 (F5, Dec-46): «Donde lo dejaste», con las pestañas que volvieron.
     const [retomar, setRetomar] = useState(null);
     const copiaRef = useRef(null);
+    // «Where you left off» se cierra en cuanto abres o cambias de pestaña: es un
+    // resumen para empezar, y se quedaba flotando encima de lo que abrieras.
+    const retomarVistoRef = useRef(null);
+    useEffect(() => {
+        if (!retomar) { retomarVistoRef.current = null; return; }
+        const activas = `${leftActiveId}|${rightActiveId}`;
+        if (retomarVistoRef.current === null) { retomarVistoRef.current = activas; return; }
+        if (retomarVistoRef.current !== activas) setRetomar(null);
+    }, [retomar, leftActiveId, rightActiveId]);
     useEffect(() => {
         const tabMeta = {
             leftTabs: leftTabs.map(t => ({ path: t.path, name: t.name, type: t.type, resultsRatio: t.resultsRatio })),
@@ -243,7 +252,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // que no esté en esta lista existe en el estado y no se pinta nunca.
         // `fijada` se quedó fuera al añadirla, y el resultado fue una pestaña
         // que se negaba a cerrarse sin nada que lo anunciara.
-        const metaOf = (t) => ({ id: t.id, name: t.name, dirty: !!t.dirty, path: t.path || '', type: t.type, fijada: !!t.fijada, ejecucion: t.ejecucion || null, avisoEjecucion: t.avisoEjecucion || null });
+        // `espera`: una sesión de Deep Dive que espera tu respuesta (le pasó lo mismo que a `fijada`).
+        const metaOf = (t) => ({ id: t.id, name: t.name, dirty: !!t.dirty, path: t.path || '', type: t.type, fijada: !!t.fijada, ejecucion: t.ejecucion || null, avisoEjecucion: t.avisoEjecucion || null, espera: !!t.espera });
         const leftMeta = leftTabs.map(metaOf);
         const rightMeta = rightTabs.map(metaOf);
         const payload = {
@@ -529,11 +539,18 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     // A Deep Dive tab remembers its conversation in `content` (used as
     // startConversationId). Update it WITHOUT marking the tab dirty.
-    const handleConversationChange = useCallback((tabId, convId) => {
-        if (!convId) return;
+    // `extra`: `name` — the tab takes the session's name (with several sessions open
+    // they were all «Deep Dive»); `espera` — the analyst is waiting for your answer.
+    const handleConversationChange = useCallback((tabId, convId, extra = {}) => {
+        const cambios = {};
+        if (convId) cambios.content = convId;
+        if (extra.name) cambios.name = extra.name;
+        if (extra.espera !== undefined) cambios.espera = !!extra.espera;
+        if (!Object.keys(cambios).length) return;
         const { leftTabs, rightTabs } = stateRef.current;
-        if (leftTabs.find(t => t.id === tabId)) updateTab('left', tabId, { content: convId });
-        else if (rightTabs.find(t => t.id === tabId)) updateTab('right', tabId, { content: convId });
+        const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
+        if (!tab || Object.entries(cambios).every(([k, v]) => tab[k] === v)) return;
+        updateTab(leftTabs.includes(tab) ? 'left' : 'right', tabId, cambios);
     }, [updateTab]);
 
     /**

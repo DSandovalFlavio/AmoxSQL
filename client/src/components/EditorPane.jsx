@@ -84,7 +84,7 @@ const EditorPane = ({
     onPaneFocus,      // () -> mark this pane active even when it has no tabs
     onTabClose,
     onContentChange, // (tabId, newContent)
-    onConversationChange, // (tabId, convId) — Deep Dive: remember the conversation without marking dirty
+    onConversationChange, // (tabId, convId, { name?, espera? }) — Deep Dive: remember the conversation without marking dirty
     onRunQuery,      // (tabId, queryToRun) -> returns Promise<Result>
     onSave,           // Trigger save needed? Actually App handles save button. This is just for internal updates.
     onAnalyze,
@@ -606,7 +606,8 @@ const EditorPane = ({
                             onOpenFile={onOpenFile}
                             availableTables={availableTables}
                             startConversationId={activeTab?.content || null}
-                            onConversationChange={(cid) => onConversationChange?.(activeTab.id, cid)}
+                            onConversationChange={(cid, nombre) => onConversationChange?.(activeTab.id, cid, nombre ? { name: nombre } : {})}
+                            onEsperaChange={(espera) => onConversationChange?.(activeTab.id, null, { espera })}
                         />
                     </div>
                 ) : isErDiagram ? (

@@ -118,10 +118,13 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                             <span
                                 className="tab-label"
                                 onDoubleClick={(e) => { e.stopPropagation(); onTabRename && onTabRename(tab.id, paneId); }}
-                                title="Doble clic para renombrar"
+                                title={tab.type === 'datadiving' ? tab.name : 'Double-click to rename'}
                             >
                                 {tab.name}
                             </span>
+                            {/* Deep Dive: el analista espera tu respuesta (una pregunta, o se
+                                quedó sin ciclos). Se ve aunque estés en otra pestaña. */}
+                            {tab.espera && <span className="tab-aviso tab-aviso--espera" title="The analyst is waiting for your answer" aria-label="Waiting for your answer" />}
                             {tab.ejecucion?.estado === 'corriendo' && <LuLoader size={11} className="spin tab-ejecucion" aria-label="Running" />}
                             {tab.ejecucion?.estado === 'en_espera' && <LuHourglass size={11} className="tab-ejecucion" aria-label={`Waiting for ${tab.ejecucion.tras}`} />}
                             {!tab.ejecucion && tab.avisoEjecucion && (

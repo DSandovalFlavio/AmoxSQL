@@ -31,7 +31,7 @@ La ventana tiene **tres regiones**:
 3. Envía. El agente crea un plan y empieza a ejecutar.
 
 ### Seguir el plan y los pasos
-1. El **panel del Plan** (derecha) muestra los pasos con su estado (pendiente, en progreso, hecho, saltado).
+1. El **panel del Plan** (derecha) muestra los pasos numerados con su estado (pendiente, en progreso, hecho, saltado, no hecho). Un paso al que el analista no llegó antes de concluir dice **Not done**, nunca hecho.
 2. Haz clic en cualquier paso o turno para **fijar** el inspector en él; si no fijas nada, el inspector sigue el paso en vivo.
 3. En el inspector ves el SQL, el resultado y los gráficos de ese paso.
 
@@ -44,17 +44,17 @@ Puedes anclar cualquier gráfico, query, paso o hallazgo como contexto de tu sig
 2. Selecciona texto o un número en una respuesta y pulsa el botón flotante **Ask about this**.
 3. Con la referencia adjunta aparecen acciones rápidas: **Explain**, **Redo differently**, **Go deeper**, **Validate**.
 
-### Continuar cuando se agota el presupuesto
-Deep Dive mide su trabajo en iteraciones. Si las agota sin cerrar, ofrece un banner con cuatro salidas:
+### Cuando el analista te necesita
+Si el analista te pregunta algo, o se queda sin iteraciones, aparece una tarjeta **justo encima de la caja donde escribes**. Elige una opción o escribe tu respuesta en la caja. La pestaña de la sesión muestra un punto ámbar y la lista de conversaciones dice **Waiting for you**, para que lo notes desde cualquier lado. Si reabres la conversación más tarde, la tarjeta sigue ahí.
+
+Si se quedó sin iteraciones, la tarjeta ofrece cuatro formas de seguir:
 
 | Botón | Qué hace |
 |---|---|
-| **Continuar** | Sigue con un presupuesto fresco |
-| **Con instrucciones…** | Continúa enfocado según el texto que escribas |
-| **Finalizar con lo que hay** | Fuerza la síntesis con lo ya recopilado |
-| **Cancelar** | Detiene el análisis |
-
-Si reabres una conversación cuyo plan quedó pausado, Deep Dive lo detecta y vuelve a ofrecerte continuar.
+| **Continue** | Sigue con un presupuesto fresco |
+| **Continue with instructions…** | Continúa enfocado según el texto que escribas |
+| **Finish with what it has** | Escribe las conclusiones con lo que ya tiene, sin consultas nuevas |
+| **Leave it here** | Deja el análisis como está |
 
 ### Construir un notebook
 Cuando lo pides (o cuando encaja en el análisis), el agente crea un notebook `.sqlnb` con el análisis y sus gráficos, y lo abre. Ver [Notebooks](../notebooks/notebooks.md).

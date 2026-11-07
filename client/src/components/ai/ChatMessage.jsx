@@ -249,7 +249,7 @@ export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
                                         {f.source_query_id && (
                                             <button
                                                 className="ai-narrative-audit-btn"
-                                                title="Ver consulta fuente"
+                                                title="See the query behind this number"
                                                 onClick={() => openAudit(f.source_query_id)}
                                             >
                                                 <LuSearch size={10} />
@@ -419,8 +419,8 @@ const ThinkingBlock = ({ content, isStreaming, durationMs }) => {
     }, [isStreaming]);
 
     const label = isStreaming
-        ? 'Razonando…'
-        : (durationMs ? `Thought for ${(durationMs / 1000).toFixed(1)}s` : 'Razonamiento');
+        ? 'Reasoning…'
+        : (durationMs ? `Thought for ${(durationMs / 1000).toFixed(1)}s` : 'Reasoning');
 
     return (
         <div className="ai-msg-thinking">

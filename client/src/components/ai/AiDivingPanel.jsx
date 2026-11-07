@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuSquarePen, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
+import DecisionDelAnalista from './DecisionDelAnalista';
 import { AiModesGuideModal } from './AiModesGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 import ChatMessage from './ChatMessage';
@@ -64,7 +65,8 @@ const AiDivingPanel = ({
     onOpenFile,
     availableTables,
     startConversationId,
-    onConversationChange,
+    onConversationChange,   // (convId, nombre) — la pestaña recuerda la sesión y se llama como ella
+    onEsperaChange,         // (bool) — la sesión espera tu respuesta (la pestaña lo marca)
 }) => {
     // First-run Deep Dive tour (rendered by the global OnboardingHost)
     useEffect(() => {
@@ -137,12 +139,14 @@ const AiDivingPanel = ({
     } = useAiChat({ mode: 'diving' });
 
     // ─── Session Name ───
+    // Dos nombres guardados: `title` (el de la lista de conversaciones, sale de la
+    // primera pregunta) y `session_name` (el que el usuario escribe). Se muestra el
+    // del usuario si lo hay; al renombrar se escriben los dos para que coincidan.
     const [sessionName, setSessionName] = useState('');
+    const [convTitle, setConvTitle] = useState('');
+    const displayName = sessionName || convTitle;
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
     const [showModesGuide, setShowModesGuide] = useState(false);
-    // Continue banner: optional focus instruction for the resumed analysis.
-    const [continueInstr, setContinueInstr] = useState('');
-    const [showContinueInput, setShowContinueInput] = useState(false);
 
     // ─── Turns (transcript) + selected turn (inspector) ───
     // Historical turns derive ONLY from messages: their identity survives both
@@ -226,28 +230,35 @@ const AiDivingPanel = ({
     }, [startConversationId, handleSelectConversation]);
 
     // Remember this conversation on its tab (so switching tabs / reopening keeps it,
-    // and "New Conversation" never reuses an existing tab's state).
+    // and "New Conversation" never reuses an existing tab's state). The tab takes
+    // the session's name: with several sessions open they were all «Deep Dive».
     useEffect(() => {
-        if (conversationId) onConversationChange?.(conversationId);
+        if (conversationId) onConversationChange?.(conversationId, displayName || null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [conversationId]);
+    }, [conversationId, displayName]);
 
     // Reset session name when conversation changes
     useEffect(() => {
         setSessionName('');
+        setConvTitle('');
         if (!conversationId) return;
-        // Load existing session name
-        (async () => {
+        let vivo = true;
+        const cargar = async () => {
             try {
                 const res = await fetch(`${API}/api/ai/conversations/${conversationId}`);
-                if (res.ok) {
+                if (res.ok && vivo) {
                     const conv = await res.json();
                     setSessionName(conv.session_name || '');
+                    setConvTitle(conv.title && conv.title !== 'New Conversation' ? conv.title : '');
                 }
             } catch (err) {
                 console.error('Failed to load session name:', err);
             }
-        })();
+        };
+        cargar();
+        // A brand-new session gets its title from the first question a moment later.
+        window.addEventListener('amox_conversation_created', cargar);
+        return () => { vivo = false; window.removeEventListener('amox_conversation_created', cargar); };
     }, [conversationId]);
 
     const handleUpdateSessionName = useCallback(async (name) => {
@@ -259,10 +270,29 @@ const AiDivingPanel = ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sessionName: name }),
             });
+            // The list of conversations shows `title`: keep both names the same.
+            await fetch(`${API}/api/ai/conversations/${conversationId}/title`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: name }),
+            });
+            window.dispatchEvent(new Event('amox_conversation_created'));
         } catch (err) {
             console.error('Failed to update session name:', err);
         }
     }, [conversationId]);
+
+    // ─── The analyst is waiting for you ───
+    // A question (ask_user) or "out of iterations": the tab and the list of
+    // conversations mark the session, so a paused analysis is visible from anywhere.
+    const esperando = !!(pendingAskUser || pendingContinue) && !isGenerating;
+    useEffect(() => {
+        onEsperaChange?.(esperando);
+        if (conversationId) {
+            window.dispatchEvent(new CustomEvent('amox_deep_dive_espera', { detail: { conversationId, espera: esperando } }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [esperando, conversationId]);
 
     // ─── Auto-create artifacts for build_notebook, display_chart, and save_to_vault ───
     // Dedup key per tool call (STABLE across reload: toolCallId is persisted), so a
@@ -481,7 +511,7 @@ const AiDivingPanel = ({
     // ─── Input composer (with context attach: drop tables/files here) ───
     const inputComposer = (
         <div
-            className={`ai-composer${isDragOver ? ' ai-composer--dragover' : ''}`}
+            className={`ai-composer${isDragOver ? ' ai-composer--dragover' : ''}${esperando ? ' ai-composer--atento' : ''}`}
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
             onDragLeave={() => setIsDragOver(false)}
             onDrop={handleDrop}
@@ -539,7 +569,13 @@ const AiDivingPanel = ({
                     onChange={handleInputChange}
                     onKeyDown={handleComposerKeyDown}
                     onBlur={() => setTimeout(() => setMention(null), 120)}
-                    placeholder={isDragOver ? 'Drop tables or files to add as context…' : 'Ask about your data — type @ to reference a chart/query/step…'}
+                    placeholder={isDragOver
+                        ? 'Drop tables or files to add as context…'
+                        : pendingAskUser
+                            ? 'Answer the analyst…'
+                            : pendingContinue
+                                ? 'Or tell the analyst how to go on…'
+                                : 'Ask about your data. Type @ to point at a chart, query or step'}
                     rows={1}
                     onInput={(e) => {
                         e.target.style.height = 'auto';
@@ -590,8 +626,9 @@ const AiDivingPanel = ({
                     <div className="ai-diving-header-left">
                         <LuBot size={16} className="ai-diving-header-icon" />
                         <span className="ai-diving-header-title">Deep Dive</span>
-                        {provider === 'gemini' && (
-                            <span className="ai-badge-cloud">CLOUD</span>
+                        {/* Any provider but the local one sends data out: say so for all of them, not just one. */}
+                        {provider && provider !== 'ollama' && (
+                            <span className="ai-badge-cloud" title="This model runs in the cloud">CLOUD</span>
                         )}
                         <PoliticaIAChip />
                     </div>
@@ -599,15 +636,17 @@ const AiDivingPanel = ({
                         {messages.length > 0 && (
                             <button
                                 className="ai-icon-btn"
-                                onClick={() => exportConversationToMarkdown(messages, sessionName || 'Deep Dive')}
+                                onClick={() => exportConversationToMarkdown(messages, displayName || 'Deep Dive')}
                                 title="Export conversation to Markdown"
                             >
                                 <LuDownload size={14} />
                             </button>
                         )}
+                        {/* It never deleted anything: it empties the view and starts over.
+                            The session stays in the list, where it can be deleted. */}
                         {messages.length > 0 && (
-                            <button className="ai-icon-btn" onClick={handleClearChat} title="Clear chat">
-                                <LuTrash2 size={14} />
+                            <button className="ai-icon-btn" onClick={handleClearChat} title="New session (this one stays in the list)">
+                                <LuSquarePen size={14} />
                             </button>
                         )}
                         <button className="ai-icon-btn" onClick={() => setShowModesGuide(true)} title="About the AI modes">
@@ -661,6 +700,20 @@ const AiDivingPanel = ({
                             )}
 
                             <div className="ai-diving-composer-wrap">
+                                {/* What the analyst needs from you, right where you type. */}
+                                {!isGenerating && (
+                                    <DecisionDelAnalista
+                                        pregunta={pendingAskUser}
+                                        continuar={pendingAskUser ? null : pendingContinue}
+                                        // handleSend clears the question only once the answer is
+                                        // really sent: with no model chosen, it used to vanish
+                                        // and the answer went nowhere.
+                                        onElegir={(op) => handleSend(op)}
+                                        onContinuar={(instr) => handleContinue(instr)}
+                                        onTerminar={handleFinalizeNow}
+                                        onDetener={handleDeclineContinue}
+                                    />
+                                )}
                                 <div className="ai-diving-composer">
                                     {contextObjects.length > 0 && (
                                         <div className="ai-context-bar">
@@ -717,7 +770,7 @@ const AiDivingPanel = ({
                     hasMessages={messages.length > 0}
                     conversationId={conversationId}
                     onOpenFile={onOpenFile}
-                    sessionName={sessionName}
+                    sessionName={displayName}
                     onUpdateSessionName={handleUpdateSessionName}
                 >
                     {/* Agent Plan panel — visible only when a plan is active */}
@@ -730,94 +783,8 @@ const AiDivingPanel = ({
                         userSkippedSteps={userSkippedSteps}
                     />
 
-                    {/* Ask-user banner — shown when agent pauses for input */}
-                    {pendingAskUser && (
-                        <div className="ai-ask-user-banner">
-                            <p className="ai-ask-user-question">{pendingAskUser.question}</p>
-                            {pendingAskUser.options.length > 0 ? (
-                                <div className="ai-ask-user-options">
-                                    {pendingAskUser.options.map((opt, i) => (
-                                        <button
-                                            key={i}
-                                            className="ai-ask-user-option"
-                                            onClick={() => {
-                                                setPendingAskUser(null);
-                                                handleSend(opt);
-                                            }}
-                                        >
-                                            {opt}
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="ai-ask-user-hint">Type your answer in the chat input.</p>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Continue banner — loop exhausted without final_answer, or a
-                        paused plan was reopened. Offers focus/continue/finish/cancel. */}
-                    {pendingContinue && (
-                        <div className="ai-ask-user-banner ai-continue-banner">
-                            <p className="ai-ask-user-question">
-                                {pendingContinue.resumed
-                                    ? 'This analysis was left paused, unfinished.'
-                                    : 'The analysis needs more iterations to finish.'}
-                                {pendingContinue.pendingSteps > 0 && ` ${pendingContinue.pendingSteps} step(s) still pending.`}
-                            </p>
-
-                            {showContinueInput && (
-                                <textarea
-                                    className="ai-continue-instr"
-                                    placeholder="Instructions to continue (optional): e.g. 'just finish s6, skip the rest'"
-                                    value={continueInstr}
-                                    onChange={e => setContinueInstr(e.target.value)}
-                                    rows={2}
-                                    autoFocus
-                                    onKeyDown={e => {
-                                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                            handleContinue(continueInstr);
-                                            setContinueInstr(''); setShowContinueInput(false);
-                                        }
-                                    }}
-                                />
-                            )}
-
-                            <div className="ai-ask-user-options">
-                                <button
-                                    className="ai-ask-user-option ai-continue-btn"
-                                    onClick={() => {
-                                        handleContinue(showContinueInput ? continueInstr : undefined);
-                                        setContinueInstr(''); setShowContinueInput(false);
-                                    }}
-                                >
-                                    {showContinueInput && continueInstr.trim() ? 'Continuar con esto' : 'Continuar'}
-                                </button>
-                                {!showContinueInput && (
-                                    <button
-                                        className="ai-ask-user-option ai-continue-btn--ghost"
-                                        onClick={() => setShowContinueInput(true)}
-                                        title="Steer how the analysis continues"
-                                    >
-                                        With instructions…
-                                    </button>
-                                )}
-                                <button
-                                    className="ai-ask-user-option ai-continue-btn--ghost"
-                                    onClick={() => { handleFinalizeNow(); setContinueInstr(''); setShowContinueInput(false); }}
-                                    title="Synthesise what it already has, with no further steps"
-                                >
-                                    Finish with what there is
-                                </button>
-                                <button
-                                    className="ai-ask-user-option ai-continue-btn--cancel"
-                                    onClick={() => { handleDeclineContinue(); setContinueInstr(''); setShowContinueInput(false); }}
-                                >
-                                    Cancelar
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                    {/* The analyst's questions and the "out of iterations" choice now
+                        live above the composer (DecisionDelAnalista), not here. */}
                 </SessionInventory>
             )}
 

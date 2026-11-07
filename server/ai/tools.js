@@ -1186,11 +1186,15 @@ function createTools(context) {
 
                 if (activePlan?.steps) {
                     for (const step of activePlan.steps) {
-                        // Sweep every non-terminal status to done. NOTE: update_plan
-                        // writes 'in_progress' (never 'running'); the missing case here
-                        // was why the last in-progress step stayed stuck forever.
-                        if (step.status === 'pending' || step.status === 'running' || step.status === 'in_progress') {
+                        // The step the agent was working on when it concluded is done
+                        // (update_plan writes 'in_progress', never 'running'; missing it
+                        // left the last step spinning forever). A step it never started
+                        // is NOT done: marking it so put a green check on work that never
+                        // happened. It stays visibly unfinished.
+                        if (step.status === 'running' || step.status === 'in_progress') {
                             step.status = 'done';
+                        } else if (step.status === 'pending') {
+                            step.status = 'not_done';
                         }
                     }
                 }

@@ -49,7 +49,7 @@ const TranscriptTurn = memo(({ turn, isSelected, onSelect, onFollowUp, onAskAbou
                     tabIndex={0}
                     onClick={() => onSelect(turn.id)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(turn.id); } }}
-                    title={hasActivity ? 'Click to inspect this step' : undefined}
+                    title={hasActivity ? 'See the queries and charts behind this reply' : undefined}
                 >
                     {text ? (
                         <div className="ddt-ai-prose markdown-body">
@@ -61,15 +61,18 @@ const TranscriptTurn = memo(({ turn, isSelected, onSelect, onFollowUp, onAskAbou
                         </div>
                     ) : !finalAnswer ? (
                         <div className="ddt-ai-working">
-                            {working ? <><LuLoader size={12} className="ddt-spin" /> Working…</> : 'Step'}
+                            {working ? <><LuLoader size={12} className="ddt-spin" /> Working…</> : 'Looked at the data'}
                         </div>
                     ) : null}
                     {hasActivity && (
                         <div className="ddt-chip">
-                            {stats.queries > 0 && <span className="ddt-chip-item"><LuDatabase size={10} /> {stats.queries}</span>}
-                            {stats.charts > 0 && <span className="ddt-chip-item"><LuChartColumn size={10} /> {stats.charts}</span>}
-                            {stats.steps > 0 && <span className="ddt-chip-item"><LuListChecks size={10} /> {stats.steps} {stats.steps === 1 ? 'step' : 'steps'}</span>}
-                            {isSelected ? <span className="ddt-chip-inspecting">inspecting →</span> : <span className="ddt-chip-hint">view steps →</span>}
+                            {/* Consultas y gráficos, nunca «pasos»: los pasos son los del
+                                plan, y contar aquí llamadas a herramientas daba «6 steps»
+                                junto a un plan de 4. */}
+                            {stats.queries > 0 && <span className="ddt-chip-item"><LuDatabase size={10} /> {stats.queries} {stats.queries === 1 ? 'query' : 'queries'}</span>}
+                            {stats.charts > 0 && <span className="ddt-chip-item"><LuChartColumn size={10} /> {stats.charts} {stats.charts === 1 ? 'chart' : 'charts'}</span>}
+                            {stats.queries === 0 && stats.charts === 0 && <span className="ddt-chip-item"><LuListChecks size={10} /> Work behind it</span>}
+                            {isSelected ? <span className="ddt-chip-inspecting">Shown on the right</span> : <span className="ddt-chip-hint">See how →</span>}
                         </div>
                     )}
                 </div>

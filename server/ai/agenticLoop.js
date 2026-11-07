@@ -189,11 +189,12 @@ function buildFallbackSummary(activePlan) {
         s => s.status === 'pending' || s.status === 'in_progress' || s.status === 'interrupted'
     );
 
-    let out = `**Análisis parcial** — se alcanzó el límite de iteraciones antes de terminar.\n\n`;
-    if (activePlan.goal) out += `Objetivo: ${activePlan.goal}\n\n`;
-    if (notes.length)   out += `Lo que alcancé a completar:\n${notes.join('\n')}\n\n`;
-    if (pending.length) out += `Quedó pendiente: ${pending.map(s => s.description).join('; ')}.\n\n`;
-    out += `Pulsa **Continuar** para que termine el análisis.`;
+    // En el idioma de la interfaz: este texto lo lee el usuario tal cual.
+    let out = `**Partial analysis.** The analyst ran out of iterations before finishing.\n\n`;
+    if (activePlan.goal) out += `Goal: ${activePlan.goal}\n\n`;
+    if (notes.length)   out += `What it finished:\n${notes.join('\n')}\n\n`;
+    if (pending.length) out += `Still pending: ${pending.map(s => s.description).join('; ')}.\n\n`;
+    out += `Choose **Continue** to let it finish.`;
     return out;
 }
 
@@ -597,16 +598,16 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                             // Legacy: stream summary as text when no structured fields
                             const summaryText = toolResult.summary +
                                 (toolResult.followup_questions?.length
-                                    ? '\n\n**Preguntas de seguimiento:**\n' +
+                                    ? '\n\n**Follow-up questions:**\n' +
                                       toolResult.followup_questions.map(q => `- ${q}`).join('\n')
                                     : '');
                             yield { type: 'text-delta', text: summaryText };
                             iterText += summaryText;
                         } else if (!hasStructuredOutput && modelAlreadyWroteSummary && toolResult.followup_questions?.length) {
                             // Legacy: model wrote text, only append follow-ups if not already present
-                            const followupsBlock = '\n\n**Preguntas de seguimiento:**\n' +
+                            const followupsBlock = '\n\n**Follow-up questions:**\n' +
                                 toolResult.followup_questions.map(q => `- ${q}`).join('\n');
-                            if (!iterText.includes('Preguntas de seguimiento')) {
+                            if (!iterText.includes('Follow-up questions')) {
                                 yield { type: 'text-delta', text: followupsBlock };
                                 iterText += followupsBlock;
                             }
@@ -617,6 +618,9 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                             iterText += toolResult.summary;
                         }
                         // Structured (rich prose case): NarrativeCard handles tldr/findings/followups visually
+                        // The final snapshot of the steps: a step never started now says
+                        // so (not_done), and the client shows it as it is, not as done.
+                        if (activePlan?.steps) yield { type: 'plan-progress', steps: activePlan.steps };
                         yield {
                             type:     'plan-completed',
                             summary:  toolResult.summary,
@@ -717,7 +721,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                 }
                 // Out of stall retries — stop cleanly so the UI isn't left spinning.
                 if (!anyIterationHadText) {
-                    yield { type: 'text-delta', text: 'El modelo dejó de responder a mitad del análisis. Intenta de nuevo o usa un modelo distinto.' };
+                    yield { type: 'text-delta', text: 'The model stopped responding in the middle of the analysis. Try again, or pick a different model.' };
                 }
                 loopDone = true;
                 break;
@@ -829,7 +833,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                 // ── Too many idle retries — give up ──
                 // Only emit error message if no text was generated in any iteration
                 if (!anyIterationHadText) {
-                    yield { type: 'text-delta', text: 'Lo siento, no pude iniciar el análisis. Por favor intenta de nuevo con una pregunta más específica.' };
+                    yield { type: 'text-delta', text: 'The analysis could not start. Try again with a more specific question.' };
                 }
                 loopDone = true;
             }
@@ -845,7 +849,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         for (const step of activePlan.steps || []) {
             if (step.status === 'in_progress' || step.status === 'running') {
                 step.status = 'interrupted';
-                step.note = step.note || 'Interrumpido — se agotaron las iteraciones';
+                step.note = step.note || 'Interrupted: the analyst ran out of iterations';
                 snapshotChanged = true;
             }
         }

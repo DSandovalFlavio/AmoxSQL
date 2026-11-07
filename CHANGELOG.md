@@ -23,8 +23,16 @@ Primeras tandas hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
 - **Ctrl+K abre siempre la paleta**, también en el editor SQL. **Ctrl+L** abre Assist y **Ctrl+Shift+F** busca en el proyecto también desde el editor. Formatear queda en **Shift+Alt+F**. Los acordes del editor que empezaban por Ctrl+K dejan de existir; en Markdown, Ctrl+K sigue insertando un enlace.
 - **Ctrl+Shift+H** (historial) funciona fuera del editor. En Mac, ⌘ sirve para todos los atajos globales.
 - La búsqueda del editor queda separada de la barra de acciones.
+- **Deep Dive: cuando el analista te necesita, lo dice donde escribes.** Su pregunta, o qué hacer si se quedó sin ciclos, aparece encima de la caja de texto en lugar del panel derecho, y la caja también responde. La pestaña y la lista de conversaciones marcan la sesión que espera tu respuesta, y al reabrirla la pregunta sigue ahí.
+- **Deep Dive habla claro.** La pestaña se llama como la sesión. Los pasos tienen su nombre y su número, no `s2`; el hilo cuenta consultas y gráficos, no «steps»; el plan dice «Working on step 3 of 4» en vez de «Iteration 12/50». El icono de papelera del encabezado era «nueva sesión» y ahora lo parece; borrar una conversación pide confirmación.
 
 ### Arreglado
+- **Deep Dive marcaba como hechos pasos que nunca se ejecutaron** al concluir. Ahora quedan como no hechos, y un paso que se quedó a medias en un análisis sin terminar dice «interrupted».
+- Deep Dive repartía el razonamiento entre los pasos a ojo y podía ponerlo bajo el paso equivocado. Ahora va una vez por respuesta.
+- Desde la segunda respuesta, los pasos de Deep Dive se llamaban `s2`, `s3`.
+- Textos en español dentro de la interfaz en inglés: «Continuar», «Cancelar», el resumen de un análisis parcial, el razonamiento.
+- Elegir una opción del analista sin un modelo elegido borraba la pregunta y la respuesta no llegaba a ningún lado.
+- La tarjeta «Where you left off» se quedaba flotando encima de lo que abrieras después; ahora se cierra al abrir una pestaña o con Escape.
 - **En macOS la ventana usaba botones de Windows:** ahora lleva los del sistema, a la izquierda, también en los resultados en ventana aparte.
 - Traer un archivo grande entero congelaba el servidor hasta 29 s, tanto que Stop no podía llegar, y acababa en `Invalid string length`. Ahora el resultado se convierte y se envía por lotes.
 - Con varias consultas en cola, Stop podía no encontrar a la que corría de verdad.
@@ -42,6 +50,7 @@ Primeras tandas hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
 ### Interno
 - `utils/colaDeEjecucion.js`, `utils/memoriaDePestana.js`, `utils/atajos.js`, `utils/atajosEnMonaco.js`, `hooks/useEscape.js`. Sin `KeyboardShortcutsModal.jsx`, que era código muerto.
 - `scripts/probarInteraccion.mjs`: maneja Electron real con home temporal. `scripts/atajosADocs.mjs`: las tablas de atajos de la documentación.
+- Deep Dive, entrega 1 del plan de UX (`docs/dev/auditoria_ux_deep_dive.md`, `docs/dev/plan_ux_deep_dive.md`): `ai/DecisionDelAnalista.jsx`, `planSteps`/`stepTitle` en `deepDiveTurns.js`, estado de paso `not_done`. `scripts/probarDeepDive.mjs`.
 
 ## [5.18.0] — 2026-10-27
 

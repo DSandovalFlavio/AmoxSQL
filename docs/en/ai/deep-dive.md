@@ -31,7 +31,7 @@ The window has **three regions**:
 3. Send. The agent creates a plan and starts executing.
 
 ### Follow the plan and the steps
-1. The **Plan panel** (right) shows the steps with their status (pending, in progress, done, skipped).
+1. The **Plan panel** (right) shows the numbered steps with their status (pending, in progress, done, skipped, not done). A step the analyst never got to before concluding says **Not done**, never done.
 2. Click any step or turn to **pin** the inspector to it; if you pin nothing, the inspector follows the live step.
 3. In the inspector you see that step's SQL, result, and charts.
 
@@ -44,17 +44,17 @@ You can pin any chart, query, step, or finding as context for your next question
 2. Select text or a number in a response and click the floating **Ask about this** button.
 3. With the reference attached, quick actions appear: **Explain**, **Redo differently**, **Go deeper**, **Validate**.
 
-### Continue when the budget runs out
-Deep Dive measures its work in iterations. If it runs out without finishing, it offers a banner with four exits:
+### When the analyst needs you
+When the analyst asks you something, or runs out of iterations, a card appears **right above the box where you type**. Pick an option, or type your answer in the box. The session's tab shows an amber dot and the list of conversations says **Waiting for you**, so you notice it from anywhere. If you reopen the conversation later, the card is still there.
+
+If it ran out of iterations, the card offers four ways to go on:
 
 | Button | What it does |
 |---|---|
 | **Continue** | Resumes with a fresh budget |
 | **Continue with instructions…** | Resumes focused on the text you type |
-| **Finalize now** | Forces synthesis from what it already has |
-| **Cancel** | Stops the analysis |
-
-If you reopen a conversation whose plan was left paused, Deep Dive detects it and offers to continue again.
+| **Finish with what it has** | Writes the conclusions from what it already has, without new queries |
+| **Leave it here** | Stops the analysis as it is |
 
 ### Build a notebook
 When you ask (or when it fits the analysis), the agent creates a `.sqlnb` notebook with the analysis and its charts, and opens it. See [Notebooks](../notebooks/notebooks.md).

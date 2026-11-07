@@ -1,83 +1,75 @@
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { LuMousePointerClick, LuBrain, LuChevronDown, LuChevronRight, LuListChecks, LuLightbulb, LuMessageSquareQuote } from 'react-icons/lu';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
 import SqlActivityBlock from './SqlActivityBlock';
-import { buildStepGroups, turnReasoning } from './deepDiveTurns';
+import { buildStepGroups, planSteps, turnReasoning } from './deepDiveTurns';
 
-const STATUS_LABEL = { in_progress: 'in progress', done: 'done', failed: 'failed', skipped: 'skipped', pending: 'pending' };
+const STATUS_LABEL = { in_progress: 'in progress', done: 'done', failed: 'failed', skipped: 'skipped', pending: 'pending', interrupted: 'interrupted' };
 
-/** Collapsible reasoning chunk. */
-function ReasoningBlock({ content }) {
+/**
+ * El razonamiento del turno, una vez y plegado.
+ *
+ * Antes se repartía por orden entre los pasos del turno, pero el mensaje guarda el
+ * razonamiento y las herramientas en listas separadas: el reparto podía poner un
+ * razonamiento bajo el paso equivocado. Mejor uno solo, cierto, que varios dudosos.
+ */
+function ReasoningBlock({ chunks }) {
     const [open, setOpen] = useState(false);
     return (
         <div className={`ddi-reasoning${open ? ' ddi-reasoning--open' : ''}`}>
-            <button className="ddi-reasoning-head" onClick={() => setOpen(o => !o)}>
+            <button className="ddi-reasoning-head" onClick={() => setOpen(o => !o)} aria-expanded={open}>
                 <LuBrain size={12} />
-                <span>Reasoning</span>
+                <span>How the analyst reasoned</span>
                 {open ? <LuChevronDown size={12} /> : <LuChevronRight size={12} />}
             </button>
-            {open && <div className="ddi-reasoning-body">{content}</div>}
+            {open && chunks.map((c, i) => <div key={i} className="ddi-reasoning-body">{c}</div>)}
         </div>
     );
 }
 
 /**
- * Distribute ordered reasoning chunks across N step sections, front-loaded by
- * order. The stored message keeps reasoning (content) and tools (toolCalls) in
- * separate arrays, so exact per-step mapping isn't recoverable — this spreads the
- * chunks through the phases in order instead of dumping them all in one block.
- */
-function distributeReasoning(reasoning, n) {
-    const buckets = Array.from({ length: Math.max(n, 0) }, () => []);
-    if (n <= 0) return buckets;
-    let ri = 0;
-    for (let idx = 0; idx < n; idx++) {
-        const remaining = n - idx;
-        const take = Math.max(0, Math.ceil((reasoning.length - ri) / remaining));
-        buckets[idx] = reasoning.slice(ri, ri + take);
-        ri += take;
-    }
-    return buckets;
-}
-
-/**
  * DeepDiveInspector — center pane. Activity grouped by AGENT-PLAN STEP, in order.
- * Each phase card shows its reasoning (un-grouped), what it concluded, the SQL +
- * result table, and charts inline.
+ * Each step card shows what it concluded, the SQL + result table, and charts
+ * inline; the turn's reasoning sits above them.
  */
 const DeepDiveInspector = memo(({ turn, allMessages, isDiving = true, onRunSql, onAskAbout, onExportNotebook, onExportAmoxvis }) => {
+    // Los nombres de los pasos salen del plan, que puede estar en otro turno.
+    const pasos = useMemo(() => planSteps(allMessages || []), [allMessages]);
+
     if (!turn || turn.type !== 'ai') {
         return (
             <div className="ddi-empty">
                 <LuMousePointerClick size={22} />
-                <span>Select a step on the left to see what the analyst did — grouped by plan step, with its reasoning, queries, results, charts and conclusion.</span>
+                <span>Click a reply on the left to see how the analyst got there: its queries, results and charts, step by step.</span>
             </div>
         );
     }
 
     const reasoning = turnReasoning(turn);
-    const sections = buildStepGroups(turn);
+    const sections = buildStepGroups(turn, pasos);
 
     if (reasoning.length === 0 && sections.length === 0) {
-        return <div className="ddi"><div className="ddi-empty"><span>No activity for this message.</span></div></div>;
+        return <div className="ddi"><div className="ddi-empty"><span>This reply has no queries or charts behind it.</span></div></div>;
     }
 
-    // No plan steps (e.g. a quick follow-up): show reasoning chunks inline at top.
-    if (sections.length === 0) {
-        return <div className="ddi">{reasoning.map((r, i) => <ReasoningBlock key={i} content={r} />)}</div>;
-    }
-
-    const buckets = distributeReasoning(reasoning, sections.length);
+    // A step left "in progress" in a turn that is no longer running: if the analysis
+    // concluded, it was done (same rule as the plan); if not, it was interrupted.
+    // Saying "in progress" next to a finished plan contradicted it.
+    const concluyo = (allMessages || []).some(m => (m.toolCalls || []).some(tc => tc.toolName === 'final_answer' && tc.result));
+    const estadoDe = (s) => (s === 'in_progress' && !turn.inProgress ? (concluyo ? 'done' : 'interrupted') : s);
 
     return (
         <div className="ddi">
-            {sections.map((sec, si) => (
+            {reasoning.length > 0 && <ReasoningBlock chunks={reasoning} />}
+            {sections.map((sec) => {
+                const estado = estadoDe(sec.status);
+                return (
                 <section key={sec.key} className="ddi-stepgroup">
                     <header className="ddi-stepgroup-head">
-                        <LuListChecks size={12} />
-                        <span className="ddi-stepgroup-label">{sec.label}</span>
-                        {sec.status && <span className={`ddi-stepgroup-status ddi-status--${sec.status}`}>{STATUS_LABEL[sec.status] || sec.status}</span>}
+                        {sec.numero ? <span className="ddi-stepgroup-num">{sec.numero}</span> : <LuListChecks size={12} />}
+                        <span className="ddi-stepgroup-label" title={sec.stepId ? `Plan step ${sec.stepId}` : undefined}>{sec.label}</span>
+                        {estado && <span className={`ddi-stepgroup-status ddi-status--${estado}`}>{STATUS_LABEL[estado] || estado}</span>}
                         {onAskAbout && (
                             <button
                                 className="ddi-ask-btn"
@@ -100,13 +92,6 @@ const DeepDiveInspector = memo(({ turn, allMessages, isDiving = true, onRunSql, 
                         <div className="ddi-insight">
                             <LuLightbulb size={13} className="ddi-insight-icon" />
                             <span>{sec.insight || sec.note}</span>
-                        </div>
-                    )}
-
-                    {/* Reasoning for this phase (distributed in order) */}
-                    {buckets[si]?.length > 0 && (
-                        <div className="ddi-stepgroup-reasoning">
-                            {buckets[si].map((r, i) => <ReasoningBlock key={i} content={r} />)}
                         </div>
                     )}
 
@@ -137,7 +122,8 @@ const DeepDiveInspector = memo(({ turn, allMessages, isDiving = true, onRunSql, 
                         </div>
                     ))}
                 </section>
-            ))}
+                );
+            })}
         </div>
     );
 });

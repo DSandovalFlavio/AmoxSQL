@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react';
 import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare, LuPencil, LuCheck, LuEllipsisVertical, LuSparkles } from "react-icons/lu";
 
 import { API_BASE as API } from '../../api.js';
+import { useDialog } from '../dialogs/DialogProvider';
 const PAGE_SIZE = 20;
 
 /**
@@ -17,6 +18,25 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
     const [renameValue, setRenameValue] = useState('');
     const [menu, setMenu] = useState(null); // { x, y, conv } — row options (kebab)
     const listRef = useRef(null);
+    const dialog = useDialog();
+
+    // Sesiones de Deep Dive que esperan tu respuesta (una pregunta del analista, o
+    // se quedó sin ciclos). Las avisa el panel de cada sesión abierta.
+    const [esperan, setEsperan] = useState(() => new Set());
+    useEffect(() => {
+        const alAvisar = (e) => {
+            const { conversationId, espera } = e.detail || {};
+            if (!conversationId) return;
+            setEsperan(prev => {
+                if (prev.has(conversationId) === !!espera) return prev;
+                const s = new Set(prev);
+                if (espera) s.add(conversationId); else s.delete(conversationId);
+                return s;
+            });
+        };
+        window.addEventListener('amox_deep_dive_espera', alAvisar);
+        return () => window.removeEventListener('amox_deep_dive_espera', alAvisar);
+    }, []);
 
     // Close the kebab menu on any outside click or scroll
     useEffect(() => {
@@ -47,6 +67,14 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title }),
             });
+            // Deep Dive shows the session name first: keep both names the same, and
+            // let an open tab of this session pick it up.
+            await fetch(`${API}/api/ai/conversations/${id}/session-name`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionName: title }),
+            });
+            window.dispatchEvent(new Event('amox_conversation_created'));
         } catch (err) { console.error('Rename failed:', err); }
     };
 
@@ -123,8 +151,17 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
         return groups;
     }, [conversations]);
 
-    const handleDelete = async (e, id) => {
+    // Borrar es para siempre (la sesión, sus consultas y sus gráficos): se pregunta.
+    const handleDelete = async (e, conv) => {
         e.stopPropagation();
+        const id = conv.id;
+        const ok = await dialog.confirmAsync({
+            title: 'Delete this conversation?',
+            message: `“${conv.title || 'New Conversation'}” and its queries, charts and plan will be deleted. This can't be undone.`,
+            confirmLabel: 'Delete',
+            destructive: true,
+        });
+        if (!ok) return;
         try {
             await fetch(`${API}/api/ai/conversations/${id}`, { method: 'DELETE' });
             setConversations(prev => prev.filter(c => c.id !== id));
@@ -171,6 +208,9 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
                             <span className="ai-conv-item-title">
                                 {conv.title || 'New Conversation'}
                             </span>
+                        )}
+                        {esperan.has(conv.id) && renamingId !== conv.id && (
+                            <span className="ai-conv-espera" title="The analyst is waiting for your answer">Waiting for you</span>
                         )}
                         <div className="ai-conv-item-actions">
                             {renamingId === conv.id ? (
@@ -270,7 +310,7 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
                     <div className="context-menu-item" onClick={(e) => { handleToggleStar(e, menu.conv.id); setMenu(null); }}>
                         <LuStar size={14} fill={menu.conv.is_starred ? 'currentColor' : 'none'} /> {menu.conv.is_starred ? 'Unstar' : 'Star'}
                     </div>
-                    <div className="context-menu-item" style={{ color: 'var(--color-error-text)' }} onClick={(e) => { handleDelete(e, menu.conv.id); setMenu(null); }}>
+                    <div className="context-menu-item" style={{ color: 'var(--color-error-text)' }} onClick={(e) => { const conv = menu.conv; setMenu(null); handleDelete(e, conv); }}>
                         <LuTrash2 size={14} /> Delete
                     </div>
                 </div>
