@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { LuBot, LuX, LuLoader, LuHourglass, LuSquarePen, LuSquare, LuPencil, LuSparkles, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuHourglass, LuPause, LuSquarePen, LuSquare, LuPencil, LuSparkles, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
 import DecisionDelAnalista from './DecisionDelAnalista';
 import { AiModesGuideModal } from './AiModesGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
@@ -10,6 +10,7 @@ import InformeDeepDive from './deepDive/InformeDeepDive';
 import IndiceDeepDive from './deepDive/IndiceDeepDive';
 import ComoLoObtuve from './deepDive/ComoLoObtuve';
 import ModelDropdown from './ModelDropdown';
+import { etiquetaHerramienta } from './ToolCallBlock';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
@@ -136,7 +137,21 @@ const AiDivingPanel = ({
         handleSkipPlanStep,
         interrupcion,
         esperaCuota,
+        saltarEnVuelo, indicarEnVuelo, pausarEnVuelo, pausando,
     } = useAiChat({ mode: 'diving' });
+
+    // While it runs, the box gives the analyst an instruction instead of starting
+    // another question (plan UX, F6); an empty box's button is Stop.
+    const [indicacionesEnviadas, setIndicacionesEnviadas] = useState(0);
+    const enviarOIndicar = useCallback(() => {
+        const texto = inputText.trim();
+        if (isGenerating) {
+            if (!texto) { handleCancel(); return; }
+            indicarEnVuelo(texto).then(ok => { if (ok) { setInputText(''); setIndicacionesEnviadas(n => n + 1); } });
+            return;
+        }
+        handleSend();
+    }, [inputText, isGenerating, handleCancel, indicarEnVuelo, setInputText, handleSend]);
 
     // ─── Session Name ───
     // Dos nombres guardados: `title` (el de la lista de conversaciones, sale de la
@@ -504,8 +519,13 @@ const AiDivingPanel = ({
             if (e.key === 'Escape') { e.preventDefault(); setMention(null); return; }
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); pickMention(mentionMatches[0]); return; }
         }
+        if (e.key === 'Enter' && !e.shiftKey && isGenerating) {
+            e.preventDefault();
+            if (inputText.trim()) enviarOIndicar();
+            return;
+        }
         handleKeyDown(e);
-    }, [mention, mentionMatches, pickMention, handleKeyDown]);
+    }, [mention, mentionMatches, pickMention, handleKeyDown, isGenerating, inputText, enviarOIndicar]);
 
     const mentionIcon = (type) => {
         switch (type) {
@@ -603,6 +623,8 @@ const AiDivingPanel = ({
                     onBlur={() => setTimeout(() => setMention(null), 120)}
                     placeholder={isDragOver
                         ? 'Drop tables or files to add as context…'
+                        : isGenerating
+                            ? 'Give the analyst an instruction; it takes it at the next step'
                         : pendingAskUser
                             ? 'Answer the analyst…'
                             : pendingContinue
@@ -633,16 +655,28 @@ const AiDivingPanel = ({
                 <div className="ai-composer-toolbar-right">
                     <span className="ai-composer-hint">{'Enter \u21B5'}</span>
                     <button
-                        className={`ai-composer-send${isGenerating ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
-                        onClick={isGenerating ? handleCancel : () => handleSend()}
+                        className={`ai-composer-send${isGenerating && !inputText.trim() ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
+                        onClick={enviarOIndicar}
                         disabled={!isGenerating && !inputText.trim()}
+                        title={isGenerating ? (inputText.trim() ? 'Send this instruction to the analyst' : 'Stop the analysis') : 'Send'}
                     >
-                        {isGenerating ? <LuX size={16} strokeWidth={2.5} /> : <LuArrowUp size={18} strokeWidth={2.5} />}
+                        {isGenerating && !inputText.trim() ? <LuX size={16} strokeWidth={2.5} /> : <LuArrowUp size={18} strokeWidth={2.5} />}
                     </button>
                 </div>
             </div>
         </div>
     );
+
+    // What the analyst is doing right now (the tool still running), in words.
+    const enCursoTool = isGenerating
+        ? [...activeToolCalls].reverse().find(tc => !tc.result && !['create_plan', 'update_plan'].includes(tc.toolName))
+        : null;
+    const actividad = useMemo(
+        () => (enCursoTool ? { etiqueta: etiquetaHerramienta(enCursoTool.toolName, true), inicio: enCursoTool.inicio || null } : null),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [enCursoTool?.toolCallId],
+    );
+    useEffect(() => { if (!isGenerating) setIndicacionesEnviadas(0); }, [isGenerating]);
 
     // ─── What the report's pieces can do (stable: the report re-renders on every flush) ───
     const acciones = useMemo(() => ({
@@ -656,7 +690,8 @@ const AiDivingPanel = ({
             if (hallada) setPanel({ seccionKey: hallada.seccion.key, queryId });
         },
         esperandoCuota: !!esperaCuota,
-    }), [handleAskAbout, sendFollowUp, onExportNotebook, onExportAmoxvis, esperaCuota]);
+        actividad,
+    }), [handleAskAbout, sendFollowUp, onExportNotebook, onExportAmoxvis, esperaCuota, actividad]);
     const episodiosRef = useRef(episodios);
     episodiosRef.current = episodios;
 
@@ -709,9 +744,20 @@ const AiDivingPanel = ({
                 <PoliticaIAChip />
                 <span className="ddr-cab-der">
                     {isGenerating && (
-                        <button className="ddr-btn ddr-btn--peligro" onClick={handleCancel} title="Stop the analysis">
-                            <LuSquare size={11} /> Stop
-                        </button>
+                        <>
+                            {/* Pause: finishes the step it's on, keeps everything, and
+                                Continue resumes the plan. Stop: cuts it now (what was done
+                                is kept too, F9). */}
+                            {ultimoEpisodio?.indice?.length > 0 && (
+                                <button className="ddr-btn" onClick={pausarEnVuelo} disabled={pausando}
+                                    title="Pause after the step it's on. Continue resumes the plan.">
+                                    <LuPause size={11} /> {pausando ? 'Pausing after this step…' : 'Pause'}
+                                </button>
+                            )}
+                            <button className="ddr-btn ddr-btn--peligro" onClick={handleCancel} title="Stop the analysis now. What it did is kept.">
+                                <LuSquare size={11} /> Stop
+                            </button>
+                        </>
                     )}
                     {/* It never deleted anything: it empties the view and starts over.
                         The session stays in the list, where it can be deleted. */}
@@ -748,7 +794,7 @@ const AiDivingPanel = ({
                             episodios={episodios}
                             isGenerating={isGenerating}
                             onIr={irA}
-                            onSaltar={handleSkipPlanStep}
+                            onSaltar={isGenerating ? saltarEnVuelo : handleSkipPlanStep}
                             entregables={entregables}
                             onGuardarNotebook={() => sendFollowUp('Save this analysis as a notebook — include the queries, the charts, and a short narrative for each section.')}
                             onExportar={() => exportConversationToMarkdown(messages, displayName || 'Deep Dive')}
@@ -820,6 +866,9 @@ const AiDivingPanel = ({
                                             ))}
                                         </div>
                                     </div>
+                                )}
+                                {isGenerating && indicacionesEnviadas > 0 && (
+                                    <p className="ddr-indicacion-ok">Instruction sent. The analyst takes it at its next step.</p>
                                 )}
                                 {inputComposer}
                             </div>

@@ -30,6 +30,12 @@ const legible = (nombre) => {
     return t ? t[0].toUpperCase() + t.slice(1) : 'Working';
 };
 
+/** What a tool is doing (or did), in words. Also Deep Dive's live status line. */
+export function etiquetaHerramienta(nombre, cargando) {
+    const [haciendo, hecho] = TOOL_LABELS[nombre] || [legible(nombre), legible(nombre)];
+    return cargando ? haciendo : hecho;
+}
+
 /**
  * ToolCallBlock — Collapsible indicator for a tool call in the agent loop.
  * Shows loading state while executing, then result summary when complete.

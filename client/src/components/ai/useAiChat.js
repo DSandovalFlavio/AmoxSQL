@@ -433,7 +433,7 @@ export default function useAiChat({
         setStreamingId(assistantId);
         // Continuing after a run that stopped short (quota, error, Stop) resumes its
         // plan on the server instead of planning everything again (F9).
-        const isContinuation = !!(pendingContinue || interrupcion);
+        const isContinuation = !!(pendingContinue || interrupcion || pendingAskUser);
         setIsGenerating(true);
         setStreamingText('');
         setActiveToolCalls([]);
@@ -445,6 +445,17 @@ export default function useAiChat({
         setInterrupcion(null);
         const currentSkippedSteps = userSkippedSteps;
         setUserSkippedSteps(new Set());
+        // The skips travel to the server (planStepOverrides) and ALSO stay in the
+        // conversation as plan updates, so the report shows them after a reload.
+        if (mode === 'diving') {
+            for (const stepId of currentSkippedSteps) {
+                activeToolCallsRef.current.push({
+                    toolCallId: `salto-${stepId}-${assistantId}`, toolName: 'update_plan',
+                    args: { step_id: stepId, status: 'skipped', note: 'Skipped by you' }, result: { ok: true }, textOffset: 0,
+                });
+            }
+            if (activeToolCallsRef.current.length) setActiveToolCalls([...activeToolCallsRef.current]);
+        }
 
         // Build context arrays for the API
         const contextFiles = contextObjects
@@ -695,6 +706,7 @@ export default function useAiChat({
 
                         if (event.type === 'text-delta') {
                             fullText += event.text;
+                            largoTextoRef.current = fullText.length;
                             // Time the reasoning span (first <think> → its </think>).
                             if (thinkStart === null && fullText.includes('<think>')) {
                                 thinkStart = performance.now();
@@ -715,6 +727,7 @@ export default function useAiChat({
                                 // without the offset there is no telling which paragraph
                                 // narrates which step. Deep Dive's report interleaves them.
                                 textOffset: fullText.length,
+                                inicio: Date.now(), // for the live "Running a query… 3 s"
                             };
                             setActiveToolCalls(prev => [...prev, newActiveCall]);
                             activeToolCallsRef.current.push(newActiveCall);
@@ -779,7 +792,18 @@ export default function useAiChat({
                                 pendingSteps:   event.pendingSteps || 0,
                                 completedSteps: event.completedSteps || 0,
                                 planId:         event.planId || null,
+                                pausado:        !!event.pausado,
                             });
+                            setPausando(false);
+                        } else if (event.type === 'indicacion-recibida') {
+                            // An instruction given while it ran (F6): it stays in the
+                            // report where the analyst took it into account.
+                            const marca = {
+                                toolCallId: `indicacion-${Date.now()}`, toolName: 'amox_indicacion',
+                                args: { texto: event.texto }, result: { ok: true }, textOffset: fullText.length,
+                            };
+                            activeToolCallsRef.current.push(marca);
+                            setActiveToolCalls(prev => [...prev, marca]);
                             setPlanState(prev => prev ? { ...prev, status: 'paused' } : prev);
                         } else if (event.type === 'step-start') {
                             setPlanIteration(event.iteration || 0);
@@ -871,7 +895,7 @@ export default function useAiChat({
     }, [
         inputText, isGenerating, messages, selectedModel, customModel, provider,
         contextObjects, mode, filePath, fileType, fileContent, fileResult, fileChartConfig, getFileContext, activeSkillId,
-        pendingContinue, interrupcion,
+        pendingContinue, interrupcion, pendingAskUser,
         ensureConversation, persistMessage, persistQueryResult, persistChartConfig, autoTitle,
         onEditFile, onUpdateChartConfig,
     ]);
@@ -907,6 +931,36 @@ export default function useAiChat({
     }, []);
 
     // ─── Skip plan step (user-initiated) ───
+    // ─── Talk to the analysis while it runs (plan UX, F6) ───
+    // The stream only goes server → client; these go by a separate request and the
+    // loop picks them up at its next iteration.
+    const [pausando, setPausando] = useState(false);
+    const largoTextoRef = useRef(0); // length of the live run's prose (for in-flight markers)
+    const enVuelo = useCallback(async (cambio) => {
+        if (!conversationId) return false;
+        try {
+            const r = await fetch(`${API}/api/ai/conversations/${conversationId}/en-vuelo`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambio),
+            });
+            return r.ok;
+        } catch { return false; }
+    }, [conversationId]);
+    const saltarEnVuelo = useCallback(async (stepId) => {
+        if (!(await enVuelo({ saltar: stepId }))) return;
+        const marca = {
+            toolCallId: `salto-${stepId}-${Date.now()}`, toolName: 'update_plan',
+            args: { step_id: stepId, status: 'skipped', note: 'Skipped by you while it ran' }, result: { ok: true },
+            textOffset: largoTextoRef.current, // where the prose is right now
+        };
+        activeToolCallsRef.current.push(marca);
+        setActiveToolCalls(prev => [...prev, marca]);
+    }, [enVuelo]);
+    const indicarEnVuelo = useCallback((texto) => enVuelo({ indicacion: texto }), [enVuelo]);
+    const pausarEnVuelo = useCallback(async () => {
+        if (await enVuelo({ pausar: true })) setPausando(true);
+    }, [enVuelo]);
+    useEffect(() => { if (!isGenerating) setPausando(false); }, [isGenerating]);
+
     const handleSkipPlanStep = useCallback((stepId) => {
         setUserSkippedSteps(prev => new Set([...prev, stepId]));
         // Also update planState locally so the UI reflects the skip immediately
@@ -1261,6 +1315,7 @@ export default function useAiChat({
         pendingContinue, setPendingContinue,
         interrupcion, setInterrupcion,
         esperaCuota,
+        saltarEnVuelo, indicarEnVuelo, pausarEnVuelo, pausando,
         handleContinue,
         handleFinalizeNow,
         handleDeclineContinue,

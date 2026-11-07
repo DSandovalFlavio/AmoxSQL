@@ -11,6 +11,7 @@ Primeras tandas hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
 
 ### Nuevo
 - **Deep Dive no pierde un análisis a medias.** Si el proveedor del modelo limita las solicitudes por minuto (la capa gratuita de Gemini permite 5), el análisis espera lo que pide el proveedor y repite el paso, con una cuenta atrás en el encabezado («Waiting for the quota · resumes in 31 s»). Si aun así se corta (una cuota diaria, un error del proveedor, Stop, o la ventana que se cierra), lo hecho se guarda: los pasos terminados con sus gráficos siguen en el informe, una línea dice dónde y por qué se cortó, y encima de la caja de texto se elige cómo seguir (**Continue**, que en una cuota por minuto puede esperar sola la cuenta atrás; con instrucciones; terminar con lo que hay; dejarlo). El error del proveedor queda plegado en **Details**. Continuar retoma el mismo plan, no lo empieza de nuevo.
+- **Deep Dive se dirige mientras trabaja.** Escribir en la caja mientras analiza le da una **indicación** que toma en el paso siguiente (queda en el informe donde la tomó); **Pause** termina el paso en curso y deja seguir después con el mismo plan; **Skip** en el índice salta un paso pendiente también mientras corre. El informe dice qué está haciendo, en palabras y con los segundos («Running a query… 4 s»).
 - **La ventana se recupera sola.** Si un error al pintar o una falta de memoria tiran la interfaz, vuelve a tu proyecto con sus pestañas, también las que aún no tienen archivo, en lugar de quedarse sin contenido. Si deja de responder, pregunta si esperar o recargar.
 - **El perfil se ve y se cancela.** Dice que está calculando, con **Cancel**, y se detiene al salir de la vista. Los totales del gráfico también se pueden cancelar.
 - **Tu consulta va primero.** El perfil y los totales del gráfico ceden ante lo que ejecutas, en vez de hacerte esperar detrás sin explicación.
@@ -34,6 +35,7 @@ Primeras tandas hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
 - Desde la segunda respuesta, los pasos de Deep Dive se llamaban `s2`, `s3`.
 - Textos en español dentro de la interfaz en inglés: «Continuar», «Cancelar», el resumen de un análisis parcial, el razonamiento.
 - Elegir una opción del analista sin un modelo elegido borraba la pregunta y la respuesta no llegaba a ningún lado.
+- En Deep Dive, un paso saltado con el análisis en pausa se ejecutaba igual al continuar. Y contestar una pregunta del analista empezaba el plan de nuevo.
 - En Deep Dive, el botón flotante «Ask about this» se quedaba fijo en pantalla tras seleccionar texto y desplazarse.
 - La tarjeta «Where you left off» se quedaba flotando encima de lo que abrieras después; ahora se cierra al abrir una pestaña o con Escape.
 - **En macOS la ventana usaba botones de Windows:** ahora lleva los del sistema, a la izquierda, también en los resultados en ventana aparte.

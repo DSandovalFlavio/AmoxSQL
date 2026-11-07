@@ -150,7 +150,7 @@ export default function DecisionDelAnalista({
     const pendientes = continuar.pendingSteps || 0;
     return (
         <div className="dda" role="region" aria-label="The analysis is paused">
-            <span className="dda-et"><LuCirclePause size={13} /> {continuar.resumed ? 'This analysis was left unfinished' : 'The analyst ran out of iterations'}</span>
+            <span className="dda-et"><LuCirclePause size={13} /> {continuar.pausado ? 'You paused the analysis' : continuar.resumed ? 'This analysis was left unfinished' : 'The analyst ran out of iterations'}</span>
             <p className="dda-pregunta">
                 {pendientes > 0
                     ? `${pendientes} ${pendientes === 1 ? 'step is' : 'steps are'} still pending. How do you want to go on?`

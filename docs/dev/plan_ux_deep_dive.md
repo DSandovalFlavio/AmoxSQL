@@ -136,6 +136,13 @@ interfaz no mezcla idiomas.
 
 *Archivos:* `Informe.jsx`, `ChatMessage.jsx` (NarrativeCard), `deepDive/Confianza.jsx`.
 
+**F6 hecha el 2026-11-07, sin publicar.** `server/ai/controlEnVuelo.js` (en memoria, por conversación) +
+`POST /api/ai/conversations/:id/en-vuelo`; el bucle lo recoge al empezar cada iteración. La pausa ocurre entre
+iteraciones (termina el paso en curso; una iteración puede encadenar varias llamadas). Las indicaciones y los saltos
+quedan en la conversación como marcas (`amox_indicacion`, `update_plan` con `skipped`). Arreglado de paso: un salto
+hecho con el análisis en pausa no se aplicaba al continuar; contestar al analista reiniciaba el plan. Probado con el
+bucle real y un modelo falso (`probarCuotaDeepDive.mjs`); la parte visual mientras corre no se vio con un modelo real.
+
 ### F5 — Un inicio que propone preguntas
 - **H9** el estado vacío es una caja de pregunta grande al centro, con **preguntas sugeridas a partir del proyecto**:
   las métricas de `metrics.yml`, el glosario y las tablas (por ejemplo «¿Cómo va la venta contra la meta 2024?»).

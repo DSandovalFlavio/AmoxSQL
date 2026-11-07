@@ -52,6 +52,7 @@ const MAX_STALL_RETRIES = 2;
 // whole analysis without hanging forever on a provider that keeps refusing.
 const MAX_ESPERAS_CUOTA = 6;
 const { leerLimite, sePuedeEsperar, esperar } = require('./errores');
+const enVuelo = require('./controlEnVuelo');
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -373,6 +374,15 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         } catch { /* plan rehydration is best-effort */ }
     }
 
+    // Steps the user skipped while the analysis was paused: apply them to the
+    // rehydrated plan (before, they only applied if the agent re-created the plan,
+    // so a skipped step still ran on Continue).
+    if (continueMode && activePlan.id && planStepOverrides.length) {
+        enVuelo.aplicarSaltos(activePlan, planStepOverrides, 'Skipped by you');
+    }
+    // Whatever was left from a previous run of this conversation doesn't apply.
+    enVuelo.limpiar(conversationId);
+
     // On a continuation, inject the (rehydrated) plan status into the first iteration
     // so the agent resumes immediately instead of relying on content-only history.
     let iterMessages = messages;
@@ -401,6 +411,44 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
 
     // The loop runs the working budget PLUS one reserved wrap-up turn.
     while (iteration < effectiveMaxIterations + WRAP_UP_RESERVE && !loopDone) {
+        // ── What the user said while it runs (plan UX, F6) ──
+        // Collected between iterations: a step to skip, an instruction, a pause.
+        const control = enVuelo.tomar(conversationId);
+        if (control.saltar.length && activePlan.id) {
+            const saltados = enVuelo.aplicarSaltos(activePlan, control.saltar, 'Skipped by you while it ran');
+            if (saltados.length) {
+                yield { type: 'plan-progress', steps: activePlan.steps };
+                if (aiPersistence && activePlan.id && conversationId) {
+                    aiPersistence.updatePlan(dbManager, activePlan.id, { steps: activePlan.steps }).catch(() => {});
+                }
+                iterMessages = [...iterMessages, { role: 'user', content: `[The user skipped these plan steps while you were working: ${saltados.join(', ')}. Do not do them; go on with the rest of the plan.]` }];
+            }
+        }
+        for (const texto of control.indicaciones) {
+            yield { type: 'indicacion-recibida', texto };
+            iterMessages = [...iterMessages, { role: 'user', content: `[The user added an instruction while you were working. Take it into account from now on, without starting over:]\n${texto}` }];
+        }
+        if (control.pausar && iteration > 0) {
+            // Pause between steps: nothing is cut halfway, and Continue resumes the plan.
+            for (const step of activePlan.steps || []) {
+                if (step.status === 'in_progress' || step.status === 'running') step.status = 'interrupted';
+            }
+            if (activePlan.steps?.length) yield { type: 'plan-progress', steps: activePlan.steps };
+            if (aiPersistence && activePlan.id && conversationId) {
+                aiPersistence.updatePlan(dbManager, activePlan.id, { status: 'paused', steps: activePlan.steps }).catch(() => {});
+            }
+            yield {
+                type: 'ask-continue',
+                planGoal: activePlan.goal || '',
+                pendingSteps: (activePlan.steps || []).filter(s => s.status === 'pending' || s.status === 'interrupted').length,
+                completedSteps: (activePlan.steps || []).filter(s => s.status === 'done').length,
+                planId: activePlan.id || null,
+                pausado: true,
+            };
+            loopDone = true;
+            break;
+        }
+
         iteration++;
         // The reserved final turn: working budget spent, plan still unfinished.
         // Force a synthesis instead of running more work.

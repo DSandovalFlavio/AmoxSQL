@@ -3076,6 +3076,17 @@ app.put('/api/ai/conversations/:id/title', async (req, res) => {
 });
 
 /**
+ * POST /api/ai/conversations/:id/en-vuelo — Talk to a Deep Dive analysis while it
+ * runs (plan UX, F6): `{ saltar: stepId }`, `{ indicacion: texto }` or
+ * `{ pausar: true }`. The agentic loop picks it up at its next iteration.
+ */
+app.post('/api/ai/conversations/:id/en-vuelo', (req, res) => {
+    const { saltar, indicacion, pausar } = req.body || {};
+    const ok = require('./ai/controlEnVuelo').anotar(req.params.id, { saltar, indicacion, pausar });
+    res.json({ ok });
+});
+
+/**
  * POST /api/ai/conversations/:id/messages — Add a message to a conversation
  * Body: { role, content, toolCalls?, tokenCount? }
  */

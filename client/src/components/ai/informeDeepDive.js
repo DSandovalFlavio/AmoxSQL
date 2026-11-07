@@ -23,7 +23,7 @@
 import { extractReasoning, stripThink } from './deepDiveTurns.js';
 
 const PLAN = new Set(['create_plan', 'update_plan']);
-const FUERA_DEL_INFORME = new Set(['final_answer', 'suggest_followups', 'ask_user', 'amox_interrupcion']);
+const FUERA_DEL_INFORME = new Set(['final_answer', 'suggest_followups', 'ask_user', 'amox_interrupcion', 'amox_indicacion']);
 const CONTINUACION = /^(continue the plan|continue where you left off|finish the analysis now)/i;
 
 const PROVEEDOR = { gemini: 'Gemini', anthropic: 'Anthropic', openai: 'OpenAI', vertex: 'Google Vertex', ollama: 'Ollama' };
@@ -211,6 +211,10 @@ export function armarInforme(turns = [], { enCurso = false, saltados = new Set()
                 }
             } else if (nombre === 'ask_user') {
                 ep.esperaba = 'pregunta';
+            } else if (nombre === 'amox_indicacion') {
+                // An instruction you gave while it ran (F6): in the report where it was taken.
+                const destino = ep.actual || exploracion();
+                destino.bloques.push({ tipo: 'usuario', texto: tc.args?.texto || '', enVuelo: true });
             } else if (nombre === 'amox_interrupcion') {
                 // The run stopped short (F9): what's above is kept; say why it stopped.
                 ep.interrupcion = tc.result || { motivo: 'error' };

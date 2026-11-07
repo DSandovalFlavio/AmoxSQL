@@ -40,8 +40,11 @@ Se lee como **un informe que se escribe solo**:
 - La lupa junto a un valor de la respuesta, o una cita en el texto, abre directamente la consulta que produjo ese número.
 - **See the data**, en una línea de consultas, hace lo mismo. **Esc** cierra el panel.
 
-### Saltar pasos del plan
-Con el análisis en pausa, al pasar el ratón sobre un paso pendiente del índice aparece **Skip**: el analista sigue sin él cuando continúes.
+### Dirigirlo mientras trabaja
+- **Una indicación:** escribe en la caja mientras analiza (*Give the analyst an instruction…*) y pulsa Enter. La toma en el paso siguiente y queda en el informe donde la tomó. Con la caja vacía, el botón es **Stop**.
+- **Saltar un paso:** al pasar el ratón sobre un paso pendiente del índice aparece **Skip**, también mientras corre.
+- **Pause** termina el paso en curso y se detiene; **Continue** retoma el mismo plan. **Stop** corta en el acto; lo hecho se conserva igual.
+- Mientras trabaja, el informe dice qué está haciendo y desde hace cuánto (*Running a query… 4 s*).
 
 ### Preguntar sobre algo concreto ("Ask about this")
 Puedes anclar cualquier gráfico, query, paso o hallazgo como contexto de tu siguiente pregunta:

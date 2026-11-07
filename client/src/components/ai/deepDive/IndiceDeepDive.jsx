@@ -21,7 +21,8 @@ export default function IndiceDeepDive({ episodios, isGenerating, onIr, onSaltar
         <nav className="ddr-indice" aria-label="Contents of this analysis">
             <div className="ddr-ind-scroll">
                 {episodios.map((e) => {
-                    const sePuedeSaltar = e === ultimo && !isGenerating && !e.respuesta;
+                    // Also while it runs (F6): the skip reaches the analyst at its next step.
+                    const sePuedeSaltar = e === ultimo && !e.respuesta;
                     return (
                         <div key={e.id} className="ddr-ind-ep">
                             <button className="ddr-ind-preg" onClick={() => onIr(e.id)} title={e.pregunta}>

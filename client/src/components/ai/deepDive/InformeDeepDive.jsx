@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { LuSparkles, LuLightbulb, LuCode, LuMessageSquareQuote, LuDatabase, LuLoader, LuUser, LuChartColumn, LuCircleCheck, LuTriangleAlert, LuCloudOff, LuHourglass } from 'react-icons/lu';
@@ -129,6 +129,27 @@ function Seccion({ seccion, episodio, allMessages, acciones }) {
     );
 }
 
+/**
+ * What the analyst is doing right now, in words (F6): «Running a query… 3 s»,
+ * not a bare spinner. The seconds tick so a long query doesn't look frozen.
+ */
+function Trabajando({ actividad }) {
+    const [ahora, setAhora] = useState(Date.now());
+    useEffect(() => {
+        if (!actividad?.inicio) return undefined;
+        const t = setInterval(() => setAhora(Date.now()), 1000);
+        return () => clearInterval(t);
+    }, [actividad?.inicio]);
+    const seg = actividad?.inicio ? Math.max(0, Math.floor((ahora - actividad.inicio) / 1000)) : 0;
+    return (
+        <p className="ddr-trabajando">
+            <LuLoader size={13} className="ddr-gira" />
+            {actividad ? `${actividad.etiqueta}…` : 'The analyst is thinking…'}
+            {seg >= 2 && <span className="ddr-trabajando-t">{seg} s</span>}
+        </p>
+    );
+}
+
 /** Una línea de confianza en palabras: de qué sale la respuesta y qué quedó fuera. */
 function Confianza({ episodio }) {
     const pasos = episodio.indice || [];
@@ -183,7 +204,7 @@ const Episodio = memo(function Episodio({ episodio, esUltimo, anclaRef, allMessa
             {episodio.enCurso && (
                 acciones.esperandoCuota
                     ? <p className="ddr-trabajando"><LuHourglass size={13} /> Waiting for the model's quota. The analysis resumes on its own.</p>
-                    : <p className="ddr-trabajando"><LuLoader size={13} className="ddr-gira" /> The analyst is working…</p>
+                    : <Trabajando actividad={acciones.actividad} />
             )}
 
             {/* F9: the run stopped short. What's above is kept; say why it stopped. */}

@@ -34,6 +34,17 @@ const error429 = (texto) => new APICallError({
     responseBody: JSON.stringify({ error: { code: 429, message: texto, status: 'RESOURCE_EXHAUSTED' } }),
     isRetryable: false,
 });
+const conPlan = () => ({
+    stream: new ReadableStream({
+        start(c) {
+            c.enqueue({ type: 'stream-start', warnings: [] });
+            c.enqueue({ type: 'tool-call', toolCallId: `p${Math.random()}`, toolName: 'create_plan',
+                input: JSON.stringify({ goal: 'g', steps: [{ id: 's1', description: 'Uno' }, { id: 's2', description: 'Dos' }, { id: 's3', description: 'Tres' }] }) });
+            c.enqueue({ type: 'finish', finishReason: { unified: 'tool-calls', raw: 'tool_calls' }, usage: { inputTokens: { total: 1 }, outputTokens: { total: 1 } } });
+            c.close();
+        },
+    }),
+});
 const respuesta = (texto) => ({
     stream: new ReadableStream({
         start(c) {
@@ -99,6 +110,52 @@ const roto = new MockLanguageModelV3({ doStream: async () => { throw new APICall
 const r4 = await correr(roto);
 const e4 = r4.eventos.find(e => e.type === 'error');
 ok(e4 && e4.limite === null && !r4.eventos.some(e => e.type === 'esperando-cuota'), 'sin espera y sin marca de cuota');
+
+// ── F6: lo que el usuario dice mientras corre ──
+const enVuelo = require(path.join(RAIZ, 'server/ai/controlEnVuelo.js'));
+async function correrConv(modelo, conversationId) {
+    const eventos = [];
+    for await (const ev of loop({
+        messages: [{ role: 'user', content: 'Hola' }],
+        dbManager: {}, providerOverride: 'gemini', modelOverride: 'gemini-3.6-flash',
+        mode: 'diving', memoriasRetenidas: true, maxIterations: 3, conversationId,
+    }, () => modelo)) {
+        eventos.push(ev);
+        if (ev.type === 'error' || eventos.length > 200) break;
+    }
+    return eventos;
+}
+
+console.log('— una indicación en vuelo llega al modelo en el siguiente paso');
+const prompts = [];
+const atento = new MockLanguageModelV3({
+    doStream: async (opts) => {
+        prompts.push(JSON.stringify(opts.prompt));
+        if (prompts.length === 1) { enVuelo.anotar('conv-ind', { indicacion: 'Enfócate solo en Teléfonos' }); return conPlan(); }
+        return respuesta('Sigo.');
+    },
+});
+const e5 = await correrConv(atento, 'conv-ind');
+ok(e5.some(e => e.type === 'indicacion-recibida' && e.texto === 'Enfócate solo en Teléfonos'), 'avisa al cliente que la tomó');
+ok(prompts.length >= 3 && prompts.slice(2).some(x => x.includes('Enfócate solo en Teléfonos')) && !prompts[0].includes('Teléfonos'), `el paso siguiente la lleva en el prompt; el primero no (${prompts.length} solicitudes)`);
+
+console.log('— pausar termina el paso y deja continuar');
+let n6 = 0;
+const pausable = new MockLanguageModelV3({
+    doStream: async () => {
+        n6++;
+        if (n6 === 1) { enVuelo.anotar('conv-pausa', { pausar: true }); return conPlan(); }
+        return respuesta('Paso.');
+    },
+});
+const e6 = await correrConv(pausable, 'conv-pausa');
+const pausa = e6.find(e => e.type === 'ask-continue');
+ok(pausa?.pausado === true && n6 === 2, `se detiene al terminar el paso en curso, sin empezar otro (${n6} solicitudes)`);
+ok(!e6.some(e => e.type === 'error'), 'sin error');
+
+console.log('— saltar aplica a un plan en pausa al continuar');
+const plan = { steps: [{ id: 's1', status: 'done' }, { id: 's2', status: 'pending' }, { id: 's3', status: 'pending' }] };
+ok(enVuelo.aplicarSaltos(plan, ['s2', { stepId: 's1' }]).join() === 's2' && plan.steps[1].status === 'skipped' && plan.steps[0].status === 'done', 'solo los pendientes se saltan');
 
 fs.rmSync(CASA, { recursive: true, force: true });
 console.log(`\n${bien} bien, ${mal} mal`);

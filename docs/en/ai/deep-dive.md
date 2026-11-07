@@ -40,8 +40,11 @@ It reads as **a report that writes itself**:
 - The magnifier next to a value in the answer, or a citation in the text, opens the query that produced that number.
 - **See the data**, on a line of queries, does the same. **Esc** closes the panel.
 
-### Skip plan steps
-With the analysis paused, hover over a pending step in the index to reveal **Skip**: the analyst goes on without it when you continue.
+### Steer it while it works
+- **An instruction:** type in the box while it analyzes (*Give the analyst an instruction…*) and press Enter. It takes it at the next step, and it stays in the report where it was taken. With the box empty, the button is **Stop**.
+- **Skip a step:** hover over a pending step in the index to reveal **Skip**, also while it runs.
+- **Pause** finishes the step it's on and stops; **Continue** resumes the same plan. **Stop** cuts it right away; what was done is kept anyway.
+- While it works, the report says what it is doing and for how long (*Running a query… 4 s*).
 
 ### Ask about something specific ("Ask about this")
 You can pin any chart, query, step, or finding as context for your next question:

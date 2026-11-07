@@ -6944,6 +6944,8 @@ tr:hover .rt-td--pinned {
 .ddr-corte b { color: var(--text-primary); font-weight: var(--weight-semibold); }
 .ddr-corte--pasado { border: none; padding: 0; color: var(--text-tertiary); }
 .ddr-tu-bloque { display: flex; flex-direction: column; gap: 4px; }
+.ddr-trabajando-t { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
+.ddr-indicacion-ok { margin: 0 0 6px; font-size: var(--text-mini); color: var(--accent-primary); }
 
 /* La caja de texto también responde: se marca mientras el analista espera. */
 .ai-composer--atento { border-color: var(--feedback-warning-border); box-shadow: 0 0 0 3px var(--feedback-warning-bg); }
