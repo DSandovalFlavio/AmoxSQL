@@ -9,6 +9,7 @@ import { armarInforme, seccionDeConsulta } from './informeDeepDive';
 import InformeDeepDive from './deepDive/InformeDeepDive';
 import IndiceDeepDive from './deepDive/IndiceDeepDive';
 import ComoLoObtuve from './deepDive/ComoLoObtuve';
+import InicioDeepDive from './deepDive/InicioDeepDive';
 import ModelDropdown from './ModelDropdown';
 import { etiquetaHerramienta } from './ToolCallBlock';
 import AlertDialog from '../AlertDialog';
@@ -399,28 +400,8 @@ const AiDivingPanel = ({
     }, [messages, conversationId, onOpenFile]);
 
     // ─── Empty state (no conversation yet) ───
-    const emptyState = (
-        <div className="ai-empty-state ai-empty-state--diving">
-            <div className="ai-empty-state-icon">
-                <LuSparkles size={40} />
-            </div>
-            <h2 className="ai-empty-state-title">Deep Dive</h2>
-            <div className="ai-empty-state-hint">
-                Your autonomous analyst — hand it a question and it plans, explores your data, and tells the story.
-            </div>
-            <div className="ai-quick-actions">
-                <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
-                    Show all tables
-                </button>
-                <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
-                    Describe schema
-                </button>
-                <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
-                    Sample data
-                </button>
-            </div>
-        </div>
-    );
+    // A business question first, built from the project (plan UX, F5).
+    const emptyState = <InicioDeepDive onPreguntar={sendFollowUp} />;
 
     // "Ask about this" → add reference + focus the input so the user types the question
     const handleAskAbout = useCallback((ref) => {

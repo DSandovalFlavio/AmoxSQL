@@ -138,5 +138,18 @@ const ant = leerLimite({ message: 'Overloaded', statusCode: 529, responseHeaders
 ok(ant.esLimite && ant.segundos === 12, 'un 529 con retry-after en la cabecera');
 ok(!leerLimite(new Error('no such table: ventas')).esLimite, 'un error de SQL no es una cuota');
 
+console.log('— el inicio propone preguntas del proyecto (F5)');
+const { preguntasSugeridas } = require(path.join(RAIZ, 'server/ai/preguntasSugeridas.js'));
+const colsTienda = [['ventas', 'fecha', 'DATE'], ['ventas', 'producto', 'VARCHAR'], ['ventas', 'categoria', 'VARCHAR'], ['ventas', 'importe', 'DECIMAL(12,2)'], ['ventas', 'direccion', 'VARCHAR'], ['metas_2024', 'meta', 'BIGINT']]
+    .map(([tabla, columna, tipo]) => ({ tabla, columna, tipo }));
+const tienda = preguntasSugeridas({ metricas: [{ name: 'venta_total', sql: 'SUM(importe)', description: 'Venta en dinero, sin impuestos.' }], glosario: '- **Meta**: lo que Finanzas espera vender', columnas: colsTienda });
+ok(tienda.idioma === 'es' && tienda.preguntas.length === 4, 'cuatro preguntas, en el idioma del proyecto');
+ok(tienda.preguntas[0].texto === '¿Cómo evoluciona «venta total» mes a mes?' && tienda.preguntas[0].origen.includes('metrics.yml'), 'la primera sale de la métrica y lo dice');
+ok(tienda.preguntas.some(p => p.texto.includes('«categoria»')) && !tienda.preguntas.some(p => /direccion/.test(p.texto)), 'una categoría antes que un producto; nunca una dirección');
+ok(tienda.preguntas.some(p => p.texto.includes('contra la meta')), 'con una meta en el proyecto, comparar contra ella');
+const ingles = preguntasSugeridas({ columnas: [{ tabla: 'orders', columna: 'order_date', tipo: 'DATE' }, { tabla: 'orders', columna: 'amount', tipo: 'DOUBLE' }, { tabla: 'orders', columna: 'region', tipo: 'VARCHAR' }] });
+ok(ingles.idioma === 'en' && ingles.preguntas[0].texto === 'How does "amount" change month by month?', 'sin métricas: desde las columnas, en inglés');
+ok(preguntasSugeridas({}).preguntas.length === 0, 'sin nada que mirar, ninguna pregunta inventada');
+
 console.log(`\n${bien} bien, ${mal} mal`);
 process.exit(mal ? 1 : 0);

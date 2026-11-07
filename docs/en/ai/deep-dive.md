@@ -27,7 +27,7 @@ It reads as **a report that writes itself**:
 
 ### Launch an analysis
 1. Open the **Deep Dive** tab.
-2. Type your question (or use an empty-state quick action: *Show all tables*, *Describe schema*, *Sample data*).
+2. Type your question, or pick one it suggests: they come from your project's metrics (`context/metrics.yml`), its glossary and its columns, in the project's language, and each one says where it comes from. Below them are the tables it can look at and, for the analyst, *See the tables* and *Profile the data*.
 3. Send. The agent creates a plan and starts executing.
 
 ### Read the analysis

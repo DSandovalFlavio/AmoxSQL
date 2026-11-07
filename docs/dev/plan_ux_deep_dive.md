@@ -163,6 +163,12 @@ bucle real y un modelo falso (`probarCuotaDeepDive.mjs`); la parte visual mientr
 
 *Archivos:* `useAiChat.js`, `server/ai/agenticLoop.js`, `Indice.jsx`.
 
+**F5 hecha el 2026-11-07, sin publicar.** `server/ai/preguntasSugeridas.js` (puro) + `GET /api/ai/preguntas-sugeridas`;
+`deepDive/InicioDeepDive.jsx`. Las preguntas van en el idioma del proyecto (el de sus métricas y glosario: es lo que
+el usuario le manda al analista), con las métricas y columnas entre comillas para no adivinar el género. Sin modelo;
+refinarlas con el modelo queda como opción no hecha. Sin el «Cambiar» del mockup: el alcance se cambia arrastrando
+tablas a la caja, como antes.
+
 ### F7 — Detalle técnico y anchos pequeños
 - Interruptor «Detalle técnico»: SQL y filas dentro de cada sección, sin abrir el panel. Se recuerda por persona.
 - Bajo ~1100 px el índice se pliega a una tira de puntos y «Cómo lo obtuve» se superpone al informe.

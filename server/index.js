@@ -3076,6 +3076,29 @@ app.put('/api/ai/conversations/:id/title', async (req, res) => {
 });
 
 /**
+ * GET /api/ai/preguntas-sugeridas — Questions to start a Deep Dive (plan UX, F5),
+ * built without a model from the project's metrics, glossary and columns.
+ */
+app.get('/api/ai/preguntas-sugeridas', async (req, res) => {
+    try {
+        const { loadProjectContext } = require('./ai/contextLoader');
+        const { preguntasSugeridas } = require('./ai/preguntasSugeridas');
+        const ctx = await loadProjectContext(ROOT_DIR).catch(() => null);
+        let columnas = [];
+        try {
+            const filas = await dbManager.systemQuery(
+                `SELECT table_name, column_name, data_type FROM information_schema.columns WHERE ${userTablesWhereClause()} ORDER BY table_name, ordinal_position`,
+                { lane: 'meta' },
+            );
+            columnas = filas.map(f => ({ tabla: f.table_name, columna: f.column_name, tipo: String(f.data_type || '') }));
+        } catch { /* sin base conectada: solo métricas y glosario */ }
+        res.json(preguntasSugeridas({ metricas: ctx?.metrics || [], glosario: ctx?.glossary || '', columnas }));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
  * POST /api/ai/conversations/:id/en-vuelo — Talk to a Deep Dive analysis while it
  * runs (plan UX, F6): `{ saltar: stepId }`, `{ indicacion: texto }` or
  * `{ pausar: true }`. The agentic loop picks it up at its next iteration.

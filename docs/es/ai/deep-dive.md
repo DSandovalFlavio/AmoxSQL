@@ -27,7 +27,7 @@ Se lee como **un informe que se escribe solo**:
 
 ### Lanzar un análisis
 1. Abre la pestaña **Deep Dive**.
-2. Escribe tu pregunta (o usa una acción rápida del estado inicial: *Show all tables*, *Describe schema*, *Sample data*).
+2. Escribe tu pregunta, o elige una de las que propone: salen de las métricas de tu proyecto (`context/metrics.yml`), su glosario y sus columnas, en el idioma del proyecto, y cada una dice de dónde sale. Debajo se ven las tablas que puede mirar y, para el analista, *See the tables* y *Profile the data*.
 3. Envía. El agente crea un plan y empieza a ejecutar.
 
 ### Leer el análisis
