@@ -112,5 +112,31 @@ ok(eps.length === 2 && eps[0].continuaciones.length === 1, '«Continue» se une 
 ok(eps[1].secciones.length === 1 && eps[1].secciones[0].titulo === null && eps[1].secciones[0].bloques[0].texto === 'Por ciudad gana SF.', 'una respuesta sin plan es texto sin encabezado');
 ok(eventosDeTurno(groupIntoTurns(real)[1]).filter(e => e.tipo === 'texto').length === 4, 'el texto se parte en los puntos donde hubo herramientas');
 
+console.log('— una ejecución cortada (F9): lo hecho queda y se dice por qué');
+const { textoDeInterrupcion } = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/informeDeepDive.js')).href);
+const corte = { motivo: 'cuota', diaria: false, segundos: 31, proveedor: 'gemini' };
+const cortada = [{ id: 'u1', role: 'user', content: 'EDA' }, { id: 'a1', role: 'assistant', content: texto.slice(0, tools[6].textOffset),
+    toolCalls: [...tools.slice(0, 7), { toolName: 'amox_interrupcion', args: {}, result: corte, textOffset: tools[6].textOffset }] }];
+const [epCortado] = armarInforme(groupIntoTurns(cortada));
+ok(epCortado.interrupcion?.motivo === 'cuota' && !epCortado.respuesta, 'el episodio sabe que se cortó por la cuota');
+ok(epCortado.secciones.find(s => s.stepId === 's1')?.bloques.some(b => b.tipo === 'grafico'), 'lo hecho antes del corte sigue, con su gráfico');
+ok(epCortado.indice.map(p => p.estado).join(',') === 'done,interrupted,pending', 'el paso a medias dice «interrupted»; los demás, pendientes');
+ok(!epCortado.secciones.some(s => s.herramientas.some(tc => tc.toolName === 'amox_interrupcion')), 'la marca no aparece como trabajo del analista');
+const seguida = [...cortada, { id: 'u2', role: 'user', content: 'Continue the plan where you left off.' },
+    { id: 'a2', role: 'assistant', content: 'Sigo.', toolCalls: [{ toolName: 'update_plan', args: { step_id: 's2', status: 'done' } }] }];
+const [epSeguido] = armarInforme(groupIntoTurns(seguida));
+const tu = [epSeguido.intro, ...epSeguido.secciones].flatMap(s => s.bloques).find(b => b.tipo === 'usuario');
+ok(!epSeguido.interrupcion && tu?.tras?.motivo === 'cuota', 'al continuar, el corte queda como historia y deja de pedir decisión');
+ok(textoDeInterrupcion({ motivo: 'cuota', diaria: true, proveedor: 'gemini' }).titulo === "Gemini's daily quota ran out.", 'en palabras: la cuota diaria de Gemini');
+ok(textoDeInterrupcion({ motivo: 'detenido' }).titulo === 'You stopped the analysis.', 'en palabras: lo detuviste tú');
+
+console.log('— el error real de Gemini se lee');
+const { leerLimite, sePuedeEsperar } = require(path.join(RAIZ, 'server/ai/errores.js'));
+const gem = leerLimite({ message: 'Failed after 3 attempts. Last error: You exceeded your current quota, please check your plan and billing details. * Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 5, model: gemini-3.6-flash, description: Generate content requests per minute limit exceeded on Free Tier. Please retry in 31.298743296s.' });
+ok(gem.esLimite && !gem.diaria && gem.segundos === 32 && sePuedeEsperar(gem), 'el de la captura: por minuto, 32 s, se espera');
+const ant = leerLimite({ message: 'Overloaded', statusCode: 529, responseHeaders: { 'retry-after': '12' } });
+ok(ant.esLimite && ant.segundos === 12, 'un 529 con retry-after en la cabecera');
+ok(!leerLimite(new Error('no such table: ventas')).esLimite, 'un error de SQL no es una cuota');
+
 console.log(`\n${bien} bien, ${mal} mal`);
 process.exit(mal ? 1 : 0);

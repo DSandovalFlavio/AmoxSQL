@@ -1,8 +1,9 @@
 import { memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { LuSparkles, LuLightbulb, LuCode, LuMessageSquareQuote, LuDatabase, LuLoader, LuUser, LuChartColumn, LuCircleCheck, LuTriangleAlert } from 'react-icons/lu';
+import { LuSparkles, LuLightbulb, LuCode, LuMessageSquareQuote, LuDatabase, LuLoader, LuUser, LuChartColumn, LuCircleCheck, LuTriangleAlert, LuCloudOff, LuHourglass } from 'react-icons/lu';
 import { NarrativeCard, makeMdComponents, citeUrlTransform } from '../ChatMessage';
+import { textoDeInterrupcion } from '../informeDeepDive';
 import StreamingMarkdown from '../StreamingMarkdown';
 import ChatResultsBlock from '../ChatResultsBlock';
 
@@ -47,7 +48,14 @@ function Bloques({ seccion, enVivo, allMessages, acciones }) {
     return seccion.bloques.map((b, i) => {
         if (b.tipo === 'texto') return <Prosa key={i} texto={b.texto} enVivo={i === ultimoTexto} onVerConsulta={acciones.verConsulta} />;
         if (b.tipo === 'usuario') {
-            return <p key={i} className="ddr-tu"><LuUser size={12} /> <span>{b.texto}</span></p>;
+            // A "Continue" after a stop: say where it stopped before resuming.
+            const corte = b.tras ? textoDeInterrupcion(b.tras) : null;
+            return (
+                <div key={i} className="ddr-tu-bloque">
+                    {corte && <p className="ddr-corte ddr-corte--pasado"><LuCloudOff size={12} /> <span>{corte.titulo}</span></p>}
+                    <p className="ddr-tu"><LuUser size={12} /> <span>{b.texto}</span></p>
+                </div>
+            );
         }
         if (b.tipo === 'grafico') {
             return (
@@ -173,8 +181,22 @@ const Episodio = memo(function Episodio({ episodio, esUltimo, anclaRef, allMessa
             ))}
 
             {episodio.enCurso && (
-                <p className="ddr-trabajando"><LuLoader size={13} className="ddr-gira" /> The analyst is working…</p>
+                acciones.esperandoCuota
+                    ? <p className="ddr-trabajando"><LuHourglass size={13} /> Waiting for the model's quota. The analysis resumes on its own.</p>
+                    : <p className="ddr-trabajando"><LuLoader size={13} className="ddr-gira" /> The analyst is working…</p>
             )}
+
+            {/* F9: the run stopped short. What's above is kept; say why it stopped. */}
+            {!episodio.enCurso && episodio.interrupcion && (() => {
+                const t = textoDeInterrupcion(episodio.interrupcion);
+                const vacio = !respuesta && !hayCamino;
+                return (
+                    <p className={`ddr-corte${vacio ? ' ddr-corte--vacio' : ''}`}>
+                        <LuCloudOff size={13} />
+                        <span><b>{vacio ? 'No answer yet. ' : 'Stopped here. '}</b>{t.titulo}{!vacio && ' Everything above is kept.'}</span>
+                    </p>
+                );
+            })()}
         </article>
     );
 });

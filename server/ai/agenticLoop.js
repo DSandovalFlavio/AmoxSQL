@@ -48,6 +48,10 @@ const MAX_SQL_CORRECTION_RETRIES = 3;
 const ITER_STALL_TIMEOUT_MS = 90_000;
 // Max consecutive stalled iterations before giving up on the analysis
 const MAX_STALL_RETRIES = 2;
+// Rate-limit waits per run (F9): enough to get a 5-a-minute free tier through a
+// whole analysis without hanging forever on a provider that keeps refusing.
+const MAX_ESPERAS_CUOTA = 6;
+const { leerLimite, sePuedeEsperar, esperar } = require('./errores');
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -389,6 +393,9 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
     let anyIterationHadText  = false; // tracks if any prior iter produced text (for fallback message)
     let fullRunText          = '';    // all narrated text across the run (for the prose-first safety net)
     let totalUsage           = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    let esperasDeCuota       = 0;     // rate-limit waits this run (F9)
+    // Stop on the client closes the request: it must also cut a quota wait short.
+    const senalCorte         = opcionesOriginales.abortSignal || null;
 
     console.log(`[AgenticLoop] Starting | Provider: ${provider} | Model: ${model} | maxIter: ${maxIterations}`);
 
@@ -695,9 +702,8 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                     }
 
                 } else if (part.type === 'error') {
-                    const errMsg = part.error?.message || String(part.error);
-                    yield { type: 'error', error: errMsg };
-                    loopDone = true;
+                    // Al catch: ahí se decide si es un límite de cuota que se puede esperar.
+                    throw (part.error instanceof Error ? part.error : Object.assign(new Error(part.error?.message || String(part.error)), part.error || {}));
                 }
             }
             if (stallTimer) clearTimeout(stallTimer);
@@ -727,8 +733,39 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                 break;
             }
 
+            // ── A rate limit is not the end of the analysis (plan UX, F9) ──
+            // A per-minute quota (Gemini's free tier: 5 requests a minute) says how
+            // long to wait in the error body, which the SDK's own retries ignore.
+            // Wait it out, tell the client, and repeat this iteration. A daily quota
+            // can't be waited out: the client keeps what was done and offers choices.
+            const limite = leerLimite(err);
+            if (limite.esLimite && esperasDeCuota < MAX_ESPERAS_CUOTA && sePuedeEsperar(limite) && !senalCorte?.aborted) {
+                esperasDeCuota++;
+                const segundos = (limite.segundos ?? 20) + 1;
+                console.warn(`[AgenticLoop] Rate limit on iteration ${iteration}: waiting ${segundos}s (${esperasDeCuota}/${MAX_ESPERAS_CUOTA})`);
+                yield { type: 'esperando-cuota', segundos, intento: esperasDeCuota, maximo: MAX_ESPERAS_CUOTA };
+                const siguio = await esperar(segundos, senalCorte);
+                if (!siguio) { loopDone = true; break; }
+                yield { type: 'cuota-reanudada' };
+                iteration--; // the refused request didn't spend the budget
+                // If part of this iteration already ran (text or tools reached the
+                // client), resume from the plan instead of repeating that work.
+                if (activePlan.id && (iterText || iterToolResults.length)) {
+                    iterMessages = [
+                        ...compactedMessages,
+                        { role: 'user', content: '[The previous request hit the provider\'s rate limit after doing part of the work. Resume from where the plan stands — do NOT call create_plan again and do not repeat what is already done.]\n\n' + buildContinuationPrompt(activePlan, iteration, effectiveMaxIterations) },
+                    ];
+                }
+                continue;
+            }
+
             console.error(`[AgenticLoop] Iteration ${iteration} error:`, err.message);
-            yield { type: 'error', error: err.message || String(err) };
+            yield {
+                type: 'error',
+                error: err.message || String(err),
+                // What the client needs to say it plainly and offer the right exits.
+                limite: limite.esLimite ? { diaria: limite.diaria, segundos: limite.segundos, esperas: esperasDeCuota } : null,
+            };
             loopDone = true;
             break;
         }

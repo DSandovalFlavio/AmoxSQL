@@ -207,10 +207,16 @@ preguntas vacías y una barra roja con el error crudo. Se perdió todo lo hecho 
 - **Fallo:** el botón flotante «Ask about this» se queda fijo en pantalla tras seleccionar texto y desplazarse. Se
   debe cerrar al desplazar el informe, al cambiar la selección y con Escape.
 
-**Pendiente de decidir al implementar:**
-- Si la ventana se cierra o muere a mitad de una ejecución, la capa 2 no alcanza a guardar. Propuesta: el servidor
-  deja un punto de control de la ejecución en curso en `amoxsql_ai.scratchpad` en cada fin de iteración, y al
-  reabrir la sesión, si el último mensaje no está, se recupera de ahí.
+**Ventana que se cierra a mitad:** resuelto en el cliente, no en el servidor (cerrar la ventana cierra la petición
+y el servidor para; no hay ejecución que recuperar allí). `utils/borradorDeAnalisis.js` copia lo hecho a
+localStorage al final de cada iteración (filas recortadas a 200) y lo borra al guardar la ejecución. Al abrir la
+sesión, si el último mensaje guardado es tuyo y hay copia, vuelve como ejecución cortada (`motivo: 'ventana'`).
+
+**F9 hecha el 2026-11-07, sin publicar.** `scripts/probarCuotaDeepDive.mjs` (bucle real del servidor con un modelo
+falso: 429 por minuto → espera y sigue; cuota diaria → no espera; Stop corta la espera; un 401 sigue siendo error)
+y 10 comprobaciones nuevas en `probarDeepDive.mjs`. Revisado en la app con una sesión cortada por la cuota a mitad
+del plan, una pregunta sin respuesta por cuota diaria y una ventana cerrada a mitad. **No probado con Gemini de
+verdad**: la espera se probó con el modelo falso.
 
 *Archivos:* `server/ai/agenticLoop.js` (espera de cuota y reintento de la iteración), `server/ai/errores.js` (nuevo,
 puro: reconocer un límite de frecuencia y extraer la espera, por proveedor), `client/src/components/ai/useAiChat.js`

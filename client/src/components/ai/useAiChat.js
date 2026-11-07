@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE as API } from '../../api.js';
+import { guardarBorrador, leerBorrador, borrarBorrador } from '../../utils/borradorDeAnalisis';
 
 /** Stable client-side message id (survives the streaming→historical handoff). */
 function genId() {
@@ -147,6 +148,10 @@ export default function useAiChat({
     const [pendingAskUser, setPendingAskUser] = useState(null);
     // ask-continue: loop exhausted mid-plan, waiting for user to continue or cancel
     const [pendingContinue, setPendingContinue] = useState(null);
+    // F9: why the last run stopped short ({ motivo: cuota|error|detenido, … }) and,
+    // while the server waits out a per-minute quota, until when.
+    const [interrupcion, setInterrupcion] = useState(null);
+    const [esperaCuota, setEsperaCuota] = useState(null);
     // userSkippedSteps: Set<stepId> — steps the user marked to skip before the agent continues
     const [userSkippedSteps, setUserSkippedSteps] = useState(new Set());
 
@@ -426,7 +431,9 @@ export default function useAiChat({
         // appended message share identity (stable inspector selection).
         const assistantId = genId();
         setStreamingId(assistantId);
-        const isContinuation = !!pendingContinue;
+        // Continuing after a run that stopped short (quota, error, Stop) resumes its
+        // plan on the server instead of planning everything again (F9).
+        const isContinuation = !!(pendingContinue || interrupcion);
         setIsGenerating(true);
         setStreamingText('');
         setActiveToolCalls([]);
@@ -435,6 +442,7 @@ export default function useAiChat({
         setPlanIteration(0);
         setPendingAskUser(null);
         setPendingContinue(null);
+        setInterrupcion(null);
         const currentSkippedSteps = userSkippedSteps;
         setUserSkippedSteps(new Set());
 
@@ -467,6 +475,90 @@ export default function useAiChat({
                 autoTitle(activeConvId, text).catch(() => {});
             }
         }
+
+        // What the run has produced so far. Outside the try: if the provider fails
+        // halfway (a quota, a network error, Stop), what was already done is kept.
+        let fullText = '';
+        let toolResults = [];
+        let thinkingMs = null;
+
+        /**
+         * Adds the analyst's run to the conversation and saves it — when it ends
+         * and ALSO when it fails or is stopped (plan UX, F9). Before, a failure threw
+         * away the prose, the queries and the charts of the whole run: the plan
+         * survived on the server, but the screen showed nothing of what was done.
+         * `interrupcion` travels as a marker tool call so it survives a reload.
+         */
+        const guardarEjecucion = async (interrupcion = null) => {
+            const mergedToolCalls = activeToolCallsRef.current.map(tc => {
+                const resultMatch = toolResults.find(r => r.toolCallId === tc.toolCallId);
+                return {
+                    toolCallId: tc.toolCallId,
+                    toolName: tc.toolName,
+                    args: tc.args,
+                    result: resultMatch?.result || tc.result,
+                    textOffset: tc.textOffset,
+                };
+            });
+            if (interrupcion && mode === 'diving') {
+                mergedToolCalls.push({
+                    toolCallId: `interrupcion-${assistantId}`,
+                    toolName: 'amox_interrupcion',
+                    args: {},
+                    result: interrupcion,
+                    textOffset: fullText.length,
+                });
+            }
+            setActiveToolCalls([]);
+            activeToolCallsRef.current = [];
+
+            // Nothing happened at all (and no marker): nothing to keep.
+            // Saved for real now: the window-crash checkpoint is no longer needed.
+            if (mode === 'diving') borrarBorrador(activeConvId);
+
+            if (!fullText && mergedToolCalls.length === 0) return;
+
+            await new Promise(r => setTimeout(r, 50));
+
+            const assistantMsg = {
+                id: assistantId,
+                role: 'assistant',
+                content: fullText,
+                toolCalls: mergedToolCalls.length > 0 ? mergedToolCalls : undefined,
+                thinkingMs: thinkingMs || undefined,
+            };
+            setMessages(prev => [...prev, assistantMsg]);
+            setStreamingText('');
+
+            // Persistence: save assistant message and tool results
+            if (activeConvId) {
+                (async () => {
+                    try {
+                        const savedMsg = await persistMessage(activeConvId, 'assistant', fullText, mergedToolCalls);
+                        if (!savedMsg) return;
+
+                        // Persist query results and chart configs from tool calls
+                        const queryResultIdMap = new Map();
+                        for (const tc of mergedToolCalls) {
+                            if (tc.toolName === 'execute_sql' && tc.result && !tc.result.error) {
+                                const persisted = await persistQueryResult(activeConvId, savedMsg.id, tc.result, tc.args?.query);
+                                if (persisted && tc.result.queryId) {
+                                    queryResultIdMap.set(tc.result.queryId, persisted.id);
+                                }
+                            }
+                            if (tc.toolName === 'display_chart' && tc.result && !tc.result.error) {
+                                const qrDbId = queryResultIdMap.get(tc.args?.query_id);
+                                if (qrDbId) {
+                                    await persistChartConfig(activeConvId, qrDbId, tc.result.chartType || tc.args?.chart_type, tc.result);
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Failed to persist assistant data:', err);
+                    }
+                })();
+            }
+        };
 
         try {
             // File context is resolved NOW (at send time): with a getter we read the
@@ -554,13 +646,10 @@ export default function useAiChat({
             // Read SSE stream
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
-            let fullText = '';
-            let toolResults = [];
             let buffer = '';
             // Reasoning timing (for the "Pensó durante Xs" chip): mark when the
             // first <think> opens and when it closes.
             let thinkStart = null;
-            let thinkingMs = null;
 
             // Text deltas arrive one per token; rendering the transcript once per
             // token saturates the main thread. Accumulate in fullText and flush to
@@ -696,12 +785,33 @@ export default function useAiChat({
                             setPlanIteration(event.iteration || 0);
                             if (event.maxIterations) setPlanMaxIterations(event.maxIterations);
                         } else if (event.type === 'step-end') {
-                            // no-op
+                            // Checkpoint the run at the end of every iteration: if the
+                            // window closes or dies now, reopening the session brings
+                            // back what was done (F9).
+                            if (mode === 'diving') {
+                                guardarBorrador(activeConvId, {
+                                    id: assistantId,
+                                    texto: fullText,
+                                    toolCalls: activeToolCallsRef.current.map(tc => ({
+                                        toolCallId: tc.toolCallId, toolName: tc.toolName, args: tc.args,
+                                        result: toolResults.find(r => r.toolCallId === tc.toolCallId)?.result || tc.result,
+                                        textOffset: tc.textOffset,
+                                    })),
+                                });
+                            }
                         } else if (event.type === 'sql-correction') {
                             // SQL self-correction loop — agent is retrying a failed query
                             console.log(`[AI] SQL correction attempt ${event.attempt}`, event.errors);
+                        } else if (event.type === 'esperando-cuota') {
+                            // The provider's per-minute quota ran out: the server waits
+                            // and repeats the step (F9). Say so, with a countdown.
+                            setEsperaCuota({ hasta: Date.now() + (event.segundos || 0) * 1000, intento: event.intento, maximo: event.maximo });
+                        } else if (event.type === 'cuota-reanudada') {
+                            setEsperaCuota(null);
                         } else if (event.type === 'error') {
-                            throw new Error(event.error);
+                            const err = new Error(event.error);
+                            err.limite = event.limite || null;
+                            throw err;
                         }
                     } catch (parseErr) {
                         if (parseErr.message && !parseErr.message.includes('JSON')) throw parseErr;
@@ -711,61 +821,7 @@ export default function useAiChat({
 
             cancelStreamFlush();
             flushStream();
-
-            const mergedToolCalls = activeToolCallsRef.current.map(tc => {
-                const resultMatch = toolResults.find(r => r.toolCallId === tc.toolCallId);
-                return {
-                    toolCallId: tc.toolCallId,
-                    toolName: tc.toolName,
-                    args: tc.args,
-                    result: resultMatch?.result || tc.result,
-                    textOffset: tc.textOffset,
-                };
-            });
-
-            setActiveToolCalls([]);
-            activeToolCallsRef.current = [];
-
-            await new Promise(r => setTimeout(r, 50));
-
-            const assistantMsg = {
-                id: assistantId,
-                role: 'assistant',
-                content: fullText,
-                toolCalls: mergedToolCalls.length > 0 ? mergedToolCalls : undefined,
-                thinkingMs: thinkingMs || undefined,
-            };
-            setMessages(prev => [...prev, assistantMsg]);
-            setStreamingText('');
-
-            // Persistence: save assistant message and tool results
-            if (activeConvId) {
-                (async () => {
-                    try {
-                        const savedMsg = await persistMessage(activeConvId, 'assistant', fullText, mergedToolCalls);
-                        if (!savedMsg) return;
-
-                        // Persist query results and chart configs from tool calls
-                        const queryResultIdMap = new Map();
-                        for (const tc of mergedToolCalls) {
-                            if (tc.toolName === 'execute_sql' && tc.result && !tc.result.error) {
-                                const persisted = await persistQueryResult(activeConvId, savedMsg.id, tc.result, tc.args?.query);
-                                if (persisted && tc.result.queryId) {
-                                    queryResultIdMap.set(tc.result.queryId, persisted.id);
-                                }
-                            }
-                            if (tc.toolName === 'display_chart' && tc.result && !tc.result.error) {
-                                const qrDbId = queryResultIdMap.get(tc.args?.query_id);
-                                if (qrDbId) {
-                                    await persistChartConfig(activeConvId, qrDbId, tc.result.chartType || tc.args?.chart_type, tc.result);
-                                }
-                            }
-                        }
-                    } catch (err) {
-                        console.error('Failed to persist assistant data:', err);
-                    }
-                })();
-            }
+            await guardarEjecucion(null);
 
             // Remember this mode's model (F6: assistant and diving keep separate
             // models — the server merges modelPerMode) and keep defaultModel as a
@@ -780,22 +836,42 @@ export default function useAiChat({
 
         } catch (e) {
             cancelStreamFlush();
-            if (e.name === 'AbortError') {
+            const detenido = e.name === 'AbortError';
+            const limite = e.limite || null;
+            // Keep what the run already did, with why it stopped (F9).
+            const interrupcion = {
+                motivo: detenido ? 'detenido' : (limite ? 'cuota' : 'error'),
+                diaria: !!limite?.diaria,
+                segundos: limite?.segundos ?? null,
+                proveedor: provider || null,
+                modelo: currentModel || null,
+                detalle: detenido ? '' : String(e.message || '').slice(0, 1200),
+                en: Date.now(),
+            };
+            try { await guardarEjecucion(interrupcion); } catch (err) { console.error('Failed to keep the partial run:', err); }
+            setStreamingText('');
+            setActiveToolCalls([]);
+            activeToolCallsRef.current = [];
+            if (mode === 'diving') {
+                // Deep Dive says it plainly above the box where you type (with the
+                // raw error under "Details"), instead of a red bar of provider text.
+                setInterrupcion(interrupcion);
+                setErrorMsg(null);
+            } else if (detenido) {
                 setErrorMsg('Generation cancelled.');
             } else {
                 setErrorMsg('Error: ' + e.message);
             }
-            setStreamingText('');
-            setActiveToolCalls([]);
         } finally {
             setIsGenerating(false);
             setStreamingId(null);
+            setEsperaCuota(null);
             abortControllerRef.current = null;
         }
     }, [
         inputText, isGenerating, messages, selectedModel, customModel, provider,
         contextObjects, mode, filePath, fileType, fileContent, fileResult, fileChartConfig, getFileContext, activeSkillId,
-        pendingContinue,
+        pendingContinue, interrupcion,
         ensureConversation, persistMessage, persistQueryResult, persistChartConfig, autoTitle,
         onEditFile, onUpdateChartConfig,
     ]);
@@ -826,6 +902,7 @@ export default function useAiChat({
 
     const handleDeclineContinue = useCallback(() => {
         setPendingContinue(null);
+        setInterrupcion(null);
         setPlanState(prev => prev ? { ...prev, status: 'cancelled' } : prev);
     }, []);
 
@@ -861,6 +938,8 @@ export default function useAiChat({
         setPlanIteration(0);
         setPendingAskUser(null);
         setPendingContinue(null);
+        setInterrupcion(null);
+        setEsperaCuota(null);
         setUserSkippedSteps(new Set());
         setPendingReferences([]);
         if (mode === 'diving') setContextObjects([]);
@@ -975,6 +1054,23 @@ export default function useAiChat({
                     };
                 });
 
+                // A run the window never got to save (it closed or died mid-analysis):
+                // its last checkpoint comes back as a run that stopped short (F9).
+                const borrador = mode === 'diving' ? leerBorrador(conv.id) : null;
+                if (borrador) {
+                    const ultimoGuardado = loadedMessages[loadedMessages.length - 1];
+                    if (ultimoGuardado?.role === 'user') {
+                        const toolCalls = [...(borrador.toolCalls || []), {
+                            toolCallId: `interrupcion-${borrador.id}`, toolName: 'amox_interrupcion', args: {},
+                            result: { motivo: 'ventana', diaria: false, segundos: null, proveedor: null, detalle: '', en: borrador.en },
+                            textOffset: (borrador.texto || '').length,
+                        }];
+                        loadedMessages.push({ role: 'assistant', content: borrador.texto || '', toolCalls });
+                        persistMessage(conv.id, 'assistant', borrador.texto || '', toolCalls).catch(() => {});
+                    }
+                    borrarBorrador(conv.id);
+                }
+
                 setMessages(loadedMessages);
                 // Whatever the previous session was waiting for doesn't carry over.
                 setPendingContinue(null);
@@ -1038,6 +1134,12 @@ export default function useAiChat({
                 const pregunta = ultimo?.role === 'assistant'
                     ? (ultimo.toolCalls || []).find(tc => tc.toolName === 'ask_user' && !tc.result?.error)
                     : null;
+                // A run that stopped short (quota, error, Stop) and nothing after it:
+                // the card offers to continue, as it did when it happened (F9).
+                const corte = ultimo?.role === 'assistant'
+                    ? (ultimo.toolCalls || []).find(tc => tc.toolName === 'amox_interrupcion')
+                    : null;
+                setInterrupcion(corte?.result || null);
                 if (pregunta) {
                     const a = pregunta.result || pregunta.args || {};
                     setPendingContinue(null);
@@ -1061,7 +1163,7 @@ export default function useAiChat({
         } catch (err) {
             console.error('Failed to load conversation:', err);
         }
-    }, [handleClearChat, mode]);
+    }, [handleClearChat, mode, persistMessage]);
 
     // ─── Cancel ───
     const handleCancel = useCallback(() => {
@@ -1157,6 +1259,8 @@ export default function useAiChat({
         planMaxIterations,
         pendingAskUser, setPendingAskUser,
         pendingContinue, setPendingContinue,
+        interrupcion, setInterrupcion,
+        esperaCuota,
         handleContinue,
         handleFinalizeNow,
         handleDeclineContinue,

@@ -61,6 +61,11 @@ Si se quedó sin iteraciones, la tarjeta ofrece cuatro formas de seguir:
 | **Finish with what it has** | Escribe las conclusiones con lo que ya tiene, sin consultas nuevas |
 | **Leave it here** | Deja el análisis como está |
 
+### Si la API falla a la mitad
+- **Un límite por minuto** (la capa gratuita de Gemini permite 5 solicitudes por minuto): el análisis espera lo que pide el proveedor y repite el paso. El encabezado dice *Waiting for the quota · resumes in 31 s*. No tienes que hacer nada; **Stop** lo detiene.
+- **Si aun así se corta** (cuota diaria, error del proveedor, Stop o la ventana que se cierra), lo hecho se conserva: los pasos terminados con sus gráficos siguen en el informe y una línea dice dónde y por qué se cortó. Encima de la caja aparece la tarjeta para seguir. Con una cuota por minuto, **Continue in 31 s** sigue solo al llegar a cero si lo pulsas. Con una cuota diaria, elige otro modelo en la caja y continúa. El error del proveedor está en **Details**.
+- Continuar retoma el mismo plan donde quedó, no lo empieza de nuevo.
+
 ### Construir un notebook
 Cuando lo pides (o cuando encaja en el análisis), el agente crea un notebook `.sqlnb` con el análisis y sus gráficos, y lo abre. Ver [Notebooks](../notebooks/notebooks.md).
 

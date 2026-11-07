@@ -2883,7 +2883,11 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             // ── Agentic Loop (experimental.planner=true, diving mode) ──
             console.log(`[API] Using agentic loop for ${resolvedModel} (tier: ${profile.tier})`);
 
-            for await (const event of aiManager.streamChatAgentic(chatOptions)) {
+            // Stop on the client closes the request; a quota wait inside the loop
+            // must end then too (F9), not keep the run alive in the background.
+            const corte = new AbortController();
+            res.on('close', () => corte.abort());
+            for await (const event of aiManager.streamChatAgentic({ ...chatOptions, abortSignal: corte.signal })) {
                 if (res.closed) {
                     console.log('[AI AgenticLoop] Client disconnected, stopping.');
                     break;

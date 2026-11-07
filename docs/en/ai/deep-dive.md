@@ -61,6 +61,11 @@ If it ran out of iterations, the card offers four ways to go on:
 | **Finish with what it has** | Writes the conclusions from what it already has, without new queries |
 | **Leave it here** | Stops the analysis as it is |
 
+### If the API fails halfway
+- **A per-minute limit** (Gemini's free tier allows 5 requests a minute): the analysis waits as long as the provider asks and repeats the step. The header says *Waiting for the quota · resumes in 31 s*. You don't have to do anything; **Stop** stops it.
+- **If it still stops** (a daily quota, a provider error, Stop, or the window closing), what was done is kept: the finished steps with their charts stay in the report, and a line says where and why it stopped. The card to go on appears above the box. With a per-minute quota, **Continue in 31 s** goes on by itself at zero if you press it. With a daily quota, pick another model in the box and continue. The provider's error is under **Details**.
+- Continuing resumes the same plan where it stopped; it doesn't start over.
+
 ### Build a notebook
 When you ask (or when it fits the analysis), the agent creates a `.sqlnb` notebook with the analysis and its charts, and opens it. See [Notebooks](../notebooks/notebooks.md).
 

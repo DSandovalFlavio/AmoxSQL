@@ -23,8 +23,28 @@
 import { extractReasoning, stripThink } from './deepDiveTurns.js';
 
 const PLAN = new Set(['create_plan', 'update_plan']);
-const FUERA_DEL_INFORME = new Set(['final_answer', 'suggest_followups', 'ask_user']);
-const CONTINUACION = /^(continue the plan|finish the analysis now)/i;
+const FUERA_DEL_INFORME = new Set(['final_answer', 'suggest_followups', 'ask_user', 'amox_interrupcion']);
+const CONTINUACION = /^(continue the plan|continue where you left off|finish the analysis now)/i;
+
+const PROVEEDOR = { gemini: 'Gemini', anthropic: 'Anthropic', openai: 'OpenAI', vertex: 'Google Vertex', ollama: 'Ollama' };
+
+/**
+ * Why a run stopped short, in words (F9). Shared by the report and the decision card.
+ * @returns {{ titulo: string, ayuda: string }}
+ */
+export function textoDeInterrupcion(i) {
+    if (!i) return null;
+    const p = PROVEEDOR[i.proveedor] || 'The model provider';
+    if (i.motivo === 'detenido') return { titulo: 'You stopped the analysis.', ayuda: '' };
+    if (i.motivo === 'ventana') return { titulo: 'The window closed in the middle of the analysis.', ayuda: 'Its last checkpoint was recovered. Continue to finish it.' };
+    if (i.motivo === 'cuota' && i.diaria) {
+        return { titulo: `${p}'s daily quota ran out.`, ayuda: 'Waiting won\'t help today. Pick another model in the box below and continue, or continue tomorrow.' };
+    }
+    if (i.motivo === 'cuota') {
+        return { titulo: `${p}'s quota ran out.`, ayuda: 'Free tiers allow only a few requests a minute. Continue in a moment, or pick another model in the box below.' };
+    }
+    return { titulo: 'The model failed in the middle of the analysis.', ayuda: 'Continue to try again from where it stopped, or pick another model in the box below.' };
+}
 
 /** Los trozos de una respuesta del analista, en el orden en que ocurrieron. */
 export function eventosDeTurno(turn) {
@@ -98,6 +118,7 @@ export function armarInforme(turns = [], { enCurso = false, saltados = new Set()
             secciones: [],
             actual: null,
             respuesta: null,
+            interrupcion: null,
             esperaba: null,
             enCurso: false,
         };
@@ -132,8 +153,9 @@ export function armarInforme(turns = [], { enCurso = false, saltados = new Set()
             if (ep && esContinuacion(turn.text, eventosSig, ep)) {
                 ep.continuaciones.push(turn.text);
                 const destino = ep.actual || ep.intro;
-                destino.bloques.push({ tipo: 'usuario', texto: turn.text });
+                destino.bloques.push({ tipo: 'usuario', texto: turn.text, tras: ep.interrupcion || null });
                 ep.esperaba = null;
+                ep.interrupcion = null; // it went on: only the latest stop counts
             } else {
                 abrirEpisodio(turn);
             }
@@ -189,6 +211,9 @@ export function armarInforme(turns = [], { enCurso = false, saltados = new Set()
                 }
             } else if (nombre === 'ask_user') {
                 ep.esperaba = 'pregunta';
+            } else if (nombre === 'amox_interrupcion') {
+                // The run stopped short (F9): what's above is kept; say why it stopped.
+                ep.interrupcion = tc.result || { motivo: 'error' };
             } else if (!FUERA_DEL_INFORME.has(nombre)) {
                 const destino = ep.actual || exploracion();
                 destino.herramientas.push(tc);

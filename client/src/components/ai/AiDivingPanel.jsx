@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { LuBot, LuX, LuLoader, LuSquarePen, LuSquare, LuPencil, LuSparkles, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuHourglass, LuSquarePen, LuSquare, LuPencil, LuSparkles, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
 import DecisionDelAnalista from './DecisionDelAnalista';
 import { AiModesGuideModal } from './AiModesGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
@@ -134,6 +134,8 @@ const AiDivingPanel = ({
         handleDeclineContinue,
         userSkippedSteps,
         handleSkipPlanStep,
+        interrupcion,
+        esperaCuota,
     } = useAiChat({ mode: 'diving' });
 
     // ─── Session Name ───
@@ -301,7 +303,7 @@ const AiDivingPanel = ({
     // ─── The analyst is waiting for you ───
     // A question (ask_user) or "out of iterations": the tab and the list of
     // conversations mark the session, so a paused analysis is visible from anywhere.
-    const esperando = !!(pendingAskUser || pendingContinue) && !isGenerating;
+    const esperando = !!(pendingAskUser || pendingContinue || interrupcion) && !isGenerating;
     useEffect(() => {
         onEsperaChange?.(esperando);
         if (conversationId) {
@@ -442,6 +444,20 @@ const AiDivingPanel = ({
         setSelAsk(null);
         window.getSelection()?.removeAllRanges();
     }, [selAsk, handleAskAbout]);
+    // The button is placed where the selection WAS: it stayed floating over the
+    // report after scrolling or after the selection was gone (seen in a real
+    // session). It goes away when the selection does, on scroll, and with Escape.
+    useEffect(() => {
+        if (!selAsk) return undefined;
+        const alCambiar = () => { if (window.getSelection()?.isCollapsed) setSelAsk(null); };
+        const alTeclear = (e) => { if (e.key === 'Escape') setSelAsk(null); };
+        document.addEventListener('selectionchange', alCambiar);
+        window.addEventListener('keydown', alTeclear);
+        return () => {
+            document.removeEventListener('selectionchange', alCambiar);
+            window.removeEventListener('keydown', alTeclear);
+        };
+    }, [selAsk]);
 
     // ─── @/# mention autocomplete (reference any session artifact by typing) ───
     const sessionArtifacts = useMemo(() => {
@@ -639,7 +655,8 @@ const AiDivingPanel = ({
             const hallada = seccionDeConsulta(episodiosRef.current, queryId);
             if (hallada) setPanel({ seccionKey: hallada.seccion.key, queryId });
         },
-    }), [handleAskAbout, sendFollowUp, onExportNotebook, onExportAmoxvis]);
+        esperandoCuota: !!esperaCuota,
+    }), [handleAskAbout, sendFollowUp, onExportNotebook, onExportAmoxvis, esperaCuota]);
     const episodiosRef = useRef(episodios);
     episodiosRef.current = episodios;
 
@@ -675,14 +692,16 @@ const AiDivingPanel = ({
             <header className="ddr-cab">
                 <LuBot size={16} className="ai-diving-header-icon" />
                 <NombreDeSesion nombre={displayName} editable={!!conversationId} onCambiar={handleUpdateSessionName} />
-                {isGenerating && (
-                    <span className="ddr-chip ddr-chip--vivo">
-                        <LuLoader size={11} className="ddr-gira" />
-                        {pasoVivo && ultimoEpisodio?.indice?.length
-                            ? `Analyzing · step ${pasoVivo.numero} of ${ultimoEpisodio.indice.length}`
-                            : 'Analyzing'}
-                    </span>
-                )}
+                {isGenerating && (esperaCuota
+                    ? <EsperaDeCuota hasta={esperaCuota.hasta} />
+                    : (
+                        <span className="ddr-chip ddr-chip--vivo">
+                            <LuLoader size={11} className="ddr-gira" />
+                            {pasoVivo && ultimoEpisodio?.indice?.length
+                                ? `Analyzing · step ${pasoVivo.numero} of ${ultimoEpisodio.indice.length}`
+                                : 'Analyzing'}
+                        </span>
+                    ))}
                 {/* Any provider but the local one sends data out: say so for all of them. */}
                 {provider && provider !== 'ollama' && (
                     <span className="ai-badge-cloud" title="This model runs in the cloud">CLOUD</span>
@@ -738,7 +757,7 @@ const AiDivingPanel = ({
                     )}
 
                     <section className="ddr-informe">
-                        <div className="ai-diving-messages ddr-scroll" ref={messagesElRef} onScroll={handleMessagesScroll} onMouseUp={handleThreadMouseUp}>
+                        <div className="ai-diving-messages ddr-scroll" ref={messagesElRef} onScroll={(e) => { handleMessagesScroll(e); if (selAsk) setSelAsk(null); }} onMouseUp={handleThreadMouseUp}>
                             {hayInforme ? (
                                 <InformeDeepDive
                                     episodios={episodios}
@@ -764,6 +783,14 @@ const AiDivingPanel = ({
                                 <DecisionDelAnalista
                                     pregunta={pendingAskUser}
                                     continuar={pendingAskUser ? null : pendingContinue}
+                                    interrupcion={pendingAskUser ? null : interrupcion}
+                                    progreso={ultimoEpisodio
+                                        ? {
+                                            hechos: (ultimoEpisodio.indice || []).filter(p => p.estado === 'done').length,
+                                            total: ultimoEpisodio.indice?.length || 0,
+                                            vacio: !ultimoEpisodio.secciones.length && !ultimoEpisodio.intro.bloques.length,
+                                        }
+                                        : null}
                                     // handleSend clears the question only once the answer is
                                     // really sent: with no model chosen, it used to vanish
                                     // and the answer went nowhere.
@@ -832,6 +859,25 @@ const AiDivingPanel = ({
         </div>
     );
 };
+
+/**
+ * F9: the provider's per-minute quota ran out and the server is waiting it out
+ * before repeating the step. A countdown, so the pause doesn't look like a hang.
+ */
+function EsperaDeCuota({ hasta }) {
+    const [ahora, setAhora] = useState(Date.now());
+    useEffect(() => {
+        const t = setInterval(() => setAhora(Date.now()), 500);
+        return () => clearInterval(t);
+    }, []);
+    const faltan = Math.max(0, Math.ceil((hasta - ahora) / 1000));
+    return (
+        <span className="ddr-chip ddr-chip--aviso" title="The model's provider allows only so many requests a minute. Your progress is safe; the analysis resumes on its own.">
+            <LuHourglass size={11} />
+            {faltan > 0 ? `Waiting for the quota · resumes in ${faltan} s` : 'Resuming…'}
+        </span>
+    );
+}
 
 /**
  * The session's name in the header, renamed in place (it used to live at the

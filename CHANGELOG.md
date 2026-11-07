@@ -10,6 +10,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 Primeras tandas hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
 
 ### Nuevo
+- **Deep Dive no pierde un análisis a medias.** Si el proveedor del modelo limita las solicitudes por minuto (la capa gratuita de Gemini permite 5), el análisis espera lo que pide el proveedor y repite el paso, con una cuenta atrás en el encabezado («Waiting for the quota · resumes in 31 s»). Si aun así se corta (una cuota diaria, un error del proveedor, Stop, o la ventana que se cierra), lo hecho se guarda: los pasos terminados con sus gráficos siguen en el informe, una línea dice dónde y por qué se cortó, y encima de la caja de texto se elige cómo seguir (**Continue**, que en una cuota por minuto puede esperar sola la cuenta atrás; con instrucciones; terminar con lo que hay; dejarlo). El error del proveedor queda plegado en **Details**. Continuar retoma el mismo plan, no lo empieza de nuevo.
 - **La ventana se recupera sola.** Si un error al pintar o una falta de memoria tiran la interfaz, vuelve a tu proyecto con sus pestañas, también las que aún no tienen archivo, en lugar de quedarse sin contenido. Si deja de responder, pregunta si esperar o recargar.
 - **El perfil se ve y se cancela.** Dice que está calculando, con **Cancel**, y se detiene al salir de la vista. Los totales del gráfico también se pueden cancelar.
 - **Tu consulta va primero.** El perfil y los totales del gráfico ceden ante lo que ejecutas, en vez de hacerte esperar detrás sin explicación.
@@ -33,6 +34,7 @@ Primeras tandas hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
 - Desde la segunda respuesta, los pasos de Deep Dive se llamaban `s2`, `s3`.
 - Textos en español dentro de la interfaz en inglés: «Continuar», «Cancelar», el resumen de un análisis parcial, el razonamiento.
 - Elegir una opción del analista sin un modelo elegido borraba la pregunta y la respuesta no llegaba a ningún lado.
+- En Deep Dive, el botón flotante «Ask about this» se quedaba fijo en pantalla tras seleccionar texto y desplazarse.
 - La tarjeta «Where you left off» se quedaba flotando encima de lo que abrieras después; ahora se cierra al abrir una pestaña o con Escape.
 - **En macOS la ventana usaba botones de Windows:** ahora lleva los del sistema, a la izquierda, también en los resultados en ventana aparte.
 - Traer un archivo grande entero congelaba el servidor hasta 29 s, tanto que Stop no podía llegar, y acababa en `Invalid string length`. Ahora el resultado se convierte y se envía por lotes.
@@ -53,6 +55,7 @@ Primeras tandas hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
 - `scripts/probarInteraccion.mjs`: maneja Electron real con home temporal. `scripts/atajosADocs.mjs`: las tablas de atajos de la documentación.
 - Deep Dive, entrega 1 del plan de UX (`docs/dev/auditoria_ux_deep_dive.md`, `docs/dev/plan_ux_deep_dive.md`): `ai/DecisionDelAnalista.jsx`, `planSteps`/`stepTitle` en `deepDiveTurns.js`, estado de paso `not_done`. `scripts/probarDeepDive.mjs`.
 - Deep Dive, entrega 2: `ai/informeDeepDive.js` (puro: conversación → preguntas, respuesta y secciones por paso), `ai/deepDive/InformeDeepDive.jsx`, `IndiceDeepDive.jsx`, `ComoLoObtuve.jsx`. Cada llamada a una herramienta guarda `textOffset` (dónde ocurrió en la prosa): una ejecución se guarda como un solo mensaje y sin eso no se sabe qué párrafo narra qué paso. Fuera `DeepDiveTranscript`, `DeepDiveInspector`, `SessionInventory` y `AgentPlanPanel`.
+- Deep Dive, F9: `server/ai/errores.js` (puro: reconoce un límite de frecuencia y cuánto esperar, también en el cuerpo del error), la espera y el reintento en `agenticLoop.js` (eventos `esperando-cuota` y `cuota-reanudada`; Stop la corta), `useAiChat.guardarEjecucion` (lo hecho se guarda también al fallar, con una llamada marcador `amox_interrupcion`), `utils/borradorDeAnalisis.js` (punto de control local por paso). `scripts/probarCuotaDeepDive.mjs` corre el bucle real con un modelo falso que devuelve 429.
 
 ## [5.18.0] — 2026-10-27
 
