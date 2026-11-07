@@ -165,11 +165,66 @@ interfaz no mezcla idiomas.
   diapositiva, la respuesta como portada) y Word.
 - Los gráficos de la sesión se abren en Story Flow desde el índice (hoy no se abren: **H13**).
 
+### F9 — No perder el avance cuando falla la API (pedido 2026-11-07)
+**Caso real:** Gemini 3.6 Flash en la capa gratuita (5 solicitudes por minuto). A mitad de un EDA sobre
+`export.parquet`, la cuota se acabó: «Failed after 3 attempts… Please retry in 31.29s». El informe quedó con dos
+preguntas vacías y una barra roja con el error crudo. Se perdió todo lo hecho en esa ejecución.
+
+**Por qué se pierde (verificado en el código):**
+- Una ejecución se guarda como un solo mensaje **al terminar** (`useAiChat.handleSend`). Si el servidor manda
+  `error`, el `catch` solo pone el texto del error y vacía `activeToolCalls`: la prosa, las consultas y los
+  gráficos de esa ejecución nunca se añaden a `messages` ni se guardan.
+- El servidor no reintenta lo suficiente: el SDK reintenta 2 veces con 2 s y 4 s de espera, y Gemini pide esperar
+  31 s. El aviso viene en el cuerpo del error, no en una cabecera `retry-after`, así que el SDK no lo respeta.
+- Lo que sí sobrevive en el servidor: el plan y el estado de sus pasos (`amoxsql_ai.plans`, vía `update_plan`) y
+  los resultados de las consultas (`query_cache`). Con «Continue», el agente retoma el plan, pero la pantalla no
+  muestra nada de lo que ya hizo.
+
+**El mecanismo, en tres capas:**
+1. **Esperar la cuota en vez de fallar (servidor).** Si una iteración falla por límite de frecuencia (429,
+   `RESOURCE_EXHAUSTED`, «quota», «rate limit») y el proveedor dice cuánto esperar (`retry in Ns`, `retryDelay`,
+   `retry-after`), y son 90 s o menos, el bucle emite `{ type: 'esperando-cuota', segundos, proveedor }`, espera
+   (se puede cancelar con Stop) y **repite la misma iteración**. Como máximo 3 esperas por ejecución. Una cuota
+   **diaria** no se espera: pasa a la capa 2.
+2. **Guardar lo hecho aunque falle (cliente).** En el `catch` de `handleSend` (error o Stop), si la ejecución ya
+   produjo prosa o herramientas, se añade igualmente el mensaje del analista con `fullText` + las llamadas con
+   resultado (con su `textOffset`), marcado `interrumpido: { motivo: 'cuota' | 'error' | 'detenido', detalle,
+   reintentarEn }`, y se **persiste**. El informe muestra los pasos hechos con sus gráficos, y el plan queda en
+   pausa con sus pasos reales (`interrupted` el que estaba a medias, como ya hace la reconstrucción).
+3. **Decidir cómo seguir, en lenguaje claro.** La tarjeta de decisión (F1) gana un caso de error:
+   «La cuota gratuita de Gemini se agotó (5 solicitudes por minuto). Lo hecho está guardado: 4 de 7 pasos.»
+   - **Continue in 31 s**, con cuenta atrás; continúa solo al llegar a cero si lo eliges.
+   - **Continue with another model**, que abre el selector de modelo y continúa con el elegido.
+   - **Finish with what it has**, que escribe las conclusiones con lo que hay (usa una sola solicitud).
+   - **Leave it here.**
+
+   El error crudo queda plegado en «Details». La pestaña y la lista marcan la sesión como «Waiting for you».
+   Mientras espera la capa 1, el encabezado dice «Waiting for the quota · resumes in 31 s», con Stop.
+
+**También, visto en la misma captura:**
+- Una pregunta sin respuesta por un fallo se ve como un título suelto. Debe decir qué pasó («No answer: the model's
+  quota ran out»), con la misma salida de la tarjeta.
+- **Fallo:** el botón flotante «Ask about this» se queda fijo en pantalla tras seleccionar texto y desplazarse. Se
+  debe cerrar al desplazar el informe, al cambiar la selección y con Escape.
+
+**Pendiente de decidir al implementar:**
+- Si la ventana se cierra o muere a mitad de una ejecución, la capa 2 no alcanza a guardar. Propuesta: el servidor
+  deja un punto de control de la ejecución en curso en `amoxsql_ai.scratchpad` en cada fin de iteración, y al
+  reabrir la sesión, si el último mensaje no está, se recupera de ahí.
+
+*Archivos:* `server/ai/agenticLoop.js` (espera de cuota y reintento de la iteración), `server/ai/errores.js` (nuevo,
+puro: reconocer un límite de frecuencia y extraer la espera, por proveedor), `client/src/components/ai/useAiChat.js`
+(guardar lo parcial), `DecisionDelAnalista.jsx` (caso de error), `informeDeepDive.js` y `InformeDeepDive.jsx`
+(episodio interrumpido), `scripts/probarDeepDive.mjs` (errores reales de Gemini, OpenAI y Anthropic como datos).
+*Hecho cuando:* con un límite de 5 por minuto, un análisis de 7 pasos termina solo, esperando lo necesario; con una
+cuota diaria agotada, lo hecho sigue en el informe al recargar y «Continue» con otro modelo termina el análisis.
+
 ## Orden sugerido
 
 **F0 → F1** primero: resuelven lo más grave sin tocar el layout, en una entrega 5.18.x.
 **F2 + F3 + F4** juntas: son el cambio de layout y no tienen sentido por separado. Es la parte grande.
-**F5, F6, F7, F8** después, en el orden que pidas.
+**Entrega 3:** **F9 primero** (perder un análisis a medias es lo más caro para quien usa una cuota gratuita), luego
+F6 (control en vuelo, que comparte la tarjeta de decisión y la cancelación), F5, F7 y F8.
 
 ## Cómo se verifica
 
