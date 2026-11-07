@@ -1204,6 +1204,14 @@ function App() {
 
 // Removed duplicated handleCloseProject
 
+  // Deep Dive pide sitio para leer cuando su informe no cabe (plan UX, decisión 1):
+  // la barra lateral se pliega y vuelve con su botón o con Ctrl+B.
+  useEffect(() => {
+    const plegar = () => setSidebarCollapsed(true);
+    window.addEventListener('amox_plegar_barra_lateral', plegar);
+    return () => window.removeEventListener('amox_plegar_barra_lateral', plegar);
+  }, []);
+
   const handleSidebarTabClick = (tabId) => {
     // Si la configuración no existe, por defecto es true
     const shouldToggle = editorSettings.toggleSidebarOnActiveTabClick ?? true;

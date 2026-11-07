@@ -15,6 +15,29 @@
 - `scripts/probarDeepDive.mjs` cubre la parte pura (nombres de paso, `final_answer`). Lo visual se revisó en la app
   con sesiones sembradas: pregunta, pausa, cierre con un paso sin hacer y la sesión de la meta de ventas.
 
+**Entrega 2 (F2 + F3 + F4), hecha el 2026-11-07, sin publicar:**
+- **Corrección a la auditoría.** Una ejecución real se guarda como **un solo mensaje** (toda la prosa en `content`,
+  todas las herramientas en `toolCalls`). Las sesiones sembradas tenían un mensaje por paso. En la práctica el hilo
+  de antes mostraba una sola respuesta larga, y el inspector todos sus pasos a la vez: H2 era menos grave de lo que
+  dice la auditoría (no había que ir turno por turno), pero los gráficos seguían fuera de la historia.
+- **`textOffset`.** Para meter la narración dentro de cada paso, `useAiChat` anota en cada llamada a herramienta en
+  qué punto de la prosa ocurrió, y se guarda con el mensaje. Así `informeDeepDive.js` parte el texto exactamente:
+  la apertura es la introducción, lo escrito durante un paso es de ese paso (también su razonamiento: la mitad de
+  H7 que quedaba pendiente se resuelve sin tocar el servidor), y lo escrito justo antes de `final_answer` es la
+  respuesta. Las sesiones anteriores no lo tienen: su prosa va entera antes de los pasos, que siguen llevando sus
+  gráficos y conclusiones.
+- Layout: índice (236 px, 200 en estrecho) · informe (máx. 760 px de lectura) · «How I got this» (320–400 px, se
+  superpone bajo 1080 px de ancho del panel, con container query). A 1280×800 con la barra lateral abierta la
+  columna de lectura mide 673 px (antes 331). La barra lateral se pliega sola si el panel mide menos de 860 px.
+- «Continue…», la respuesta a una pregunta del analista o un mensaje tras el que sigue los pasos del plan anterior
+  se unen al mismo análisis; una pregunta nueva abre otro.
+- Al reabrir un análisis terminado se llega a su respuesta; al terminar uno, también.
+- Sin hacer de F2: el resaltado en el índice de la sección que estás leyendo. Sin hacer de F4: los valores de la
+  respuesta no son enlaces en sí (la lupa junto a cada uno sí abre su consulta).
+- Quedó CSS de los componentes retirados (`.ddt-*`, `.ddi-*`, `.ai-ctx*`, `.ai-plan-*`) sin podar.
+- `scripts/probarDeepDive.mjs`: 23 comprobaciones, incluida una ejecución con la forma real (un mensaje con
+  `textOffset`), una sin posiciones, una en curso, una detenida y una continuación.
+
 ## La idea
 
 Hoy Deep Dive se organiza como trabaja el agente: turnos, herramientas, plan, iteraciones. La propuesta lo organiza

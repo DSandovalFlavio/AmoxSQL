@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LuChevronDown, LuChevronRight, LuDownload, LuMessageSquareQuote } from 'react-icons/lu';
+import { LuCheck, LuChevronDown, LuChevronRight, LuDownload, LuMessageSquareQuote } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 
 const PREVIEW_ROWS = 50;
@@ -25,8 +25,10 @@ function exportCsv(cols, data) {
  * formatted SQL (copy/open-in-editor) + result summary + an expandable result
  * table (preview, "show all", export CSV).
  */
-function SqlActivityBlock({ tc, onRunSql, onAskAbout }) {
-    const [showTable, setShowTable] = useState(false);
+// `abierto`: in Deep Dive's "How I got this" panel the user asked to see the
+// work, so the SQL and the first rows show without another click.
+function SqlActivityBlock({ tc, onRunSql, onAskAbout, abierto = false }) {
+    const [showTable, setShowTable] = useState(abierto);
     const [showAll, setShowAll] = useState(false);
     const result = tc.result;
     const hasRows = result && !result.error && result.data && result.data.length > 0;
@@ -37,11 +39,11 @@ function SqlActivityBlock({ tc, onRunSql, onAskAbout }) {
 
     return (
         <div className="ddi-sql">
-            <SqlBlock sql={tc.args?.query || ''} onRun={onRunSql} defaultExpanded={false} />
+            <SqlBlock sql={tc.args?.query || ''} onRun={onRunSql} defaultExpanded={abierto} />
 
             {result && !result.error && result.rowCount !== undefined && (
                 <div className="ai-msg-sql-result ai-msg-sql-result--success">
-                    <span className="ai-msg-sql-result__icon">&#10003;</span>
+                    <LuCheck size={11} className="ai-msg-sql-result__icon" />
                     {result.rowCount} rows ({result.executionTime}ms)
                     {hasRows && (
                         <>

@@ -67,12 +67,12 @@ export function makeMdComponents(setCiteQueryId, sqlActionsRef) {
                     {showBar && (
                         <div className="ai-msg-code-actions">
                             {actions.onApplyToFile && (
-                                <button className="ai-code-action-btn" onClick={() => actions.onApplyToFile(sql)} title="Reemplazar el contenido del editor con esta consulta">
-                                    <LuFileInput size={12} /> Aplicar al editor
+                                <button className="ai-code-action-btn" onClick={() => actions.onApplyToFile(sql)} title="Replace the editor's content with this query">
+                                    <LuFileInput size={12} /> Apply to editor
                                 </button>
                             )}
                             {actions.onRunSql && (
-                                <button className="ai-code-action-btn" onClick={() => actions.onRunSql(sql)} title="Ejecutar esta consulta">
+                                <button className="ai-code-action-btn" onClick={() => actions.onRunSql(sql)} title="Run this query">
                                     <LuPlay size={12} /> Run
                                 </button>
                             )}
@@ -190,7 +190,7 @@ export function QueryAuditModal({ queryId, onClose }) {
 /**
  * NarrativeCard — renders a structured final_answer with tldr/findings/cause/actions/caveats.
  */
-export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
+export function NarrativeCard({ result, onFollowUp, onAskAbout, onVerConsulta }) {
     const { tldr, findings, likely_cause, suggested_actions, caveats, followup_questions } = result;
     // Findings are the payload of the analysis — show them expanded by default.
     // Collapsing them behind "Show summary" made Deep Dive answers look empty.
@@ -200,7 +200,8 @@ export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
     // Caveats render outside the collapse (always visible), so they don't count here.
     const hasDetails = findings?.length > 0 || !!likely_cause || suggested_actions?.length > 0;
 
-    const openAudit = useCallback((qid) => setAuditQueryId(qid), []);
+    // Deep Dive opens the source query in its "How I got this" panel; elsewhere, a modal.
+    const openAudit = useCallback((qid) => (onVerConsulta ? onVerConsulta(qid) : setAuditQueryId(qid)), [onVerConsulta]);
     const closeAudit = useCallback(() => setAuditQueryId(null), []);
 
     return (

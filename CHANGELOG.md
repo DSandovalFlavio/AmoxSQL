@@ -18,6 +18,7 @@ Primeras tandas hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
 - **La ventana emergente es de su pestaña.** Solo la actualiza una ejecución de esa pestaña, sin quitarte el foco. Una por pestaña, para comparar. **Pin** conserva sus resultados y avisa de los nuevos. El panel se recoge en una línea en vez de dejar medio panel en blanco.
 
 ### Cambiado
+- **Deep Dive se lee como un informe.** Una columna de lectura con tu pregunta, la **respuesta arriba** en cuanto existe (de qué sale, hallazgos, qué hacer) y debajo cada paso del plan con su narración, **sus gráficos** y su conclusión, sin tener que abrir nada. A la izquierda, el plan es un **índice** que lleva a cada paso y reúne los entregables. **How I got this** abre bajo demanda las consultas, las filas y el razonamiento de esa parte; la lupa de un hallazgo abre la consulta que produjo ese número. Reabrir un análisis terminado lleva a su respuesta. El nombre de la sesión se edita en el encabezado, que dice en qué paso va y tiene **Stop**. Si la ventana es estrecha, la barra lateral se pliega sola.
 - **Todo lo que devuelve filas lleva tope**, también `FROM 'x.parquet'`, `VALUES`, `TABLE` o `PIVOT`. Con **Max Rows** en 0 queda un tope de seguridad de 1.000.000 de filas o 256 MB; para más, **Export**.
 - Un gráfico guardado no relee su consulta cada vez que vuelves a su pestaña. **Refresh** la relee.
 - **Ctrl+K abre siempre la paleta**, también en el editor SQL. **Ctrl+L** abre Assist y **Ctrl+Shift+F** busca en el proyecto también desde el editor. Formatear queda en **Shift+Alt+F**. Los acordes del editor que empezaban por Ctrl+K dejan de existir; en Markdown, Ctrl+K sigue insertando un enlace.
@@ -51,6 +52,7 @@ Primeras tandas hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
 - `utils/colaDeEjecucion.js`, `utils/memoriaDePestana.js`, `utils/atajos.js`, `utils/atajosEnMonaco.js`, `hooks/useEscape.js`. Sin `KeyboardShortcutsModal.jsx`, que era código muerto.
 - `scripts/probarInteraccion.mjs`: maneja Electron real con home temporal. `scripts/atajosADocs.mjs`: las tablas de atajos de la documentación.
 - Deep Dive, entrega 1 del plan de UX (`docs/dev/auditoria_ux_deep_dive.md`, `docs/dev/plan_ux_deep_dive.md`): `ai/DecisionDelAnalista.jsx`, `planSteps`/`stepTitle` en `deepDiveTurns.js`, estado de paso `not_done`. `scripts/probarDeepDive.mjs`.
+- Deep Dive, entrega 2: `ai/informeDeepDive.js` (puro: conversación → preguntas, respuesta y secciones por paso), `ai/deepDive/InformeDeepDive.jsx`, `IndiceDeepDive.jsx`, `ComoLoObtuve.jsx`. Cada llamada a una herramienta guarda `textOffset` (dónde ocurrió en la prosa): una ejecución se guarda como un solo mensaje y sin eso no se sabe qué párrafo narra qué paso. Fuera `DeepDiveTranscript`, `DeepDiveInspector`, `SessionInventory` y `AgentPlanPanel`.
 
 ## [5.18.0] — 2026-10-27
 

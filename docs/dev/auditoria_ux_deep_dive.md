@@ -57,6 +57,9 @@ inspector, que muestra el proceso, tiene el mismo ancho. Lo más importante del 
 registro de cómo se hizo.
 
 **H2. La evidencia está separada de la historia.**
+*(Corrección del 2026-11-07, al implementar: una ejecución real se guarda como un solo mensaje, así que el hilo
+mostraba una respuesta larga y el inspector todos sus pasos a la vez. No había que ir turno por turno como en la
+sesión sembrada; los gráficos sí seguían fuera de la historia.)*
 Los gráficos y las tablas solo existen en el inspector (`DeepDiveInspector.jsx:125`), que muestra **un turno a la vez**.
 Para ver los dos gráficos de la sesión de prueba hay que hacer clic en el turno 1 y luego en el turno 2. Quien lee el
 hilo de arriba abajo, como un informe, nunca ve un gráfico. Para el usuario de negocio el gráfico es la prueba; aquí

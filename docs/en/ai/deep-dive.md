@@ -4,17 +4,17 @@
 
 > Your autonomous analyst: hand it a business question and it plans, explores your database on its own, narrates the findings, and closes with a conclusions card.
 
-<!-- 📷 CAPTURE: docs/images/ai/deep-dive-overview.png — The Deep Dive window with its three regions: conversation on the left, per-step inspector in the center, and the Session Inventory / Plan panel on the right. -->
+<!-- 📷 CAPTURE: docs/images/ai/deep-dive-overview.png — Deep Dive as a report: the index on the left, the answer on top and each step with its chart, and "How I got this" open on the right. -->
 
 ## What it is
 
 Deep Dive is the AI mode with the most autonomy. It lives in a **full-screen tab** and works over your **whole local database**, not a single file. Instead of answering one query, it runs an analysis: it forms a plan, explores the data step by step, verifies what it finds, and tells it back to you as a story.
 
-The window has **three regions**:
+It reads as **a report that writes itself**:
 
-1. **Conversation** — the narrated thread: opening, per-step findings, and closing.
-2. **Per-step inspector** — for each step, the readable SQL, the result table, inline charts, and the agent's reasoning.
-3. **Session Inventory** — on the right, with the **Plan panel**, the conversation context, and the generated artifacts (charts, notebooks, saved analyses).
+1. **The report**, in one reading column: your question, the **answer** on top as soon as there is one, and below it **How I got there**: each plan step with its narration, its charts and its conclusion.
+2. **The index**, on the left: the plan. Each step takes you to its section and shows its status. Below it, the deliverables: the session's charts, its notebooks, save as notebook and export to Markdown.
+3. **How I got this**, on demand on the right: the queries behind one part of the report with their rows, whatever else the analyst did, and its reasoning there.
 
 ## When to use it
 
@@ -30,13 +30,18 @@ The window has **three regions**:
 2. Type your question (or use an empty-state quick action: *Show all tables*, *Describe schema*, *Sample data*).
 3. Send. The agent creates a plan and starts executing.
 
-### Follow the plan and the steps
-1. The **Plan panel** (right) shows the numbered steps with their status (pending, in progress, done, skipped, not done). A step the analyst never got to before concluding says **Not done**, never done.
-2. Click any step or turn to **pin** the inspector to it; if you pin nothing, the inspector follows the live step.
-3. In the inspector you see that step's SQL, result, and charts.
+### Read the analysis
+1. While it works, each step appears in the report with what it is finding, and the header says which step it is on (*Analyzing · step 2 of 4*). **Stop** stops it.
+2. When it finishes, the **answer** moves to the top: the conclusion, what it rests on (steps done, queries, charts, caveats), the findings with their values, and what to do next.
+3. The **index** shows the numbered steps with their status (pending, in progress, done, skipped, not done). A step the analyst never got to before concluding says **Not done**, never done. Click a step to go to its section.
+
+### See how it got there
+- **How I got this**, on a section, opens its queries on the right (the SQL, the rows, *Open in editor*, CSV) and the analyst's reasoning in that part.
+- The magnifier next to a value in the answer, or a citation in the text, opens the query that produced that number.
+- **See the data**, on a line of queries, does the same. **Esc** closes the panel.
 
 ### Skip plan steps
-Hover over a step to reveal a **skip** button; skipped steps are marked "skipped by user" and the agent proceeds without them.
+With the analysis paused, hover over a pending step in the index to reveal **Skip**: the analyst goes on without it when you continue.
 
 ### Ask about something specific ("Ask about this")
 You can pin any chart, query, step, or finding as context for your next question:
@@ -61,13 +66,15 @@ When you ask (or when it fits the analysis), the agent creates a `.sqlnb` notebo
 
 ## Reference
 
-### The three regions
+### The three zones
 
-| Region | Contents |
+| Zone | Contents |
 |---|---|
-| Conversation | Narrative with an arc: opening → per-step finding → closing |
-| Per-step inspector | Readable SQL + result table + charts + reasoning |
-| Session Inventory | Plan panel, dragged-in context, artifacts, session name |
+| Index | Your questions, the answer, the plan's steps with their status, the deliverables |
+| Report | Question → answer → each step with its narration, charts and conclusion → the box where you type |
+| How I got this | On demand: queries, rows and reasoning behind one part of the report |
+
+In a narrow window the side bar folds away when Deep Dive opens (it comes back with its button or **Ctrl+B**), and **How I got this** opens over the report.
 
 ### How it narrates (the arc)
 
@@ -91,9 +98,9 @@ When you ask (or when it fits the analysis), the agent creates a `.sqlnb` notebo
 
 - **The NarrativeCard opens expanded:** findings, the "why?", and caveats are visible without clicks.
 - **@ and # are your remote control:** reference any chart/query/step by name without hunting for it.
-- **"Finalize now" exists for a reason:** if you already have enough, there's no need to spend more iterations.
-- **Artifacts save themselves:** every chart, notebook, or analysis shows up in the session inventory.
-- **Pin a step to study it:** click it and the inspector stops jumping to the live step.
+- **"Finish with what it has" exists for a reason:** if you already have enough, there's no need to spend more iterations.
+- **The deliverables are in the index:** each of the session's charts takes you to where it is in the report, and from there it opens in Story Flow.
+- **Reopening a finished analysis** takes you straight to its answer.
 
 ## Related
 

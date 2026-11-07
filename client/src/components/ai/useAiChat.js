@@ -621,6 +621,11 @@ export default function useAiChat({
                                 toolName: event.toolName,
                                 args: event.args,
                                 isLoading: true,
+                                // Where in the prose this call happened. A run is saved as ONE
+                                // message (all prose in `content`, all tools in `toolCalls`);
+                                // without the offset there is no telling which paragraph
+                                // narrates which step. Deep Dive's report interleaves them.
+                                textOffset: fullText.length,
                             };
                             setActiveToolCalls(prev => [...prev, newActiveCall]);
                             activeToolCallsRef.current.push(newActiveCall);
@@ -714,6 +719,7 @@ export default function useAiChat({
                     toolName: tc.toolName,
                     args: tc.args,
                     result: resultMatch?.result || tc.result,
+                    textOffset: tc.textOffset,
                 };
             });
 

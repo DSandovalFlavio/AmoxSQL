@@ -1,17 +1,15 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { LuBot, LuX, LuLoader, LuSquarePen, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuSquarePen, LuSquare, LuPencil, LuSparkles, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
 import DecisionDelAnalista from './DecisionDelAnalista';
 import { AiModesGuideModal } from './AiModesGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
-import ChatMessage from './ChatMessage';
 import PoliticaIAChip from '../workspaces/PoliticaIAChip';
-import DeepDiveTranscript from './DeepDiveTranscript';
-import DeepDiveInspector from './DeepDiveInspector';
-import { groupIntoTurns, buildSessionArtifacts, buildStepGroups } from './deepDiveTurns';
-import ToolCallBlock from './ToolCallBlock';
+import { groupIntoTurns, buildSessionArtifacts } from './deepDiveTurns';
+import { armarInforme, seccionDeConsulta } from './informeDeepDive';
+import InformeDeepDive from './deepDive/InformeDeepDive';
+import IndiceDeepDive from './deepDive/IndiceDeepDive';
+import ComoLoObtuve from './deepDive/ComoLoObtuve';
 import ModelDropdown from './ModelDropdown';
-import SessionInventory from './SessionInventory';
-import AgentPlanPanel from './AgentPlanPanel';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
@@ -174,51 +172,69 @@ const AiDivingPanel = ({
     useEffect(() => { handleSendRef.current = handleSend; });
     const sendFollowUp = useCallback((text) => handleSendRef.current(text), []);
 
-    // The user's explicit pin (null = auto-follow). Clicking a turn pins it; a
-    // new run clears it so the inspector follows the fresh analysis.
-    const [pinnedTurnId, setPinnedTurnId] = useState(null);
+    // ─── The report: questions, answers and plan steps (plan UX, entrega 2) ───
+    const episodios = useMemo(
+        () => armarInforme(turns, { enCurso: isGenerating, saltados: userSkippedSteps }),
+        [turns, isGenerating, userSkippedSteps],
+    );
+    const ultimoEpisodio = episodios[episodios.length - 1] || null;
 
-    // New run → drop the pin so we auto-follow the new turn (edge-triggered).
-    const wasGeneratingRef = useRef(false);
-    useEffect(() => {
-        if (isGenerating && !wasGeneratingRef.current) setPinnedTurnId(null);
-        wasGeneratingRef.current = isGenerating;
-    }, [isGenerating]);
+    // "How I got this": the process behind one part of the report, on demand.
+    // Stored as keys and resolved every render, so it follows the live analysis.
+    const [panel, setPanel] = useState(null); // { seccionKey, queryId? } | null
+    const seccionDelPanel = useMemo(() => {
+        if (!panel) return null;
+        for (const e of episodios) {
+            for (const s of [e.intro, ...e.secciones]) if (s.key === panel.seccionKey) return { seccion: s, episodio: e };
+        }
+        return null;
+    }, [panel, episodios]);
+    useEffect(() => { setPanel(null); }, [conversationId]);
 
-    // Selection is DERIVED (no lagging effect, so no empty-state flash):
-    //  - a live pin wins as long as that turn still exists;
-    //  - while generating, follow the live/last turn;
-    //  - otherwise the last AI turn that actually has step activity (skip a
-    //    trailing prose-only turn), falling back to the last AI turn.
-    const selectedTurnId = useMemo(() => {
-        if (pinnedTurnId && turns.some(t => t.id === pinnedTurnId)) return pinnedTurnId;
-        if (isGenerating && turns.length) return turns[turns.length - 1].id;
-        const aiTurns = turns.filter(t => t.type === 'ai');
-        if (!aiTurns.length) return null;
-        const withActivity = [...aiTurns].reverse().find(t => buildStepGroups(t).length > 0);
-        return (withActivity || aiTurns[aiTurns.length - 1]).id;
-    }, [pinnedTurnId, turns, isGenerating]);
-
-    const selectedTurn = turns.find(t => t.id === selectedTurnId) || null;
-
-    // ─── Preserve transcript scroll across tab switches / remounts ───
+    // ─── Scroll: land on the answer, follow the live analysis ───
     const messagesElRef = useRef(null);
     const restoredScrollRef = useRef(false);
     const handleMessagesScroll = useCallback((e) => {
         if (conversationId) scrollMemory.set(conversationId, e.currentTarget.scrollTop);
     }, [conversationId]);
+    const irA = useCallback((id, comportamiento = 'smooth') => {
+        const el = document.getElementById(id);
+        if (el && messagesElRef.current?.contains(el)) el.scrollIntoView({ behavior: comportamiento, block: 'start' });
+    }, []);
     useEffect(() => {
         if (restoredScrollRef.current) return;
         const el = messagesElRef.current;
         if (!el || !conversationId || messages.length === 0) return;
         restoredScrollRef.current = true;
         const saved = scrollMemory.get(conversationId);
-        // Restore the saved spot, or land at the bottom (latest) on a fresh open.
+        // Back to where you were; on a fresh open, to the latest answer (the
+        // report puts it on top of its analysis), or to the end if there is none.
         requestAnimationFrame(() => {
             const el = messagesElRef.current;
-            if (el) el.scrollTop = saved != null ? saved : el.scrollHeight;
+            if (!el) return;
+            if (saved != null) { el.scrollTop = saved; return; }
+            if (ultimoEpisodio?.respuesta) irA(`${ultimoEpisodio.id}-respuesta`, 'auto');
+            else el.scrollTop = el.scrollHeight;
         });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [conversationId, messages.length]);
+    // When an analysis concludes, show its answer (it sits above the steps).
+    const generabaRef = useRef(false);
+    useEffect(() => {
+        if (generabaRef.current && !isGenerating && ultimoEpisodio?.respuesta) {
+            requestAnimationFrame(() => irA(`${ultimoEpisodio.id}-respuesta`));
+        }
+        generabaRef.current = isGenerating;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isGenerating]);
+
+    // ─── Room to read: fold the side bar when the report doesn't fit ───
+    // (plan UX decision 1). Once per tab; the side bar comes back with its button.
+    const raizRef = useRef(null);
+    useEffect(() => {
+        const ancho = raizRef.current?.getBoundingClientRect().width || 0;
+        if (ancho > 0 && ancho < 860) window.dispatchEvent(new Event('amox_plegar_barra_lateral'));
+    }, []);
 
     // ─── Auto-select escalated conversation on mount ───
     const didSelectStartConvRef = useRef(false);
@@ -612,180 +628,188 @@ const AiDivingPanel = ({
         </div>
     );
 
+    // ─── What the report's pieces can do (stable: the report re-renders on every flush) ───
+    const acciones = useMemo(() => ({
+        preguntar: handleAskAbout,
+        seguir: sendFollowUp,
+        exportarNotebook: onExportNotebook,
+        exportarAmoxvis: onExportAmoxvis,
+        verSeccion: (seccion, queryId) => setPanel({ seccionKey: seccion.key, queryId: queryId || null }),
+        verConsulta: (queryId) => {
+            const hallada = seccionDeConsulta(episodiosRef.current, queryId);
+            if (hallada) setPanel({ seccionKey: hallada.seccion.key, queryId });
+        },
+    }), [handleAskAbout, sendFollowUp, onExportNotebook, onExportAmoxvis]);
+    const episodiosRef = useRef(episodios);
+    episodiosRef.current = episodios;
+
+    // What the session leaves behind: its charts (they lead to where they are) and notebooks.
+    const entregables = useMemo(() => {
+        const graficos = [];
+        const notebooks = [];
+        for (const e of episodios) {
+            for (const s of [e.intro, ...e.secciones]) {
+                s.bloques.forEach((b, i) => {
+                    if (b.tipo === 'grafico') graficos.push({ id: `${s.key}-g${i}`, titulo: b.tc.result.chartConfig.title || 'Chart' });
+                });
+            }
+        }
+        for (const m of messages) {
+            for (const tc of m.toolCalls || []) {
+                if (tc.toolName === 'build_notebook' && tc.result?.path && !notebooks.some(n => n.ruta === tc.result.path)) {
+                    notebooks.push({ ruta: tc.result.path, nombre: tc.result.fileName || tc.result.path.split(/[/\\]/).pop() });
+                }
+            }
+        }
+        return { graficos, notebooks };
+    }, [episodios, messages]);
+
+    const hayInforme = episodios.length > 0;
+    const pasoVivo = isGenerating ? ultimoEpisodio?.indice?.find(p => p.estado === 'in_progress') : null;
+
     // ═══════════════════════════════════════════════════════
-    // RENDER — 3-column layout
+    // RENDER — index · report · "How I got this" (plan UX, entrega 2)
     // ═══════════════════════════════════════════════════════
     return (
-        <div className="ai-diving ai-diving--no-list" style={{ width }}>
-            {/* Conversations now live in the main left sidebar (Deep Dive section) */}
-
-            {/* ─── Center column: Chat ─── */}
-            <div className="ai-diving-center">
-                {/* Diving header */}
-                <div className="ai-diving-header">
-                    <div className="ai-diving-header-left">
-                        <LuBot size={16} className="ai-diving-header-icon" />
-                        <span className="ai-diving-header-title">Deep Dive</span>
-                        {/* Any provider but the local one sends data out: say so for all of them, not just one. */}
-                        {provider && provider !== 'ollama' && (
-                            <span className="ai-badge-cloud" title="This model runs in the cloud">CLOUD</span>
-                        )}
-                        <PoliticaIAChip />
-                    </div>
-                    <div className="ai-diving-header-right">
-                        {messages.length > 0 && (
-                            <button
-                                className="ai-icon-btn"
-                                onClick={() => exportConversationToMarkdown(messages, displayName || 'Deep Dive')}
-                                title="Export conversation to Markdown"
-                            >
-                                <LuDownload size={14} />
-                            </button>
-                        )}
-                        {/* It never deleted anything: it empties the view and starts over.
-                            The session stays in the list, where it can be deleted. */}
-                        {messages.length > 0 && (
-                            <button className="ai-icon-btn" onClick={handleClearChat} title="New session (this one stays in the list)">
-                                <LuSquarePen size={14} />
-                            </button>
-                        )}
-                        <button className="ai-icon-btn" onClick={() => setShowModesGuide(true)} title="About the AI modes">
-                            <LuCircleHelp size={14} />
+        <div className="ai-diving ddr" style={{ width }} ref={raizRef}>
+            <header className="ddr-cab">
+                <LuBot size={16} className="ai-diving-header-icon" />
+                <NombreDeSesion nombre={displayName} editable={!!conversationId} onCambiar={handleUpdateSessionName} />
+                {isGenerating && (
+                    <span className="ddr-chip ddr-chip--vivo">
+                        <LuLoader size={11} className="ddr-gira" />
+                        {pasoVivo && ultimoEpisodio?.indice?.length
+                            ? `Analyzing · step ${pasoVivo.numero} of ${ultimoEpisodio.indice.length}`
+                            : 'Analyzing'}
+                    </span>
+                )}
+                {/* Any provider but the local one sends data out: say so for all of them. */}
+                {provider && provider !== 'ollama' && (
+                    <span className="ai-badge-cloud" title="This model runs in the cloud">CLOUD</span>
+                )}
+                <PoliticaIAChip />
+                <span className="ddr-cab-der">
+                    {isGenerating && (
+                        <button className="ddr-btn ddr-btn--peligro" onClick={handleCancel} title="Stop the analysis">
+                            <LuSquare size={11} /> Stop
                         </button>
-                    </div>
+                    )}
+                    {/* It never deleted anything: it empties the view and starts over.
+                        The session stays in the list, where it can be deleted. */}
+                    {messages.length > 0 && !isGenerating && (
+                        <button className="ai-icon-btn" onClick={handleClearChat} title="New session (this one stays in the list)">
+                            <LuSquarePen size={14} />
+                        </button>
+                    )}
+                    <button className="ai-icon-btn" onClick={() => setShowModesGuide(true)} title="About the AI modes">
+                        <LuCircleHelp size={14} />
+                    </button>
+                </span>
+            </header>
+            <AiModesGuideModal isOpen={showModesGuide} onClose={() => setShowModesGuide(false)} />
+
+            {status === 'LOADING' && (
+                <div className="ai-loading">
+                    <LuLoader size={30} style={{ marginBottom: '15px', animation: 'spin 2s linear infinite', color: 'var(--accent-primary)' }} />
+                    <h3>Loading AI Engine...</h3>
                 </div>
-                <AiModesGuideModal isOpen={showModesGuide} onClose={() => setShowModesGuide(false)} />
+            )}
 
-                {status === 'LOADING' && (
-                    <div className="ai-loading">
-                        <LuLoader size={30} style={{ marginBottom: '15px', animation: 'spin 2s linear infinite', color: 'var(--accent-primary)' }} />
-                        <h3>Loading AI Engine...</h3>
-                    </div>
-                )}
+            {status === 'ERROR' && (
+                <div className="ai-error-state">
+                    Error loading AI configuration.
+                    <button onClick={() => window.location.reload()}>Retry</button>
+                </div>
+            )}
 
-                {status === 'ERROR' && (
-                    <div className="ai-error-state">
-                        Error loading AI configuration.
-                        <button onClick={() => window.location.reload()}>Retry</button>
-                    </div>
-                )}
-
-                {status === 'READY' && (
-                    <div className="ai-diving-split">
-                        {/* LEFT: conversation thread + composer */}
-                        <div className="ai-diving-thread">
-                            <div className="ai-diving-messages" ref={messagesElRef} onScroll={handleMessagesScroll} onMouseUp={handleThreadMouseUp}>
-                                <div className="ai-diving-messages-inner">
-                                    {turns.length === 0 && !isGenerating ? emptyState : (
-                                        <DeepDiveTranscript
-                                            turns={turns}
-                                            selectedTurnId={selectedTurnId}
-                                            onSelect={setPinnedTurnId}
-                                            onFollowUp={sendFollowUp}
-                                            onAskAbout={handleAskAbout}
-                                            isGenerating={isGenerating}
-                                        />
-                                    )}
-                                    <div ref={chatEndRef} />
-                                </div>
-                            </div>
-
-                            {errorMsg && (
-                                <div className="ai-error-bar">
-                                    <span>{errorMsg}</span>
-                                    <button onClick={() => setErrorMsg(null)}>
-                                        <LuX size={12} />
-                                    </button>
-                                </div>
-                            )}
-
-                            <div className="ai-diving-composer-wrap">
-                                {/* What the analyst needs from you, right where you type. */}
-                                {!isGenerating && (
-                                    <DecisionDelAnalista
-                                        pregunta={pendingAskUser}
-                                        continuar={pendingAskUser ? null : pendingContinue}
-                                        // handleSend clears the question only once the answer is
-                                        // really sent: with no model chosen, it used to vanish
-                                        // and the answer went nowhere.
-                                        onElegir={(op) => handleSend(op)}
-                                        onContinuar={(instr) => handleContinue(instr)}
-                                        onTerminar={handleFinalizeNow}
-                                        onDetener={handleDeclineContinue}
-                                    />
-                                )}
-                                <div className="ai-diving-composer">
-                                    {contextObjects.length > 0 && (
-                                        <div className="ai-context-bar">
-                                            <div className="ai-context-bar-head">
-                                                <LuPaperclip size={12} />
-                                                <span className="ai-context-bar-title">Context for this conversation</span>
-                                                <span className="ai-context-bar-hint">always available · reference with @</span>
-                                            </div>
-                                            <div className="ai-context-bar-chips">
-                                                {contextObjects.map((obj, i) => (
-                                                    <span key={i} className="ai-composer-chip ai-context-chip">
-                                                        {obj.type === 'table' ? <LuTable size={11} /> : <LuFile size={11} />}
-                                                        <span className="ai-composer-chip-name">{obj.name}</span>
-                                                        <button className="ai-composer-chip-x" onClick={() => removeContextObj(i)} title="Remove from context">
-                                                            <LuX size={10} />
-                                                        </button>
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {inputComposer}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* CENTER: step inspector */}
-                        <div className="ai-diving-inspector-pane">
-                            <DeepDiveInspector
-                                turn={selectedTurn}
-                                allMessages={messages}
-                                onRunSql={onRunSql}
-                                onFollowUp={sendFollowUp}
-                                onAskAbout={handleAskAbout}
-                                onExportNotebook={onExportNotebook}
-                                onExportAmoxvis={onExportAmoxvis}
-                                onOpenFile={onOpenFile}
-                            />
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* ─── Right column: Session Inventory (contains Agent Plan when active) ─── */}
             {status === 'READY' && (
-                <SessionInventory
-                    contextObjects={contextObjects}
-                    isDragOver={isDragOver}
-                    onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onDrop={handleDrop}
-                    onRemoveContext={removeContextObj}
-                    onQuickAction={(text) => handleSend(text)}
-                    hasMessages={messages.length > 0}
-                    conversationId={conversationId}
-                    onOpenFile={onOpenFile}
-                    sessionName={displayName}
-                    onUpdateSessionName={handleUpdateSessionName}
-                >
-                    {/* Agent Plan panel — visible only when a plan is active */}
-                    <AgentPlanPanel
-                        planState={planState}
-                        isGenerating={isGenerating}
-                        iteration={planIteration}
-                        maxIterations={planMaxIterations}
-                        onSkipStep={handleSkipPlanStep}
-                        userSkippedSteps={userSkippedSteps}
-                    />
+                <div className={`ddr-zonas${hayInforme ? '' : ' ddr-zonas--vacio'}${seccionDelPanel ? ' ddr-zonas--panel' : ''}`}>
+                    {hayInforme && (
+                        <IndiceDeepDive
+                            episodios={episodios}
+                            isGenerating={isGenerating}
+                            onIr={irA}
+                            onSaltar={handleSkipPlanStep}
+                            entregables={entregables}
+                            onGuardarNotebook={() => sendFollowUp('Save this analysis as a notebook — include the queries, the charts, and a short narrative for each section.')}
+                            onExportar={() => exportConversationToMarkdown(messages, displayName || 'Deep Dive')}
+                            onAbrirArchivo={onOpenFile}
+                        />
+                    )}
 
-                    {/* The analyst's questions and the "out of iterations" choice now
-                        live above the composer (DecisionDelAnalista), not here. */}
-                </SessionInventory>
+                    <section className="ddr-informe">
+                        <div className="ai-diving-messages ddr-scroll" ref={messagesElRef} onScroll={handleMessagesScroll} onMouseUp={handleThreadMouseUp}>
+                            {hayInforme ? (
+                                <InformeDeepDive
+                                    episodios={episodios}
+                                    allMessages={messages}
+                                    acciones={acciones}
+                                />
+                            ) : emptyState}
+                            <div ref={chatEndRef} />
+                        </div>
+
+                        {errorMsg && (
+                            <div className="ai-error-bar">
+                                <span>{errorMsg}</span>
+                                <button onClick={() => setErrorMsg(null)}>
+                                    <LuX size={12} />
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="ai-diving-composer-wrap">
+                            {/* What the analyst needs from you, right where you type. */}
+                            {!isGenerating && (
+                                <DecisionDelAnalista
+                                    pregunta={pendingAskUser}
+                                    continuar={pendingAskUser ? null : pendingContinue}
+                                    // handleSend clears the question only once the answer is
+                                    // really sent: with no model chosen, it used to vanish
+                                    // and the answer went nowhere.
+                                    onElegir={(op) => handleSend(op)}
+                                    onContinuar={(instr) => handleContinue(instr)}
+                                    onTerminar={handleFinalizeNow}
+                                    onDetener={handleDeclineContinue}
+                                />
+                            )}
+                            <div className="ai-diving-composer">
+                                {contextObjects.length > 0 && (
+                                    <div className="ai-context-bar">
+                                        <div className="ai-context-bar-head">
+                                            <LuPaperclip size={12} />
+                                            <span className="ai-context-bar-title">Context for this conversation</span>
+                                            <span className="ai-context-bar-hint">always available · reference with @</span>
+                                        </div>
+                                        <div className="ai-context-bar-chips">
+                                            {contextObjects.map((obj, i) => (
+                                                <span key={i} className="ai-composer-chip ai-context-chip">
+                                                    {obj.type === 'table' ? <LuTable size={11} /> : <LuFile size={11} />}
+                                                    <span className="ai-composer-chip-name">{obj.name}</span>
+                                                    <button className="ai-composer-chip-x" onClick={() => removeContextObj(i)} title="Remove from context">
+                                                        <LuX size={10} />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                {inputComposer}
+                            </div>
+                        </div>
+                    </section>
+
+                    {seccionDelPanel && (
+                        <ComoLoObtuve
+                            seccion={seccionDelPanel.seccion}
+                            focoQueryId={panel?.queryId}
+                            enCurso={seccionDelPanel.episodio.enCurso}
+                            onClose={() => setPanel(null)}
+                            onRunSql={onRunSql}
+                            onAskAbout={handleAskAbout}
+                        />
+                    )}
+                </div>
             )}
 
             {selAsk && (
@@ -808,5 +832,43 @@ const AiDivingPanel = ({
         </div>
     );
 };
+
+/**
+ * The session's name in the header, renamed in place (it used to live at the
+ * top of the right column, away from everything else that names the session).
+ */
+function NombreDeSesion({ nombre, editable, onCambiar }) {
+    const [editando, setEditando] = useState(false);
+    const [valor, setValor] = useState(nombre || '');
+    useEffect(() => { setValor(nombre || ''); }, [nombre]);
+    const confirmar = () => {
+        setEditando(false);
+        const t = valor.trim();
+        if (t && t !== nombre) onCambiar?.(t); else setValor(nombre || '');
+    };
+    if (editando) {
+        return (
+            <input
+                className="ddr-nombre-input"
+                value={valor}
+                autoFocus
+                spellCheck={false}
+                onChange={(e) => setValor(e.target.value)}
+                onBlur={confirmar}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') confirmar();
+                    else if (e.key === 'Escape') { e.stopPropagation(); setValor(nombre || ''); setEditando(false); }
+                }}
+                aria-label="Session name"
+            />
+        );
+    }
+    return (
+        <button className="ddr-nombre" disabled={!editable} onClick={() => setEditando(true)} title={editable ? 'Rename this session' : undefined}>
+            <span>{nombre || 'Deep Dive'}</span>
+            {editable && <LuPencil size={11} className="ddr-nombre-lapiz" />}
+        </button>
+    );
+}
 
 export default AiDivingPanel;

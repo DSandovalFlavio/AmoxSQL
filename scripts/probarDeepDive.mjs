@@ -54,5 +54,63 @@ if (herramientas?.final_answer) {
     mal++; console.log('  MAL no se encontró final_answer en las herramientas de diving');
 }
 
+// ── El informe (entrega 2) ──
+const { armarInforme, eventosDeTurno, seccionDeConsulta } =
+    await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/informeDeepDive.js')).href);
+const { groupIntoTurns } = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/deepDiveTurns.js')).href);
+
+console.log('— el informe: una ejecución real es UN mensaje con textOffset');
+const partes = [];
+let texto = '';
+const tools = [];
+const decir = (t) => { texto += t; };
+const llamar = (tc) => { tools.push({ ...tc, textOffset: texto.length }); };
+decir('<think>plan first</think>Voy a medir por categoría. ');
+llamar({ toolName: 'create_plan', args: { goal: 'g', steps: [{ id: 's1', description: 'Por categoría' }, { id: 's2', description: 'Por mes' }, { id: 's3', description: 'Por ciudad' }] } });
+llamar({ toolName: 'update_plan', args: { step_id: 's1', status: 'in_progress' } });
+llamar({ toolName: 'execute_sql', args: { query: 'q1' }, result: { queryId: 'qa', rowCount: 8 } });
+llamar({ toolName: 'display_chart', args: {}, result: { chartConfig: { title: 'Cat', queryId: 'qa' } } });
+decir('Todas quedan igual. ');
+llamar({ toolName: 'update_plan', args: { step_id: 's1', status: 'done', note: 'Pareja' } });
+llamar({ toolName: 'update_plan', args: { step_id: 's2', status: 'in_progress' } });
+decir('<think>months</think>Mes a mes cae en octubre. ');
+llamar({ toolName: 'execute_sql', args: { query: 'q2' }, result: { queryId: 'qb', rowCount: 12 } });
+llamar({ toolName: 'update_plan', args: { step_id: 's2', status: 'done' } });
+decir('En resumen: faltan datos. ');
+llamar({ toolName: 'final_answer', args: {}, result: { tldr: 'Faltan datos', findings: [{ point: 'p', source_query_id: 'qb' }] } });
+const real = [{ id: 'u1', role: 'user', content: '¿Por qué?' }, { id: 'a1', role: 'assistant', content: texto, toolCalls: tools }];
+const [ep] = armarInforme(groupIntoTurns(real));
+const s1 = ep.secciones.find(s => s.stepId === 's1');
+const s2 = ep.secciones.find(s => s.stepId === 's2');
+ok(ep.pregunta === '¿Por qué?' && ep.respuesta?.resultado?.tldr === 'Faltan datos', 'una pregunta y su respuesta');
+ok(ep.respuesta.prosa === 'En resumen: faltan datos.', 'la narración de cierre es la respuesta, no el último paso');
+ok(ep.intro.bloques[0]?.texto.startsWith('Voy a medir'), 'el planteamiento va en la introducción');
+ok(s1.bloques.map(b => b.tipo).join(',') === 'consultas,grafico,texto', 'el paso 1 lleva su consulta, su gráfico y su narración, en orden');
+ok(s1.nota === 'Pareja' && s1.estado === 'done', 'con su conclusión');
+ok(s2.bloques.some(b => b.tipo === 'texto' && b.texto.includes('octubre')) && !s2.bloques.some(b => b.texto?.includes('resumen')), 'el paso 2 lleva su narración y no la del cierre');
+ok(s2.razonamiento[0] === 'months' && ep.intro.razonamiento[0] === 'plan first', 'el razonamiento queda en su paso');
+ok(ep.indice.map(p => p.estado).join(',') === 'done,done,not_done', 'el paso que no empezó queda «no hecho»');
+ok(seccionDeConsulta([ep], 'qb')?.seccion === s2, 'un número de la respuesta lleva a la consulta que lo produjo');
+
+console.log('— sesiones sin textOffset y en curso');
+const viejo = [{ id: 'u1', role: 'user', content: 'Q' }, { id: 'a1', role: 'assistant', content: 'Toda la prosa junta.', toolCalls: tools.map(({ textOffset, ...t }) => t) }];
+const [epViejo] = armarInforme(groupIntoTurns(viejo));
+ok(epViejo.intro.bloques[0]?.texto === 'Toda la prosa junta.' && epViejo.secciones.find(s => s.stepId === 's1')?.bloques.some(b => b.tipo === 'grafico'), 'sin posiciones: la prosa delante y los pasos con sus gráficos');
+const vivo = [{ id: 'u1', role: 'user', content: 'Q' }, { id: 'a1', role: 'assistant', content: 'Empiezo. ', toolCalls: tools.slice(0, 3) }];
+const turnosVivos = groupIntoTurns(vivo).map(t => (t.type === 'ai' ? { ...t, inProgress: true } : t));
+const [epVivo] = armarInforme(turnosVivos, { enCurso: true });
+ok(epVivo.enCurso && epVivo.indice[0].estado === 'in_progress' && epVivo.indice[1].estado === 'pending', 'en curso: el paso que corre sigue «in progress»');
+const [epParado] = armarInforme(groupIntoTurns(vivo));
+ok(epParado.indice[0].estado === 'interrupted', 'detenido sin concluir: el paso a medias dice «interrupted»');
+
+console.log('— continuar no abre otra pregunta; una pregunta nueva sí');
+const conCont = [...vivo, { id: 'u2', role: 'user', content: 'Continue the plan where you left off.' },
+    { id: 'a2', role: 'assistant', content: 'Sigo.', toolCalls: [{ toolName: 'update_plan', args: { step_id: 's2', status: 'in_progress' } }] },
+    { id: 'u3', role: 'user', content: '¿Y por ciudad?' }, { id: 'a3', role: 'assistant', content: 'Por ciudad gana SF.' }];
+const eps = armarInforme(groupIntoTurns(conCont));
+ok(eps.length === 2 && eps[0].continuaciones.length === 1, '«Continue» se une al análisis; la pregunta nueva abre otro');
+ok(eps[1].secciones.length === 1 && eps[1].secciones[0].titulo === null && eps[1].secciones[0].bloques[0].texto === 'Por ciudad gana SF.', 'una respuesta sin plan es texto sin encabezado');
+ok(eventosDeTurno(groupIntoTurns(real)[1]).filter(e => e.tipo === 'texto').length === 4, 'el texto se parte en los puntos donde hubo herramientas');
+
 console.log(`\n${bien} bien, ${mal} mal`);
 process.exit(mal ? 1 : 0);
