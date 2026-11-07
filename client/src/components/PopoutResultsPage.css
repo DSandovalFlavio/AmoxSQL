@@ -29,6 +29,15 @@
     gap: 10px;
 }
 
+/* macOS: los botones del sistema, a la izquierda (ver index.css). */
+:root[data-plataforma="mac"] .popout-header {
+    padding: 0 10px 0 calc(78px / var(--zoom-ventana, 1));
+}
+
+:root[data-plataforma="mac"][data-pantalla-completa] .popout-header {
+    padding-left: 14px;
+}
+
 /* Mientras se esperan los datos aún no hay cabecera; sin esto la ventana sin
    marco no se podría mover. */
 .popout-loading--drag { -webkit-app-region: drag; }

@@ -25,6 +25,7 @@ Primeras tandas hacia la 5.19 (plan en `docs/dev/plan_5_19_interaccion.md`).
 - La búsqueda del editor queda separada de la barra de acciones.
 
 ### Arreglado
+- **En macOS la ventana usaba botones de Windows:** ahora lleva los del sistema, a la izquierda, también en los resultados en ventana aparte.
 - Traer un archivo grande entero congelaba el servidor hasta 29 s, tanto que Stop no podía llegar, y acababa en `Invalid string length`. Ahora el resultado se convierte y se envía por lotes.
 - Con varias consultas en cola, Stop podía no encontrar a la que corría de verdad.
 - **Stop nunca interrumpía la consulta en el motor:** liberaba la interfaz y la consulta seguía ocupando la conexión hasta terminar.

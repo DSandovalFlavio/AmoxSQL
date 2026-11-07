@@ -443,12 +443,36 @@ async function shutdownServer() {
     }
 }
 
+/**
+ * El marco de cada sistema. En Windows y Linux la ventana no tiene marco y la
+ * barra de la app dibuja sus controles. En macOS `frame: false` quitaría también
+ * los botones nativos: se oculta solo la barra y ellos quedan encima de la nuestra,
+ * centrados en ella (`y`: su alto es de 14 px).
+ */
+const marcoDeVentana = (y) => (process.platform === 'darwin'
+    ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 14, y } }
+    : { frame: false });
+
+/**
+ * En pantalla completa macOS esconde sus botones: la barra deja de reservarles sitio.
+ * También al terminar de cargar, porque una recarga pierde la marca.
+ */
+function seguirPantallaCompleta(win) {
+    if (process.platform !== 'darwin') return;
+    const avisar = () => {
+        if (!win.isDestroyed()) win.webContents.send('ventana:pantalla-completa', win.isFullScreen());
+    };
+    win.on('enter-full-screen', avisar);
+    win.on('leave-full-screen', avisar);
+    win.webContents.on('did-finish-load', avisar);
+}
+
 const createWindow = () => {
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 800,
         icon: path.join(__dirname, '../assets/icon.ico'),
-        frame: false,
+        ...marcoDeVentana(16),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -459,6 +483,7 @@ const createWindow = () => {
         autoHideMenuBar: true,
         backgroundColor: '#0F1012'
     });
+    seguirPantallaCompleta(mainWindow);
 
     // === EXPORT DOWNLOADS ===
     // Every export in the app (chart PNG, HTML/Word report, PowerPoint deck)
@@ -566,7 +591,7 @@ ipcMain.handle('popout:open', async (_event, data) => {
         // Sin marco, igual que la principal: la cabecera de PopoutResultsPage
         // hace de barra de ventana. Con marco nativo salian DOS barras, una
         // encima de la otra, y la de arriba no seguia el tema.
-        frame: false,
+        ...marcoDeVentana(12),
         autoHideMenuBar: true,
         backgroundColor: '#0F1012',
         icon: path.join(__dirname, '../assets/icon.ico'),
@@ -579,6 +604,7 @@ ipcMain.handle('popout:open', async (_event, data) => {
         }
     });
     emergentes.set(tabId, { win, pendiente: data });
+    seguirPantallaCompleta(win);
 
     atajosDeVentana(win);
     win.loadURL(`${baseUrl}?popout=true`);

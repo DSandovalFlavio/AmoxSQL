@@ -918,6 +918,24 @@ svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
   shape-rendering: crispEdges;
 }
 
+/* macOS: los botones son los del sistema, a la izquierda (`marcoDeVentana` en
+   electron/main.js). Ocupan 78 px reales, sea cual sea el zoom de la interfaz. */
+:root[data-plataforma="mac"] .window-controls {
+  display: none;
+}
+
+:root[data-plataforma="mac"] .window-title-bar .wtb-left {
+  padding-left: calc(78px / var(--zoom-ventana, 1));
+}
+
+:root[data-plataforma="mac"][data-pantalla-completa] .window-title-bar .wtb-left {
+  padding-left: 8px;
+}
+
+:root[data-plataforma="mac"] .window-title-bar .wtb-right {
+  padding-right: 8px;
+}
+
 /* ── Tab Bar Card — floating above editor area only ── */
 .tab-bar-card {
   background-color: var(--surface-raised);
