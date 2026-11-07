@@ -241,6 +241,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         uiTheme = null,
         memoryExtraction = 'cloud-only',
         memoriasRetenidas = false,
+        archivo = null,
     } = options;
 
     const provider = providerOverride;
@@ -294,7 +295,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         currentQuery, currentResult, currentChartConfig, currentView,
         referencedArtifacts,
         activeSkill, modelProfile: profile,
-        filePath, fileType,
+        filePath, fileType, archivo,
         enablePlanner: mode === 'diving',
         projectCtx,
         grupo,
@@ -479,7 +480,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         // ── Build tools with shared state ──
         const tools = createTools({
             dbManager, queryResults, projectPath, mode,
-            conversationId, aiPersistence,
+            conversationId, aiPersistence, archivo,
             activePlan, enablePlanner: mode === 'diving',
         });
 

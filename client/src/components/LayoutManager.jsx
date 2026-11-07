@@ -26,7 +26,7 @@ import { leerAmoxvis, textoAmoxvis } from './DataVisualizer/vega/figura';
 import { leerBorrador } from '../utils/borradorGrafico';
 import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
 import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
-import { olvidarPestanas } from '../utils/memoriaDePestana';
+import { olvidarPestanas, editorDe } from '../utils/memoriaDePestana';
 
 /**
  * Un .sql se abre con el gráfico que tenía la última vez (Dec-79): la vista
@@ -1706,40 +1706,75 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         // --- Standalone handleQueryFile function (used by imperative handle + DnD) ---
         handleQueryFile: (filePath) => handleQueryFile(filePath),
-        // ─── AI Integration: update active tab content (for edit_file tool) ───
+        // ─── AI Integration: an accepted write_file proposal ───
+        // With the file's editor on screen the change goes through Monaco, so
+        // Ctrl+Z undoes it like any other edit; otherwise into the tab's state.
         updateActiveContent: (content) => {
             const tab = getActiveTab();
-            if (tab) {
+            if (!tab) return;
+            const ed = editorDe(tab.id);
+            const modelo = ed?.getModel();
+            if (modelo) {
+                ed.pushUndoStop();
+                ed.executeEdits('assist', [{ range: modelo.getFullModelRange(), text: content }]);
+                ed.pushUndoStop();
+            } else {
                 updateTab(activePane, tab.id, { content, dirty: true });
-                toast.info('AI updated the file — review changes before saving');
             }
+            toast.info('Assist changed the file. Review it before saving (Ctrl+Z undoes it).');
         },
 
-        // ─── AI Integration: append SQL to current file content ───
-        appendToActiveContent: (sql) => {
+        // ─── AI Integration: insert SQL from the chat (plan del Assistant, A2) ───
+        // At the cursor, or over the selected text; never the whole file (that
+        // was «Apply to editor»: it replaced everything else with no warning).
+        // On a line that has text, the query goes after it, separated by a blank line.
+        insertarEnEditor: (texto) => {
             const tab = getActiveTab();
-            if (tab) {
-                const current = tab.content || '';
-                const separator = current.trim().length > 0 ? '\n\n' : '';
-                updateTab(activePane, tab.id, { content: current + separator + sql, dirty: true });
+            const ed = tab ? editorDe(tab.id) : null;
+            const modelo = ed?.getModel();
+            if (!modelo) {
+                toast.info('Show the file in the editor to insert the query there.');
+                return false;
             }
+            const sel = ed.getSelection();
+            const sobreSeleccion = !sel.isEmpty();
+            let range = sel;
+            let text = texto;
+            let linea = sel.startLineNumber;
+            if (!sobreSeleccion && modelo.getLineContent(sel.positionLineNumber).trim()) {
+                const n = sel.positionLineNumber;
+                const fin = modelo.getLineMaxColumn(n);
+                range = { startLineNumber: n, startColumn: fin, endLineNumber: n, endColumn: fin };
+                text = `\n\n${texto}`;
+                linea = n + 2;
+            }
+            ed.pushUndoStop();
+            ed.executeEdits('assist', [{ range, text, forceMoveMarkers: true }]);
+            ed.pushUndoStop();
+            ed.revealLineInCenterIfOutsideViewport(linea);
+            ed.focus();
+            toast.info(sobreSeleccion
+                ? 'Replaced the selected text. Ctrl+Z undoes it.'
+                : `Inserted at line ${linea}. Ctrl+Z undoes it.`);
+            return true;
         },
 
-        // ─── AI Integration: merge chart config changes (for update_chart_config tool) ───
+        // ─── AI Integration: «Apply to chart» from a chart in the chat ───
+        // Only the chart of THIS tab's results takes it (X4): the event used to
+        // be global, and every chart on screen —each chart cell of a notebook—
+        // changed at once.
         updateActiveChartConfig: (changes) => {
             const tab = getActiveTab();
-            if (tab) {
-                const current = tab.chartConfig || tab.initialChartConfig || {};
-                updateTab(activePane, tab.id, {
-                    chartConfig: { ...current, ...changes },
-                    initialChartConfig: { ...current, ...changes },
-                });
-                // Dispatch event so any mounted DataVisualizer (sql or sqlnb) merges
-                // changes into its current state immediately via setFields — this
-                // preserves auto-detected axes and avoids the LOAD_CONFIG defaults reset.
-                window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { changes } }));
-                toast.info('AI updated the chart configuration');
-            }
+            if (!tab || tab.type !== 'sql') return;
+            const current = tab.chartConfig || tab.initialChartConfig || {};
+            updateTab(activePane, tab.id, {
+                chartConfig: { ...current, ...changes },
+                initialChartConfig: { ...current, ...changes },
+            });
+            // The mounted DataVisualizer of this tab merges the changes into its
+            // state via setFields (keeps auto-detected axes; no defaults reset).
+            window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { changes, tabId: tab.id } }));
+            toast.info('Assist updated the chart of this query');
         },
 
         // ─── AI Integration: get info about the active tab ───

@@ -2592,11 +2592,14 @@ async function buildFileContext(contextFiles) {
  * Returns { tables, files, roster } in the prompt's context shapes.
  */
 const { resolveQueryObjects } = require('./ai/queryObjects');
-async function buildAssistantQueryContext(currentQuery) {
+async function buildAssistantQueryContext(currentQuery, filePath = null, fileType = null) {
     const allNames = await listAllTableNames();
     let objs = [];
+    // Solo un archivo SQL es una consulta: buscar tablas en un deck o en un JSON
+    // daba chips vacíos o con ruido (plan del Assistant, X5).
+    const esSql = require('./ai/archivoActivo').tipoDe(filePath, fileType) === 'sql';
     try {
-        objs = await resolveQueryObjects(currentQuery, dbManager, allNames);
+        if (esSql) objs = await resolveQueryObjects(currentQuery, dbManager, allNames);
     } catch (e) {
         console.warn('[AI Assistant Ctx] resolveQueryObjects failed:', e.message);
     }
@@ -2801,7 +2804,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
         let tables, files, expandedReferences;
         if ((mode || 'diving') === 'assistant' && !hasExplicitContext) {
             const [ctx, refs] = await Promise.all([
-                buildAssistantQueryContext(currentQuery),
+                buildAssistantQueryContext(currentQuery, filePath, fileType),
                 expandReferencedArtifacts(referencedArtifacts),
                 // Make what the user is looking at chartable by its own id.
                 registerLiveResultCache(currentResult, conversationId),
@@ -3128,6 +3131,59 @@ app.post('/api/ai/conversations/:id/messages', async (req, res) => {
         res.json(message);
     } catch (err) {
         console.error('[API] Add message error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/conversations/:id/propuestas/:toolCallId — what the user decided
+ * about a proposal of the Assistant. Body: { estado: 'aplicada' | 'rechazada' }.
+ * `guardada: false` means the message isn't saved yet; the client then keeps
+ * the state in the message it saves.
+ */
+app.post('/api/ai/conversations/:id/propuestas/:toolCallId', async (req, res) => {
+    const estado = req.body?.estado;
+    if (!['propuesta', 'aplicada', 'rechazada'].includes(estado)) {
+        return res.status(400).json({ error: 'estado must be propuesta, aplicada or rechazada' });
+    }
+    try {
+        const guardada = await aiPersistence.setEstadoPropuesta(dbManager, req.params.id, req.params.toolCallId, estado);
+        res.json({ guardada });
+    } catch (err) {
+        console.error('[API] Proposal state error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/propuestas/crear-archivo — creates the file the Assistant proposed
+ * with propose_file, once the user clicks Create. Body: { path, content }.
+ * It never overwrites: an existing file answers 409, and the path has to stay
+ * inside the project.
+ */
+app.post('/api/ai/propuestas/crear-archivo', async (req, res) => {
+    const { path: relativa, content } = req.body || {};
+    if (typeof relativa !== 'string' || typeof content !== 'string') {
+        return res.status(400).json({ error: 'path and content are required' });
+    }
+    const normalizada = path.normalize(relativa.trim());
+    if (!normalizada || normalizada === '.' || normalizada.startsWith('..') || path.isAbsolute(normalizada)) {
+        return res.status(400).json({ error: 'Use a relative path inside the project.' });
+    }
+    const destino = path.resolve(ROOT_DIR, normalizada);
+    if (!destino.startsWith(path.resolve(ROOT_DIR) + path.sep)) {
+        return res.status(400).json({ error: 'The path is outside the project.' });
+    }
+    try {
+        await fs.promises.mkdir(path.dirname(destino), { recursive: true });
+        // 'wx': falla si ya existe, también si apareció entre la propuesta y el clic.
+        await fs.promises.writeFile(destino, content, { encoding: 'utf8', flag: 'wx' });
+        res.json({ success: true, path: normalizada.split(path.sep).join('/') });
+    } catch (err) {
+        if (err.code === 'EEXIST') {
+            return res.status(409).json({ error: `${normalizada.split(path.sep).join('/')} already exists. Nothing was written.`, existe: true });
+        }
+        console.error('[API] Create proposed file error:', err);
         res.status(500).json({ error: err.message });
     }
 });

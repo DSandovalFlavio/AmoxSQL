@@ -2,7 +2,8 @@
 
 **Sale de:** [auditoria_ux_assistant.md](auditoria_ux_assistant.md) (A1–A13) y
 [auditoria_assistant_por_archivo.md](auditoria_assistant_por_archivo.md) (X1–X10 y los hallazgos por tipo)
-**Estado:** propuesta, sin implementar (2026-11-07). Mockups en el artifact «El Assistant donde está el trabajo».
+**Estado:** **E1 hecha** (2026-11-07, rama `claude/plan-5-19-interaccion`); E2–E6 sin empezar. Las seis decisiones,
+tomadas como se proponían. Mockups en el artifact «El Assistant donde está el trabajo».
 
 ## La idea
 
@@ -146,9 +147,39 @@ contexto, propuesta, revisión, inicio y pruebas), en lugar de una capa de todo 
 **Tamaño:** pequeño. **Se prueba:** `probarAssist.mjs` (política sobre cada tipo, `propose_file` que no pisa, el
 prompt por tipo) y la app con conversaciones sembradas.
 
+**Hecha (2026-11-07).** Lo que quedó:
+- `server/ai/archivoActivo.js` (puro): `tipoDe`, `esCredencial`, `prepararArchivo` → `{ tipo, nombre, idioma,
+  contenido, notas, puedeProponer, retenido }`. Lo llama `politica.sanearOpciones` en modo assistant con cualquier
+  política (el tope, las fotos y las credenciales valen también con «filas»); `currentQuery` queda solo con SQL y el
+  resto del archivo viaja en `archivo`. `buildAssistantModeSection` y `buildLiveEditorState` lo usan; el bloque va
+  en su idioma. El tope es de 16.000 caracteres por líneas enteras; un archivo recortado o con partes retenidas
+  tampoco admite propuestas (perdería lo que el modelo no ve).
+- `write_file` solo tiene `content` y `description`, y solo se ofrece si `archivo.puedeProponer`. `propose_file`
+  comprueba la ruta y que no exista, y no escribe. `POST /api/ai/propuestas/crear-archivo` crea con `flag: 'wx'`.
+- **Un hallazgo más grave que A1:** desde que `edit_file` pasó a llamarse `write_file`, `ChatMessage` filtraba
+  por el nombre viejo y **ninguna** propuesta tenía Accept / Reject, ni en la sesión: todas salían como «Write
+  file ✓». Ahora `PropuestaBlock` pinta cada estado (`client/src/components/ai/propuestas.js`, puro): pendiente,
+  aplicada, rechazada, **caducada** (la huella FNV del archivo cambió desde la propuesta: se ofrece «Propose
+  again») y **anterior** (sin estado guardado). El estado va en la propia llamada del mensaje;
+  `POST /api/ai/conversations/:id/propuestas/:toolCallId` lo cambia (`persistence.setEstadoPropuesta`).
+- Aceptar en un `.sql` va por `executeEdits` del Monaco de la pestaña (`memoriaDePestana.editorDe`): Ctrl+Z lo
+  deshace. «Insert at cursor» es un solo botón: en el cursor, o sobre la selección si la hay (el toast dice cuál);
+  en una línea con texto, la consulta va después, separada por una línea en blanco. Solo en `.sql`; en los demás,
+  Copy y Run.
+- «Apply to chart» solo en `.sql`, y el evento lleva `tabId`: `DataVisualizer` lo toma solo con `destinoIa`
+  (`ResultsTable` le pasa `clavePestana`).
+- Los chips de objetos solo leen una consulta; «Pensando…» → «Thinking…»; CLOUD con cualquier proveedor que no sea
+  local; la exportación a Markdown dice el estado de cada propuesta.
+- `scripts/probarAssist.mjs` 54/0. Siguen verdes `probarDeepDive` 46, `probarCuotaDeepDive` 14, `probarGraficoIA`
+  14, `probarGraficos` 177, `probarFlujoGrafico` 22, `probarInteraccion` 106. En la app (tienda de ejemplo,
+  conversación sembrada): la propuesta antigua sale como «earlier session», Accept aplica y Ctrl+Z deshace, el
+  estado sobrevive al servidor, Create crea y abre el archivo, Insert at cursor entra en la línea vacía y sobrevive
+  al cambio de pestaña.
+
 ### E2 — La base, con `.sql` y texto
-- Las piezas comunes: `archivos/index.js`, `propose_change`, la ruta de estados, `diffLineas`, `RevisionEnMonaco`,
-  `onFoco` + `memoriaDePestana`, `server/ai/prompt/archivo.js`.
+- Las piezas comunes: `archivos/index.js`, `propose_change`, `diffLineas`, `RevisionEnMonaco`, `onFoco` +
+  `memoriaDePestana`. (La ruta de estados y el lado del servidor del archivo activo, `server/ai/archivoActivo.js`,
+  ya están desde E1: `propose_change` crece sobre ellos.)
 - **`.sql`:** foco (selección o sentencia), `resultsError` (S1), propuesta `rango`, diff en el editor; barra sobre la
   selección (Explain · Fix · Optimize · Ask…), **Fix with Assist** en el error, **Explain this result · Chart it**
   en los resultados, Ctrl+L con selección = Ask; el inicio según el estado (A6). dbt: SQL compilado y YAML del
@@ -198,6 +229,7 @@ con `capacidades` (un panel que ese tipo no admite se rechaza) y el spec compila
 subconjunto rechazado.
 
 ### E6 — El chat, más corto (todos)
+- **A7** «Run» corre en el chat, con «Open in editor» (decisión 3); hoy abre una pestaña nueva cada vez.
 - **A5** la respuesta primero; el trabajo plegado en una línea («Ran 1 query · proposed 1 change»).
 - **A12** el gráfico del chat con sus acciones en un menú y «Apply to this file's chart».
 - **A9** el archivo de la conversación arriba del chat; el historial con las del archivo y las recientes.
@@ -220,7 +252,7 @@ Assistant y el que más arriesga hoy. **E6** puede ir en cualquier momento despu
   cada tipo, para probar Accept / Reject / caducada sin depender del modelo.
 - Lo que depende del modelo (que elija el `objetivo` correcto), con tu prueba en cada fase.
 
-## Decisiones que te tocan
+## Decisiones (tomadas el 2026-11-07: las seis, como se proponían)
 
 1. **¿Barra flotante sobre la selección o solo Ctrl+L?** Propuesta: las dos; la barra aparece con una selección de
    más de una palabra y se cierra con Escape.

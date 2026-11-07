@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { marcarPropuestas, conEstado, estadoDe, esArchivoNuevo } from './propuestas';
 import { API_BASE as API } from '../../api.js';
 import { guardarBorrador, leerBorrador, borrarBorrador } from '../../utils/borradorDeAnalisis';
 
@@ -83,8 +84,8 @@ export const fetchCloudModels = async (provider) => {
  * @param {Function|null} options.getFileContext - Stable getter returning { content, results, chartConfig }
  *        for the active file, read at SEND time. When provided it takes precedence over
  *        fileContent/fileResult/fileChartConfig, decoupling the chat from per-keystroke props.
- * @param {Function|null} options.onEditFile - Callback when AI produces an edit_file action
- * @param {Function|null} options.onUpdateChartConfig - Callback when AI produces an update_chart_config action
+ * @param {Function|null} options.onEditFile - Applies an accepted write_file proposal to the active file
+ * @param {Function|null} options.onOpenFile - Opens a file the user created from a propose_file proposal
  */
 export default function useAiChat({
     mode = 'diving',
@@ -95,7 +96,7 @@ export default function useAiChat({
     fileChartConfig = null,
     getFileContext = null,
     onEditFile = null,
-    onUpdateChartConfig = null,
+    onOpenFile = null,
 } = {}) {
     // ─── Config State ───
     const [status, setStatus] = useState('LOADING');
@@ -136,8 +137,9 @@ export default function useAiChat({
     const [streamingId, setStreamingId] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
     const [conversationId, setConversationId] = useState(null);
-    // pending edits: Map of toolCallId → edit result (waiting for user accept/reject)
-    const [pendingEdits, setPendingEdits] = useState({});
+    // Bumped when a proposal turns out to be outdated at the moment of accepting,
+    // so the message re-renders with its real state.
+    const [, setRevisionPropuestas] = useState(0);
 
     // ─── Agentic Plan State (Fase 1) ───
     // planState: { planId, goal, steps[], status } | null
@@ -492,6 +494,9 @@ export default function useAiChat({
         let fullText = '';
         let toolResults = [];
         let thinkingMs = null;
+        // The file the model had in front of it: a proposal keeps its fingerprint,
+        // so a proposal made on an older version is shown as outdated (A1).
+        let contenidoEnviado = null;
 
         /**
          * Adds the analyst's run to the conversation and saves it — when it ends
@@ -511,6 +516,9 @@ export default function useAiChat({
                     textOffset: tc.textOffset,
                 };
             });
+            // Proposals start pending, with the fingerprint of the file they were made on.
+            const llamadas = marcarPropuestas(mergedToolCalls, contenidoEnviado);
+            mergedToolCalls.splice(0, mergedToolCalls.length, ...llamadas);
             if (interrupcion && mode === 'diving') {
                 mergedToolCalls.push({
                     toolCallId: `interrupcion-${assistantId}`,
@@ -577,6 +585,7 @@ export default function useAiChat({
             // reactive props that would tie the panel to the editor's keystroke cycle.
             const liveCtx = getFileContext ? (getFileContext() || {}) : null;
             const ctxContent = liveCtx ? (liveCtx.content ?? null) : fileContent;
+            contenidoEnviado = ctxContent;
             const ctxResult = liveCtx ? (liveCtx.results ?? null) : fileResult;
             const ctxChartConfig = liveCtx ? (liveCtx.chartConfig ?? null) : fileChartConfig;
             const ctxResultsQuery = liveCtx ? (liveCtx.resultsQuery ?? null) : null;
@@ -745,17 +754,6 @@ export default function useAiChat({
                                     : tc)
                             );
 
-                            // edit_file: store as pending — user must accept/reject from the chat UI
-                            if (event.result?.action === 'edit_file') {
-                                setPendingEdits(prev => ({
-                                    ...prev,
-                                    [event.toolCallId]: event.result,
-                                }));
-                            }
-                            // update_chart_config: apply immediately (non-destructive)
-                            if (event.result?.action === 'update_chart_config' && onUpdateChartConfig) {
-                                onUpdateChartConfig(event.result);
-                            }
 
                         } else if (event.type === 'step-finish') {
                             // Step finished — no-op
@@ -897,7 +895,7 @@ export default function useAiChat({
         contextObjects, mode, filePath, fileType, fileContent, fileResult, fileChartConfig, getFileContext, activeSkillId,
         pendingContinue, interrupcion, pendingAskUser,
         ensureConversation, persistMessage, persistQueryResult, persistChartConfig, autoTitle,
-        onEditFile, onUpdateChartConfig,
+        onEditFile, onOpenFile,
     ]);
 
     // ─── Continue after loop exhaustion ───
@@ -1226,26 +1224,62 @@ export default function useAiChat({
         }
     }, []);
 
-    // ─── Pending Edit: Accept / Reject ───
-    const acceptEdit = useCallback((toolCallId) => {
-        const editResult = pendingEdits[toolCallId];
-        if (editResult && onEditFile) {
-            onEditFile(editResult);
-        }
-        setPendingEdits(prev => {
-            const next = { ...prev };
-            delete next[toolCallId];
-            return next;
-        });
-    }, [pendingEdits, onEditFile]);
+    // ─── Proposals: Accept / Reject (plan del Assistant, E1/A1) ───
+    /**
+     * The user's decision goes into the message (so the screen shows it) and to
+     * the server (so it is still true after reopening). If the message is not
+     * saved yet —the decision came a moment after the run ended— the server
+     * answers `guardada: false` and it is tried once more.
+     */
+    const guardarDecision = useCallback((toolCallId, estado) => {
+        setMessages(prev => conEstado(prev, toolCallId, estado));
+        const convId = conversationId;
+        if (!convId || !toolCallId) return;
+        const enviar = () => fetch(`${API}/api/ai/conversations/${convId}/propuestas/${encodeURIComponent(toolCallId)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estado }),
+        }).then(r => r.json()).catch(() => ({ guardada: false }));
+        enviar().then(r => { if (r && r.guardada === false) setTimeout(enviar, 1500); });
+    }, [conversationId]);
 
-    const rejectEdit = useCallback((toolCallId) => {
-        setPendingEdits(prev => {
-            const next = { ...prev };
-            delete next[toolCallId];
-            return next;
-        });
-    }, []);
+    /**
+     * Accept. A change to the active file is applied only if the file is still
+     * the one the model saw: otherwise it would erase what was written since,
+     * and the proposal shows as outdated. A new file is created on the server,
+     * which never overwrites one. Returns { ok } or { error }.
+     */
+    const acceptEdit = useCallback(async (tc) => {
+        if (!tc?.result) return { error: 'Nothing to apply.' };
+        if (esArchivoNuevo(tc)) {
+            try {
+                const r = await fetch(`${API}/api/ai/propuestas/crear-archivo`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: tc.result.path, content: tc.result.content ?? '' }),
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) return { error: d.error || 'The file could not be created.' };
+                guardarDecision(tc.toolCallId, 'aplicada');
+                if (onOpenFile) onOpenFile(d.path || tc.result.path);
+                return { ok: true };
+            } catch (e) {
+                return { error: e.message };
+            }
+        }
+        const actual = getFileContext ? (getFileContext()?.content ?? null) : null;
+        if (estadoDe(tc, actual) === 'caducada') {
+            setRevisionPropuestas(n => n + 1);
+            return { error: 'The file changed since this was proposed.' };
+        }
+        if (onEditFile) onEditFile(tc.result);
+        guardarDecision(tc.toolCallId, 'aplicada');
+        return { ok: true };
+    }, [guardarDecision, onEditFile, onOpenFile, getFileContext]);
+
+    const rejectEdit = useCallback((tc) => {
+        if (tc?.toolCallId) guardarDecision(tc.toolCallId, 'rechazada');
+    }, [guardarDecision]);
 
     // ─── Return ───
     return {
@@ -1302,8 +1336,7 @@ export default function useAiChat({
         handleSelectConversation,
         handleCancel,
 
-        // Pending edits (edit_file proposals waiting for user accept/reject)
-        pendingEdits,
+        // Proposals of the Assistant (write_file, propose_file)
         acceptEdit,
         rejectEdit,
 

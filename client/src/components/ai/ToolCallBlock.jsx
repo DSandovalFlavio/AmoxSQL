@@ -22,6 +22,10 @@ const TOOL_LABELS = {
     save_to_vault: ['Saving the analysis', 'Saved the analysis'],
     lookup_duckdb_docs: ['Checking the SQL reference', 'Checked the SQL reference'],
     ask_user: ['Asking you a question', 'Asked you a question'],
+    // Only when they fail (a file that already exists): a proposal that worked is
+    // drawn by PropuestaBlock with its state.
+    write_file: ['Proposing a change', 'Could not propose a change'],
+    propose_file: ['Proposing a file', 'Could not propose the file'],
 };
 
 // Una herramienta sin etiqueta no enseña su nombre interno tal cual (`profile_data`).

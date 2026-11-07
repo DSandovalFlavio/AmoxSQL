@@ -39,7 +39,9 @@ que de verdad es una conversación.**
 **A1. Una propuesta sin aplicar aparece como hecha.**
 La propuesta de cambio (`write_file`) solo tiene **Accept / Reject** mientras la sesión está viva (`pendingEdits`, en
 memoria). Al reabrir el archivo, el mismo bloque se ve como «Write file» con una palomita verde
-(`ChatMessage.jsx:596`), como si el archivo ya hubiera cambiado. No cambió. Confirmado en la sesión de prueba.
+(`ChatMessage.jsx:596`), como si el archivo ya hubiera cambiado. No cambió. Confirmado en la sesión de prueba. **Peor aún** (visto al implementar E1): `ChatMessage` buscaba el nombre viejo
+`edit_file`, y desde que la herramienta se llama `write_file` ninguna propuesta tenía Accept / Reject, tampoco en
+la sesión. Arreglado en E1.
 
 **A2. «Apply to editor» reemplaza el archivo entero.**
 El botón de un bloque de SQL del chat llama a `updateActiveContent` (`LayoutManager.jsx:1710`), que sustituye todo el

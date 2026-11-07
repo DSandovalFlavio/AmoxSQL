@@ -41,7 +41,8 @@ ${plannerTools}- **execute_sql**: Run DuckDB SQL queries against the database
 - **read_file**: Read a text file or list directory contents. mode='read': file content; mode='list': discover data files (CSV, Parquet, Excel, JSON)
 - **build_notebook**: Create a professional analytical notebook (.sqlnb) — diving mode only
 - **validate_sql**: Validate SQL without executing it; detailed=true returns the full execution plan
-${mode === 'assistant' ? `- **write_file**: Update the active SQL file or notebook in the editor (mode='overwrite'); or write/append to disk (mode='create'/'append')
+${mode === 'assistant' ? `- **write_file** (when offered): propose a new version of the active file — the user accepts or rejects it, nothing is saved to disk
+- **propose_file**: propose a NEW project file — the user decides whether to create it; it never overwrites one
 ` : ''}${mode === 'diving' ? `- **final_answer**: Signal analysis complete with structured summary — call LAST
 - **ask_user**: Pause to ask a clarifying question when you genuinely cannot continue` : `- **suggest_followups**: Suggest follow-up questions — call this last`}`;
 

@@ -32,6 +32,7 @@ const TOOL_ROW_LIMIT = 500;
  * @param {string} [context.conversationId] - Active conversation ID
  * @param {object} [context.aiPersistence] - Persistence layer for query_cache writes
  * @param {object} [context.activePlan] - Shared mutable plan ref (planner tools)
+ * @param {object} [context.archivo] - The active file as prepared by archivoActivo (assistant): decides whether write_file is offered
  * @param {boolean} [context.enablePlanner=false] - Enable create_plan/update_plan (analysis-planning skill only)
  * @returns {object} Tools object for Vercel AI SDK
  */
@@ -39,6 +40,7 @@ function createTools(context) {
     const {
         dbManager, queryResults, projectPath, mode = 'diving',
         conversationId = null, aiPersistence = null,
+        archivo = null,
         activePlan = null,
         enablePlanner = false,
     } = context;
@@ -1100,42 +1102,54 @@ function createTools(context) {
     // ─── Mode-specific tools ───────────────────────────────────────────────────
 
     if (mode === 'assistant') {
-        // write_file: replaces edit_file. 'overwrite' mode → editor update (no disk write).
-        // 'create' / 'append' → actual disk writes.
-        allTools.write_file = tool({
-            description: "Write content to a file. mode='overwrite' (default): replaces the active SQL file or notebook content in the editor without saving to disk — the user reviews and saves. mode='create': writes a new file to file_path. mode='append': appends content to an existing file.",
+        // Nada de lo que propone el Assistant escribe en disco (plan del
+        // Assistant, E1/X1). Antes `write_file` tenía además los modos `create` y
+        // `append`, que escribían directamente —`create` pisaba un archivo que ya
+        // existiera— sin que el usuario viera nada.
+        //
+        // write_file: una versión nueva del archivo activo, para revisar en el
+        // chat. Solo se ofrece si el archivo admite propuestas: en los
+        // estructurados (gráfico, Data Flow, Canvas, diagrama) reescribir el
+        // fuente a mano lo rompe o no se ve, y si el modelo no ve el archivo
+        // entero (recortado o con partes retenidas) perdería lo que no ve.
+        if (!archivo || archivo.puedeProponer) {
+            allTools.write_file = tool({
+                description: "Propose a new version of the ACTIVE file. The user reviews it in the chat and clicks Accept or Reject; accepting puts it in the editor without saving to disk. Send the COMPLETE file content, keeping every part you were not asked to change exactly as it is.",
+                inputSchema: z.object({
+                    content: z.string().describe('The complete new content of the active file.'),
+                    description: z.string().optional().default('Updated by AmoxSQL AI').describe('One short line saying what changed.'),
+                }),
+                execute: async ({ content, description: desc = 'Updated by AmoxSQL AI' }) => (
+                    // El cliente la guarda como propuesta pendiente: no se escribe nada.
+                    { success: true, content, description: desc, action: 'edit_file' }
+                ),
+            });
+        }
+
+        // propose_file: un archivo NUEVO. El usuario lo ve y decide si se crea;
+        // si ya existe, se dice y no se ofrece crear (nunca se pisa).
+        allTools.propose_file = tool({
+            description: "Propose creating a NEW file in the project (for example a .sql with a query the user asked for). Nothing is written: the user sees the path and content and decides whether to create it. It never overwrites an existing file — pick a new name if the path exists.",
             inputSchema: z.object({
-                content: z.string().describe('Complete new content (overwrite/create) or text to append.'),
-                description: z.string().optional().default('Updated by AmoxSQL AI').describe('Optional short description of the change.'),
-                mode: z.enum(['overwrite', 'create', 'append']).optional().default('overwrite'),
-                file_path: z.string().optional().describe("For create/append: relative path within the project. Not needed for 'overwrite'."),
+                file_path: z.string().describe("Relative path inside the project, with its extension, e.g. 'queries/ventas_por_region.sql'."),
+                content: z.string().describe('The complete content of the new file.'),
+                description: z.string().optional().default('').describe('One short line saying what the file is for.'),
             }),
-            execute: async ({ content, description: desc = 'Updated by AmoxSQL AI', mode: writeMode = 'overwrite', file_path: filePath }) => {
-                if (writeMode === 'overwrite') {
-                    // Frontend handles this via action field (no disk write)
-                    return { success: true, content, description: desc, action: 'edit_file' };
-                }
+            execute: async ({ file_path: filePath, content, description: desc = '' }) => {
                 if (!projectPath) return { error: 'No project directory.' };
-                if (!filePath) return { error: 'file_path is required for create/append.' };
-                const normalized = path.normalize(filePath);
-                if (normalized.startsWith('..') || path.isAbsolute(normalized)) {
-                    return { error: 'Invalid path. Use relative paths within the project directory.' };
+                const normalized = path.normalize(String(filePath || '').trim());
+                if (!normalized || normalized === '.' || normalized.startsWith('..') || path.isAbsolute(normalized)) {
+                    return { error: 'Invalid path. Use a relative path inside the project, with the file name and extension.' };
                 }
                 const fullPath = path.join(projectPath, normalized);
-                if (!path.resolve(fullPath).startsWith(path.resolve(projectPath))) {
+                if (!path.resolve(fullPath).startsWith(path.resolve(projectPath) + path.sep)) {
                     return { error: 'Path is outside the project directory.' };
                 }
-                try {
-                    if (writeMode === 'append') {
-                        await fs.promises.appendFile(fullPath, content, 'utf8');
-                    } else {
-                        await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });
-                        await fs.promises.writeFile(fullPath, content, 'utf8');
-                    }
-                    return { success: true, path: filePath, description: desc };
-                } catch (err) {
-                    return { error: err?.message || String(err) };
+                const ruta = normalized.split(path.sep).join('/');
+                if (fs.existsSync(fullPath)) {
+                    return { error: `${ruta} already exists. Propose a different file name; an existing file is never overwritten.` };
                 }
+                return { success: true, action: 'propose_file', path: ruta, content, description: desc };
             },
         });
 

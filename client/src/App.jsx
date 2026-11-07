@@ -1873,7 +1873,8 @@ function App() {
                   getActiveTabInfo={getActiveEditorInfo}
                   onEditFile={(result) => layoutRef.current?.updateActiveContent(result.content || result)}
                     onUpdateChartConfig={(result) => layoutRef.current?.updateActiveChartConfig(result.changes || result)}
-                    onAppendToFile={(sql) => layoutRef.current?.appendToActiveContent(sql)}
+                    onInsertarEnEditor={(sql) => layoutRef.current?.insertarEnEditor(sql)}
+                    onOpenFile={handleFileOpen}
                     onRunSql={(sql) => layoutRef.current?.createNew('sql', sql)}
                     onClose={() => setShowAiSidebar(false)}
                     availableTables={availableTables}

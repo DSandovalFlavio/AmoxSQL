@@ -20,7 +20,22 @@ export function tieneModelo(tabId) {
     return !!m && !m.isDisposed();
 }
 
+// El monaco con el que se crearon los modelos: hace falta para encontrar el
+// editor que muestra uno (el Assistant inserta donde está el cursor).
+let monacoDeLosModelos = null;
+
+/**
+ * El editor que muestra ahora el modelo de esta pestaña, o null si no se ve
+ * (otra pestaña al frente, resultados a pantalla completa…).
+ */
+export function editorDe(tabId) {
+    if (!monacoDeLosModelos || !tieneModelo(tabId)) return null;
+    const modelo = modelos.get(tabId);
+    return monacoDeLosModelos.editor.getEditors().find(e => e.getModel() === modelo) || null;
+}
+
 export function modeloDe(monaco, tabId, texto, idioma) {
+    monacoDeLosModelos = monaco;
     if (tieneModelo(tabId)) return modelos.get(tabId);
     const uri = monaco.Uri.parse(`inmemory://amoxsql/pestana/${encodeURIComponent(tabId)}`);
     const modelo = monaco.editor.getModel(uri) || monaco.editor.createModel(texto ?? '', idioma || 'sql', uri);

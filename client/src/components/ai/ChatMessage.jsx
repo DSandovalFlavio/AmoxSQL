@@ -11,17 +11,34 @@ import remarkGfm from 'remark-gfm';
 export const citeUrlTransform = (url) =>
     (typeof url === 'string' && url.startsWith('cite:')) ? url : defaultUrlTransform(url);
 import { API_BASE } from '../../api.js';
-import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen, LuMessageSquareQuote, LuPlay, LuFileInput } from 'react-icons/lu';
+import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen, LuMessageSquareQuote, LuPlay, LuFileInput, LuCopy, LuCheck } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
-import EditProposalBlock from './EditProposalBlock';
+import PropuestaBlock from './PropuestaBlock';
+import { esPropuesta } from './propuestas';
 import StreamingMarkdown, { MarkdownChunk } from './StreamingMarkdown';
 
 /**
  * Markdown renderers for chat prose. Module-level factory so the object can be
  * memoized per message (stable identity keeps memoized markdown chunks alive).
  */
+/** Copy, for SQL in the prose: with Insert at cursor it replaces «Apply to editor», which overwrote the file. */
+function BotonCopiar({ texto }) {
+    const [copiado, setCopiado] = useState(false);
+    const copiar = () => {
+        navigator.clipboard?.writeText(texto).then(() => {
+            setCopiado(true);
+            setTimeout(() => setCopiado(false), 1500);
+        }).catch(() => {});
+    };
+    return (
+        <button className="ai-code-action-btn" onClick={copiar} title="Copy the query">
+            {copiado ? <LuCheck size={12} /> : <LuCopy size={12} />} {copiado ? 'Copied' : 'Copy'}
+        </button>
+    );
+}
+
 // Pull the raw text out of a <code> element's children (string or nested nodes).
 function codeText(node) {
     if (typeof node === 'string') return node;
@@ -60,17 +77,19 @@ export function makeMdComponents(setCiteQueryId, sqlActionsRef) {
             const actions = sqlActionsRef?.current || {};
             const isSql = lang === 'sql';
             const sql = isSql ? codeText(codeEl?.props?.children).trim() : '';
-            const showBar = isSql && sql && (actions.onApplyToFile || actions.onRunSql);
+            const showBar = isSql && sql && (actions.onInsertar || actions.onRunSql);
             return (
                 <div className={showBar ? 'ai-msg-code-wrap' : undefined}>
                     <pre className="ai-msg-code-block" {...props}>{children}</pre>
                     {showBar && (
                         <div className="ai-msg-code-actions">
-                            {actions.onApplyToFile && (
-                                <button className="ai-code-action-btn" onClick={() => actions.onApplyToFile(sql)} title="Replace the editor's content with this query">
-                                    <LuFileInput size={12} /> Apply to editor
+                            {/* Insert, never replace the whole file (A2): at the cursor, or over the selection. */}
+                            {actions.onInsertar && (
+                                <button className="ai-code-action-btn" onClick={() => actions.onInsertar(sql)} title="Insert at the cursor, or replace the selected text (Ctrl+Z undoes it)">
+                                    <LuFileInput size={12} /> Insert at cursor
                                 </button>
                             )}
+                            <BotonCopiar texto={sql} />
                             {actions.onRunSql && (
                                 <button className="ai-code-action-btn" onClick={() => actions.onRunSql(sql)} title="Run this query">
                                     <LuPlay size={12} /> Run
@@ -493,7 +512,7 @@ function extractCitations(toolCalls) {
  * User messages render as right-aligned bubbles, assistant messages as
  * left-aligned cards with avatar and grouped content sections.
  */
-const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, thinkingMs, onRunSql, onApplyToFile, onAppendToFile, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, pendingEdits, acceptEdit, rejectEdit, currentFileContent, activityOnly = false }) => {
+const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, thinkingMs, onRunSql, onInsertar, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, acceptEdit, rejectEdit, onProponerDeNuevo, currentFileContent, activityOnly = false }) => {
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
@@ -515,7 +534,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     // Kept in a ref so mdComponents stays memo-stable while always current.
     const sqlActionsRef = useRef({});
     sqlActionsRef.current = {
-        onApplyToFile: !isDiving ? onApplyToFile : undefined,
+        onInsertar: !isDiving ? onInsertar : undefined,
         onRunSql: onRunSql,
     };
 
@@ -533,17 +552,21 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     // Chart visualizations from display_chart tool calls
     const chartCalls = toolCalls?.filter(tc => tc.toolName === 'display_chart') || [];
 
-    // edit_file tool calls — shown as accept/reject proposals (assistant mode only)
-    const editFileCalls = !isDiving ? (toolCalls?.filter(tc => tc.toolName === 'edit_file') || []) : [];
+    // Proposals of the Assistant (write_file, propose_file), shown with their
+    // state: pending, applied, rejected, outdated (plan del Assistant, E1/A1).
+    const propuestas = !isDiving ? (toolCalls?.filter(esPropuesta) || []) : [];
 
     // final_answer structured results — rendered as NarrativeCard when structured fields are present
     const narrativeCalls = toolCalls?.filter(tc =>
         tc.toolName === 'final_answer' && tc.result && (tc.result.tldr || tc.result.findings?.length)
     ) || [];
 
-    // Other tool calls (list_tables, describe_table, read_file) — exclude edit_file and final_answer (handled separately)
+    // Other tool calls (list_tables, describe_table, read_file) — proposals and
+    // final_answer are drawn separately. A proposal that failed (a file that
+    // already exists) stays here, as the error it is.
     const otherCalls = toolCalls?.filter(tc =>
-        tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart' && tc.toolName !== 'build_notebook' && tc.toolName !== 'edit_file' && tc.toolName !== 'final_answer'
+        tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart' && tc.toolName !== 'build_notebook' && tc.toolName !== 'final_answer'
+        && !(!isDiving && esPropuesta(tc))
     ) || [];
 
     // Notebook creation results
@@ -591,33 +614,18 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                     </div>
                 )}
 
-                {/* edit_file proposals: Accept/Reject diff view */}
-                {editFileCalls.length > 0 && editFileCalls.map((tc, i) => {
-                    const isPending = pendingEdits && tc.result?.action === 'edit_file' && pendingEdits[tc.toolCallId || `edit_${i}`];
-                    if (isPending) {
-                        return (
-                            <EditProposalBlock
-                                key={i}
-                                currentContent={currentFileContent || ''}
-                                proposedContent={tc.result?.content || ''}
-                                description={tc.result?.description}
-                                onAccept={() => acceptEdit(tc.toolCallId || `edit_${i}`)}
-                                onReject={() => rejectEdit(tc.toolCallId || `edit_${i}`)}
-                            />
-                        );
-                    }
-                    // Already accepted or rejected — show compact status
-                    return (
-                        <div key={i} className="ai-msg-tools">
-                            <ToolCallBlock
-                                toolName="edit_file"
-                                args={tc.args}
-                                result={tc.result}
-                                isLoading={false}
-                            />
-                        </div>
-                    );
-                })}
+                {/* Proposals: a change to this file or a new file, each with its state */}
+                {propuestas.map((tc, i) => (
+                    <PropuestaBlock
+                        key={tc.toolCallId || `propuesta_${i}`}
+                        tc={tc}
+                        contenidoActual={currentFileContent}
+                        enCurso={isStreaming}
+                        onAccept={acceptEdit}
+                        onReject={rejectEdit}
+                        onProponerDeNuevo={onProponerDeNuevo}
+                    />
+                ))}
 
                 {/* SQL blocks */}
                 {sqlCalls.length > 0 && (
@@ -627,8 +635,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 <SqlBlock
                                     sql={tc.args?.query || ''}
                                     onRun={onRunSql}
-                                    onApplyToFile={!isDiving ? onApplyToFile : undefined}
-                                    onAppendToFile={!isDiving ? onAppendToFile : undefined}
+                                    onInsert={!isDiving ? onInsertar : undefined}
                                     defaultExpanded={sqlCalls.length <= 2}
                                 />
                                 {tc.result && !tc.result.error && tc.result.rowCount !== undefined && (
@@ -834,7 +841,8 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     );
 };
 
-// Memoize: re-render only when actual message content or pendingEdits change.
+// Memoize: re-render only when the message, its tool calls (a proposal's state
+// lives there) or the file it compares against change.
 // Callbacks from parent may be recreated on every render (input keystrokes etc),
 // but they are functionally identical so we intentionally ignore them in the compare.
 export default memo(ChatMessage, (prev, next) => (
@@ -845,6 +853,6 @@ export default memo(ChatMessage, (prev, next) => (
     prev.thinkingMs === next.thinkingMs &&
     prev.isDiving === next.isDiving &&
     prev.allMessages === next.allMessages &&
-    prev.pendingEdits === next.pendingEdits &&
+    prev.onInsertar === next.onInsertar &&
     prev.currentFileContent === next.currentFileContent
 ));

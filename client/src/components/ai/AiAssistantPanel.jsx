@@ -25,8 +25,11 @@ const AiAssistantPanel = ({
     // props, so typing in the editor never re-renders this panel (G8).
     getActiveTabInfo,
     onEditFile,
+    // «Apply to chart» and «Insert at cursor» only make sense in a .sql: a
+    // notebook or a deck has no one chart, and its editor is not Monaco's.
     onUpdateChartConfig,
-    onAppendToFile,
+    onInsertarEnEditor,
+    onOpenFile,
     onRunSql,
     onClose,
     availableTables,
@@ -79,8 +82,7 @@ const AiAssistantPanel = ({
         handleSelectConversation,
         handleCancel,
 
-        // Pending edits
-        pendingEdits,
+        // Proposals
         acceptEdit,
         rejectEdit,
     } = useAiChat({
@@ -89,8 +91,21 @@ const AiAssistantPanel = ({
         fileType: activeFileType,
         getFileContext: getActiveTabInfo,
         onEditFile,
-        onUpdateChartConfig,
+        onOpenFile,
     });
+
+    const esSql = activeFileType === 'sql';
+
+    // «Propose again»: a proposal made on an older version of the file, or in a
+    // session before proposals kept their state, is asked for again instead of
+    // being applied over what changed since (A1).
+    const proponerDeNuevo = useCallback((tc) => {
+        const r = tc?.result || {};
+        rejectEdit(tc);
+        handleSend(r.action === 'propose_file'
+            ? `Propose the file ${r.path} again.`
+            : 'The file changed after your last proposal. Propose that change again on the current version of the file.');
+    }, [rejectEdit, handleSend]);
 
     // ─── View Mode: 'chat' or 'history' ───
     const [viewMode, setViewMode] = useState('chat');
@@ -108,7 +123,8 @@ const AiAssistantPanel = ({
         let lastQ = null;
         let timer = null;
         const check = () => {
-            const q = getActiveTabInfo()?.content || '';
+            const info = getActiveTabInfo();
+            const q = info?.type === 'sql' ? (info.content || '') : '';
             if (q === lastQ) return;
             lastQ = q;
             if (timer) clearTimeout(timer);
@@ -352,7 +368,7 @@ const AiAssistantPanel = ({
     // ═══════════════════════════════════════
     // Sampled once per panel render (used for edit-proposal diffs). Fresh enough:
     // any pending edit arriving re-renders the panel and re-reads it.
-    const currentFileContent = getActiveTabInfo ? (getActiveTabInfo()?.content || null) : null;
+    const currentFileContent = getActiveTabInfo ? (getActiveTabInfo()?.content ?? null) : null;
     return (
         <div className="ai-panel">
             {/* ─── Resize Handle (left edge) ─── */}
@@ -365,8 +381,9 @@ const AiAssistantPanel = ({
                 <div className="ai-header-left">
                     <LuBot size={16} style={{ color: 'var(--accent-primary)' }} />
                     <span className="ai-title">AmoxSQL AI</span>
-                    {provider === 'gemini' && (
-                        <span className="ai-badge-cloud">CLOUD</span>
+                    {/* Any provider but the local one sends data out: say so for all of them. */}
+                    {provider && provider !== 'ollama' && (
+                        <span className="ai-badge-cloud" title="This model runs in the cloud">CLOUD</span>
                     )}
                     <PoliticaIAChip />
                 </div>
@@ -471,13 +488,12 @@ const AiAssistantPanel = ({
                                 isStreaming={false}
                                 thinkingMs={msg.thinkingMs}
                                 onRunSql={onRunSql}
-                                onApplyToFile={onEditFile}
-                                onAppendToFile={onAppendToFile}
-                                onApplyChart={onUpdateChartConfig}
+                                onInsertar={esSql ? onInsertarEnEditor : undefined}
+                                onApplyChart={esSql ? onUpdateChartConfig : undefined}
                                 onFollowUp={(text) => handleSend(text)}
-                                pendingEdits={pendingEdits}
                                 acceptEdit={acceptEdit}
                                 rejectEdit={rejectEdit}
+                                onProponerDeNuevo={proponerDeNuevo}
                                 currentFileContent={currentFileContent}
                             />
                         ))}
@@ -490,8 +506,6 @@ const AiAssistantPanel = ({
                                 toolCalls={activeToolCalls}
                                 isStreaming={true}
                                 onRunSql={onRunSql}
-                                onApplyToFile={onEditFile}
-                                onAppendToFile={onAppendToFile}
                             />
                         )}
 
@@ -504,7 +518,7 @@ const AiAssistantPanel = ({
                             return (
                                 <div className="ai-thinking">
                                     <LuLoader size={14} style={{ animation: 'spin 2s linear infinite' }} />
-                                    {modelWarming ? 'Encendiendo modelo…' : 'Pensando…'}
+                                    {modelWarming ? 'Loading the model…' : 'Thinking…'}
                                 </div>
                             );
                         })()}
@@ -532,7 +546,7 @@ const AiAssistantPanel = ({
                         {/* Auto-detected objects the active query references — the
                             model sees their columns+types; click to inspect. */}
                         {queryObjects.length > 0 && (
-                            <div className="ai-composer-ctx ai-qobjects" title="El asistente conoce las columnas de estos objetos de tu query">
+                            <div className="ai-composer-ctx ai-qobjects" title="Assist knows the columns of these objects your query reads">
                                 {queryObjects.map((o, i) => (
                                     <div key={i} className="ai-composer-chip ai-qobject-chip" style={{ position: 'relative' }}>
                                         {o.kind === 'file' ? <LuFile size={10} /> : <LuTable size={10} />}

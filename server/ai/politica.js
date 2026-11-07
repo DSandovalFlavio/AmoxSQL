@@ -171,8 +171,21 @@ function envolver(modelo, proveedor) {
  */
 function sanearOpciones(opciones, proveedor) {
     const datos = datosPara(proveedor);
-    if (datos === 'filas') return opciones;
     const o = { ...opciones };
+    // El archivo activo del Assistant: qué es, qué parte puede salir y si se le
+    // pueden proponer cambios. Corre con cualquier política —el tope, las fotos del
+    // Canvas y las credenciales valen también con «filas»—. `currentQuery` queda
+    // solo con SQL: es lo que el resto del prompt y la resolución de tablas leen
+    // como una consulta; cualquier otro archivo va en `archivo`.
+    if (o.mode === 'assistant' && (o.currentQuery || o.filePath)) {
+        const { prepararArchivo } = require('./archivoActivo');
+        o.archivo = prepararArchivo({
+            filePath: o.filePath, fileType: o.fileType, contenido: o.currentQuery || '',
+            datos, local: esLocal(proveedor),
+        });
+        o.currentQuery = o.archivo.tipo === 'sql' ? o.archivo.contenido : '';
+    }
+    if (datos === 'filas') return o;
     if (o.currentResult) o.currentResult = filtrarValor(o.currentResult, datos);
     if (Array.isArray(o.referencedArtifacts)) o.referencedArtifacts = o.referencedArtifacts.map(r => filtrarValor(r, datos));
     if (Array.isArray(o.files)) o.files = o.files.map(f => filtrarValor(f, datos));

@@ -488,6 +488,39 @@ class AiPersistence {
         return { id, conversationId, role, content, toolCalls, tokenCount, created_at: new Date().toISOString() };
     }
 
+    /**
+     * **Lo que el usuario decidió sobre una propuesta** (plan del Assistant, A1).
+     *
+     * Una propuesta de cambio del Assistant (`write_file`, `propose_file`) se
+     * guarda dentro de las llamadas a herramientas de su mensaje. Su estado
+     * —`propuesta | aplicada | rechazada`— va en esa misma llamada, para que al
+     * reabrir la conversación se vea lo que de verdad pasó: antes se pintaba
+     * igual una propuesta aplicada que una que nadie aceptó.
+     *
+     * Devuelve false si el mensaje aún no está guardado (se decidió mientras el
+     * modelo seguía escribiendo); en ese caso el cliente guarda el estado con el
+     * propio mensaje.
+     */
+    async setEstadoPropuesta(dbManager, conversationId, toolCallId, estado) {
+        const filas = await aiLane(dbManager).systemQuery(
+            `SELECT id, tool_calls FROM amoxsql_ai.messages
+             WHERE conversation_id = ${s(conversationId)} AND tool_calls LIKE ${s(`%${toolCallId}%`)}`
+        );
+        for (const fila of filas) {
+            let llamadas;
+            try { llamadas = JSON.parse(fila.tool_calls); } catch { continue; }
+            if (!Array.isArray(llamadas)) continue;
+            const i = llamadas.findIndex(tc => tc && tc.toolCallId === toolCallId);
+            if (i < 0) continue;
+            llamadas[i] = { ...llamadas[i], estado, decidida: new Date().toISOString() };
+            await aiLane(dbManager).systemQuery(
+                `UPDATE amoxsql_ai.messages SET tool_calls = ${j(llamadas)} WHERE id = ${s(fila.id)}`
+            );
+            return true;
+        }
+        return false;
+    }
+
     // ─── Query Results ────────────────────────────────────────────────────────
 
     /**

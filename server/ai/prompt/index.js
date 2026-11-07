@@ -81,6 +81,7 @@ function buildDynamicSection(options) {
         projectCtx = null,
         filePath = null,
         fileType = null,
+        archivo = null,
         modelProfile = null,
         uiTheme = null,
         tableRoster = null,
@@ -106,7 +107,7 @@ function buildDynamicSection(options) {
 
     // Mode section (instructions — stable per mode)
     if (mode === 'assistant') {
-        d += buildAssistantModeSection({ filePath, fileType });
+        d += buildAssistantModeSection({ filePath, fileType, archivo });
     } else {
         d += buildDivingModeSection(enablePlanner, tier);
     }
@@ -144,7 +145,7 @@ When you design a chart's palette, make it read on a ${mode_.toLowerCase()} back
     // tail. Assistant always; diving too when any of it is present (so a Deep
     // Dive linked to an open file can see what the user is looking at).
     if (mode === 'assistant' || currentResult || currentChartConfig || currentView) {
-        d += buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView });
+        d += buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView, archivo });
     }
     const today = new Date().toLocaleDateString('en-US', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',

@@ -164,7 +164,7 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null, recordadoCon = null, onAbrirArchivo = null }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null, recordadoCon = null, onAbrirArchivo = null, destinoIa = null }) => {
     /**
      * Sin mandos, pero NO empotrada.
      *
@@ -439,16 +439,20 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
         : null), [onConfigChange, incluirSpec]);
     useConfigChangeNotifier(alCambiarConfig);
 
-    // ── External chart config updates from AI (update_chart_config tool) ──
+    // ── «Apply to chart» from a chart in the Assistant ──
     // Merges AI changes into the current state via setFields, preserving
     // user-selected axes and other fields not included in the AI's partial update.
+    // Only the chart named as the destination takes it (`destinoIa`, the tab id
+    // of a .sql's results): before, every chart on screen changed at once.
     useEffect(() => {
+        if (!destinoIa) return undefined;
         const handler = (event) => {
+            if (event.detail?.tabId !== destinoIa) return;
             setFields(event.detail.changes);
         };
         window.addEventListener('amox_update_chart_config', handler);
         return () => window.removeEventListener('amox_update_chart_config', handler);
-    }, [setFields]);
+    }, [setFields, destinoIa]);
 
     // First-run Story Flow tour (editor only, not report mode). Rendering +
     // replay are owned by the global OnboardingHost via the tour registry.

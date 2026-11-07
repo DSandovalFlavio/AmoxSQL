@@ -39,6 +39,15 @@ cajón de "lo dejamos para después" para no perderlo.
 - **Arreglo:** leer y escribir con el mismo formato que `client/src/utils/cuadernoFile.js`
   (`leerCuaderno` / `escribirCuaderno`), o mover esa mitad a un módulo que puedan usar los dos lados.
 
+### [PEND-003] Dos cambios del editor en el mismo instante: el segundo se pierde
+- **Visto:** 2026-11-07, probando E1 del Assistant (deshacer y rehacer por código, seguidos, sin render en medio).
+- **Qué pasa:** `LayoutManager.handleContentChange` descarta el cambio si `tab.content === newContent`, leyendo
+  `stateRef.current`, que se pone al día al renderizar. Si llegan dos cambios antes de un render, el segundo se
+  compara con el contenido viejo, coincide y se descarta. La pestaña queda con el primero; al volver a ella, el
+  editor se reescribe con ese. Con el teclado no pasa (entre tecla y tecla hay render); con dos ediciones por
+  código seguidas, sí.
+- **Arreglo:** hacer la comparación dentro del `setState` funcional de `updateTab`, con el estado de ese momento.
+
 ---
 
 ## Cerrados

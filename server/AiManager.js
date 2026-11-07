@@ -411,6 +411,7 @@ class AiManager {
             tableRoster = null,
             conversationId = null,
             memoriasRetenidas = false,
+            archivo = null,
         } = politica.sanearOpciones(options, options.providerOverride || this.provider);
 
         const provider = providerOverride || this.provider;
@@ -436,13 +437,13 @@ class AiManager {
             currentQuery, currentResult, currentChartConfig, currentView,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
-            filePath, fileType, tableRoster, thinkTokenPrefix,
+            filePath, fileType, archivo, tableRoster, thinkTokenPrefix,
         });
 
         // Create tool context (mode-aware for tool filtering)
         const queryResults = new Map();
         const aiPersistenceMod = require('./ai/persistence');
-        const tools = createTools({ dbManager, queryResults, projectPath, mode, conversationId, aiPersistence: aiPersistenceMod });
+        const tools = createTools({ dbManager, queryResults, projectPath, mode, conversationId, aiPersistence: aiPersistenceMod, archivo });
 
         console.log(`[AI Chat] Starting tool loop | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
 
@@ -545,6 +546,7 @@ class AiManager {
             tableRoster = null,
             conversationId = null,
             memoriasRetenidas = false,
+            archivo = null,
         } = politica.sanearOpciones(options, options.providerOverride || this.provider);
 
         const provider = providerOverride || this.provider;
@@ -569,12 +571,12 @@ class AiManager {
             currentQuery, currentResult, currentChartConfig, currentView,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
-            filePath, fileType, tableRoster, thinkTokenPrefix,
+            filePath, fileType, archivo, tableRoster, thinkTokenPrefix,
         });
 
         const queryResults = new Map();
         const aiPersistence = require('./ai/persistence');
-        const tools = createTools({ dbManager, queryResults, projectPath, mode, conversationId, aiPersistence });
+        const tools = createTools({ dbManager, queryResults, projectPath, mode, conversationId, aiPersistence, archivo });
 
         console.log(`[AI Stream] Starting | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
 
@@ -649,7 +651,7 @@ class AiManager {
             tables = [],
             files = [],
             currentQuery = '',
-        } = options;
+        } = politica.sanearOpciones(options, options.providerOverride || this.provider);
 
         const provider = providerOverride || this.provider;
         const model = modelOverride || this.modelName;

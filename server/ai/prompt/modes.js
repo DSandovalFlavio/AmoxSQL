@@ -5,10 +5,12 @@
  */
 
 function buildAssistantModeSection(options) {
-    const { filePath, fileType } = options;
+    const { filePath, fileType, archivo = null } = options;
+    const tipo = archivo?.tipo || 'sql';
+    const esSql = tipo === 'sql';
 
     let section = `\n\n## Mode: Editor Assistant
-You are the user's analysis companion while they work in the SQL editor or notebook. This conversation is linked to the active file.
+You are the user's companion while they work on the file open in AmoxSQL. This conversation is linked to that file.
 
 ### Voice — conversational, not a summary
 Talk like an analyst thinking out loud with a colleague, NOT a report generator. The sidebar is small, so be COMPACT (2–4 sentences) but never telegraphic and never a wall of bullets:
@@ -19,17 +21,44 @@ Talk like an analyst thinking out loud with a colleague, NOT a report generator.
 - You have a local, instant database: when a number would sharpen the point, run a quick query and fold it into your reply instead of hand-waving.
 - **Cite your numbers**: when a figure comes from a query result, write it as a markdown link \`[value](cite:<queryId>#<column>)\` using the queryId from execute_sql, so the user can click to inspect the source. Cite in prose only — never inside tables.`;
 
-    if (filePath) {
-        section += `\n\n### Active File: \`${filePath}\` (${fileType || 'sql'})`;
+    // Qué archivo es, con su nombre real (plan del Assistant, X5). El contenido
+    // va al final, en «Current editor state», porque cambia a cada tecla.
+    const ruta = archivo?.ruta || filePath;
+    if (ruta || archivo) {
+        section += `\n\n### Active file: \`${ruta || 'untitled'}\`
+This is a **${archivo?.nombre || fileType || 'SQL file'}**. Its current content, with unsaved changes, is in "Current editor state" at the end.`;
     }
 
-    section += `\n\n### Capabilities
-- **write_file** (mode='overwrite'): Replace the active file content in the editor for the user to accept/reject.
-- **display_chart**: renders a fully-configured chart as a PREVIEW in the chat. The user can click "Apply to chart" to set it as the visualization of their active file (or just keep it in the conversation). To propose a chart for the current data, build a complete display_chart and briefly explain what it shows; the user decides whether to apply it.
-- Generate, explain, or optimize the current query; suggest better visualizations and storytelling (title, subtitle, takeaway, highlights).
+    // Qué puede cambiar. En los archivos estructurados, o cuando no ve el archivo
+    // entero, no propone: una reescritura perdería lo que no ve o no se vería.
+    const propone = archivo ? archivo.puedeProponer : true;
+    const estructurado = ['grafico', 'flujo', 'lienzo', 'diagrama'].includes(tipo);
+    const preserva = tipo === 'cuaderno' ? ' (cell markers, cell names, the parameters in the front matter)'
+        : tipo === 'deck' ? ' (the front matter, layout directives and chart paths)' : '';
+    section += `\n\n### Capabilities`;
+    if (propone) {
+        section += `\n- **write_file**: proposes a new version of the WHOLE active file. Nothing changes until the user reviews it and clicks Accept; accepting puts it in the editor without saving to disk. Always send the complete file: every part you were not asked to change must stay exactly as it is${preserva}.`;
+    } else {
+        const porque = estructurado
+            ? 'This kind of file is edited in its own visual editor; rewriting its source by hand breaks it or does not show up.'
+            : 'Part of it is not shown to you (see the notes in "Current editor state"), so a rewrite would lose what you cannot see.';
+        section += `\n- **You cannot propose changes to this file.** ${porque} Explain what to change and where, step by step, so the user can do it in the editor.`;
+    }
+    section += `\n- **propose_file**: proposes a NEW file in the project (path + content). The user sees it and decides whether to create it; it never overwrites an existing file.`;
+    if (esSql) {
+        section += `\n- **display_chart**: renders a fully-configured chart as a PREVIEW in the chat. The user can click "Apply to chart" to set it as the visualization of this file's result (or just keep it in the conversation). To propose a chart for the current data, build a complete display_chart and briefly explain what it shows; the user decides whether to apply it.
+- Generate, explain, or optimize the current query; suggest better visualizations and storytelling (title, subtitle, takeaway, highlights).`;
+    } else {
+        section += `\n- **display_chart** renders a chart in the chat only; it cannot be applied to this file.`;
+    }
 
-### Workflow & honesty rules
-- **When you propose SQL the user should put in their editor, DELIVER IT with \`write_file\` (mode='overwrite'), not just as a code block in prose.** \`write_file\` gives the user Apply/Reject buttons to put it straight into their active file; a plain \`\`\`sql block has no such buttons. Briefly explain the change in chat, then call \`write_file\` with the full new query. (Exception: tiny inline snippets purely for illustration can stay in prose.)
+    section += `\n\n### Workflow & honesty rules`;
+    if (propone && esSql) {
+        section += `\n- **When you propose SQL the user should put in their file, DELIVER IT with \`write_file\`, not just as a code block in prose.** \`write_file\` gives the user Accept/Reject; a plain \`\`\`sql block can only be inserted at their cursor by hand. Briefly explain the change in chat, then call \`write_file\` with the full new file. (Exception: tiny inline snippets purely for illustration can stay in prose.)`;
+    } else if (propone) {
+        section += `\n- When you change this file, deliver the change with \`write_file\` (the whole file) and say in one or two sentences what changed.`;
+    }
+    section += `
 - **To chart:** if the "Current editor state" section shows an on-screen result with a \`queryId\`, pass THAT id straight to \`display_chart\` — it's the exact result the user is looking at, no re-run needed. Otherwise call \`execute_sql\` first and use the \`queryId\` it returns. Never invent or guess an id (e.g. "current", "latest"). Also: NEVER ask the user for a \`query_id\` — they can't see it; either use the on-screen result's id or run \`execute_sql\` yourself.
 - **When the request is ambiguous, ASK before acting.** If you're unsure which column, metric, period, or comparison the user means, ask one short clarifying question in your reply instead of guessing or fabricating values. A good question beats a wrong chart — do not invent data, columns, or ids to force a result.
 - **Choose the chart with the "Chart Selection" framework above** and let the data shape decide (2–3 time periods = a comparison → grouped bars, not a line). If \`display_chart\` returns a warning or error, follow its guidance and re-call with the corrected choice — do not repeat the same chart.`;
@@ -142,7 +171,7 @@ Every finding you report MUST end with "— this matters because ___". A number 
  * doesn't bust the KV/prefix cache for the stable schema + instructions above:
  * when the user edits their query, only these trailing tokens change.
  */
-function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView } = {}) {
+function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView, archivo = null } = {}) {
     let s = '';
     let opened = false;
     const open = () => {
@@ -156,9 +185,20 @@ function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig,
             : 'the TABLE (results grid) view';
         s += `\n**Active view:** the user is currently looking at ${v}.`;
     }
-    if (currentQuery) {
+    if (archivo && archivo.tipo !== 'sql') {
+        // Cualquier otro archivo va con su nombre y en su idioma: llamarle
+        // «query» a un deck o a un YAML hacía que el modelo lo tratara como SQL.
+        open();
+        s += archivo.contenido
+            ? `\n**Active file content (${archivo.ruta || 'untitled'}):**\n\`\`\`${archivo.idioma}\n${archivo.contenido}\n\`\`\``
+            : `\n**Active file content (${archivo.ruta || 'untitled'}):** not shown.`;
+    } else if (currentQuery) {
         open();
         s += `\n**Current query (editor):**\n\`\`\`sql\n${currentQuery}\n\`\`\``;
+    }
+    if (archivo?.notas?.length) {
+        open();
+        s += `\n${archivo.notas.map(n => `_Note: ${n}_`).join('\n')}`;
     }
     if (currentResult) {
         open();
