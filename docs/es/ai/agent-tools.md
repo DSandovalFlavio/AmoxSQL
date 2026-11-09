@@ -47,6 +47,7 @@ No invocas las herramientas directamente — el agente las elige. Pero puedes:
 | `display_chart` | Genera un gráfico totalmente configurado (overlays, storytelling, razonamiento de color); linters del servidor corrigen elecciones malas. Además de los tipos de Story Flow puede entregar un **Vega-Lite** completo (`vega_lite`), que el servidor compila antes de aceptarlo: si no compila o usa una columna que no existe, el error vuelve al modelo para que lo corrija |
 | `build_notebook` | Construye un notebook `.sqlnb` con celdas y gráficos (Deep Dive) |
 | `write_file` | Propone una versión nueva del archivo activo, que aceptas o rechazas; no escribe en disco. No se ofrece en gráficos, Data Flow, Canvas ni diagramas (Asistente) |
+| `propose_change` | Propone reemplazar unas líneas del archivo activo (`.sql` y texto); se revisa en el editor y no escribe en disco (Asistente) |
 | `propose_file` | Propone un archivo nuevo; se crea solo si pulsas **Create** y nunca sobrescribe uno (Asistente) |
 
 ### Herramientas de control

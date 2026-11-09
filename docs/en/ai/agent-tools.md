@@ -47,6 +47,7 @@ You don't invoke tools directly — the agent picks them. But you can:
 | `display_chart` | Renders a fully configured chart (overlays, storytelling, color reasoning); server-side linters correct bad choices. Besides Story Flow's types it can hand over a complete **Vega-Lite** spec (`vega_lite`), which the server compiles before accepting it: if it doesn't compile or uses a column that doesn't exist, the error goes back to the model to fix |
 | `build_notebook` | Builds a `.sqlnb` notebook with cells and charts (Deep Dive) |
 | `write_file` | Proposes a new version of the active file for you to accept or reject; never writes to disk. Not offered in charts, Data Flow, Canvas or diagrams (Assistant) |
+| `propose_change` | Proposes replacing some lines of the active file (`.sql` and text); reviewed in the editor, never writes to disk (Assistant) |
 | `propose_file` | Proposes a new file; it is created only when you click **Create**, and never overwrites one (Assistant) |
 
 ### Control tools

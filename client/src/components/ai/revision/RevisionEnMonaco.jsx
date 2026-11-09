@@ -126,14 +126,20 @@ export function crearRevision(editor, monaco) {
                             afterLineNumber: Math.min(n, donde.desde - 1 + b.hastaA),
                             heightInLines: b.entra.length,
                             domNode: dom,
+                            ordinal: 1000,   // tras el hueco de la barra, si van en la misma línea (inserción)
                         }));
                     }
                 }
 
                 // El sitio de la barra, encima de la propuesta.
                 const hueco = document.createElement('div');
-                zonas.push(acc.addZone({ afterLineNumber: Math.min(n, donde.desde - 1), heightInPx: 30, domNode: hueco }));
-                const lineaBarra = Math.min(Math.max(1, donde.desde), n);
+                zonas.push(acc.addZone({ afterLineNumber: Math.min(n, donde.desde - 1), heightInPx: 30, domNode: hueco, ordinal: 0 }));
+                // La barra se cuelga del final de la línea anterior (cae en su hueco, que va
+                // primero); en la primera línea, encima de ella.
+                const debajoDe = Math.min(donde.desde - 1, n);
+                const posicionBarra = debajoDe >= 1
+                    ? { position: { lineNumber: debajoDe, column: 1 }, preference: [monaco.editor.ContentWidgetPositionPreference.BELOW] }
+                    : { position: { lineNumber: 1, column: 1 }, preference: [monaco.editor.ContentWidgetPositionPreference.ABOVE] };
                 bloqueos.push(donde.hasta >= donde.desde
                     ? { desde: donde.desde, hasta: donde.hasta }
                     : { desde: Math.max(1, donde.desde - 1), hasta: Math.min(n, donde.desde) });
@@ -145,10 +151,7 @@ export function crearRevision(editor, monaco) {
                     raiz,
                     getId: () => `amx.rev.${tc.toolCallId || indice}`,
                     getDomNode: () => nodo,
-                    getPosition: () => ({
-                        position: { lineNumber: lineaBarra, column: 1 },
-                        preference: [monaco.editor.ContentWidgetPositionPreference.ABOVE],
-                    }),
+                    getPosition: () => posicionBarra,
                 };
                 // Pintada ya (flushSync): Monaco mide su alto al colocarla encima de
                 // la línea; vacía, medía 0 y la barra tapaba la propia propuesta.

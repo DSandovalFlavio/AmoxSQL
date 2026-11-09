@@ -32,11 +32,29 @@ See the table [What it can change in each file](#what-it-can-change-in-each-file
 1. With the query in the editor, ask *"explain this query"*, *"optimize it"*, or describe what you want to get.
 2. The Assistant answers in prose and, when it proposes changing the file, shows the proposal.
 
+"This" is what you have in front of you: the selected text if there is a selection; otherwise, the statement under the cursor. A file with several queries is no longer treated as one.
+
+### Ask about part of the file
+1. Select more than one word in the editor. A small bar appears below it: **Explain · Fix · Optimize · Ask…** in SQL, and **Explain · Improve · Ask…** in a text file.
+2. **Explain**, **Fix**, **Optimize** and **Improve** send the question about that selection. **Ask…** (or **Ctrl+L** with text selected) opens the box for you to type your question.
+3. While there is a selection, the chat box shows it: *Selection · lines 18–20*.
+4. **Escape** closes the bar until the selection changes.
+
+### Fix an error
+When a query fails, **Fix with Assist** appears next to the error message. The Assistant already knows the error and the query: no need to paste anything. When you start a conversation with the query in error, the first suggestion is **Fix the error**.
+
+### Ask about a result
+In the results bar of a `.sql`, **Explain** asks what stands out and **Chart it** asks for a chart of that result.
+
 ### Accept or reject an edit
-1. When the Assistant proposes changing your file, a change block appears with **Accept** / **Reject**.
+In a `.sql` or a text file, the Assistant proposes **only the lines that change**, and the change is shown **in the editor itself**: what goes out, in red on its line; what comes in, in green below it; above, a bar with **Accept** / **Reject**. While it is pending, those lines can't be edited. If you type elsewhere in the file, the proposal follows its lines. **Review**, in the chat, takes you to it.
+
+In the other files (notebook, Markdown, Report Flow) it still proposes the whole file, reviewed in the chat:
+
+1. When the Assistant proposes changing your file, a change block appears with **Accept** / **Reject**, with what goes out and what comes in.
 2. **Accept** drops the new content into the editor **without saving to disk** — you review and save (Ctrl+S). In the SQL editor, **Ctrl+Z** undoes it. **Reject** discards it.
 3. What you decided is remembered: when you reopen the conversation, the block says **Applied to the editor** or **Rejected**.
-4. If the file changed since the proposal was made, accepting it would erase what you wrote afterwards. So it isn't applied: the block says so and offers **Propose again**, which asks for it again on the current version.
+4. If the file changed since the proposal was made, accepting it would erase what you wrote afterwards. So it isn't applied: the block says so and offers **Propose again**, which asks for it again on the current version. A line proposal only goes stale if **those** lines changed.
 
 ### Create a new file
 If you ask for something that belongs in another file (*"save this query to a file"*), the Assistant proposes the path and the content. Nothing is written until you click **Create**, which creates the file and opens it. It never overwrites an existing file.
@@ -62,7 +80,8 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 |---|---|
 | Answer questions | About your query, your data, or DuckDB SQL in general |
 | Generate / explain / optimize SQL | Writes or rewrites the active file's query |
-| Propose edits | Change block with **Accept** / **Reject**; accepting loads it in the editor unsaved |
+| Propose edits | Change block with **Accept** / **Reject**; accepting loads it in the editor unsaved. In `.sql` and text, only the lines that change, reviewed in the editor |
+| Ask from the editor | The bar over a selection, **Fix with Assist** on an error, **Explain** / **Chart it** on results |
 | Propose new files | Path and content with **Create**; never overwrites |
 | Propose charts | Configured chart with **Apply to chart** into Story Flow |
 | Cite numbers | Values link back to their source query ("Source Query") |
@@ -72,7 +91,10 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 
 | Item | Where from |
 |---|---|
-| Current query | The active editor buffer |
+| Current query | The active editor buffer, with numbered lines |
+| Where you are | The selected text, or the statement under the cursor |
+| The last error | The message of the last run that failed |
+| A dbt model | Its YAML columns and descriptions, and the SQL dbt compiled (without running dbt); changes are proposed in Jinja |
 | Last result | The results table on screen |
 | Chart config | The active Story Flow chart |
 | Schema | All tables in the local database |

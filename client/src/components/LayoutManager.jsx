@@ -1765,7 +1765,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 ed.executeEdits('assist', [{ range, text, forceMoveMarkers: true }]);
                 ed.pushUndoStop();
             }
-            toast.info(`Applied to ${describirRango(resultado, r.donde)}. Ctrl+Z undoes it.`);
+            toast.info(`${r.donde.hasta < r.donde.desde ? 'Inserted' : 'Applied to'} ${describirRango(resultado, r.donde)}. Ctrl+Z undoes it.`);
             return { ok: true };
         },
 

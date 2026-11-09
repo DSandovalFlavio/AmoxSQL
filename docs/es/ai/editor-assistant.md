@@ -32,11 +32,29 @@ Mira la tabla [Qué puede cambiar en cada archivo](#qué-puede-cambiar-en-cada-a
 1. Con la query en el editor, pídele *"explica esta query"*, *"optimízala"* o describe lo que quieres obtener.
 2. El Asistente responde en prosa y, cuando propone cambiar el archivo, muestra la propuesta.
 
+«Esto» es lo que tienes delante: el texto seleccionado si hay selección; si no, la sentencia donde está el cursor. Un archivo con varias consultas ya no se trata como una sola.
+
+### Preguntar por una parte del archivo
+1. Selecciona en el editor más de una palabra. Debajo aparece una barra pequeña: **Explain · Fix · Optimize · Ask…** en SQL, y **Explain · Improve · Ask…** en un archivo de texto.
+2. **Explain**, **Fix**, **Optimize** e **Improve** envían la pregunta sobre esa selección. **Ask…** (o **Ctrl+L** con texto seleccionado) abre la caja para que escribas tu pregunta.
+3. Mientras hay selección, la caja del chat la muestra: *Selection · lines 18–20*.
+4. **Escape** cierra la barra hasta que cambies la selección.
+
+### Arreglar un error
+Cuando una consulta falla, junto al mensaje de error aparece **Fix with Assist**. El Asistente ya sabe el error y la consulta: no hace falta pegar nada. Al empezar una conversación con la consulta en error, la primera sugerencia es **Fix the error**.
+
+### Preguntar por un resultado
+En la barra de resultados de un `.sql`, **Explain** pregunta qué destaca y **Chart it** pide un gráfico de ese resultado.
+
 ### Aceptar o rechazar una edición
-1. Cuando el Asistente propone cambiar tu archivo, aparece un bloque de cambio con **Accept** / **Reject**.
+En un `.sql` o un archivo de texto, el Asistente propone **solo las líneas que cambian**, y el cambio se ve **en el propio editor**: lo que sale, en rojo en su línea; lo que entra, en verde debajo; encima, una barra con **Accept** / **Reject**. Mientras está pendiente, esas líneas no se pueden editar. Si escribes en otra parte del archivo, la propuesta sigue a sus líneas. **Review**, en el chat, te lleva a ella.
+
+En el resto de los archivos (notebook, Markdown, Report Flow) todavía propone el archivo entero, y se revisa en el chat:
+
+1. Cuando el Asistente propone cambiar tu archivo, aparece un bloque de cambio con **Accept** / **Reject**, con lo que sale y lo que entra.
 2. **Accept** vuelca el nuevo contenido en el editor **sin guardarlo en disco** — tú revisas y guardas (Ctrl+S). En el editor SQL, **Ctrl+Z** lo deshace. **Reject** lo descarta.
 3. Lo que decidiste se recuerda: al reabrir la conversación, el bloque dice **Applied to the editor** o **Rejected**.
-4. Si el archivo cambió desde que se hizo la propuesta, aceptarla borraría lo que escribiste después. Por eso no se aplica: el bloque lo dice y ofrece **Propose again**, que se la pide de nuevo sobre la versión actual.
+4. Si el archivo cambió desde que se hizo la propuesta, aceptarla borraría lo que escribiste después. Por eso no se aplica: el bloque lo dice y ofrece **Propose again**, que se la pide de nuevo sobre la versión actual. Una propuesta por líneas solo caduca si cambiaron **esas** líneas.
 
 ### Crear un archivo nuevo
 Si le pides algo que va en otro archivo (*"guárdame esta consulta en un archivo"*), el Asistente propone la ruta y el contenido. Nada se escribe hasta que pulsas **Create**, que crea el archivo y lo abre. Nunca sobrescribe uno que ya exista.
@@ -62,7 +80,8 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 |---|---|
 | Responder preguntas | Sobre tu query, tus datos o SQL de DuckDB en general |
 | Generar / explicar / optimizar SQL | Escribe o reescribe la query del archivo activo |
-| Proponer ediciones | Cambio con **Accept** / **Reject**; al aceptar carga en el editor sin guardar |
+| Proponer ediciones | Cambio con **Accept** / **Reject**; al aceptar carga en el editor sin guardar. En `.sql` y texto, solo las líneas que cambian, revisadas en el editor |
+| Preguntar desde el editor | La barra sobre la selección, **Fix with Assist** en un error, **Explain** / **Chart it** en los resultados |
 | Proponer archivos nuevos | Ruta y contenido con **Create**; nunca sobrescribe |
 | Proponer gráficos | Gráfico configurado con **Apply to chart** hacia Story Flow |
 | Citar números | Los valores enlazan a su query de origen ("Source Query") |
@@ -72,7 +91,10 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 
 | Elemento | De dónde |
 |---|---|
-| Query actual | El buffer del editor activo |
+| Query actual | El buffer del editor activo, con sus líneas numeradas |
+| Dónde estás | El texto seleccionado, o la sentencia bajo el cursor |
+| El último error | El mensaje de la última ejecución que falló |
+| Un modelo dbt | Sus columnas y descripciones del YAML, y el SQL que dbt compiló (sin lanzar dbt); los cambios se proponen en Jinja |
 | Último resultado | La tabla de resultados en pantalla |
 | Config del gráfico | El gráfico activo de Story Flow |
 | Esquema | Todas las tablas de la base local |

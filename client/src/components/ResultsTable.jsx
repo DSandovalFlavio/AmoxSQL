@@ -667,10 +667,10 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                             {/* E2: the result as a door to Assist (only a .sql's results). */}
                             {onAsistir && (
                                 <>
-                                    <button className="rt-action-btn" onClick={() => onAsistir('explicar_resultado')} title="Ask Assist what stands out in this result">
+                                    <button className="rt-action-btn" style={{ whiteSpace: 'nowrap' }} onClick={() => onAsistir('explicar_resultado')} title="Ask Assist what stands out in this result">
                                         <LuSparkles size={12} /> Explain
                                     </button>
-                                    <button className="rt-action-btn" onClick={() => onAsistir('graficar')} title="Ask Assist for a chart of this result">
+                                    <button className="rt-action-btn" style={{ whiteSpace: 'nowrap' }} onClick={() => onAsistir('graficar')} title="Ask Assist for a chart of this result">
                                         <LuChartColumn size={12} /> Chart it
                                     </button>
                                 </>

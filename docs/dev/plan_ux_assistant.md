@@ -2,7 +2,7 @@
 
 **Sale de:** [auditoria_ux_assistant.md](auditoria_ux_assistant.md) (A1–A13) y
 [auditoria_assistant_por_archivo.md](auditoria_assistant_por_archivo.md) (X1–X10 y los hallazgos por tipo)
-**Estado:** **E1 hecha** (2026-11-07, rama `claude/plan-5-19-interaccion`); E2–E6 sin empezar. Las seis decisiones,
+**Estado:** **E1 y E2 hechas** (2026-11-07/08, rama `claude/plan-5-19-interaccion`); E3–E6 sin empezar. Las seis decisiones,
 tomadas como se proponían. Mockups en el artifact «El Assistant donde está el trabajo».
 
 ## La idea
@@ -189,6 +189,71 @@ prompt por tipo) y la app con conversaciones sembradas.
 
 **Tamaño:** grande (es la base). **Se prueba:** `diffLineas` (entra, sale, se mueve, se repite), `aplicar`/`validar`
 de `sql.js` y `texto.js`, «Insert at cursor» que no toca lo demás, la selección y el error en el prompt.
+
+**Hecha (2026-11-08).** Lo que quedó (y en qué se aparta del dibujo de arriba):
+- **Servidor.**
+  - `propose_change` solo en los tipos por líneas (`archivo.porLineas`: `.sql` y texto). Recibe
+    `target: { kind: 'lines', start_line, end_line, current_text? }`, `new_text` y `summary`; la unión ya está
+    lista para los objetivos de E3–E5. Comprueba el rango y, si `current_text` no coincide, busca dónde está ese
+    texto (si aparece una sola vez). Quita los prefijos `12 | ` que el modelo copie. Devuelve `objetivo`,
+    `contenido`, `original` y `ancla` (las líneas vecinas).
+  - En esos tipos, `write_file` ya no se ofrece.
+  - El prompt numera las líneas y añade «Where the user is» (la selección, o la sentencia bajo el cursor) y «The
+    last run failed». `archivoActivo.prepararFoco` pasa ambas cosas por la política: el error sale sin los
+    literales entre comillas y, si el archivo no sale, su selección tampoco.
+  - Los archivos conocidos (`metrics.yml`, `joins.yml`, YAML de dbt, `project.json`, fuentes) llevan una línea
+    que dice qué son.
+  - Un modelo dbt (`dbtDelArchivo`, que lee `dbtModelo.info` con sus `columnas` nuevas) da nombre,
+    materialización, columnas y el SQL compilado del manifiesto, sin lanzar dbt. El compilado sirve para resolver
+    las tablas y el prompt pide escribir en Jinja.
+- **Cliente, piezas puras.**
+  - `utils/diffLineas.js` (LCS, con prefijo y sufijo comunes fuera de la tabla).
+  - `ai/archivos/rango.js` (`ubicarRango` / `aplicarRango`): una propuesta por líneas se ubica por su texto, así
+    que sigue a sus líneas si se escribe arriba, y solo caduca si cambiaron esas líneas (`propuestas.estadoDe`).
+  - `ai/archivos/index.js`: `tipoDePestana`, `sentenciaEn`, `focoDeEditor`, `seleccionConBarra` y `inicioDe`
+    (A6, por tipo y estado). No hay un módulo `sql.js` / `texto.js` por separado: hasta E3 comparten todo.
+- **El foco.**
+  - `memoriaDePestana.fijarFoco` / `focoDe`: fuera de React; `amox_foco` avisa solo cuando cambia la selección.
+  - `getActiveTabInfo` gana `id`, `foco` y `resultsError`.
+- **En el editor: `ai/revision/conectarAsistente.jsx`**, para `SqlEditor` (solo con `modeloPorPestana`) y
+  `TextEditor`.
+  - El foco.
+  - La barra sobre la selección: content widget; más de una palabra; Escape la cierra hasta otra selección.
+    Ofrece Explain · Fix · Optimize · Ask… en SQL y Explain · Improve · Ask… en texto.
+  - La revisión, `RevisionEnMonaco.jsx`:
+    - lo que sale con una decoración roja; lo que entra en una view zone verde;
+    - la barra como content widget colgado de la línea anterior, en un hueco de 30 px (`ordinal` 0, antes de la
+      zona verde);
+    - solo lectura mientras el cursor está en las líneas de la propuesta;
+    - se repinta al cambiar el texto.
+  - El chat y el editor se hablan por `ai/propuestasEnEditor.js`, una suscripción por ruta; «Review» manda
+    `amox_revisar_propuesta`.
+- **Aplicar.** `LayoutManager.aplicarPropuesta` hace una sola edición exacta (el cursor no salta y Ctrl+Z la
+  deshace). Sin Monaco de la pestaña (texto) va por el estado de la pestaña; ahí `@monaco-editor/react` también
+  la deja deshacer.
+- **Las puertas.**
+  - `amox_asistir` sale de la barra, de **Fix with Assist** en el error, y de **Explain** / **Chart it** en los
+    resultados de un `.sql` (`ResultsTable.onAsistir`).
+  - App abre el panel y el panel la convierte en la pregunta.
+  - Ctrl+L con selección abre el panel con la caja enfocada.
+  - La caja muestra «Selection · lines a–b».
+- **X9:** el botón **Assist** es igual en los cuatro editores: el mismo icono, sin «Close Assist» y con
+  `aria-pressed`.
+- **A4:** `EditProposalBlock` usa `diffLineas`: lo que sale y lo que entra, con dos líneas de contexto y lo demás
+  plegado.
+- **Pruebas.**
+  - `probarAssist.mjs`: 110/0.
+  - Siguen verdes `probarDeepDive` 46, `probarCuotaDeepDive` 14, `probarGraficoIA` 14, `probarGraficos` 177,
+    `probarFlujoGrafico` 22 y `probarInteraccion` 106.
+  - En la app, con la tienda de ejemplo:
+    - una propuesta en `.sql` se ve en el editor, bloquea su línea, sigue a su línea al escribir arriba y se
+      acepta desde la barra del editor;
+    - en `metrics.yml`, una inserción se acepta desde el chat y Ctrl+Z la deshace;
+    - la barra sobre la selección envía la pregunta con la selección;
+    - **Fix with Assist** manda el error;
+    - el inicio ofrece **Fix the error** cuando hay error.
+  También **Explain** de los resultados envía la pregunta con el resultado en pantalla (filas y `queryId`).
+- **Sin probar:** un modelo real usando los números de línea y `current_text`.
 
 ### E3 — Notebook y Markdown
 - **Notebook:** foco de la celda con su resultado o error (N2); contexto con las celdas en una línea, el grafo y las
