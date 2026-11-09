@@ -114,7 +114,37 @@ function conocido(filePath) {
     if (/(^|\/)(models|snapshots|seeds|macros)\/.*\.ya?ml$/.test(r)) return 'A dbt properties file: descriptions and tests of models and their columns.';
     if (/(^|\/)\.amoxsql\/project\.json$/.test(r)) return 'AmoxSQL\'s project manifest: keep every key you were not asked to change.';
     if (/(^|\/)fuentes\/[^/]+\.json$/.test(r)) return 'A named source of AmoxSQL (where a file or folder is read from and how).';
+    // M3: los archivos que son el contexto de la propia IA.
+    if (base === 'rules.md') return 'The project\'s rules for AmoxSQL\'s AI (RULES.md): the Assistant and Deep Dive follow them in every answer. Write them as short, direct instructions, one per line.';
+    if (/(^|\/)context\/glossary\.md$/.test(r)) return 'The project\'s glossary (glossary.md): AmoxSQL\'s AI reads it to understand the business words of this project. One term per entry, with what it means in the data.';
+    if (/(^|\/)agent\/skills\/[^/]+\/skill\.md$/.test(r)) return 'A skill of AmoxSQL\'s AI (SKILL.md): front matter (name, description, keywords) and the steps the AI follows when the skill is active.';
     return null;
+}
+
+/**
+ * El cuaderno como lo lee el modelo (E3): cada celda con su número, su tipo, su
+ * nombre y qué lee, en lugar del markdown con marcas. El número es como el modelo
+ * señala una celda en `propose_change`.
+ */
+function textoDeCuaderno(estructura) {
+    const partes = [];
+    const params = Object.entries(estructura.parametros || {});
+    if (params.length) partes.push(`Parameters (used in cells as {{name}}): ${params.map(([k, v]) => `${k} = ${JSON.stringify(v)}`).join(', ')}`);
+    if (estructura.vivas?.length) partes.push(`Live views in the session (each SQL cell that ran leaves one, named after the cell): ${estructura.vivas.join(', ')}`);
+    for (const c of estructura.celdas || []) {
+        if (c.tipo === 'texto') {
+            partes.push(`### Cell ${c.n} · text${c.borrador ? ' (draft)' : ''}\n${c.texto}`);
+            continue;
+        }
+        const extras = [
+            c.lee?.length ? `reads: ${c.lee.join(', ')}` : null,
+            c.materializada ? 'materialized' : null,
+            c.borrador ? 'draft' : null,
+            c.estado === 'error' ? 'last run FAILED' : c.estado === 'corrio' ? `ran${c.filas !== undefined ? `, ${c.filas} rows` : ''}` : 'not run',
+        ].filter(Boolean).join(' · ');
+        partes.push(`### Cell ${c.n} · SQL${c.nombre ? ` \`${c.nombre}\`` : ' (no name yet)'} (${extras})\n\`\`\`sql\n${c.texto}\n\`\`\``);
+    }
+    return partes.join('\n\n');
 }
 
 /** Quita los valores entre comillas de un mensaje de error (pueden ser datos de una fila). */
@@ -136,8 +166,15 @@ function prepararFoco({ archivo, foco = null, error = null, datos = 'filas' }) {
         const rango = (r) => (r && Number.isInteger(r.desde) && Number.isInteger(r.hasta) && r.desde >= 1 && r.hasta >= r.desde && r.desde <= lineas.length
             ? { desde: r.desde, hasta: Math.min(r.hasta, lineas.length) } : null);
         const sel = rango(foco.seleccion);
-        if (sel && String(foco.seleccion.texto || '').trim()) {
+        if (archivo.tipo === 'cuaderno') {
+            // E3: la celda en la que está (por número, el mismo que ve el modelo).
+            const c = (archivo.celdas || []).find(x => x.n === foco.celda?.n);
+            if (c) out.celda = { n: c.n, tipo: c.tipo, nombre: c.nombre || null };
+        } else if (sel && String(foco.seleccion.texto || '').trim()) {
             out.seleccion = { ...sel, texto: String(foco.seleccion.texto).slice(0, 4000) };
+        } else if (archivo.tipo === 'markdown') {
+            const s = rango(foco.seccion);
+            if (s) out.seccion = { ...s, titulo: foco.seccion.titulo ? String(foco.seccion.titulo).slice(0, 200) : null };
         } else {
             const s = rango(foco.sentencia);
             if (s) out.sentencia = { ...s, texto: lineas.slice(s.desde - 1, s.hasta).join('\n').slice(0, 4000) };
@@ -171,7 +208,7 @@ function recortar(texto, tope = TOPE) {
  * @param {boolean} [p.local] - si el modelo corre en esta máquina
  * @returns {{ tipo, nombre, ruta, idioma, contenido, notas: string[], puedeProponer: boolean, retenido: boolean }}
  */
-function prepararArchivo({ filePath = null, fileType = null, contenido = '', datos = 'filas', local = true } = {}) {
+function prepararArchivo({ filePath = null, fileType = null, contenido = '', datos = 'filas', local = true, estructura = null } = {}) {
     const tipo = tipoDe(filePath, fileType);
     const def = TIPOS[tipo];
     const ext = path.extname(String(filePath || '')).toLowerCase();
@@ -204,6 +241,19 @@ function prepararArchivo({ filePath = null, fileType = null, contenido = '', dat
                 if (conFoto) notas.push(`The saved snapshots of ${conFoto} card(s) are not included: run a card's SQL with execute_sql to see its rows.`);
             }
         } catch { /* un lienzo que no se lee va como texto, recortado */ }
+    }
+
+    // E3: un notebook llega con su estructura (las celdas como las tiene el
+    // editor); el modelo lo lee por celdas numeradas y propone por celdas.
+    let celdas = null;
+    if (tipo === 'cuaderno' && estructura && Array.isArray(estructura.celdas)) {
+        celdas = estructura.celdas.slice(0, 300).map(c => ({
+            n: Number(c.n), tipo: c.tipo === 'texto' ? 'texto' : 'sql',
+            nombre: c.nombre ? String(c.nombre) : null, texto: String(c.texto ?? ''),
+            lee: Array.isArray(c.lee) ? c.lee.map(String) : [], materializada: !!c.materializada, borrador: !!c.borrador,
+            estado: c.estado || null, filas: Number.isFinite(c.filas) ? c.filas : undefined,
+        }));
+        texto = textoDeCuaderno({ ...estructura, celdas });
     }
 
     if (tipo === 'grafico' && datos !== 'filas' && texto.trim()) {
@@ -240,11 +290,15 @@ function prepararArchivo({ filePath = null, fileType = null, contenido = '', dat
     return {
         tipo, nombre: def.nombre, ruta: filePath, idioma, contenido: r.texto, notas,
         puedeProponer: def.propone && !retenido && !r.recortado, retenido,
-        // Qué es, si es un archivo del proyecto que AmoxSQL entiende (T3).
+        // Qué es, si es un archivo del proyecto que AmoxSQL entiende (T3, M3).
         descripcion: conocido(filePath),
-        // Los tipos que se cambian por líneas (E2): el prompt numera sus líneas
-        // y el modelo propone un rango con `propose_change`.
-        porLineas: tipo === 'sql' || tipo === 'texto',
+        // Los tipos que se cambian por líneas (E2; Markdown desde E3): el prompt
+        // numera sus líneas y el modelo propone un rango con `propose_change`.
+        porLineas: tipo === 'sql' || tipo === 'texto' || tipo === 'markdown',
+        // El notebook se cambia por celdas (E3), cuando llega su estructura.
+        porCeldas: !!celdas,
+        celdas,
+        idiomaCuerpo: celdas ? 'markdown' : idioma,
     };
 }
 

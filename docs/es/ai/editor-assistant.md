@@ -35,10 +35,19 @@ Mira la tabla [Qué puede cambiar en cada archivo](#qué-puede-cambiar-en-cada-a
 «Esto» es lo que tienes delante: el texto seleccionado si hay selección; si no, la sentencia donde está el cursor. Un archivo con varias consultas ya no se trata como una sola.
 
 ### Preguntar por una parte del archivo
-1. Selecciona en el editor más de una palabra. Debajo aparece una barra pequeña: **Explain · Fix · Optimize · Ask…** en SQL, y **Explain · Improve · Ask…** en un archivo de texto.
+1. Selecciona en el editor más de una palabra. Debajo aparece una barra pequeña: **Explain · Fix · Optimize · Ask…** en SQL, **Explain · Improve · Ask…** en un archivo de texto y **Rewrite · Shorter · Explain · Continue · Ask…** en Markdown (la barra de formato sigue encima de la selección).
 2. **Explain**, **Fix**, **Optimize** e **Improve** envían la pregunta sobre esa selección. **Ask…** (o **Ctrl+L** con texto seleccionado) abre la caja para que escribas tu pregunta.
 3. Mientras hay selección, la caja del chat la muestra: *Selection · lines 18–20*.
 4. **Escape** cierra la barra hasta que cambies la selección.
+
+### En un notebook
+El Asistente sabe en qué celda estás, y ve su resultado o su error, las demás celdas (con lo que lee cada una), las vistas que ya dejaron en la sesión y los parámetros con su valor.
+
+- En el canalón de cada celda, el mando **Assist** abre un menú. En una celda SQL: **Explain this cell**, **Fix the error** (si falló) y **Chart the result** (si tiene resultado). En una de texto: **Write from the result above** (si la celda de encima tiene resultado) e **Improve this text**.
+- Cuando una celda falla, junto a su error aparece **Fix with Assist**.
+- Una celda de texto vacía bajo un resultado ofrece **Write from the result above**.
+
+Propone **celda a celda**, nunca el cuaderno entero: el cambio de una celda aparece debajo de ella, con lo que sale y lo que entra; una celda nueva aparece como **fantasma** (con borde discontinuo) en el sitio donde entraría. Las dos se aceptan o se rechazan ahí mismo o desde el chat. Aceptar no toca las demás celdas ni sus resultados.
 
 ### Arreglar un error
 Cuando una consulta falla, junto al mensaje de error aparece **Fix with Assist**. El Asistente ya sabe el error y la consulta: no hace falta pegar nada. Al empezar una conversación con la consulta en error, la primera sugerencia es **Fix the error**.
@@ -49,7 +58,9 @@ En la barra de resultados de un `.sql`, **Explain** pregunta qué destaca y **Ch
 ### Aceptar o rechazar una edición
 En un `.sql` o un archivo de texto, el Asistente propone **solo las líneas que cambian**, y el cambio se ve **en el propio editor**: lo que sale, en rojo en su línea; lo que entra, en verde debajo; encima, una barra con **Accept** / **Reject**. Mientras está pendiente, esas líneas no se pueden editar. Si escribes en otra parte del archivo, la propuesta sigue a sus líneas. **Review**, en el chat, te lleva a ella.
 
-En el resto de los archivos (notebook, Markdown, Report Flow) todavía propone el archivo entero, y se revisa en el chat:
+En Markdown funciona igual, en la vista **Escribir** o **Dividido**. En la vista **Leer**, un aviso dice que hay una propuesta y **Show it** la abre en la vista dividida.
+
+En Report Flow todavía propone el archivo entero, y se revisa en el chat:
 
 1. Cuando el Asistente propone cambiar tu archivo, aparece un bloque de cambio con **Accept** / **Reject**, con lo que sale y lo que entra.
 2. **Accept** vuelca el nuevo contenido en el editor **sin guardarlo en disco** — tú revisas y guardas (Ctrl+S). En el editor SQL, **Ctrl+Z** lo deshace. **Reject** lo descarta.
@@ -92,7 +103,7 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 | Elemento | De dónde |
 |---|---|
 | Query actual | El buffer del editor activo, con sus líneas numeradas |
-| Dónde estás | El texto seleccionado, o la sentencia bajo el cursor |
+| Dónde estás | El texto seleccionado, o la sentencia bajo el cursor; en Markdown, la sección; en un notebook, la celda |
 | El último error | El mensaje de la última ejecución que falló |
 | Un modelo dbt | Sus columnas y descripciones del YAML, y el SQL que dbt compiló (sin lanzar dbt); los cambios se proponen en Jinja |
 | Último resultado | La tabla de resultados en pantalla |
@@ -104,7 +115,9 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 
 | Archivo | Qué hace el Asistente |
 |---|---|
-| `.sql`, notebook `.sqlnb`, Markdown `.md`, Report Flow `.amoxdeck`, texto (`.yml`, `.json`…) | Explica y propone cambios con **Accept** / **Reject** |
+| `.sql`, Markdown `.md`, texto (`.yml`, `.json`…) | Propone las líneas que cambian, revisadas en el editor |
+| Notebook `.sqlnb` | Propone celda a celda: el cambio debajo de su celda, o una celda nueva en su sitio |
+| Report Flow `.amoxdeck` | Propone el archivo entero, revisado en el chat |
 | Gráfico `.amoxvis`, Data Flow `.sqlchain`, Canvas `.amoxcanvas`, diagrama `.amoxdiagram` | Explica qué cambiar y dónde, para que lo hagas en su editor. Todavía no propone cambios: reescribir el archivo a mano lo rompería |
 | Un archivo muy largo | Ve la primera parte y lo dice; no propone reescribirlo, porque perdería lo que no ve |
 

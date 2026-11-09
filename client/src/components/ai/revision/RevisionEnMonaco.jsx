@@ -62,7 +62,7 @@ export function crearRevision(editor, monaco) {
         editor.changeViewZones(acc => zonas.forEach(z => acc.removeZone(z)));
         zonas = [];
         decoraciones.clear();
-        for (const w of widgets) { editor.removeContentWidget(w); w.raiz.unmount(); }
+        for (const w of widgets) { editor.removeOverlayWidget(w); w.raiz.unmount(); }
         widgets = [];
         bloqueos = [];
     };
@@ -131,30 +131,36 @@ export function crearRevision(editor, monaco) {
                     }
                 }
 
-                // El sitio de la barra, encima de la propuesta.
-                const hueco = document.createElement('div');
-                zonas.push(acc.addZone({ afterLineNumber: Math.min(n, donde.desde - 1), heightInPx: 30, domNode: hueco, ordinal: 0 }));
-                // La barra se cuelga del final de la línea anterior (cae en su hueco, que va
-                // primero); en la primera línea, encima de ella.
-                const debajoDe = Math.min(donde.desde - 1, n);
-                const posicionBarra = debajoDe >= 1
-                    ? { position: { lineNumber: debajoDe, column: 1 }, preference: [monaco.editor.ContentWidgetPositionPreference.BELOW] }
-                    : { position: { lineNumber: 1, column: 1 }, preference: [monaco.editor.ContentWidgetPositionPreference.ABOVE] };
                 bloqueos.push(donde.hasta >= donde.desde
                     ? { desde: donde.desde, hasta: donde.hasta }
                     : { desde: Math.max(1, donde.desde - 1), hasta: Math.min(n, donde.desde) });
 
+                // La barra va en un hueco propio encima de la propuesta (una zona de
+                // 30 px que va primero) y se coloca donde Monaco dice que empieza ese
+                // hueco (`onDomNodeTop`), como un widget superpuesto. Colgada de una
+                // línea, una línea partida en dos filas quedaba tapada (E3).
                 const nodo = document.createElement('div');
                 nodo.className = 'amx-rev-widget';
+                nodo.style.position = 'absolute';
+                nodo.style.left = `${editor.getLayoutInfo().contentLeft + 4}px`;
+                const hueco = document.createElement('div');
+                zonas.push(acc.addZone({
+                    afterLineNumber: Math.min(n, donde.desde - 1), heightInPx: 38, domNode: hueco, ordinal: 0,
+                    // Se mide dónde quedó el hueco de verdad: el número que da Monaco no
+                    // cuenta el relleno de arriba de algunos editores (el de Markdown).
+                    onDomNodeTop: () => requestAnimationFrame(() => {
+                        const raizEditor = editor.getDomNode();
+                        if (!raizEditor || !hueco.isConnected) return;
+                        nodo.style.top = `${hueco.getBoundingClientRect().top - raizEditor.getBoundingClientRect().top + 2}px`;
+                    }),
+                }));
                 const raiz = createRoot(nodo);
                 const widget = {
                     raiz,
                     getId: () => `amx.rev.${tc.toolCallId || indice}`,
                     getDomNode: () => nodo,
-                    getPosition: () => posicionBarra,
+                    getPosition: () => null,
                 };
-                // Pintada ya (flushSync): Monaco mide su alto al colocarla encima de
-                // la línea; vacía, medía 0 y la barra tapaba la propia propuesta.
                 flushSync(() => raiz.render(
                     <BarraDePropuesta
                         tc={tc} donde={donde} indice={indice} total={ubicadas.length} bloqueada
@@ -163,8 +169,7 @@ export function crearRevision(editor, monaco) {
                         onSiguiente={() => revelarIndice((indice + 1) % ubicadas.length)}
                     />
                 ));
-                editor.addContentWidget(widget);
-                requestAnimationFrame(() => { if (widgets.includes(widget)) editor.layoutContentWidget(widget); });
+                editor.addOverlayWidget(widget);
                 widgets.push(widget);
             });
         });

@@ -12,6 +12,7 @@ import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
 import { inicioDe, tipoDePestana } from './archivos/index.js';
 import { esDeRango } from './archivos/rango.js';
+import { esDeCelda } from './archivos/cuaderno.js';
 import { publicarPropuestas, pedirRevision } from './propuestasEnEditor.js';
 
 import { API_BASE as API } from '../../api.js';
@@ -127,14 +128,17 @@ const AiAssistantPanel = ({
         }
         rutaPublicada.current = activeFilePath;
         if (!activeFilePath) return;
+        // Only the conversation of THIS file: while another file's chat is still on
+        // screen (the switch is loading), its proposals must not reach this editor.
+        const deEsteArchivo = conversationId && fileConvCacheRef.current[activeFilePath] === conversationId;
         const pendientes = [];
-        for (const m of messages) {
+        for (const m of deEsteArchivo ? messages : []) {
             for (const tc of m.toolCalls || []) {
-                if (tc.estado === 'propuesta' && esDeRango(tc.result)) pendientes.push(tc);
+                if (tc.estado === 'propuesta' && (esDeRango(tc.result) || esDeCelda(tc.result))) pendientes.push(tc);
             }
         }
         publicarPropuestas(activeFilePath, pendientes, accionesEstables);
-    }, [messages, activeFilePath, accionesEstables]);
+    }, [messages, activeFilePath, accionesEstables, conversationId]);
 
     // ─── E2: the doors in the editor (selection bar, error, results) ───
     // They open the panel (App) and arrive here as a question, sent at once; «Ask…»
@@ -148,6 +152,15 @@ const AiAssistantPanel = ({
             arreglar_error: () => 'Fix the error of the last run.',
             explicar_resultado: () => 'Explain this result: what stands out?',
             graficar: () => 'Chart this result.',
+            // E3: the notebook's cells and the Markdown selection.
+            explicar_celda: () => 'Explain this cell.',
+            arreglar_celda: () => 'Fix the error in this cell.',
+            graficar_celda: () => 'Chart the result of this cell.',
+            mejorar_celda: () => 'Improve this text cell so it reads better, keeping what it says and its numbers.',
+            escribir_texto: () => 'Write this text cell from the result of the SQL cell above it: what it shows, with its numbers, in two or three sentences.',
+            reescribir: () => 'Rewrite the selected text so it reads better, keeping what it says.',
+            acortar: () => 'Make the selected text shorter, keeping what it says.',
+            continuar: () => 'Continue the text after the selection, in the same voice.',
         };
         const alAsistir = (e) => {
             const { accion } = e.detail || {};
@@ -224,6 +237,10 @@ const AiAssistantPanel = ({
     // ─── Cache: filePath → last conversationId per session ───
     const fileConvCacheRef = useRef({});
     const prevFilePathRef = useRef(null);
+    // The file the conversation on screen belongs to. Set when a file's conversation
+    // starts loading, so the cache never pairs the NEW path with the OLD conversation:
+    // it used to, and coming back to a file opened another file's chat.
+    const rutaDeLaConversacion = useRef(null);
 
     // ─── When activeFilePath changes, auto-load the latest conversation ───
     useEffect(() => {
@@ -234,6 +251,7 @@ const AiAssistantPanel = ({
         // Always show chat view when switching files
         setViewMode('chat');
 
+        rutaDeLaConversacion.current = activeFilePath;
         const loadLastConversation = async () => {
             // Check cache first
             const cachedId = fileConvCacheRef.current[activeFilePath];
@@ -265,12 +283,13 @@ const AiAssistantPanel = ({
         loadLastConversation();
     }, [activeFilePath]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Keep cache updated when conversationId changes
+    // Keep cache updated when conversationId changes — only for the file it belongs
+    // to (a path change alone must not pair the new file with the old conversation).
     useEffect(() => {
-        if (activeFilePath && conversationId) {
-            fileConvCacheRef.current[activeFilePath] = conversationId;
+        if (conversationId && rutaDeLaConversacion.current) {
+            fileConvCacheRef.current[rutaDeLaConversacion.current] = conversationId;
         }
-    }, [conversationId, activeFilePath]);
+    }, [conversationId]);
 
     // ─── Skill activation from Command Palette ───
     useEffect(() => {

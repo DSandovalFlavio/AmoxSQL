@@ -709,6 +709,7 @@ const EditorPane = ({
                         <Suspense fallback={<PaneLoading />}>
                         <MarkdownEditor
                             key={activeTab.id}
+                            tabId={activeTab.id}
                             content={activeTab.content}
                             onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
                             onSave={onSave}
@@ -745,6 +746,7 @@ const EditorPane = ({
                         <Suspense fallback={<PaneLoading />}>
                         <CuadernoEditor
                             key={activeTab.id}
+                            tabId={activeTab.id}
                             content={activeTab.content}
                             onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
                             /* El cuaderno ejecuta por su cuenta —tiene que mandar la vista

@@ -26,7 +26,7 @@ import { leerAmoxvis, textoAmoxvis } from './DataVisualizer/vega/figura';
 import { leerBorrador } from '../utils/borradorGrafico';
 import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
 import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
-import { olvidarPestanas, editorDe, focoDe } from '../utils/memoriaDePestana';
+import { olvidarPestanas, editorDe, focoDe, aplicadorDe } from '../utils/memoriaDePestana';
 import { aplicarRango, describirRango } from './ai/archivos/rango.js';
 
 /**
@@ -1732,6 +1732,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         aplicarPropuesta: (resultado) => {
             const tab = getActiveTab();
             if (!tab) return { error: 'No file is open.' };
+            // E3: a notebook applies a cell proposal on its own document, keeping
+            // the other cells (and their results) as they are.
+            if (resultado?.objetivo?.tipo === 'celda') {
+                const aplicar = aplicadorDe(tab.id);
+                return aplicar ? aplicar(resultado) : { error: 'Show the notebook to apply this change.' };
+            }
             const ed = editorDe(tab.id);
             const modelo = ed?.getModel();
             const texto = modelo ? modelo.getValue() : (tab.content || '');
@@ -1826,20 +1832,24 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         getActiveTabInfo: () => {
             const tab = getActiveTab();
             if (!tab) return null;
+            // E3: a notebook runs by itself, so its active cell's result and error
+            // come from its focus. They travel as `results` / `resultsError` (the
+            // server passes them through the AI policy), never inside `foco`.
+            const { resultado = null, error = null, ...foco } = focoDe(tab.id) || {};
             return {
                 id: tab.id,
                 path: tab.path,
                 name: tab.name,
                 type: tab.type,
                 content: tab.content,
-                results: tab.results,
-                resultsQuery: tab.resultsQuery,
+                results: tab.results || resultado,
+                resultsQuery: tab.resultsQuery || resultado?.consulta || null,
                 chartConfig: tab.chartConfig || tab.initialChartConfig || null,
                 activeView: tab.viewMode || null,
                 dirty: tab.dirty,
-                // E2: what failed (S1) and where the user is (selection / statement).
-                resultsError: tab.resultsError || null,
-                foco: focoDe(tab.id),
+                // E2: what failed (S1) and where the user is (selection / statement / cell).
+                resultsError: tab.resultsError || error || null,
+                foco: Object.keys(foco).length ? foco : null,
             };
         },
 

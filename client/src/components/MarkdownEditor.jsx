@@ -22,6 +22,8 @@ import InsertMenu from './markdown/InsertMenu';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
 import { atajosGlobalesEnMonaco } from '../utils/atajosEnMonaco.js';
+import { conectarAsistente } from './ai/revision/conectarAsistente.jsx';
+import { suscribirPropuestas, pedirRevision } from './ai/propuestasEnEditor.js';
 
 // ── Editor manipulation helpers ───────────────────────────────────────────────
 
@@ -120,9 +122,19 @@ const MarkdownEditor = ({
     onBuscarProyecto,
     isDirty,
     onAbrirDiagrama,
+    tabId = null,     // E3: la pestaña, para el foco y las propuestas del Assistant
 }) => {
     const toast = useToast();
     const dialog = useDialog();
+    // E3: el Assistant en el editor (foco, barra sobre la selección, propuestas
+    // por líneas revisadas aquí). Pestaña y ruta por ref: el editor se monta una vez.
+    const asistenteRef = useRef({ tabId, filePath });
+    asistenteRef.current = { tabId, filePath };
+    const quitarAsistente = useRef(null);
+    useEffect(() => () => quitarAsistente.current?.(), []);
+    // Las propuestas pendientes de este documento: en la vista de lectura, se avisa.
+    const [pendientesAsistente, setPendientesAsistente] = useState([]);
+    useEffect(() => (filePath ? suscribirPropuestas(filePath, (p) => setPendientesAsistente(p.propuestas || [])) : undefined), [filePath]);
 
     /**
      * Abre un diagrama del documento en su propia pestaña.
@@ -699,6 +711,10 @@ const MarkdownEditor = ({
 
     const handleEditorMount = useCallback((editor, monaco) => {
         editorRef.current = editor;
+        quitarAsistente.current?.();
+        quitarAsistente.current = conectarAsistente(editor, monaco, () => ({
+            tabId: asistenteRef.current.tabId, ruta: asistenteRef.current.filePath || null, tipo: 'markdown',
+        }));
         // En estado, no solo en la ref: el overlay tiene que re-renderizar
         // cuando el editor existe para engancharse a sus eventos.
         setEditorInstance(editor);
@@ -1259,6 +1275,18 @@ ${snippet}` : snippet);
 
                     {(viewMode === 'preview' || viewMode === 'split') && (
                         <div className="mde-preview-pane" style={previewStyle} ref={previewPaneRef}>
+                            {/* E3: en lectura no hay líneas donde pintar el cambio; se dice y se lleva a verlo. */}
+                            {viewMode === 'preview' && pendientesAsistente.length > 0 && (
+                                <div className="mde-asistente-aviso" role="status">
+                                    <LuSparkles size={13} />
+                                    <span>Assist proposes {pendientesAsistente.length === 1 ? 'a change' : `${pendientesAsistente.length} changes`} to this document.</span>
+                                    <button type="button" onClick={() => {
+                                        setViewMode('split');
+                                        const id = pendientesAsistente[0]?.toolCallId;
+                                        setTimeout(() => pedirRevision(id), 400);
+                                    }}>Show it</button>
+                                </div>
+                            )}
                             <MarkdownPreview
                                 content={content}
                                 theme={theme}

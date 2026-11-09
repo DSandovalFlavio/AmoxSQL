@@ -35,10 +35,19 @@ See the table [What it can change in each file](#what-it-can-change-in-each-file
 "This" is what you have in front of you: the selected text if there is a selection; otherwise, the statement under the cursor. A file with several queries is no longer treated as one.
 
 ### Ask about part of the file
-1. Select more than one word in the editor. A small bar appears below it: **Explain · Fix · Optimize · Ask…** in SQL, and **Explain · Improve · Ask…** in a text file.
+1. Select more than one word in the editor. A small bar appears below it: **Explain · Fix · Optimize · Ask…** in SQL, **Explain · Improve · Ask…** in a text file, and **Rewrite · Shorter · Explain · Continue · Ask…** in Markdown (the formatting bar stays above the selection).
 2. **Explain**, **Fix**, **Optimize** and **Improve** send the question about that selection. **Ask…** (or **Ctrl+L** with text selected) opens the box for you to type your question.
 3. While there is a selection, the chat box shows it: *Selection · lines 18–20*.
 4. **Escape** closes the bar until the selection changes.
+
+### In a notebook
+The Assistant knows which cell you are in, and sees its result or its error, the other cells (with what each one reads), the views they already left in the session, and the parameters with their values.
+
+- In each cell's gutter, the **Assist** control opens a menu. In a SQL cell: **Explain this cell**, **Fix the error** (if it failed) and **Chart the result** (if it has one). In a text cell: **Write from the result above** (if the cell above has a result) and **Improve this text**.
+- When a cell fails, **Fix with Assist** appears next to its error.
+- An empty text cell below a result offers **Write from the result above**.
+
+It proposes **cell by cell**, never the whole notebook: a cell's change shows below it, with what goes out and what comes in; a new cell shows as a **ghost** (dashed border) where it would go. Both can be accepted or rejected right there or from the chat. Accepting doesn't touch the other cells or their results.
 
 ### Fix an error
 When a query fails, **Fix with Assist** appears next to the error message. The Assistant already knows the error and the query: no need to paste anything. When you start a conversation with the query in error, the first suggestion is **Fix the error**.
@@ -49,7 +58,9 @@ In the results bar of a `.sql`, **Explain** asks what stands out and **Chart it*
 ### Accept or reject an edit
 In a `.sql` or a text file, the Assistant proposes **only the lines that change**, and the change is shown **in the editor itself**: what goes out, in red on its line; what comes in, in green below it; above, a bar with **Accept** / **Reject**. While it is pending, those lines can't be edited. If you type elsewhere in the file, the proposal follows its lines. **Review**, in the chat, takes you to it.
 
-In the other files (notebook, Markdown, Report Flow) it still proposes the whole file, reviewed in the chat:
+Markdown works the same way, in the **Write** or **Split** view. In the **Read** view, a notice says there is a proposal and **Show it** opens it in the split view.
+
+In Report Flow it still proposes the whole file, reviewed in the chat:
 
 1. When the Assistant proposes changing your file, a change block appears with **Accept** / **Reject**, with what goes out and what comes in.
 2. **Accept** drops the new content into the editor **without saving to disk** — you review and save (Ctrl+S). In the SQL editor, **Ctrl+Z** undoes it. **Reject** discards it.
@@ -92,7 +103,7 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 | Item | Where from |
 |---|---|
 | Current query | The active editor buffer, with numbered lines |
-| Where you are | The selected text, or the statement under the cursor |
+| Where you are | The selected text, or the statement under the cursor; in Markdown, the section; in a notebook, the cell |
 | The last error | The message of the last run that failed |
 | A dbt model | Its YAML columns and descriptions, and the SQL dbt compiled (without running dbt); changes are proposed in Jinja |
 | Last result | The results table on screen |
@@ -104,7 +115,9 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 
 | File | What the Assistant does |
 |---|---|
-| `.sql`, `.sqlnb` notebook, `.md` Markdown, `.amoxdeck` Report Flow, text (`.yml`, `.json`…) | Explains and proposes changes with **Accept** / **Reject** |
+| `.sql`, `.md` Markdown, text (`.yml`, `.json`…) | Proposes the lines that change, reviewed in the editor |
+| `.sqlnb` notebook | Proposes cell by cell: the change below its cell, or a new cell in its place |
+| `.amoxdeck` Report Flow | Proposes the whole file, reviewed in the chat |
 | `.amoxvis` chart, `.sqlchain` Data Flow, `.amoxcanvas` Canvas, `.amoxdiagram` diagram | Explains what to change and where, so you do it in its editor. It doesn't propose changes yet: rewriting the file by hand would break it |
 | A very long file | Sees the first part and says so; it doesn't propose rewriting it, since it would lose what it can't see |
 

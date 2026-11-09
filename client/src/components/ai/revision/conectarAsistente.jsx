@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { LuSparkles, LuWrench, LuMessageCircleQuestion, LuZap, LuWandSparkles } from 'react-icons/lu';
+import { LuSparkles, LuWrench, LuMessageCircleQuestion, LuZap, LuWandSparkles, LuScissors, LuPenLine } from 'react-icons/lu';
 import { crearRevision } from './RevisionEnMonaco.jsx';
 import { focoDeEditor, seleccionConBarra } from '../archivos/index.js';
 import { fijarFoco } from '../../../utils/memoriaDePestana.js';
@@ -69,9 +69,21 @@ export function conectarAsistente(editor, monaco, obtener) {
         raizBarra.render(
             <div className="amx-sel-barra" role="toolbar" aria-label="Ask Assist about the selection">
                 <LuSparkles size={12} className="amx-sel-icono" />
-                {b('explicar', LuMessageCircleQuestion, 'Explain', true)}
-                {tipo === 'sql' ? b('arreglar', LuWrench, 'Fix') : b('mejorar', LuWandSparkles, 'Improve')}
-                {tipo === 'sql' && b('optimizar', LuZap, 'Optimize')}
+                {tipo === 'markdown' ? (
+                    // E3 (M2): en prosa se reescribe, se acorta, se explica o se sigue.
+                    <>
+                        {b('reescribir', LuWandSparkles, 'Rewrite', true)}
+                        {b('acortar', LuScissors, 'Shorter')}
+                        {b('explicar', LuMessageCircleQuestion, 'Explain')}
+                        {b('continuar', LuPenLine, 'Continue')}
+                    </>
+                ) : (
+                    <>
+                        {b('explicar', LuMessageCircleQuestion, 'Explain', true)}
+                        {tipo === 'sql' ? b('arreglar', LuWrench, 'Fix') : b('mejorar', LuWandSparkles, 'Improve')}
+                        {tipo === 'sql' && b('optimizar', LuZap, 'Optimize')}
+                    </>
+                )}
                 <button type="button" className="amx-sel-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => accionar('preguntar')}>
                     Ask… <kbd>Ctrl L</kbd>
                 </button>
@@ -134,12 +146,21 @@ export function conectarAsistente(editor, monaco, obtener) {
         setTimeout(() => { oirPropuestas(); guardarFoco(); }, 0);
     });
 
-    return () => {
+    let quitado = false;
+    const quitar = () => {
+        if (quitado) return;
+        quitado = true;
         clearTimeout(temporizadorFoco); clearTimeout(temporizadorBarra);
-        alSeleccionar.dispose(); alTeclear.dispose(); alCambiarModelo.dispose();
+        alSeleccionar.dispose(); alTeclear.dispose(); alCambiarModelo.dispose(); alDesechar.dispose();
         dejarDeOir();
-        revision.dispose();
-        ocultarBarra();
+        try { revision.dispose(); } catch { /* el editor ya no está */ }
+        try { ocultarBarra(); } catch { /* ídem */ }
+        // Sin editor no hay foco: que el chat no siga enseñando una selección que ya no existe.
+        const { tabId } = obtener() || {};
+        if (tabId) fijarFoco(tabId, null);
         setTimeout(() => raizBarra.unmount(), 0);
     };
+    // E3: un editor que se desmonta solo (el Markdown en la vista de lectura) se desengancha.
+    const alDesechar = editor.onDidDispose(quitar);
+    return quitar;
 }

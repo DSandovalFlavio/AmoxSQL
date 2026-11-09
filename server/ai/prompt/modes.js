@@ -43,7 +43,11 @@ Write it in dbt's Jinja: keep \`{{ ref('…') }}\` and \`{{ source('…', '…')
     section += `\n\n### Capabilities`;
     // Los archivos que se cambian por líneas (E2): un rango, revisado en el editor.
     const porLineas = propone && !!archivo?.porLineas;
-    if (porLineas) {
+    // El notebook se cambia por celdas (E3).
+    const porCeldas = propone && !!archivo?.porCeldas;
+    if (porCeldas) {
+        section += `\n- **propose_change**: proposes ONE cell change of this notebook: replace the text of a cell (target kind "cell", its number) or add a new cell after one (kind "new_cell", after_cell = its number, 0 for the top). The user sees it on the cell itself and clicks Accept or Reject; nothing is saved to disk. Never rewrite the whole notebook: the other cells, their names, marks and the parameters stay as they are. To change several cells, call it once per cell.`;
+    } else if (porLineas) {
         section += `\n- **propose_change**: proposes replacing a range of lines of the active file. The user sees it as a diff in the editor and clicks Accept or Reject; nothing is saved to disk. Change ONLY the lines the request needs — not the whole file — using the line numbers shown in "Current editor state" (the \`12 |\` prefixes are not part of the file: never put them in new_text). To insert without replacing, use end_line = start_line - 1. Pass current_text (the exact lines you replace) so the change lands in the right place.`;
     } else if (propone) {
         section += `\n- **write_file**: proposes a new version of the WHOLE active file. Nothing changes until the user reviews it and clicks Accept; accepting puts it in the editor without saving to disk. Always send the complete file: every part you were not asked to change must stay exactly as it is${preserva}.`;
@@ -62,7 +66,12 @@ Write it in dbt's Jinja: keep \`{{ ref('…') }}\` and \`{{ source('…', '…')
     }
 
     section += `\n\n### Workflow & honesty rules`;
-    if (porLineas && esSql) {
+    if (porCeldas) {
+        section += `\n- **How this notebook works:** each SQL cell that runs leaves a session view named after the cell, so a cell reads another one with \`FROM <its name>\` instead of repeating its query. Reuse what the cells above already compute. Parameters are written \`{{name}}\` and replaced before running. A new SQL cell gets a short snake_case name (\`name\`), different from the others.
+- **"This cell", "this", "it"** mean the cell the user is in (see "Where the user is"). Its result or error, when there is one, is in "Current editor state".
+- **When the cell failed**, read the error and fix the cause in that cell (it may be a column that another cell leaves, or a cell that hasn't run).
+- When you propose a change, say in one sentence what changes and why. For text cells, write for the reader of the analysis: what the result shows, with its numbers, not how it was computed.`;
+    } else if (porLineas && esSql) {
         section += `\n- **When you propose SQL the user should put in their file, DELIVER IT with \`propose_change\`, not just as a code block in prose.** \`propose_change\` shows the user the change in their editor with Accept/Reject; a plain \`\`\`sql block can only be inserted at their cursor by hand. Briefly explain the change in chat, then call \`propose_change\` with just the lines that change. (Exception: tiny inline snippets purely for illustration can stay in prose.)
 - **"This", "it", "the query"** mean the user's selection if there is one, otherwise the statement under their cursor (see "Where the user is"). Work on that part, not the whole file.
 - **When the last run failed**, the error is in "Current editor state": read it before answering, and fix the cause, not just the line it points at.`;
@@ -210,7 +219,11 @@ function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig,
     // Numeradas cuando el modelo puede proponer un rango de líneas (E2).
     const numeradas = !!(archivo?.porLineas && archivo.puedeProponer);
     const cuerpo = (t) => (numeradas ? numerar(t) : t);
-    if (archivo && archivo.tipo !== 'sql') {
+    if (archivo?.porCeldas) {
+        // E3: el notebook, celda por celda (cada SQL ya va en su bloque).
+        open();
+        s += `\n**Active notebook (${archivo.ruta || 'untitled'}), cell by cell:**\n\n${archivo.contenido}\n`;
+    } else if (archivo && archivo.tipo !== 'sql') {
         // Cualquier otro archivo va con su nombre y en su idioma: llamarle
         // «query» a un deck o a un YAML hacía que el modelo lo tratara como SQL.
         open();
@@ -233,6 +246,14 @@ function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig,
     } else if (enfoque?.sentencia) {
         open();
         s += `\n**Where the user is:** the cursor is in the statement at lines ${enfoque.sentencia.desde}–${enfoque.sentencia.hasta}. _"This query" means that statement._`;
+    } else if (enfoque?.celda) {
+        open();
+        const c = enfoque.celda;
+        s += `\n**Where the user is:** cell ${c.n} (${c.tipo === 'texto' ? 'text' : `SQL${c.nombre ? ` \`${c.nombre}\`` : ''}`}). _"This cell" means cell ${c.n}._${currentResult ? ' The on-screen result below is the result of this cell.' : ''}`;
+    } else if (enfoque?.seccion) {
+        open();
+        const e = enfoque.seccion;
+        s += `\n**Where the user is:** the section ${e.titulo ? `"${e.titulo}" ` : ''}at lines ${e.desde}–${e.hasta}. _"This" means that section._`;
     }
     if (enfoque?.error) {
         open();

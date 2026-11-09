@@ -2,7 +2,7 @@
 
 **Sale de:** [auditoria_ux_assistant.md](auditoria_ux_assistant.md) (A1–A13) y
 [auditoria_assistant_por_archivo.md](auditoria_assistant_por_archivo.md) (X1–X10 y los hallazgos por tipo)
-**Estado:** **E1 y E2 hechas** (2026-11-07/08, rama `claude/plan-5-19-interaccion`); E3–E6 sin empezar. Las seis decisiones,
+**Estado:** **E1, E2 y E3 hechas** (2026-11-07/08, rama `claude/plan-5-19-interaccion`); E4–E6 sin empezar. Las seis decisiones,
 tomadas como se proponían. Mockups en el artifact «El Assistant donde está el trabajo».
 
 ## La idea
@@ -266,6 +266,70 @@ de `sql.js` y `texto.js`, «Insert at cursor» que no toca lo demás, la selecci
 
 **Tamaño:** mediano. **Se prueba:** `cuaderno.js` ida y vuelta (marcas, parámetros y estado visual intactos al
 cambiar una celda; nombre que choca; celda que lee algo que no existe), `markdown.js` por secciones.
+
+**Hecha (2026-11-08).** Lo que quedó (y en qué se aparta de arriba):
+- **Notebook — el foco.** `CuadernoEditor` (con `tabId` nuevo) deja en `memoriaDePestana.fijarProveedorDeFoco` una
+  función que se lee al enviar:
+  - `celda: { n }`;
+  - `cuaderno` (`ai/archivos/cuaderno.estructuraDeCuaderno`: cada celda con número, tipo, nombre, texto, qué lee,
+    si corrió o falló, materializada o borrador; los parámetros y las vistas vivas);
+  - el `resultado` o el `error` de esa celda. Una celda de texto toma el resultado de la de SQL de arriba.
+
+  `getActiveTabInfo` saca resultado y error del foco y los manda como `results` / `resultsError`: pasan por la
+  política, y el `queryId` de la celda sirve a `display_chart`.
+- **Notebook — en el servidor.** `archivoActivo` convierte la estructura en el texto que lee el modelo («### Cell 2
+  · SQL `ventas_mes` (reads: ventas · ran, 12 rows)», parámetros, vistas vivas), con `porCeldas` y `celdas`.
+  `propose_change` acepta `kind: 'cell'` (número) y `kind: 'new_cell'` (`after_cell`, `cell_type`, `name`
+  validado y único). Quita las cercas ```sql. Devuelve `objetivo: { tipo: 'celda', accion: 'cambiar' |
+  'despues_de', n, celdaTipo, nombre }`, `original` y `anclaNombre`. El prompt explica que cada celda deja una
+  vista, `{{param}}` y una celda por llamada. En el notebook ya no se ofrece `write_file`.
+- **Notebook — ubicar y aplicar.**
+  - `ubicarCelda` busca una celda con nombre por su nombre y una sin nombre por número + texto, o por su texto si
+    es único; caduca si su texto cambió.
+  - El cuaderno aplica la propuesta sobre **su propio documento**, por `fijarAplicador`, que
+    `LayoutManager.aplicarPropuesta` llama para `objetivo.tipo === 'celda'`. Las demás celdas conservan su `id` y
+    con él su resultado: releer el archivo los habría perdido.
+- **Notebook — la revisión** (`cuaderno/PropuestaEnCuaderno.jsx`): `RevisionDeCelda` bajo la celda (con
+  `EditProposalBlock`) y `CeldaFantasma` (borde discontinuo) en el hueco donde entraría.
+- **Notebook — las puertas.**
+  - El mando **Assist** del canalón (`Canalon`). En SQL ofrece Explain this cell · Fix the error · Chart the
+    result; en texto, Write from the result above · Improve this text.
+  - **Fix with Assist** en el error de la celda (`Celda`).
+  - **Write from the result above** en una celda de texto vacía bajo un resultado (`CeldaTexto`).
+  - El inicio del panel, según la celda.
+  - **Sin bloqueo de líneas** en el notebook: la propuesta caduca si se edita su celda.
+- **Markdown.**
+  - Es `porLineas` (como `.sql` y texto): líneas numeradas, `propose_change` por rango y revisión en su Monaco
+    (`conectarAsistente` en `MarkdownEditor`, con `tabId` nuevo). No hizo falta el objetivo `seccion`: el modelo
+    señala la sección por sus líneas.
+  - El foco lleva `seccion` (`seccionEn`: del encabezado al siguiente de su nivel, sin contar los `#` de los
+    bloques de código).
+  - La barra: Rewrite · Shorter · Explain · Continue · Ask…, debajo de la selección; la burbuja de formato sigue
+    encima.
+  - **En la vista de lectura** no hay selección ni subrayado (aplazado): un aviso dice que hay propuestas y **Show
+    it** pasa a la vista dividida y la enseña.
+  - M3: `RULES.md`, `context/glossary.md` y `SKILL.md` se reconocen, con su inicio (Add a rule · Check the rules…).
+- **La barra de la revisión en Monaco** pasó de content widget a **overlay widget**, colocado sobre su hueco medido
+  en el DOM (zona de 38 px). Colgada de una línea, una línea partida en dos filas quedaba tapada, y el relleno del
+  editor de Markdown la corría.
+- **Un fallo de antes, arreglado.** Al cambiar de archivo, el panel guardaba en su caché la ruta nueva con la
+  conversación vieja: al volver a un archivo se abría el chat de otro, y con E2/E3 sus propuestas habrían llegado
+  al editor equivocado. La caché se escribe con la ruta de la conversación (`rutaDeLaConversacion`), y las
+  propuestas solo se publican si la conversación en pantalla es la del archivo.
+- **Pruebas.**
+  - `probarAssist.mjs`: 146/0.
+  - Siguen verdes `probarCuaderno` 45, `probarDeepDive` 46, `probarCuotaDeepDive` 14, `probarGraficoIA` 14,
+    `probarGraficos` 177, `probarFlujoGrafico` 22 y `probarInteraccion` 106.
+  - En la app, con el notebook de la tienda:
+    - Review lleva a la propuesta bajo la celda;
+    - Accept cambia la celda 2 y deja las demás;
+    - la celda fantasma se acepta y entra en su sitio;
+    - el menú Assist de una celda de texto envía la celda activa (n = 5) con las 9 celdas y los parámetros.
+  - En `RULES.md`:
+    - las dos barras sobre la selección, sin pisarse;
+    - la propuesta, en el editor y en la vista de lectura (aviso + Show it);
+    - Accept desde el editor.
+- **Sin probar:** un modelo real eligiendo celda y número, y «Chart the result» de una celda con un modelo real.
 
 ### E4 — Report Flow y gráfico
 - **Report Flow:** foco de la lámina (R2); contexto con el índice, los diseños y el `.amoxvis` de la lámina

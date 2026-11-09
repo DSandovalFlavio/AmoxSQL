@@ -3,6 +3,7 @@ import { LuCheck, LuX, LuFilePlus2, LuFilePen, LuHistory, LuRefreshCw, LuChevron
 import EditProposalBlock from './EditProposalBlock';
 import { estadoDe, esArchivoNuevo } from './propuestas';
 import { esDeRango, ubicarRango } from './archivos/rango.js';
+import { esDeCelda } from './archivos/cuaderno.js';
 import { describirPropuesta } from './archivos/index.js';
 
 /**
@@ -33,7 +34,7 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
         return (
             <div className="ai-propuesta ai-propuesta--compacta">
                 {nuevo ? <LuFilePlus2 size={13} /> : <LuFilePen size={13} />}
-                <span>{nuevo ? <>Proposing <code>{r.path}</code></> : esDeRango(r) ? `Proposing a change to ${describirPropuesta(r).replace(/^(Change to|Insert) /, '')}` : 'Proposing a change to this file'}</span>
+                <span>{nuevo ? <>Proposing <code>{r.path}</code></> : esDeRango(r) ? `Proposing a change to ${describirPropuesta(r).replace(/^(Change to|Insert) /, '')}` : esDeCelda(r) ? `Proposing: ${describirPropuesta(r)}` : 'Proposing a change to this file'}</span>
             </div>
         );
     }
@@ -104,6 +105,26 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
                     titulo={describirPropuesta(r, donde)}
                     currentContent={r.objetivo.hasta >= r.objetivo.desde ? r.original : []}
                     proposedContent={r.contenido === '' ? [] : r.contenido}
+                    description={r.resumen}
+                    onRevisar={onRevisar ? () => onRevisar(tc.toolCallId) : undefined}
+                    onAccept={aceptar}
+                    onReject={() => onReject && onReject(tc)}
+                />
+                {error && <div className="ai-propuesta__error">{error}</div>}
+            </>
+        );
+    }
+
+    // E3: one cell of a notebook: its old text and the new one (a new cell, all
+    // new). Review takes you to the cell, where the same change is drawn.
+    if (esDeCelda(r)) {
+        const nueva = r.objetivo.accion === 'despues_de';
+        return (
+            <>
+                <EditProposalBlock
+                    titulo={describirPropuesta(r)}
+                    currentContent={nueva ? [] : r.original}
+                    proposedContent={r.contenido}
                     description={r.resumen}
                     onRevisar={onRevisar ? () => onRevisar(tc.toolCallId) : undefined}
                     onAccept={aceptar}

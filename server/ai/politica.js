@@ -182,6 +182,8 @@ function sanearOpciones(opciones, proveedor) {
         o.archivo = prepararArchivo({
             filePath: o.filePath, fileType: o.fileType, contenido: o.currentQuery || '',
             datos, local: esLocal(proveedor),
+            // E3: el notebook llega con sus celdas (las del editor).
+            estructura: o.foco?.cuaderno || null,
         });
         o.currentQuery = o.archivo.tipo === 'sql' ? o.archivo.contenido : '';
         // Dónde está el usuario y qué falló (E2), con la misma política: la

@@ -25,7 +25,7 @@
  * que crecen, un cuaderno de veinte deja de poder recorrerse.
  */
 import { memo, useCallback, useRef, useState } from 'react';
-import { LuDatabase, LuLayers, LuTriangleAlert, LuHistory, LuArrowUpFromLine, LuPencilLine } from 'react-icons/lu';
+import { LuDatabase, LuLayers, LuTriangleAlert, LuHistory, LuArrowUpFromLine, LuPencilLine, LuWrench } from 'react-icons/lu';
 import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
 import { MODOS } from './modos.js';
@@ -91,6 +91,7 @@ const Celda = ({
     onEstado,         // (id, parcial)
     onEjecutar,       // (id)
     onCreateNew,
+    onAsistir = null, // E3: (id, accion) -> la pregunta al Assistant sobre esta celda
 }) => {
     /**
      * En lectura manda el cuaderno, no la celda.
@@ -359,7 +360,17 @@ const Celda = ({
                 {modo !== MODOS.CODIGO && (
                     <div className="cdn-res">
                         {!cerca ? null : resultado?.error ? (
-                            <div className="cdn-error">{resultado.error}</div>
+                            <div className="cdn-error">
+                                {resultado.error}
+                                {/* E3: el error es una puerta al Assistant, que ya lo conoce. */}
+                                {onAsistir && !lectura && (
+                                    <div>
+                                        <button type="button" className="cdn-error-asistir" onClick={() => onAsistir(celda.id, 'arreglar_celda')}>
+                                            <LuWrench size={12} /> Fix with Assist
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         ) : resultado?.data ? (
                             <ResultsTable
                                 data={resultado.data}

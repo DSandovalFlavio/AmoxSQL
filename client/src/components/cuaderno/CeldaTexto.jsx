@@ -24,6 +24,7 @@
 import { memo, useEffect, useLayoutEffect, useRef } from 'react';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import { MODOS } from './modos.js';
+import { LuSparkles } from 'react-icons/lu';
 // El markdown se ve igual en todo el producto: se trae la hoja del editor de
 // documentos en vez de escribir una propia. Sin ella, el ancla de los
 // encabezados —que alli se oculta hasta pasar el raton— sale como una almohadilla
@@ -41,6 +42,8 @@ const CeldaTexto = ({
     lectura,            // el cuaderno esta en modo lectura: solo se lee
     onCambiar,
     onEscribir,         // (id | null)
+    onAsistir = null,   // E3: (id, accion) -> la pregunta al Assistant sobre esta celda
+    resultadoArriba = false, // E3: hay un resultado justo encima, del que escribir
 }) => {
     // Por omisión se enseña compuesta: una celda de texto se lee mucho más de lo
     // que se escribe. Es al revés que en una de SQL.
@@ -88,7 +91,17 @@ const CeldaTexto = ({
                 title={lectura ? undefined : 'Double-click to write'}
             >
                 {vacia
-                    ? (lectura ? null : <p className="cdn-md-vacio">Double-click to write</p>)
+                    ? (lectura ? null : (
+                        <>
+                            <p className="cdn-md-vacio">Double-click to write</p>
+                            {/* E3: un texto vacío bajo un resultado es donde se cuenta lo que muestra. */}
+                            {onAsistir && resultadoArriba && (
+                                <button type="button" className="cdn-texto-asistir" onDoubleClick={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onAsistir(celda.id, 'escribir_texto'); }}>
+                                    <LuSparkles size={12} /> Write from the result above
+                                </button>
+                            )}
+                        </>
+                    ))
                     : <MarkdownPreview content={celda.contenido} widthMode="full" />}
             </div>
         </div>

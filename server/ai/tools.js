@@ -1175,7 +1175,65 @@ function createTools(context) {
             });
         }
 
-        if (!archivo || (archivo.puedeProponer && !archivo.porLineas)) {
+        // propose_change por celdas (E3): un notebook se cambia celda a celda,
+        // nunca entero. El modelo señala la celda por su número; aquí se comprueba
+        // que exista y que sea del tipo que dice, y la respuesta lleva su nombre y
+        // su texto, con los que el editor la vuelve a encontrar aunque se haya
+        // movido, o da la propuesta por caducada si cambió.
+        if (archivo && archivo.porCeldas && archivo.puedeProponer) {
+            const celdas = archivo.celdas || [];
+            allTools.propose_change = tool({
+                description: "Propose ONE change to the ACTIVE notebook: replace the text of a cell (kind 'cell', with its number as shown in 'Current editor state') or add a new cell after one (kind 'new_cell', after_cell = its number, 0 for the top). The user reviews it on the cell and accepts or rejects it; nothing is saved to disk. For several cells, call it once per cell.",
+                inputSchema: z.object({
+                    target: z.discriminatedUnion('kind', [
+                        z.object({
+                            kind: z.literal('cell'),
+                            cell: z.number().int().min(1).describe('The number of the cell whose text changes.'),
+                        }),
+                        z.object({
+                            kind: z.literal('new_cell'),
+                            after_cell: z.number().int().min(0).describe('The new cell goes after this cell number (0 = at the top).'),
+                            cell_type: z.enum(['sql', 'text']),
+                            name: z.string().optional().describe('For a SQL cell: a short snake_case name, different from the other cells (it becomes the view other cells read).'),
+                        }),
+                    ]),
+                    new_text: z.string().describe('The full new text of that cell (SQL, or Markdown for a text cell), without fences or cell markers.'),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ target, new_text: nuevo, summary = '' }) => {
+                    const sinCerca = String(nuevo || '').replace(/\r/g, '').replace(/^\s*```(?:sql)?\s*\n/, '').replace(/\n\s*```\s*$/, '').trim();
+                    const lista = celdas.map(c => `${c.n} ${c.tipo === 'texto' ? 'text' : 'SQL'}${c.nombre ? ` ${c.nombre}` : ''}`).join(', ');
+                    if (target.kind === 'cell') {
+                        const c = celdas.find(x => x.n === target.cell);
+                        if (!c) return { error: `There is no cell ${target.cell}. The cells are: ${lista}.` };
+                        if (sinCerca === String(c.texto).trim()) return { error: 'new_text is the same as the cell: there is nothing to change.' };
+                        return {
+                            success: true, action: 'propose_change',
+                            objetivo: { tipo: 'celda', accion: 'cambiar', n: c.n, celdaTipo: c.tipo },
+                            contenido: sinCerca, original: c.texto, anclaNombre: c.nombre || null, resumen: summary,
+                        };
+                    }
+                    const tras = target.after_cell;
+                    if (tras > celdas.length) return { error: `There are ${celdas.length} cells: after_cell must be 0–${celdas.length}.` };
+                    const tipo = target.cell_type === 'text' ? 'texto' : 'sql';
+                    let nombre = null;
+                    if (tipo === 'sql' && target.name) {
+                        nombre = String(target.name).trim();
+                        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(nombre)) return { error: `"${nombre}" is not a valid cell name: use letters, digits and underscores, starting with a letter.` };
+                        if (celdas.some(c => String(c.nombre || '').toLowerCase() === nombre.toLowerCase())) return { error: `There is already a cell named ${nombre}. Pick another name.` };
+                    }
+                    if (!sinCerca) return { error: 'new_text is empty.' };
+                    const ancla = tras ? celdas.find(x => x.n === tras) : null;
+                    return {
+                        success: true, action: 'propose_change',
+                        objetivo: { tipo: 'celda', accion: 'despues_de', n: tras, celdaTipo: tipo, nombre },
+                        contenido: sinCerca, original: ancla ? ancla.texto : null, anclaNombre: ancla?.nombre || null, resumen: summary,
+                    };
+                },
+            });
+        }
+
+        if (!archivo || (archivo.puedeProponer && !archivo.porLineas && !archivo.porCeldas)) {
             allTools.write_file = tool({
                 description: "Propose a new version of the ACTIVE file. The user reviews it in the chat and clicks Accept or Reject; accepting puts it in the editor without saving to disk. Send the COMPLETE file content, keeping every part you were not asked to change exactly as it is.",
                 inputSchema: z.object({

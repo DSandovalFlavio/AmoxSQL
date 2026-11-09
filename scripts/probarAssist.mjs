@@ -275,7 +275,7 @@ console.log('\nE2 · el prompt');
         dbt: { nombre: 'stg_x', materializado: 'view', columnas: [{ nombre: 'id', descripcion: 'the key' }], compilado: 'select * from "tienda"."main"."raw"', fresco: false }, modelProfile: { tier: 'high' } });
     bien('dbt: se escribe en Jinja, con sus columnas y el compilado', dbt.includes('dbt model: `stg_x`') && dbt.includes("ref('…')") && dbt.includes('id (the key)') && dbt.includes('Compiled SQL of this dbt model') && dbt.includes('may be behind'));
     const md = buildSystemPrompt({ ...politica.sanearOpciones({ mode: 'assistant', filePath: 'a.md', fileType: 'md', currentQuery: '# Hola' }, 'ollama'), modelProfile: { tier: 'high' } });
-    bien('Markdown sigue con write_file hasta E3, sin numerar', md.includes('**write_file**: proposes') && !md.includes('1 | # Hola'));
+    bien('Markdown (desde E3): por líneas, numerado, con propose_change', md.includes('**propose_change**: proposes replacing a range') && md.includes('1 | # Hola') && !md.includes('**write_file**: proposes'));
     const yml = buildSystemPrompt({ ...politica.sanearOpciones({ mode: 'assistant', filePath: 'context/metrics.yml', fileType: 'texto', currentQuery: 'metrics: []' }, 'ollama'), modelProfile: { tier: 'high' } });
     bien('texto: numerado, en su idioma y con lo que es', yml.includes('```yaml\n1 | metrics: []') && yml.includes('The project\'s measures'));
 }
@@ -288,7 +288,7 @@ console.log('\nE2 · propose_change');
     const t = conArchivo('a.sql', 'sql');
     bien('.sql: propose_change sí, write_file no', !!t.propose_change && !t.write_file);
     bien('texto: propose_change', !!conArchivo('c.yml', 'texto').propose_change);
-    bien('Markdown: write_file (hasta E3)', !conArchivo('a.md', 'md').propose_change && !!conArchivo('a.md', 'md').write_file);
+    bien('Markdown (desde E3): propose_change, sin write_file', !!conArchivo('a.md', 'md').propose_change && !conArchivo('a.md', 'md').write_file);
     const pc = (args) => t.propose_change.execute({ summary: '', ...args }, {});
     const r = await pc({ target: { kind: 'lines', start_line: 3, end_line: 4 }, new_text: 'SELECT a, b' });
     bien('un rango: trae lo que reemplaza y sus vecinas', r.action === 'propose_change' && r.original === 'SELECT a,\n       b' && r.ancla.antes === '' && r.ancla.despues === 'FROM t;' && r.objetivo.desde === 3);
@@ -306,6 +306,101 @@ console.log('\nE2 · propose_change');
     bien('si el modelo copia el número de línea, se quita', pref.contenido === 'SELECT 2;');
     const { aplicarRango } = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/rango.js')).href);
     bien('lo que propone el servidor lo aplica el cliente', aplicarRango(contenido, r).texto === 'SELECT 1;\n\nSELECT a, b\nFROM t;');
+}
+
+// ── E3. El notebook por celdas y el Markdown por secciones ─────────────────
+console.log('\nE3 · el notebook por celdas (cliente)');
+{
+    const cu = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/cuaderno.js')).href);
+    const { leerCuaderno, escribirCuaderno } = await import(pathToFileURL(path.join(RAIZ, 'client/src/utils/cuadernoFile.js')).href);
+    const celdas = [
+        { id: 'a', tipo: 'texto', contenido: '# Ventas' },
+        { id: 'b', tipo: 'sql', nombre: 'ventas_mes', materializada: false, contenido: 'SELECT mes, sum(importe) AS venta FROM ventas GROUP BY 1' },
+        { id: 'c', tipo: 'sql', nombre: '', materializada: false, contenido: 'SELECT * FROM ventas_mes' },
+    ];
+    const est = cu.estructuraDeCuaderno({ meta: { parametros: { region: 'Sur' } }, celdas }, {
+        analisis: { c: { lee: ['ventas_mes'] } }, resultados: { b: { data: [{ x: 1 }, { x: 2 }] }, c: { error: 'boom' } }, vivas: [{ nombre: 'ventas_mes' }],
+    });
+    bien('la estructura: número, tipo, nombre, qué lee, cómo corrió', est.celdas[1].n === 2 && est.celdas[1].nombre === 'ventas_mes' && est.celdas[1].filas === 2
+        && est.celdas[2].lee[0] === 'ventas_mes' && est.celdas[2].estado === 'error' && est.celdas[0].tipo === 'texto' && est.parametros.region === 'Sur' && est.vivas[0] === 'ventas_mes');
+    const cambio = { action: 'propose_change', objetivo: { tipo: 'celda', accion: 'cambiar', n: 3, celdaTipo: 'sql' }, original: 'SELECT * FROM ventas_mes', anclaNombre: null, contenido: 'SELECT mes FROM ventas_mes' };
+    bien('cambiar: donde dice', JSON.stringify(cu.ubicarCelda(celdas, cambio)) === '{"indice":2,"insertar":false}');
+    const movidas = [celdas[2], celdas[0], celdas[1]];
+    bien('cambiar: la celda se movió, se encuentra por su texto', cu.ubicarCelda(movidas, cambio)?.indice === 0);
+    bien('cambiar: su texto cambió, caducada', cu.ubicarCelda([celdas[0], celdas[1], { ...celdas[2], contenido: 'SELECT 1' }], cambio) === null);
+    const conNombre = { ...cambio, objetivo: { ...cambio.objetivo, n: 2 }, original: celdas[1].contenido, anclaNombre: 'ventas_mes' };
+    bien('una celda con nombre se busca por su nombre', cu.ubicarCelda(movidas, conNombre)?.indice === 2);
+    bien('no se convierte una de SQL en texto', cu.ubicarCelda(celdas, { ...cambio, objetivo: { ...cambio.objetivo, celdaTipo: 'texto' } }) === null);
+    const ap = cu.aplicarACeldas(celdas, cambio, () => 'nueva');
+    bien('aplicar: cambia esa celda; las demás, las mismas (y su id)', ap.celdas[2].contenido === 'SELECT mes FROM ventas_mes' && ap.celdas[2].id === 'c' && ap.celdas[0] === celdas[0] && ap.celdas[1] === celdas[1]);
+    const nueva = { action: 'propose_change', objetivo: { tipo: 'celda', accion: 'despues_de', n: 2, celdaTipo: 'texto' }, original: celdas[1].contenido, anclaNombre: 'ventas_mes', contenido: 'La venta crece.' };
+    const ins = cu.aplicarACeldas(celdas, nueva, () => 'nueva');
+    bien('una celda nueva entra después de su vecina', ins.celdas.length === 4 && ins.celdas[2].id === 'nueva' && ins.celdas[2].tipo === 'texto' && ins.celdas[3].id === 'c');
+    const arriba = cu.aplicarACeldas(celdas, { ...nueva, objetivo: { ...nueva.objetivo, n: 0, celdaTipo: 'sql', nombre: 'top' }, original: null, anclaNombre: null }, () => 'n0');
+    bien('after_cell 0: arriba del todo, con su nombre', arriba.celdas[0].id === 'n0' && arriba.celdas[0].nombre === 'top');
+    bien('describir', cu.describirCelda(cambio) === 'Change to cell 3' && cu.describirCelda(nueva) === 'New text cell after cell 2 (ventas_mes)');
+    // El estado en el panel: se lee el archivo del notebook.
+    const texto = escribirCuaderno({ meta: {}, celdas });
+    const tc = { toolCallId: 'c1', toolName: 'propose_change', estado: 'propuesta', result: cambio };
+    bien('estado: pendiente sobre el archivo de ahora', prop.estadoDe(tc, texto) === 'propuesta');
+    bien('estado: caducada si esa celda cambió', prop.estadoDe(tc, escribirCuaderno({ meta: {}, celdas: [celdas[0], celdas[1], { ...celdas[2], contenido: 'SELECT 2' }] })) === 'caducada');
+    bien('estado: sigue pendiente si cambió OTRA celda', prop.estadoDe(tc, escribirCuaderno({ meta: {}, celdas: [{ ...celdas[0], contenido: '# Otro título' }, celdas[1], celdas[2]] })) === 'propuesta');
+    bien('leerCuaderno ida y vuelta sigue igual', leerCuaderno(texto).celdas.length === 3);
+}
+
+console.log('\nE3 · la sección de Markdown');
+{
+    const arch = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/index.js')).href);
+    const md = '# Informe\nintro\n## Ventas\nsubieron\n\n```\n# no es un título\n```\n## Costos\nbajaron';
+    bien('la sección del cursor, hasta el siguiente encabezado de su nivel', JSON.stringify(arch.seccionEn(md, 4)) === '{"desde":3,"hasta":8,"titulo":"Ventas"}');
+    bien('un # dentro de un bloque de código no es título', arch.seccionEn(md, 7).titulo === 'Ventas');
+    bien('el título de nivel 1 abarca todo', arch.seccionEn(md, 2).hasta === 10);
+    bien('el foco de Markdown trae la sección', arch.focoDeEditor({ texto: md, tipo: 'markdown', lineaCursor: 10 }).seccion?.titulo === 'Costos');
+    bien('Markdown va por líneas', arch.porLineas('markdown') && !arch.porLineas('cuaderno'));
+    const inicio = arch.inicioDe({ type: 'sqlnb', path: 'a.sqlnb', content: '', resultsError: 'boom', foco: { celda: { n: 2 } } });
+    bien('inicio del notebook con la celda en error: arreglarla primero', inicio[0].etiqueta === 'Fix this cell' && inicio.some(o => o.etiqueta === 'Explain this cell'));
+}
+
+console.log('\nE3 · el notebook en el servidor');
+{
+    const { conocido } = require(path.join(RAIZ, 'server/ai/archivoActivo.js'));
+    const estructura = {
+        parametros: { region: 'Sur' }, vivas: ['ventas_mes'],
+        celdas: [
+            { n: 1, tipo: 'texto', nombre: null, texto: '# Ventas' },
+            { n: 2, tipo: 'sql', nombre: 'ventas_mes', texto: "SELECT mes, sum(importe) AS venta FROM ventas WHERE region = '{{region}}' GROUP BY 1", lee: ['ventas'], estado: 'corrio', filas: 12 },
+            { n: 3, tipo: 'sql', nombre: 'crecimiento', texto: 'SELECT mes, venta / lag(venta) - 1 FROM ventas_mes', lee: ['ventas_mes'], estado: 'error' },
+        ],
+    };
+    const a = prepararArchivo({ filePath: 'ventas.sqlnb', fileType: 'sqlnb', contenido: '(el markdown)', estructura });
+    bien('el notebook va por celdas numeradas, con nombre, qué lee y cómo corrió', a.porCeldas && !a.porLineas && a.contenido.includes('### Cell 2 · SQL `ventas_mes` (reads: ventas · ran, 12 rows)')
+        && a.contenido.includes('last run FAILED') && a.contenido.includes('region = "Sur"') && a.contenido.includes('Live views in the session'));
+    bien('sin estructura (un cliente viejo), como antes', !prepararArchivo({ filePath: 'v.sqlnb', fileType: 'sqlnb', contenido: 'x' }).porCeldas);
+    const o = politica.sanearOpciones({ mode: 'assistant', filePath: 'ventas.sqlnb', fileType: 'sqlnb', currentQuery: '(md)', foco: { celda: { n: 3 }, cuaderno: estructura }, resultsError: 'Binder Error: lag needs OVER' }, 'ollama');
+    bien('el foco: la celda 3, con su nombre', o.enfoque?.celda?.n === 3 && o.enfoque.celda.nombre === 'crecimiento' && o.enfoque.error.includes('lag'));
+    const p = buildSystemPrompt({ ...o, modelProfile: { tier: 'high' } });
+    bien('el prompt: por celdas, la celda activa y su error', p.includes('Active notebook (ventas.sqlnb), cell by cell') && p.includes('**Where the user is:** cell 3 (SQL `crecimiento`)') && p.includes('The last run failed'));
+    bien('el prompt: propone celda a celda, nunca el cuaderno entero', p.includes('proposes ONE cell change') && p.includes('FROM <its name>') && !p.includes('**write_file**: proposes'));
+    const md = politica.sanearOpciones({ mode: 'assistant', filePath: 'informe.md', fileType: 'md', currentQuery: '# A\nx\n## B\ny', foco: { seccion: { desde: 3, hasta: 4, titulo: 'B' } } }, 'ollama');
+    bien('Markdown: la sección donde está', buildSystemPrompt({ ...md, modelProfile: { tier: 'high' } }).includes('the section "B" at lines 3–4'));
+    bien('M3: RULES.md, el glosario y una skill se reconocen', /rules for AmoxSQL's AI/.test(conocido('RULES.md')) && /glossary/.test(conocido('context/glossary.md')) && /skill of AmoxSQL/.test(conocido('agent/skills/eda/SKILL.md')));
+
+    const t = createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant', archivo: a });
+    bien('notebook: propose_change sí, write_file no', !!t.propose_change && !t.write_file);
+    const pc = (args) => t.propose_change.execute({ summary: '', ...args }, {});
+    const c = await pc({ target: { kind: 'cell', cell: 3 }, new_text: '```sql\nSELECT mes, venta / lag(venta) OVER (ORDER BY mes) - 1 FROM ventas_mes\n```' });
+    bien('cambiar la celda 3: su nombre, su texto y sin cercas', c.objetivo?.tipo === 'celda' && c.objetivo.accion === 'cambiar' && c.anclaNombre === 'crecimiento' && c.original.startsWith('SELECT mes, venta / lag') && !c.contenido.includes('```'));
+    bien('una celda que no existe: error con la lista', /no cell 9/.test((await pc({ target: { kind: 'cell', cell: 9 }, new_text: 'x' })).error || ''));
+    bien('sin cambios: error', /nothing to change/.test((await pc({ target: { kind: 'cell', cell: 1 }, new_text: '# Ventas' })).error || ''));
+    const n = await pc({ target: { kind: 'new_cell', after_cell: 3, cell_type: 'text' }, new_text: 'El crecimiento se frena en agosto.' });
+    bien('una celda de texto nueva después de la 3', n.objetivo?.accion === 'despues_de' && n.objetivo.n === 3 && n.objetivo.celdaTipo === 'texto' && n.anclaNombre === 'crecimiento');
+    bien('nombre repetido: error', /already a cell named/.test((await pc({ target: { kind: 'new_cell', after_cell: 0, cell_type: 'sql', name: 'ventas_mes' }, new_text: 'SELECT 1' })).error || ''));
+    bien('nombre inválido: error', /not a valid cell name/.test((await pc({ target: { kind: 'new_cell', after_cell: 0, cell_type: 'sql', name: 'mi celda' }, new_text: 'SELECT 1' })).error || ''));
+    bien('after_cell fuera: error', /after_cell must be 0–3/.test((await pc({ target: { kind: 'new_cell', after_cell: 7, cell_type: 'text' }, new_text: 'x' })).error || ''));
+    const cu = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/cuaderno.js')).href);
+    const celdasCliente = estructura.celdas.map(x => ({ id: `id${x.n}`, tipo: x.tipo, nombre: x.nombre || '', contenido: x.texto }));
+    const ap = cu.aplicarACeldas(celdasCliente, c, () => 'z');
+    bien('lo que propone el servidor lo aplica el cliente', ap.celdas[2].contenido.includes('OVER (ORDER BY mes)') && ap.celdas[2].id === 'id3');
 }
 
 // ── 6. El servidor ──────────────────────────────────────────────────────────

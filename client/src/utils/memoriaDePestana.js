@@ -61,7 +61,35 @@ export function fijarFoco(tabId, foco) {
         window.dispatchEvent(new CustomEvent('amox_foco', { detail: { tabId, seleccion: foco?.seleccion ? { desde: foco.seleccion.desde, hasta: foco.seleccion.hasta } : null } }));
     }
 }
-export const focoDe = (tabId) => focos.get(tabId) || null;
+/**
+ * E3: un editor que no es Monaco (el notebook) no puede avisar a cada movimiento
+ * de lo que tiene; deja aquí una función y se le pregunta al enviar. Gana sobre el
+ * foco guardado. Devuelve cómo quitarla.
+ */
+const proveedores = new Map();
+export function fijarProveedorDeFoco(tabId, fn) {
+    if (!tabId) return () => {};
+    proveedores.set(tabId, fn);
+    return () => { if (proveedores.get(tabId) === fn) proveedores.delete(tabId); };
+}
+export const focoDe = (tabId) => {
+    const fn = proveedores.get(tabId);
+    if (fn) { try { return fn() || null; } catch { return null; } }
+    return focos.get(tabId) || null;
+};
+
+/**
+ * E3: quien sabe aplicar una propuesta sobre su propio documento (el notebook la
+ * aplica en sus celdas, conservando sus `id` y con ellos los resultados de las
+ * demás). Devuelve cómo quitarlo.
+ */
+const aplicadores = new Map();
+export function fijarAplicador(tabId, fn) {
+    if (!tabId) return () => {};
+    aplicadores.set(tabId, fn);
+    return () => { if (aplicadores.get(tabId) === fn) aplicadores.delete(tabId); };
+}
+export const aplicadorDe = (tabId) => aplicadores.get(tabId) || null;
 
 export const recordarResultados = (tabId, estado) => { resultados.set(tabId, estado); };
 

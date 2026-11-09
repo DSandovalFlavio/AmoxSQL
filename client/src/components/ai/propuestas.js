@@ -1,4 +1,6 @@
 import { ubicarRango, esDeRango } from './archivos/rango.js';
+import { ubicarCelda, esDeCelda } from './archivos/cuaderno.js';
+import { leerCuaderno } from '../../utils/cuadernoFile.js';
 
 /**
  * **Las propuestas del Assistant y su estado** (plan del Assistant, E1/A1).
@@ -60,6 +62,10 @@ export function estadoDe(tc, contenidoActual = null) {
     if (esDeRango(tc.result)) {
         return contenidoActual != null && !ubicarRango(contenidoActual, tc.result) ? 'caducada' : 'propuesta';
     }
+    // E3: por celdas, caduca solo si cambió su celda (o la de al lado, si añade una).
+    if (esDeCelda(tc.result)) {
+        return contenidoActual != null && !ubicarCelda(leerCuaderno(contenidoActual).celdas, tc.result) ? 'caducada' : 'propuesta';
+    }
     if (!esArchivoNuevo(tc) && tc.base && contenidoActual != null && huella(contenidoActual) !== tc.base) {
         return 'caducada';
     }
@@ -75,7 +81,7 @@ export function marcarPropuestas(llamadas, contenidoEnviado) {
     return llamadas.map(tc => {
         if (!esPropuesta(tc) || tc.estado) return tc;
         // Por líneas no hace falta la huella: la propuesta trae el texto que reemplaza.
-        if (esDeRango(tc.result)) return { ...tc, estado: 'propuesta' };
+        if (esDeRango(tc.result) || esDeCelda(tc.result)) return { ...tc, estado: 'propuesta' };
         return esArchivoNuevo(tc) ? { ...tc, estado: 'propuesta' } : { ...tc, estado: 'propuesta', base };
     });
 }
