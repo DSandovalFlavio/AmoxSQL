@@ -12,62 +12,86 @@ AmoxSQL is built to be driven from the keyboard. This page lists every available
 
 | Shortcut | Action |
 |---|---|
-| Ctrl + Shift + P | Command Palette |
-| Ctrl + , | Open Settings |
-| Ctrl + S | Save File |
-| Ctrl + Shift + S | Save As… |
-| Ctrl + N | New SQL File |
-| Ctrl + Shift + N | New Notebook |
-| Ctrl + W | Close Current Tab |
-| Ctrl + Shift + / | Keyboard Shortcuts |
+| Ctrl + K | Command palette |
+| Ctrl + P | Jump to a file, table or column |
+| Ctrl + Shift + P | Command palette (alias) |
+| Ctrl + , | Settings |
+| Ctrl + Shift + / | This list |
 
-## Query execution
+## Files
 
 | Shortcut | Action |
 |---|---|
-| Ctrl + Enter | Run Query / Run Cell |
-| F5 | Run Query (alias) |
-| Ctrl + Shift + A | Analyze Query Plan (EXPLAIN) |
-| Ctrl + Shift + Enter | Run All Cells (Notebooks) |
+| Ctrl + S | Save |
+| Ctrl + Shift + S | Save as… |
+| Ctrl + N | New SQL query |
+| Ctrl + Shift + N | New notebook |
+| Ctrl + Shift + F | Search the whole project |
 
-## Navigation
+## Queries
 
 | Shortcut | Action |
 |---|---|
-| Ctrl + Tab | Next Tab |
-| Ctrl + Shift + Tab | Previous Tab |
-| Ctrl + B | Toggle Sidebar |
-| Ctrl + L | Toggle Assist |
-| Ctrl + Shift + E | Focus File Explorer |
-| Ctrl + Shift + D | Focus Database Explorer |
+| Ctrl + Enter | Run (the selection, or the whole script) |
+| F5 | Run |
+| Ctrl + Alt + Enter | Run only the statement under the cursor |
+| Esc | Stop this tab's query (when nothing else is open) |
+| Ctrl + Shift + A | Analyse the execution plan |
+| Ctrl + E | Analyse the execution plan (alias) |
+| Ctrl + Shift + H | Query history |
+| Ctrl + Shift + R | Run both split panes |
+| Ctrl + Shift + Enter | Run all cells |
+
+## Tabs
+
+| Shortcut | Action |
+|---|---|
+| Ctrl + W | Close the tab |
+| Ctrl + Shift + T | Reopen the last one you closed |
+| Alt + P | Pin or unpin the tab |
+| Ctrl + Tab | Go to the most recently used |
+| Ctrl + Shift + Tab | The other way round |
+| Alt + Left | Back through visited tabs |
+| Alt + Right | Forward through visited tabs |
+| Ctrl + \\ | Split the screen in two |
+| Ctrl + Shift + \\ | Duplicate the tab to the other pane |
+
+## Panels
+
+| Shortcut | Action |
+|---|---|
+| Ctrl + B | Show or hide the sidebar |
+| Ctrl + L | Show or hide Assist; with text selected, ask about it |
+| Ctrl + Shift + E | Go to the file explorer |
+| Ctrl + Shift + D | Go to the database schema |
 
 ## Editor
 
 | Shortcut | Action |
 |---|---|
-| Ctrl + / | Toggle Line Comment |
-| Ctrl + D | Duplicate Selection / Line |
-| Ctrl + Shift + K | Delete Line |
-| Ctrl + F | Find in Editor |
-| Ctrl + H | Find and Replace |
-| Ctrl + K | Format SQL (Prettify) |
-| Ctrl + Shift + F | Format SQL (Alternative) |
-| Ctrl + Z | Undo |
+| Ctrl + F | Find |
+| Ctrl + H | Find and replace |
+| Shift + Alt + F | Format the SQL |
+| Ctrl + / | Comment or uncomment the line |
+| Ctrl + D | Select the next match (several cursors) |
+| Shift + Alt + Down | Duplicate the line |
+| Alt + Up | Move the line up (Alt+Down, down) |
+| Ctrl + Shift + K | Delete the line |
+| Ctrl + Z | Undo (each tab keeps its own history) |
 | Ctrl + Shift + Z | Redo |
-| Ctrl + A | Select All |
 
 ## View
 
 | Shortcut | Action |
 |---|---|
-| Ctrl + = | Zoom In |
-| Ctrl + - | Zoom Out |
-| Ctrl + 0 | Reset Zoom |
-| Escape | Close Modals / Exit Full View |
+| Ctrl + = | Zoom in |
+| Ctrl + - | Zoom out |
+| Ctrl + 0 | Reset zoom |
+| Escape | Close the dialog on top |
 
 ## Tips & gems
 
-- **The command palette rules:** **Ctrl+Shift+P** opens searchable quick actions — the one shortcut to remember when you can't recall the rest.
+- **The command palette rules:** **Ctrl+K** opens searchable quick actions — the one shortcut to remember when you can't recall the rest.
 - **Selection = partial run:** with text selected, **Ctrl+Enter** runs just that selection.
 - **Global zoom:** **Ctrl +/-/0** scales the whole interface, not only the editor.
 - **The reference is always at hand:** **Ctrl+Shift+/** opens this very list inside the app.

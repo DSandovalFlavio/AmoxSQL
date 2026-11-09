@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp, LuCircleHelp, LuChartColumn, LuListChecks, LuLightbulb, LuAtSign } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp, LuCircleHelp, LuChartColumn, LuListChecks, LuLightbulb, LuAtSign, LuTextSelect } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 import ChatMessage from './ChatMessage';
@@ -10,6 +10,15 @@ import PoliticaIAChip from '../workspaces/PoliticaIAChip';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
+import { inicioDe, tipoDePestana } from './archivos/index.js';
+import { esDeRango } from './archivos/rango.js';
+import { esDeCelda } from './archivos/cuaderno.js';
+import { esDeLamina } from './archivos/deck.js';
+import { esDeGrafico } from './archivos/grafico.js';
+import { esDePasos } from './archivos/flujo.js';
+import { esDeTarjeta } from './archivos/lienzo.js';
+import { esDeDiagrama } from './archivos/diagrama.js';
+import { publicarPropuestas, pedirRevision } from './propuestasEnEditor.js';
 
 import { API_BASE as API } from '../../api.js';
 
@@ -25,8 +34,11 @@ const AiAssistantPanel = ({
     // props, so typing in the editor never re-renders this panel (G8).
     getActiveTabInfo,
     onEditFile,
+    // «Apply to chart» and «Insert at cursor» only make sense in a .sql: a
+    // notebook or a deck has no one chart, and its editor is not Monaco's.
     onUpdateChartConfig,
-    onAppendToFile,
+    onInsertarEnEditor,
+    onOpenFile,
     onRunSql,
     onClose,
     availableTables,
@@ -79,8 +91,7 @@ const AiAssistantPanel = ({
         handleSelectConversation,
         handleCancel,
 
-        // Pending edits
-        pendingEdits,
+        // Proposals
         acceptEdit,
         rejectEdit,
     } = useAiChat({
@@ -89,8 +100,125 @@ const AiAssistantPanel = ({
         fileType: activeFileType,
         getFileContext: getActiveTabInfo,
         onEditFile,
-        onUpdateChartConfig,
+        onOpenFile,
     });
+
+    const esSql = activeFileType === 'sql';
+
+    // «Propose again»: a proposal made on an older version of the file, or in a
+    // session before proposals kept their state, is asked for again instead of
+    // being applied over what changed since (A1).
+    const proponerDeNuevo = useCallback((tc) => {
+        const r = tc?.result || {};
+        rejectEdit(tc);
+        handleSend(r.action === 'propose_file'
+            ? `Propose the file ${r.path} again.`
+            : 'The file changed after your last proposal. Propose that change again on the current version of the file.');
+    }, [rejectEdit, handleSend]);
+
+    // ─── E2: proposals reviewed in the editor ───
+    // The pending line proposals of this file go to its editor, which draws them
+    // as a diff with Accept / Reject. The actions go through a ref so the editor
+    // always calls the current ones.
+    const accionesRef = useRef({ aceptar: acceptEdit, rechazar: rejectEdit });
+    accionesRef.current = { aceptar: acceptEdit, rechazar: rejectEdit };
+    const accionesEstables = useRef({
+        aceptar: (tc) => accionesRef.current.aceptar(tc),
+        rechazar: (tc) => accionesRef.current.rechazar(tc),
+    }).current;
+    const rutaPublicada = useRef(null);
+    useEffect(() => {
+        if (rutaPublicada.current && rutaPublicada.current !== activeFilePath) {
+            publicarPropuestas(rutaPublicada.current, [], null);
+        }
+        rutaPublicada.current = activeFilePath;
+        if (!activeFilePath) return;
+        // Only the conversation of THIS file: while another file's chat is still on
+        // screen (the switch is loading), its proposals must not reach this editor.
+        const deEsteArchivo = conversationId && fileConvCacheRef.current[activeFilePath] === conversationId;
+        const pendientes = [];
+        for (const m of deEsteArchivo ? messages : []) {
+            for (const tc of m.toolCalls || []) {
+                if (tc.estado === 'propuesta' && (esDeRango(tc.result) || esDeCelda(tc.result) || esDeLamina(tc.result) || esDeGrafico(tc.result)
+                    || esDePasos(tc.result) || esDeTarjeta(tc.result) || esDeDiagrama(tc.result))) pendientes.push(tc);
+            }
+        }
+        publicarPropuestas(activeFilePath, pendientes, accionesEstables);
+    }, [messages, activeFilePath, accionesEstables, conversationId]);
+
+    // ─── E2: the doors in the editor (selection bar, error, results) ───
+    // They open the panel (App) and arrive here as a question, sent at once; «Ask…»
+    // only focuses the box, with the selection shown as its reference.
+    useEffect(() => {
+        const PREGUNTAS = {
+            explicar: (t) => (t === 'sql' ? 'Explain the selected SQL.' : 'Explain the selected text.'),
+            arreglar: () => 'Fix the selected SQL.',
+            optimizar: () => 'Optimize the selected SQL without changing its result.',
+            mejorar: () => 'Improve the selected text.',
+            arreglar_error: () => 'Fix the error of the last run.',
+            explicar_resultado: () => 'Explain this result: what stands out?',
+            graficar: () => 'Chart this result.',
+            // E3: the notebook's cells and the Markdown selection.
+            explicar_celda: () => 'Explain this cell.',
+            arreglar_celda: () => 'Fix the error in this cell.',
+            graficar_celda: () => 'Chart the result of this cell.',
+            mejorar_celda: () => 'Improve this text cell so it reads better, keeping what it says and its numbers.',
+            escribir_texto: () => 'Write this text cell from the result of the SQL cell above it: what it shows, with its numbers, in two or three sentences.',
+            reescribir: () => 'Rewrite the selected text so it reads better, keeping what it says.',
+            acortar: () => 'Make the selected text shorter, keeping what it says.',
+            continuar: () => 'Continue the text after the selection, in the same voice.',
+            // E4: a deck's slide and a chart's Story Flow stage.
+            lamina_ajustar: () => 'Tighten the text of this slide: one clear point, fewer words. Keep its layout and charts.',
+            lamina_titular: () => 'Write the headline of this slide from what its chart shows, with the number that carries it.',
+            lamina_notas: () => 'Write speaker notes for this slide: what to say while it is on screen, in three or four short lines.',
+            lamina_despues: () => 'Add a slide after this one that the story is missing. Ask me what it should say if it is not clear.',
+            grafico_type: () => 'Which chart type tells this data best? Propose it.',
+            grafico_data: () => 'Which columns should go on each axis of this chart? Propose them.',
+            grafico_format: () => 'Format this chart so its numbers and labels read at a glance.',
+            grafico_style: () => 'Make this chart readable in a slide: colors, labels and legend.',
+            grafico_story: () => 'Write the title and the takeaway of this chart from what the data shows.',
+            grafico_export: () => 'Is this chart ready to share? What would you fix first?',
+            grafico_explicar: () => 'Explain what this chart shows.',
+            // E5: a Data Flow step, a Canvas card, a diagram box.
+            paso_explicar: () => 'Explain what this step does.',
+            paso_arreglar: () => 'Fix the error in this step.',
+            paso_sql: () => 'Write the SQL for this step: propose a sql_inline step that does the same, or the query this step needs.',
+            tarjeta_preguntar: () => 'What does this card show, and what stands out?',
+            tarjeta_cifra: () => 'Explain this number: how it is computed and what it means.',
+            diagrama_expandir: () => 'Expand this box into the steps it is made of.',
+        };
+        const alAsistir = (e) => {
+            const { accion } = e.detail || {};
+            if (accion === 'preguntar') {
+                setTimeout(() => inputRef.current?.focus(), 80);
+                return;
+            }
+            const info = getActiveTabInfo ? getActiveTabInfo() : null;
+            // E5: a door can bring its own words (the Data Flow bar, "Ask a question → cards").
+            const pregunta = e.detail?.pregunta ? String(e.detail.pregunta) : PREGUNTAS[accion]?.(tipoDePestana(info?.type, info?.path));
+            if (!pregunta) return;
+            if (isGenerating) { setInputText(pregunta); return; }
+            handleSend(pregunta);
+        };
+        window.addEventListener('amox_asistir', alAsistir);
+        return () => window.removeEventListener('amox_asistir', alAsistir);
+    }, [getActiveTabInfo, handleSend, isGenerating, setInputText, inputRef]);
+
+    // The selection the next question is about, shown in the box (E2).
+    const [seleccion, setSeleccion] = useState(null);
+    useEffect(() => {
+        const leer = () => {
+            const info = getActiveTabInfo ? getActiveTabInfo() : null;
+            setSeleccion(info?.foco?.seleccion ? { desde: info.foco.seleccion.desde, hasta: info.foco.seleccion.hasta } : null);
+        };
+        leer();
+        const alFoco = (e) => {
+            const info = getActiveTabInfo ? getActiveTabInfo() : null;
+            if (info && e.detail?.tabId === info.id) setSeleccion(e.detail.seleccion);
+        };
+        window.addEventListener('amox_foco', alFoco);
+        return () => window.removeEventListener('amox_foco', alFoco);
+    }, [getActiveTabInfo, activeFilePath]);
 
     // ─── View Mode: 'chat' or 'history' ───
     const [viewMode, setViewMode] = useState('chat');
@@ -108,7 +236,8 @@ const AiAssistantPanel = ({
         let lastQ = null;
         let timer = null;
         const check = () => {
-            const q = getActiveTabInfo()?.content || '';
+            const info = getActiveTabInfo();
+            const q = info?.type === 'sql' ? (info.content || '') : '';
             if (q === lastQ) return;
             lastQ = q;
             if (timer) clearTimeout(timer);
@@ -134,6 +263,10 @@ const AiAssistantPanel = ({
     // ─── Cache: filePath → last conversationId per session ───
     const fileConvCacheRef = useRef({});
     const prevFilePathRef = useRef(null);
+    // The file the conversation on screen belongs to. Set when a file's conversation
+    // starts loading, so the cache never pairs the NEW path with the OLD conversation:
+    // it used to, and coming back to a file opened another file's chat.
+    const rutaDeLaConversacion = useRef(null);
 
     // ─── When activeFilePath changes, auto-load the latest conversation ───
     useEffect(() => {
@@ -144,6 +277,7 @@ const AiAssistantPanel = ({
         // Always show chat view when switching files
         setViewMode('chat');
 
+        rutaDeLaConversacion.current = activeFilePath;
         const loadLastConversation = async () => {
             // Check cache first
             const cachedId = fileConvCacheRef.current[activeFilePath];
@@ -175,12 +309,22 @@ const AiAssistantPanel = ({
         loadLastConversation();
     }, [activeFilePath]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Keep cache updated when conversationId changes
+    // Keep cache updated when conversationId changes — only for the file it belongs
+    // to (a path change alone must not pair the new file with the old conversation).
     useEffect(() => {
-        if (activeFilePath && conversationId) {
-            fileConvCacheRef.current[activeFilePath] = conversationId;
+        if (conversationId && rutaDeLaConversacion.current) {
+            fileConvCacheRef.current[rutaDeLaConversacion.current] = conversationId;
         }
-    }, [conversationId, activeFilePath]);
+    }, [conversationId]);
+
+    // E6/A9: a conversation of another file, from the history: its file opens and
+    // the panel shows that conversation (the switch reads it from the cache).
+    const abrirConversacionDeOtro = useCallback((conv) => {
+        if (!conv?.file_path) return;
+        fileConvCacheRef.current[conv.file_path] = conv.id;
+        setViewMode('chat');
+        onOpenFile?.(conv.file_path);
+    }, [onOpenFile]);
 
     // ─── Skill activation from Command Palette ───
     useEffect(() => {
@@ -342,6 +486,7 @@ const AiAssistantPanel = ({
                     onSelect={handleSelectConversation}
                     onNew={handleNewConversation}
                     onBack={() => setViewMode('chat')}
+                    onAbrirOtra={onOpenFile ? abrirConversacionDeOtro : undefined}
                 />
             </div>
         );
@@ -352,7 +497,7 @@ const AiAssistantPanel = ({
     // ═══════════════════════════════════════
     // Sampled once per panel render (used for edit-proposal diffs). Fresh enough:
     // any pending edit arriving re-renders the panel and re-reads it.
-    const currentFileContent = getActiveTabInfo ? (getActiveTabInfo()?.content || null) : null;
+    const currentFileContent = getActiveTabInfo ? (getActiveTabInfo()?.content ?? null) : null;
     return (
         <div className="ai-panel">
             {/* ─── Resize Handle (left edge) ─── */}
@@ -365,8 +510,9 @@ const AiAssistantPanel = ({
                 <div className="ai-header-left">
                     <LuBot size={16} style={{ color: 'var(--accent-primary)' }} />
                     <span className="ai-title">AmoxSQL AI</span>
-                    {provider === 'gemini' && (
-                        <span className="ai-badge-cloud">CLOUD</span>
+                    {/* Any provider but the local one sends data out: say so for all of them. */}
+                    {provider && provider !== 'ollama' && (
+                        <span className="ai-badge-cloud" title="This model runs in the cloud">CLOUD</span>
                     )}
                     <PoliticaIAChip />
                 </div>
@@ -419,6 +565,17 @@ const AiAssistantPanel = ({
 
             <AiModesGuideModal isOpen={showModesGuide} onClose={() => setShowModesGuide(false)} />
 
+            {/* E6/A9: the file this conversation is about; it changes with the tab, and now says so. */}
+            {activeFilePath && (
+                <button type="button" className="ai-archivo-barra" onClick={() => setViewMode('history')}
+                    title={`${activeFilePath} — this conversation is linked to this file. Click to see its other chats.`}>
+                    <LuFile size={12} />
+                    <span className="ai-archivo-barra-nombre">{activeFilePath.split(/[\\/]/).pop()}</span>
+                    <span className="ai-archivo-barra-nota">this file's chat</span>
+                    <LuHistory size={11} className="ai-archivo-barra-icono" />
+                </button>
+            )}
+
             {status === 'LOADING' && (
                 <div className="ai-loading">
                     <LuLoader size={30} style={{ marginBottom: '15px', animation: 'spin 2s linear infinite', color: 'var(--accent-primary)' }} />
@@ -444,18 +601,15 @@ const AiAssistantPanel = ({
                                 </div>
                                 <h2 className="ai-empty-state-title">Assist</h2>
                                 <div className="ai-empty-state-hint">
-                                    Your copilot in the editor — ask about the current query, fix or explain SQL, or build a chart for the active file.
+                                    Ask about this file, or select part of it in the editor and ask about just that.
                                 </div>
+                                {/* A6: what makes sense for THIS file, in the state it is in. */}
                                 <div className="ai-quick-actions">
-                                    <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
-                                        Show all tables
-                                    </button>
-                                    <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
-                                        Describe schema
-                                    </button>
-                                    <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
-                                        Sample data
-                                    </button>
+                                    {inicioDe(getActiveTabInfo ? getActiveTabInfo() : null).map(op => (
+                                        <button key={op.etiqueta} className={`ai-quick-action${op.aviso ? ' ai-quick-action--aviso' : ''}`} onClick={() => handleSend(op.pregunta)}>
+                                            {op.etiqueta}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         )}
@@ -471,13 +625,14 @@ const AiAssistantPanel = ({
                                 isStreaming={false}
                                 thinkingMs={msg.thinkingMs}
                                 onRunSql={onRunSql}
-                                onApplyToFile={onEditFile}
-                                onAppendToFile={onAppendToFile}
-                                onApplyChart={onUpdateChartConfig}
+                                onInsertar={esSql ? onInsertarEnEditor : undefined}
+                                onApplyChart={esSql ? onUpdateChartConfig : undefined}
+                                destinoGrafico={esSql && activeFilePath ? `${activeFilePath.split(/[\\/]/).pop()}` : null}
                                 onFollowUp={(text) => handleSend(text)}
-                                pendingEdits={pendingEdits}
                                 acceptEdit={acceptEdit}
                                 rejectEdit={rejectEdit}
+                                onProponerDeNuevo={proponerDeNuevo}
+                                onRevisar={pedirRevision}
                                 currentFileContent={currentFileContent}
                             />
                         ))}
@@ -490,8 +645,6 @@ const AiAssistantPanel = ({
                                 toolCalls={activeToolCalls}
                                 isStreaming={true}
                                 onRunSql={onRunSql}
-                                onApplyToFile={onEditFile}
-                                onAppendToFile={onAppendToFile}
                             />
                         )}
 
@@ -504,7 +657,7 @@ const AiAssistantPanel = ({
                             return (
                                 <div className="ai-thinking">
                                     <LuLoader size={14} style={{ animation: 'spin 2s linear infinite' }} />
-                                    {modelWarming ? 'Encendiendo modelo…' : 'Pensando…'}
+                                    {modelWarming ? 'Loading the model…' : 'Thinking…'}
                                 </div>
                             );
                         })()}
@@ -532,7 +685,7 @@ const AiAssistantPanel = ({
                         {/* Auto-detected objects the active query references — the
                             model sees their columns+types; click to inspect. */}
                         {queryObjects.length > 0 && (
-                            <div className="ai-composer-ctx ai-qobjects" title="El asistente conoce las columnas de estos objetos de tu query">
+                            <div className="ai-composer-ctx ai-qobjects" title="Assist knows the columns of these objects your query reads">
                                 {queryObjects.map((o, i) => (
                                     <div key={i} className="ai-composer-chip ai-qobject-chip" style={{ position: 'relative' }}>
                                         {o.kind === 'file' ? <LuFile size={10} /> : <LuTable size={10} />}
@@ -575,6 +728,16 @@ const AiAssistantPanel = ({
                                         </button>
                                     </div>
                                 ))}
+                            </div>
+                        )}
+
+                        {/* The selection in the editor: what "this" means in the next question (E2). */}
+                        {seleccion && (
+                            <div className="ai-composer-ctx">
+                                <div className="ai-composer-chip ai-composer-chip--ref" title="Assist works on the text selected in the editor">
+                                    <LuTextSelect size={10} />
+                                    <span>Selection · {seleccion.desde === seleccion.hasta ? `line ${seleccion.desde}` : `lines ${seleccion.desde}–${seleccion.hasta}`}</span>
+                                </div>
                             </div>
                         )}
 

@@ -50,8 +50,12 @@ import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 
 import { API_BASE } from '../../api.js';
 import VentanaCambiosDeProceso from '../CambiosDeProceso';
+import { fijarProveedorDeFoco, fijarAplicador } from '../../utils/memoriaDePestana';
+import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
+import { esDePasos, vigenteEnFlujo, clasificar, fundirPasos, posicionesNuevas, describirPasos } from '../ai/archivos/flujo.js';
+import AntesYPropuesta from '../ai/revision/AntesYPropuesta.jsx';
 
-const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) => {
+const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave, tabId = null }) => {
     const toast = useToast();
     const dialog = useDialog();
     const { screenToFlowPosition, getZoom, setViewport } = useReactFlow();
@@ -152,7 +156,6 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     const [verCambios, setVerCambios] = useState(false);   // 5.14 (J9): What changed
     // 5.11 (D5): el proceso como formulario. Abre así si el proceso lo pide.
     const [comoFormulario, setComoFormulario] = useState(initialChain.vista === 'formulario');
-    const [aiLoading, setAiLoading] = useState(false);
     const [showTemplateGallery, setShowTemplateGallery] = useState(() => initialNodes.length === 0);
     const [showGuide, setShowGuide] = useState(false);
 
@@ -224,12 +227,16 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
 
     // Auto-save on changes (debounced to avoid lag during drag)
     const saveTimerRef = useRef(null);
+    // X3 (plan del Assistant): el texto que este editor escribió por última vez.
+    // Lo que llegue distinto a la pestaña vino de fuera y se vuelve a leer.
+    const emitidoRef = useRef(content);
     useEffect(() => {
         setIsDirty(true);
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         saveTimerRef.current = setTimeout(() => {
             const chainDef = serialize();
             const json = JSON.stringify(chainDef, null, 2);
+            emitidoRef.current = json;
             onChange?.(json);
         }, 300);
         return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
@@ -251,6 +258,24 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         return () => clearTimeout(t);
     }, [serialize, filePath]);
 
+    useEffect(() => {
+        if (!content || content === emitidoRef.current) return;
+        let d;
+        try { d = JSON.parse(content); } catch { return; }
+        if (!d || !Array.isArray(d.nodes)) return;
+        emitidoRef.current = content;
+        setNodes(d.nodes.map(n => ({
+            id: n.id, type: n.type, position: n.position || { x: 0, y: 0 },
+            data: { label: n.label || '', description: n.description || '', nodeType: n.type, config: n.config || {}, disabled: !!n.disabled },
+        })));
+        setEdges((d.edges || []).map(e => ({
+            id: e.id, source: e.source, target: e.target, type: 'smoothstep',
+            style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
+        })));
+        setChainMeta(m => ({ ...m, name: d.name || m.name, description: d.description || '', variables: d.variables || {}, parametros: d.parametros, vista: d.vista, config: d.config }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [content]);
+
     const changeBase = useCallback((base) => {
         setChainMeta(m => ({ ...m, config: { ...(m.config || {}), base } }));
     }, []);
@@ -261,6 +286,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         const chainDef = serialize();
         const json = JSON.stringify(chainDef, null, 2);
+        emitidoRef.current = json;
         onChange?.(json);
         // Trigger actual file save via LayoutManager
         setTimeout(() => {
@@ -584,6 +610,105 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [nodes, validationResults, execution.nodeStatuses, onActionCallback, staleNodeIds]);
 
+    // ── El Assistant en el Data Flow (plan del Assistant, E5) ────────────────
+    // El flujo de hoy sin lo del lienzo, como lo compara y lo funde la propuesta.
+    const defSinPosiciones = useMemo(() => ({
+        nodes: nodes.map(n => ({ id: n.id, type: n.data.nodeType, label: n.data.label || '', config: n.data.config || {}, ...(n.data.disabled ? { disabled: true } : {}) })),
+        edges: edges.map(e => ({ id: e.id, source: e.source, target: e.target })),
+    }), [nodes, edges]);
+    const alDia = useRef({});
+    alDia.current = { selectedNode, defSinPosiciones, nodeStatuses: execution.nodeStatuses, nodes };
+
+    // El foco: el paso seleccionado y el estado de cada paso; su error va como error.
+    useEffect(() => fijarProveedorDeFoco(tabId, () => {
+        const { selectedNode: sel, nodeStatuses: ns } = alDia.current;
+        const estados = Object.fromEntries(Object.entries(ns || {}).map(([id, v]) => [id, v?.status]).filter(([, v]) => v));
+        return {
+            paso: sel ? { id: sel.id } : null,
+            flujo: { estados },
+            error: sel && ns?.[sel.id]?.status === 'failed' ? (ns[sel.id].errorMessage || 'The step failed.') : null,
+        };
+    }), [tabId]);
+
+    // Aceptar: el flujo propuesto, fundido con el lienzo — los pasos que se quedan,
+    // en su sitio; los nuevos, junto a lo que leen.
+    useEffect(() => fijarAplicador(tabId, (resultado) => {
+        const { defSinPosiciones: def, nodes: actuales } = alDia.current;
+        if (!vigenteEnFlujo(def, resultado)) return { error: 'Those steps changed since this was proposed.' };
+        const { nodes: nn, edges: ne } = fundirPasos(def, resultado);
+        const { nuevos } = clasificar(def, resultado);
+        const posiciones = posicionesNuevas(resultado, new Map(actuales.map(n => [n.id, n.position])), nuevos);
+        const porId = new Map(actuales.map(n => [n.id, n]));
+        setNodes(nn.map(n => {
+            const viejo = porId.get(n.id);
+            const data = { label: n.label || '', description: n.description || viejo?.data.description || '', nodeType: n.type, config: n.config || {}, disabled: !!n.disabled };
+            return viejo ? { ...viejo, type: n.type, data: { ...viejo.data, ...data } } : { id: n.id, type: n.type, position: posiciones.get(n.id) || { x: 0, y: 0 }, data };
+        }));
+        setEdges(ne.map(e => ({ id: e.id, source: e.source, target: e.target, type: 'smoothstep', style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 } })));
+        setRevision({ id: null, vista: 'propuesta' });
+        toast.info(`Applied: ${describirPasos(resultado)}. Ctrl+S saves it.`);
+        return { ok: true };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }), [tabId, toast]);
+
+    const [propuestas, setPropuestas] = useState({ propuestas: [], acciones: null });
+    useEffect(() => (filePath ? suscribirPropuestas(filePath, (p) => setPropuestas({
+        propuestas: (p.propuestas || []).filter(tc => esDePasos(tc.result)),
+        acciones: p.acciones,
+    })) : undefined), [filePath]);
+    const [revision, setRevision] = useState({ id: null, vista: 'propuesta' });
+    const vigentes = useMemo(() => propuestas.propuestas.filter(tc => vigenteEnFlujo(defSinPosiciones, tc.result)), [propuestas.propuestas, defSinPosiciones]);
+    const enRevision = vigentes.find(tc => tc.toolCallId === revision.id) || vigentes[0] || null;
+    const vistaRevision = enRevision && enRevision.toolCallId === revision.id ? revision.vista : 'propuesta';
+    useEffect(() => {
+        const alRevisar = (e) => {
+            const id = e.detail?.toolCallId;
+            if (propuestas.propuestas.some(tc => tc.toolCallId === id)) setRevision({ id, vista: 'propuesta' });
+        };
+        window.addEventListener('amox_revisar_propuesta', alRevisar);
+        return () => window.removeEventListener('amox_revisar_propuesta', alRevisar);
+    }, [propuestas.propuestas]);
+
+    // La propuesta sobre el lienzo: los pasos nuevos como fantasmas, los que
+    // cambian resaltados, los que se van tachados; las conexiones igual (F1).
+    const { nodosVistos, aristasVistas } = useMemo(() => {
+        if (!enRevision || vistaRevision !== 'propuesta') return { nodosVistos: nodesWithValidation, aristasVistas: edges };
+        const r = enRevision.result;
+        const c = clasificar(defSinPosiciones, r);
+        const posiciones = posicionesNuevas(r, new Map(nodes.map(n => [n.id, n.position])), c.nuevos);
+        const noop = () => {};
+        const marcados = nodesWithValidation.map(n => (c.cambiados.has(n.id) ? { ...n, className: 'chain-node--propuesta' }
+            : c.quitados.has(n.id) ? { ...n, className: 'chain-node--sale' } : n));
+        // Un fantasma no está en el estado del lienzo, así que React Flow nunca lo
+        // mide y lo deja oculto: se le dan de entrada las medidas de un paso de verdad.
+        const medida = nodes.find(n => n.measured?.width)?.measured || { width: 200, height: 72 };
+        const fantasmas = (r.despues?.nodes || []).filter(n => c.nuevos.has(n.id)).map(n => ({
+            id: n.id, type: n.type, position: posiciones.get(n.id) || { x: 0, y: 0 },
+            initialWidth: medida.width, initialHeight: medida.height,
+            // Y sus tiradores, para que las conexiones propuestas se dibujen.
+            handles: [
+                { type: 'target', position: 'left', x: -4, y: medida.height / 2 - 4, width: 8, height: 8 },
+                { type: 'source', position: 'right', x: medida.width - 4, y: medida.height / 2 - 4, width: 8, height: 8 },
+            ],
+            className: 'chain-node--fantasma', draggable: false, selectable: false, deletable: false, connectable: false,
+            data: { label: n.label || n.type, description: '', nodeType: n.type, config: n.config || {}, validationErrors: [], validationWarnings: [], onAction: noop },
+        }));
+        const llave = (e) => `${e.source}→${e.target}`;
+        const quitadas = new Set(c.aristasQuitadas.map(llave));
+        const aristasMarcadas = edges.map(e => (quitadas.has(llave(e)) ? { ...e, className: 'chain-edge--sale', style: { ...e.style, strokeDasharray: '4 4', opacity: 0.45 } } : e));
+        const nuevas = c.aristasNuevas.map(e => ({
+            id: `propuesta:${e.source}→${e.target}`, source: e.source, target: e.target, type: 'smoothstep',
+            className: 'chain-edge--fantasma', selectable: false, deletable: false,
+            style: { stroke: resolveThemeColor('--accent-primary'), strokeWidth: 2, strokeDasharray: '6 5' },
+        }));
+        return { nodosVistos: [...marcados, ...fantasmas], aristasVistas: [...aristasMarcadas, ...nuevas] };
+    }, [enRevision, vistaRevision, defSinPosiciones, nodesWithValidation, edges, nodes]);
+
+    /** Una pregunta sobre el flujo o un paso, al panel (X8: la barra de abajo es el Assistant). */
+    const asistir = useCallback((detalle) => {
+        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { tabId, ...detalle } }));
+    }, [tabId]);
+
     const onNodeDragStart = useCallback(() => { isDraggingRef.current = true; }, []);
     const onNodeDragStop = useCallback(() => { isDraggingRef.current = false; }, []);
 
@@ -756,9 +881,19 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                 break;
             }
             case 'delete': deleteNode(nodeId); break;
+            // E5: el paso, al Assistant.
+            case 'assist-explain':
+            case 'assist-fix':
+            case 'assist-sql': {
+                const n = nodes.find(x => x.id === nodeId);
+                if (n) setSelectedNode(n);
+                alDia.current = { ...alDia.current, selectedNode: n || null };
+                asistir({ accion: { 'assist-explain': 'paso_explicar', 'assist-fix': 'paso_arreglar', 'assist-sql': 'paso_sql' }[action] });
+                break;
+            }
             default: break;
         }
-    }, [nodeMenu, nodes, handleRunOnlyNode, handleDuplicateNode, handleToggleDisable, handleRenameNode, deleteNode]);
+    }, [nodeMenu, nodes, handleRunOnlyNode, handleDuplicateNode, handleToggleDisable, handleRenameNode, deleteNode, asistir]);
 
     // --- YAML export/import ---
     const handleExportYaml = useCallback(() => {
@@ -879,65 +1014,12 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
         });
     }, [nodes, edges, toast]);
 
-    // --- AI: generate pipeline from a natural-language prompt (embedded canvas) ---
-    const applyGeneratedChain = useCallback((chain) => {
-        const layoutInput = chain.nodes.map(n => ({ id: n.id, position: { x: 0, y: 0 } }));
-        let positions = new Map();
-        try { positions = computeAutoLayout(layoutInput, chain.edges || []); } catch { /* fallback below */ }
-        const newNodes = chain.nodes.map((n, i) => ({
-            id: n.id,
-            type: n.type,
-            position: positions.get(n.id) || { x: 120 + (i % 4) * 240, y: 80 + Math.floor(i / 4) * 160 },
-            data: { label: n.label || n.type, description: '', nodeType: n.type, config: n.config || {} },
-        }));
-        const newEdges = (chain.edges || []).map((e, i) => ({
-            id: e.id || `ai-edge-${i}`,
-            source: e.source,
-            target: e.target,
-            type: 'smoothstep',
-            style: { stroke: resolveThemeColor('--border-strong'), strokeWidth: 2 },
-        }));
-        setNodes(newNodes);
-        setEdges(newEdges);
-        setChainMeta(m => ({
-            ...m,
-            name: chain.name || m.name,
-            variables: { ...m.variables, ...(chain.variables || {}) },
-        }));
-        setShowTemplateGallery(false);
-        setSelectedNode(null);
-    }, []);
-
-    const handleAiGenerate = useCallback(async (prompt) => {
-        setAiLoading(true);
-        try {
-            // When the canvas already has nodes, send the current chain so the AI EXTENDS/edits it.
-            const extend = nodes.length > 0;
-            const res = await fetch(`${API_BASE}/api/chains/ai/generate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, chainDefinition: extend ? serialize() : null }),
-            });
-            const data = await res.json();
-            if (data.error) { toast.error(`AI: ${data.error}`); return; }
-            const chain = data.chain;
-            if (!chain?.nodes?.length) { toast.error('AI returned an empty pipeline'); return; }
-            // Preview before applying: show the proposed flow and confirm.
-            const flow = chain.nodes.map(n => n.label || n.type).join('  →  ');
-            const ok = await dialog.confirmAsync({
-                title: extend ? 'Apply AI changes' : 'Generated pipeline',
-                message: `${chain.nodes.length} nodes:\n${flow}\n\n${extend ? 'This replaces the current chain on the canvas. ' : ''}Apply?`,
-                confirmLabel: 'Apply',
-            });
-            if (!ok) return;
-            applyGeneratedChain(chain);
-            toast.success(`Pipeline applied — ${chain.nodes.length} nodes`);
-        } catch (err) {
-            toast.error(`AI generation failed: ${err.message}`);
-        } finally {
-            setAiLoading(false);
-        }
-    }, [nodes.length, serialize, dialog, toast, applyGeneratedChain]);
+    // X8 (decisión 4): la barra de abajo ya no tiene su propio generador: lo que se
+    // escribe ahí va al Assistant de este archivo, con el paso seleccionado, y la
+    // respuesta llega como propuesta revisable sobre el lienzo.
+    const handleAiGenerate = useCallback((prompt) => {
+        asistir({ pregunta: String(prompt || '').trim() });
+    }, [asistir]);
 
     // --- Create SQL file from canvas ---
     const handleCreateSqlFile = useCallback(async () => {
@@ -1133,9 +1215,26 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     sin descontar nada: cuando la tabla se abre, el lienzo ya es
                     mas estrecho. */}
                 <div className="chain-flow-area" ref={flowAreaRef}>
+                {enRevision && (
+                    <div className="chain-revision">
+                        <AntesYPropuesta
+                            key={enRevision.toolCallId}
+                            tc={enRevision}
+                            acciones={propuestas.acciones}
+                            titulo={describirPasos(enRevision.result)}
+                            resumen={enRevision.result.resumen}
+                            cambios={(enRevision.result.cambios || []).slice(0, 10)}
+                            vista={vistaRevision}
+                            onVista={(v) => setRevision({ id: enRevision.toolCallId, vista: v })}
+                            indice={vigentes.indexOf(enRevision)}
+                            total={vigentes.length}
+                            onSiguiente={() => setRevision({ id: vigentes[(vigentes.indexOf(enRevision) + 1) % vigentes.length].toolCallId, vista: 'propuesta' })}
+                        />
+                    </div>
+                )}
                 <ChainCanvas
-                    nodes={nodesWithValidation}
-                    edges={edges}
+                    nodes={nodosVistos}
+                    edges={aristasVistas}
                     onNodesChange={onNodesChange}
                     onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
@@ -1168,6 +1267,8 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                         x={nodeMenu.x}
                         y={nodeMenu.y}
                         disabled={!!nodes.find(n => n.id === nodeMenu.nodeId)?.data.disabled}
+                        failed={execution.nodeStatuses[nodeMenu.nodeId]?.status === 'failed'}
+                        asistir={!!tabId}
                         onAction={handleMenuAction}
                         onClose={() => setNodeMenu(null)}
                     />
@@ -1227,7 +1328,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave }) =
                     onShowGuide={() => setShowGuide(true)}
                     warningCount={warningCount}
                     onGenerate={handleAiGenerate}
-                    aiLoading={aiLoading}
+                    aiLoading={false}
                     hasNodes={nodes.length > 0}
                 />
 

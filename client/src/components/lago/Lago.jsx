@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { LuHistory, LuChevronDown, LuChevronRight, LuX, LuLoader, LuWrench, LuWaves, LuTriangleAlert } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { useToast } from '../ToastProvider';
+import { useEscape } from '../../hooks/useEscape';
 
 /**
  * DuckLake de primera clase (5.12, fase 8; I8, Dec-33): crear un lago, ver sus versiones,
@@ -21,6 +22,7 @@ const fechaCorta = (f) => { const d = new Date(String(f).replace(' ', 'T')); ret
 const mb = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 function Modal({ titulo, onClose, children }) {
+    useEscape(onClose);
     return createPortal(
         <div className="modal-overlay cvp-fondo" onClick={onClose}>
             <div className="modal-panel cvp-panel lago-modal" role="dialog" onClick={e => e.stopPropagation()}>

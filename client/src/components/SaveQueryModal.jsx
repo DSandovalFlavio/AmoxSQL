@@ -1,7 +1,9 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
+import { useEscape } from '../hooks/useEscape';
 
 const SaveQueryModal = ({ isOpen, onClose, onSave, initialName = '', initialFolder = '', title = 'Save Query', placeholder = 'query.sql or notebook.sqlnb', hideDescription = false }) => {
+    useEscape(onClose, isOpen);
     const [filename, setFilename] = useState(initialName);
     const [description, setDescription] = useState('');
     const [folders, setFolders] = useState([]);

@@ -3,12 +3,15 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
+import { marcarReanudada } from './utils/copiaSinGuardar';
 import { API_BASE } from './api.js';
 import { importarRecientesUnaVez, requisitosQueFaltan, describirFaltantes, avisoDePurgaUnaVez } from './central.js';
 import { themeClassFor, modeClassFor, migrateTheme } from './theme.js';
 import { deriveLogoStops } from './utils/logoGradient.js';
 import { syncMonacoTheme } from './monacoTheme.js';
 import { tipoDePestana, nombreDe } from './utils/tiposDeArchivo.js';
+import { ATAJO_DE_EDITOR } from './utils/atajosEnMonaco.js';
+import { atajoDe } from './utils/atajos.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
@@ -60,6 +63,7 @@ import './index.css';
 // Pop-out Results Page (standalone view for child window)
 import PopoutResultsPage from './components/PopoutResultsPage';
 import { escribirAmoxvis } from './components/DataVisualizer/vega/figura';
+import { focoDe } from './utils/memoriaDePestana';
 
 // App Phases
 const PHASE = {
@@ -435,194 +439,117 @@ function App() {
   }, [sidebarWidth]);
 
   // Initialize Data
+  // Tras recuperar la ventana (`?reanudar=1`: un fallo de pintado, o Electron al
+  // morir el proceso de la ventana) el servidor sigue con su proyecto y su base,
+  // vistas temporales incluidas: se vuelve a la sesión sin reabrir ni reconectar.
   useEffect(() => {
-    setAppPhase(PHASE.WELCOME);
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('reanudar')) {
+      setAppPhase(PHASE.WELCOME);
+      return;
+    }
+    const motivo = params.get('motivo');
+    params.delete('reanudar');
+    params.delete('motivo');
+    const resto = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (resto ? `?${resto}` : ''));
+    (async () => {
+      try {
+        const sesion = await (await fetch(`${API_BASE}/api/sesion`)).json();
+        if (!sesion.proyecto) { setAppPhase(PHASE.WELCOME); return; }
+        marcarReanudada();
+        setProjectPath(sesion.proyecto);
+        setCurrentDb(sesion.base || ':memory:');
+        setDbReadOnly(!!sesion.soloLectura);
+        setRefreshDbTrigger(prev => prev + 1);
+        setAppPhase(PHASE.IDE);
+        toast.info(motivo === 'ventana'
+          ? 'The window stopped and was restored. Run your queries again to see their results.'
+          : 'Reloaded. Run your queries again to see their results.');
+      } catch {
+        setAppPhase(PHASE.WELCOME);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Global Keyboard Shortcuts ---
   useEffect(() => {
+    // Qué teclas: utils/atajos.js. Aquí solo qué hace cada una. El zoom lo atiende
+    // Electron (before-input-event) y a React le llega el resultado por IPC.
+    const ACCIONES = {
+      paleta: () => setIsCommandPaletteOpen(prev => !prev),
+      salto: () => setIsCommandPaletteOpen(prev => !prev),
+      paleta2: () => setIsCommandPaletteOpen(prev => !prev),
+      ejecutar: () => layoutRef.current?.handleTriggerRun(),
+      ejecutar2: () => layoutRef.current?.handleTriggerRun(),
+      lateral: () => setSidebarCollapsed(prev => !prev),
+      guardar: () => layoutRef.current?.handleTriggerSave(),
+      guardarComo: () => layoutRef.current?.handleTriggerSaveAs(),
+      analizar: () => layoutRef.current?.handleTriggerAnalyze(),
+      historial: () => handleShowHistorySidebar(),
+      buscar: () => handleSidebarTabClick('search'),
+      archivos: () => setActiveSidebarTab('files'),
+      esquema: () => setActiveSidebarTab('schema'),
+      ajustes: () => setIsSettingsOpen(true),
+      lista: () => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); },
+      cerrar: () => layoutRef.current?.closeActiveTab(),
+      nuevoSql: () => layoutRef.current?.createNew('sql'),
+      nuevoCuaderno: () => layoutRef.current?.createNew('notebook'),
+      siguiente: () => layoutRef.current?.navigateTab(1),
+      anterior: () => layoutRef.current?.navigateTab(-1),
+      reabrir: () => layoutRef.current?.reabrirUltima(),
+      fijar: () => layoutRef.current?.alternarFijada(),
+      atras: () => layoutRef.current?.navegarHistorial(true),
+      adelante: () => layoutRef.current?.navegarHistorial(false),
+      // Ctrl+L con texto seleccionado = «Ask…» sobre esa selección (E2, decisión 1):
+      // abre (no alterna) y deja la caja lista. Sin selección, abre o cierra.
+      assist: () => {
+        const info = layoutRef.current?.getActiveTabInfo?.();
+        const conSeleccion = info?.id && focoDe(info.id)?.seleccion;
+        if (conSeleccion) {
+          setShowAiSidebar(true);
+          window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion: 'preguntar', tabId: info.id } }));
+        } else {
+          setShowAiSidebar(v => !v);
+        }
+      },
+      dividir: () => layoutRef.current?.toggleSplit(),
+      duplicar: () => layoutRef.current?.duplicateActiveTabToOtherPane(),
+      // NOT Ctrl+Shift+Enter: el cuaderno ya la usa para ejecutar todas las celdas.
+      ambos: () => layoutRef.current?.runBothPanes(),
+    };
     const handler = (e) => {
-      // Zoom is handled by Electron main process (before-input-event)
-      // React only receives the result via IPC 'zoom:changed'
-
-      // Command Palette: Ctrl+K — alias visible del Ctrl+Shift+P de siempre.
-      // Es el atajo que anuncia el omnibox de la barra, y el que hace que la
-      // paleta deje de ser un secreto de teclado.
-      if (e.ctrlKey && !e.shiftKey && (e.key === 'k' || e.key === 'K')) {
-        e.preventDefault();
-        setIsCommandPaletteOpen(prev => !prev);
+      // Esc cancela la consulta de la pestaña activa, como dice el botón. Solo
+      // si nadie lo ha usado ya: un modal abierto, o el editor cerrando su búsqueda
+      // o sus sugerencias (Monaco no deja pasar esos).
+      if (e.key === 'Escape') {
+        if (appPhase === PHASE.IDE
+          && !document.querySelector('.modal-overlay, .ww-backdrop, .command-palette-overlay, .ob-overlay, [role="dialog"]:not(.monaco-editor *)')) {
+          layoutRef.current?.cancelarActiva();
+        }
         return;
       }
-      // Command Palette: Ctrl+Shift+P
-      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
-        e.preventDefault();
-        setIsCommandPaletteOpen(prev => !prev);
-        return;
-      }
-      /**
-       * Ctrl+P — el mismo sitio, la tecla que la gente tiene en los dedos.
-       *
-       * Saltar a un archivo por su nombre ya funcionaba y esta bien hecho
-       * —busca archivos Y esquema en el mismo sitio—, pero solo respondia a
-       * Ctrl+K. Quien viene de un editor de codigo pulsa Ctrl+P, no encontraba
-       * nada, y concluia que la funcion no existe.
-       */
-      if (e.ctrlKey && !e.shiftKey && (e.key === 'p' || e.key === 'P')) {
-        e.preventDefault();
-        setIsCommandPaletteOpen(prev => !prev);
-        return;
-      }
-      // Only handle shortcuts in IDE phase
-      if (appPhase !== PHASE.IDE) return;
-
-      // Run Query: Ctrl+Enter (global fallback) or F5
-      if ((e.ctrlKey && !e.shiftKey && e.key === 'Enter') || e.key === 'F5') {
-        e.preventDefault();
-        layoutRef.current?.handleTriggerRun();
-        return;
-      }
-
-      // Toggle Sidebar: Ctrl+B
-      if (e.ctrlKey && !e.shiftKey && e.key === 'b') {
-        e.preventDefault();
-        setSidebarCollapsed(prev => !prev);
-        return;
-      }
-
-      // Save: Ctrl+S
-      if (e.ctrlKey && !e.shiftKey && e.key === 's') {
-        e.preventDefault();
-        layoutRef.current?.handleTriggerSave();
-        return;
-      }
-      // Save As: Ctrl+Shift+S
-      if (e.ctrlKey && e.shiftKey && e.key === 'S') {
-        e.preventDefault();
-        layoutRef.current?.handleTriggerSaveAs();
-        return;
-      }
-      // Analyze: Ctrl+Shift+A
-      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
-        e.preventDefault();
-        layoutRef.current?.handleTriggerAnalyze();
-        return;
-      }
-      // File Explorer: Ctrl+Shift+E
-      if (e.ctrlKey && e.shiftKey && (e.key === 'F' || e.key === 'f')) {
-        e.preventDefault();
-        handleSidebarTabClick('search');
-        return;
-      }
-      if (e.ctrlKey && e.shiftKey && e.key === 'E') {
-        e.preventDefault();
-        setActiveSidebarTab('files');
-        return;
-      }
-      // Database Explorer: Ctrl+Shift+D
-      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-        e.preventDefault();
-        setActiveSidebarTab('schema');
-        return;
-      }
-      // Settings: Ctrl+,
-      if (e.ctrlKey && e.key === ',') {
-        e.preventDefault();
-        setIsSettingsOpen(true);
-        return;
-      }
-      // Keyboard Shortcuts: Ctrl+Shift+/ — open Settings on Shortcuts tab
-      if (e.ctrlKey && e.shiftKey && e.key === '/') {
-        e.preventDefault();
-        setIsSettingsOpen(true);
-        setSettingsInitialTab('shortcuts');
-        return;
-      }
-      // Close Tab: Ctrl+W
-      if (e.ctrlKey && !e.shiftKey && e.key === 'w') {
-        e.preventDefault();
-        layoutRef.current?.closeActiveTab();
-        return;
-      }
-      // New SQL File: Ctrl+N
-      if (e.ctrlKey && !e.shiftKey && e.key === 'n') {
-        e.preventDefault();
-        layoutRef.current?.createNew('sql');
-        return;
-      }
-      // New Notebook: Ctrl+Shift+N
-      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
-        e.preventDefault();
-        layoutRef.current?.createNew('notebook');
-        return;
-      }
-      // Next Tab: Ctrl+Tab
-      if (e.ctrlKey && !e.shiftKey && e.key === 'Tab') {
-        e.preventDefault();
-        layoutRef.current?.navigateTab(1);
-        return;
-      }
-      // Previous Tab: Ctrl+Shift+Tab
-      // Reabrir la ultima pestaña cerrada.
-      if (e.ctrlKey && e.shiftKey && (e.key === 'T' || e.key === 't')) {
-        e.preventDefault();
-        layoutRef.current?.reabrirUltima();
-        return;
-      }
-      // Fijar o soltar la pestaña activa.
-      if (e.altKey && !e.ctrlKey && !e.shiftKey && (e.key === 'p' || e.key === 'P')) {
-        e.preventDefault();
-        layoutRef.current?.alternarFijada();
-        return;
-      }
-      // Atras y adelante entre pestañas visitadas: deshace el salto que acabas
-      // de dar desde la paleta.
-      if (e.altKey && !e.ctrlKey && e.key === 'ArrowLeft') {
-        e.preventDefault();
-        layoutRef.current?.navegarHistorial(true);
-        return;
-      }
-      if (e.altKey && !e.ctrlKey && e.key === 'ArrowRight') {
-        e.preventDefault();
-        layoutRef.current?.navegarHistorial(false);
-        return;
-      }
-      if (e.ctrlKey && e.shiftKey && e.key === 'Tab') {
-        e.preventDefault();
-        layoutRef.current?.navigateTab(-1);
-        return;
-      }
-      // Toggle AI Assistant: Ctrl+L
-      if (e.ctrlKey && !e.shiftKey && e.key === 'l') {
-        e.preventDefault();
-        setShowAiSidebar(v => !v);
-        return;
-      }
-      // Toggle Split View: Ctrl+\
-      if (e.ctrlKey && !e.shiftKey && e.key === '\\') {
-        e.preventDefault();
-        layoutRef.current?.toggleSplit();
-        return;
-      }
-      // Duplicate active tab to the other pane: Ctrl+Shift+\ — the "compare
-      // a variant of this query" gesture, paired with Ctrl+\ (toggle split).
-      if (e.ctrlKey && e.shiftKey && e.key === '|') {
-        e.preventDefault();
-        layoutRef.current?.duplicateActiveTabToOtherPane();
-        return;
-      }
-      // Run both panes: Ctrl+Shift+R. NOT Ctrl+Shift+Enter — SqlNotebook
-      // already owns that globally for "Run All Cells" (its own window
-      // keydown listener, fires whenever any notebook tab is mounted), and
-      // window-level listeners don't stop each other via preventDefault.
-      if (e.ctrlKey && e.shiftKey && e.key === 'R') {
-        e.preventDefault();
-        layoutRef.current?.runBothPanes();
-        return;
-      }
+      const atajo = atajoDe(e);
+      if (!atajo || (!atajo.siempre && appPhase !== PHASE.IDE)) return;
+      e.preventDefault();
+      ACCIONES[atajo.id]?.();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [appPhase]);
+
+  // Lo que el editor no deja llegar a la ventana (utils/atajosEnMonaco.js).
+  useEffect(() => {
+    const handler = (e) => {
+      const accion = e.detail?.accion;
+      if (accion === 'paleta') setIsCommandPaletteOpen(prev => !prev);
+      else if (accion === 'assist') setShowAiSidebar(v => !v);
+      else if (accion === 'buscar') handleSidebarTabClick('search');
+    };
+    window.addEventListener(ATAJO_DE_EDITOR, handler);
+    return () => window.removeEventListener(ATAJO_DE_EDITOR, handler);
+  }, []);
 
   // Listen for file system changes from AI tools (e.g., build_notebook)
   useEffect(() => {
@@ -686,7 +613,12 @@ function App() {
   useEffect(() => {
     const handler = () => setShowAiSidebar(true);
     window.addEventListener('amox_ai_prompt', handler);
-    return () => window.removeEventListener('amox_ai_prompt', handler);
+    // E2: the doors in the editor (selection bar, «Fix with Assist», Explain / Chart it).
+    window.addEventListener('amox_asistir', handler);
+    return () => {
+      window.removeEventListener('amox_ai_prompt', handler);
+      window.removeEventListener('amox_asistir', handler);
+    };
   }, []);
 
   // settingsInitialTab controls which tab opens in SettingsModal
@@ -1288,6 +1220,14 @@ function App() {
   }, []);
 
 // Removed duplicated handleCloseProject
+
+  // Deep Dive pide sitio para leer cuando su informe no cabe (plan UX, decisión 1):
+  // la barra lateral se pliega y vuelve con su botón o con Ctrl+B.
+  useEffect(() => {
+    const plegar = () => setSidebarCollapsed(true);
+    window.addEventListener('amox_plegar_barra_lateral', plegar);
+    return () => window.removeEventListener('amox_plegar_barra_lateral', plegar);
+  }, []);
 
   const handleSidebarTabClick = (tabId) => {
     // Si la configuración no existe, por defecto es true
@@ -1948,9 +1888,10 @@ function App() {
                   activeFilePath={activeTabInfo?.path || null}
                   activeFileType={activeTabInfo?.type || null}
                   getActiveTabInfo={getActiveEditorInfo}
-                  onEditFile={(result) => layoutRef.current?.updateActiveContent(result.content || result)}
+                  onEditFile={(result) => (result?.action === 'propose_change' ? layoutRef.current?.aplicarPropuesta(result) : layoutRef.current?.updateActiveContent(result.content || result))}
                     onUpdateChartConfig={(result) => layoutRef.current?.updateActiveChartConfig(result.changes || result)}
-                    onAppendToFile={(sql) => layoutRef.current?.appendToActiveContent(sql)}
+                    onInsertarEnEditor={(sql) => layoutRef.current?.insertarEnEditor(sql)}
+                    onOpenFile={handleFileOpen}
                     onRunSql={(sql) => layoutRef.current?.createNew('sql', sql)}
                     onClose={() => setShowAiSidebar(false)}
                     availableTables={availableTables}

@@ -20,10 +20,11 @@
  * «ejecutada y luego editada». Ésa es justo la que deja un número viejo con
  * pinta de nuevo.
  */
-import { memo } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import {
     LuPlay, LuLoaderCircle, LuColumns2, LuCode, LuTable, LuEye, LuDatabase,
     LuMaximize2, LuChevronUp, LuChevronDown, LuTrash2, LuPencilLine,
+    LuSparkles, LuMessageCircleQuestion, LuWrench, LuChartColumn, LuWandSparkles, LuPenLine,
 } from 'react-icons/lu';
 import { MODOS } from './modos.js';
 
@@ -50,8 +51,20 @@ const Canalon = ({
     onBajar,
     onBorrar,
     onAmpliar,
+    onAsistir,          // E3: (id, accion) → la pregunta al Assistant sobre esta celda
+    resultadoArriba,    // E3: una celda de texto con un resultado justo encima
 }) => {
     const esSql = celda.tipo === 'sql';
+    // E3: el menú Assist de la celda. Se cierra al pulsar fuera.
+    const [menu, setMenu] = useState(false);
+    const zona = useRef(null);
+    useEffect(() => {
+        if (!menu) return undefined;
+        const fuera = (e) => { if (!zona.current?.contains(e.target)) setMenu(false); };
+        document.addEventListener('mousedown', fuera);
+        return () => document.removeEventListener('mousedown', fuera);
+    }, [menu]);
+    const pedir = (accion) => { setMenu(false); onAsistir?.(celda.id, accion); };
     const [clase, ayuda] = esSql
         ? estadoDelPunto(resultado, frescura)
         : [null, null];
@@ -138,6 +151,29 @@ const Canalon = ({
                         : 'Mark as draft: it keeps running, but stays out of what you export',
                     () => onCambiar(celda.id, { borrador: !celda.borrador }),
                     celda.borrador ? ' cdn-mando--on cdn-mando--sep' : ' cdn-mando--sep',
+                )}
+
+                {/* E3: preguntar al Assistant por ESTA celda (N2). */}
+                {onAsistir && (
+                    <div ref={zona} style={{ position: 'relative' }}>
+                        {mando(LuSparkles, 'Assist on this cell', () => setMenu(v => !v), ` cdn-mando--sep${menu ? ' cdn-mando--on' : ''}`)}
+                        {menu && (
+                            <div className="cdn-asistir-menu" role="menu">
+                                {esSql ? (
+                                    <>
+                                        {resultado?.error && <button type="button" onClick={() => pedir('arreglar_celda')}><LuWrench size={13} /> Fix the error</button>}
+                                        <button type="button" onClick={() => pedir('explicar_celda')}><LuMessageCircleQuestion size={13} /> Explain this cell</button>
+                                        {resultado?.data?.length > 0 && <button type="button" onClick={() => pedir('graficar_celda')}><LuChartColumn size={13} /> Chart the result</button>}
+                                    </>
+                                ) : (
+                                    <>
+                                        {resultadoArriba && <button type="button" onClick={() => pedir('escribir_texto')}><LuPenLine size={13} /> Write from the result above</button>}
+                                        <button type="button" onClick={() => pedir('mejorar_celda')}><LuWandSparkles size={13} /> Improve this text</button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 )}
 
                 {mando(LuChevronUp, 'Move up', () => onSubir(celda.id), ' cdn-mando--sep')}

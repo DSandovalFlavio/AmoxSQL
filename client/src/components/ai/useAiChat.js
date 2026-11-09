@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { marcarPropuestas, conEstado, estadoDe, esArchivoNuevo } from './propuestas';
 import { API_BASE as API } from '../../api.js';
+import { guardarBorrador, leerBorrador, borrarBorrador } from '../../utils/borradorDeAnalisis';
 
 /** Stable client-side message id (survives the streaming→historical handoff). */
 function genId() {
@@ -82,8 +84,8 @@ export const fetchCloudModels = async (provider) => {
  * @param {Function|null} options.getFileContext - Stable getter returning { content, results, chartConfig }
  *        for the active file, read at SEND time. When provided it takes precedence over
  *        fileContent/fileResult/fileChartConfig, decoupling the chat from per-keystroke props.
- * @param {Function|null} options.onEditFile - Callback when AI produces an edit_file action
- * @param {Function|null} options.onUpdateChartConfig - Callback when AI produces an update_chart_config action
+ * @param {Function|null} options.onEditFile - Applies an accepted write_file proposal to the active file
+ * @param {Function|null} options.onOpenFile - Opens a file the user created from a propose_file proposal
  */
 export default function useAiChat({
     mode = 'diving',
@@ -94,7 +96,7 @@ export default function useAiChat({
     fileChartConfig = null,
     getFileContext = null,
     onEditFile = null,
-    onUpdateChartConfig = null,
+    onOpenFile = null,
 } = {}) {
     // ─── Config State ───
     const [status, setStatus] = useState('LOADING');
@@ -135,8 +137,9 @@ export default function useAiChat({
     const [streamingId, setStreamingId] = useState(null);
     const [errorMsg, setErrorMsg] = useState(null);
     const [conversationId, setConversationId] = useState(null);
-    // pending edits: Map of toolCallId → edit result (waiting for user accept/reject)
-    const [pendingEdits, setPendingEdits] = useState({});
+    // Bumped when a proposal turns out to be outdated at the moment of accepting,
+    // so the message re-renders with its real state.
+    const [, setRevisionPropuestas] = useState(0);
 
     // ─── Agentic Plan State (Fase 1) ───
     // planState: { planId, goal, steps[], status } | null
@@ -147,6 +150,10 @@ export default function useAiChat({
     const [pendingAskUser, setPendingAskUser] = useState(null);
     // ask-continue: loop exhausted mid-plan, waiting for user to continue or cancel
     const [pendingContinue, setPendingContinue] = useState(null);
+    // F9: why the last run stopped short ({ motivo: cuota|error|detenido, … }) and,
+    // while the server waits out a per-minute quota, until when.
+    const [interrupcion, setInterrupcion] = useState(null);
+    const [esperaCuota, setEsperaCuota] = useState(null);
     // userSkippedSteps: Set<stepId> — steps the user marked to skip before the agent continues
     const [userSkippedSteps, setUserSkippedSteps] = useState(new Set());
 
@@ -426,7 +433,9 @@ export default function useAiChat({
         // appended message share identity (stable inspector selection).
         const assistantId = genId();
         setStreamingId(assistantId);
-        const isContinuation = !!pendingContinue;
+        // Continuing after a run that stopped short (quota, error, Stop) resumes its
+        // plan on the server instead of planning everything again (F9).
+        const isContinuation = !!(pendingContinue || interrupcion || pendingAskUser);
         setIsGenerating(true);
         setStreamingText('');
         setActiveToolCalls([]);
@@ -435,8 +444,20 @@ export default function useAiChat({
         setPlanIteration(0);
         setPendingAskUser(null);
         setPendingContinue(null);
+        setInterrupcion(null);
         const currentSkippedSteps = userSkippedSteps;
         setUserSkippedSteps(new Set());
+        // The skips travel to the server (planStepOverrides) and ALSO stay in the
+        // conversation as plan updates, so the report shows them after a reload.
+        if (mode === 'diving') {
+            for (const stepId of currentSkippedSteps) {
+                activeToolCallsRef.current.push({
+                    toolCallId: `salto-${stepId}-${assistantId}`, toolName: 'update_plan',
+                    args: { step_id: stepId, status: 'skipped', note: 'Skipped by you' }, result: { ok: true }, textOffset: 0,
+                });
+            }
+            if (activeToolCallsRef.current.length) setActiveToolCalls([...activeToolCallsRef.current]);
+        }
 
         // Build context arrays for the API
         const contextFiles = contextObjects
@@ -468,12 +489,103 @@ export default function useAiChat({
             }
         }
 
+        // What the run has produced so far. Outside the try: if the provider fails
+        // halfway (a quota, a network error, Stop), what was already done is kept.
+        let fullText = '';
+        let toolResults = [];
+        let thinkingMs = null;
+        // The file the model had in front of it: a proposal keeps its fingerprint,
+        // so a proposal made on an older version is shown as outdated (A1).
+        let contenidoEnviado = null;
+
+        /**
+         * Adds the analyst's run to the conversation and saves it — when it ends
+         * and ALSO when it fails or is stopped (plan UX, F9). Before, a failure threw
+         * away the prose, the queries and the charts of the whole run: the plan
+         * survived on the server, but the screen showed nothing of what was done.
+         * `interrupcion` travels as a marker tool call so it survives a reload.
+         */
+        const guardarEjecucion = async (interrupcion = null) => {
+            const mergedToolCalls = activeToolCallsRef.current.map(tc => {
+                const resultMatch = toolResults.find(r => r.toolCallId === tc.toolCallId);
+                return {
+                    toolCallId: tc.toolCallId,
+                    toolName: tc.toolName,
+                    args: tc.args,
+                    result: resultMatch?.result || tc.result,
+                    textOffset: tc.textOffset,
+                };
+            });
+            // Proposals start pending, with the fingerprint of the file they were made on.
+            const llamadas = marcarPropuestas(mergedToolCalls, contenidoEnviado);
+            mergedToolCalls.splice(0, mergedToolCalls.length, ...llamadas);
+            if (interrupcion && mode === 'diving') {
+                mergedToolCalls.push({
+                    toolCallId: `interrupcion-${assistantId}`,
+                    toolName: 'amox_interrupcion',
+                    args: {},
+                    result: interrupcion,
+                    textOffset: fullText.length,
+                });
+            }
+            setActiveToolCalls([]);
+            activeToolCallsRef.current = [];
+
+            // Nothing happened at all (and no marker): nothing to keep.
+            // Saved for real now: the window-crash checkpoint is no longer needed.
+            if (mode === 'diving') borrarBorrador(activeConvId);
+
+            if (!fullText && mergedToolCalls.length === 0) return;
+
+            await new Promise(r => setTimeout(r, 50));
+
+            const assistantMsg = {
+                id: assistantId,
+                role: 'assistant',
+                content: fullText,
+                toolCalls: mergedToolCalls.length > 0 ? mergedToolCalls : undefined,
+                thinkingMs: thinkingMs || undefined,
+            };
+            setMessages(prev => [...prev, assistantMsg]);
+            setStreamingText('');
+
+            // Persistence: save assistant message and tool results
+            if (activeConvId) {
+                (async () => {
+                    try {
+                        const savedMsg = await persistMessage(activeConvId, 'assistant', fullText, mergedToolCalls);
+                        if (!savedMsg) return;
+
+                        // Persist query results and chart configs from tool calls
+                        const queryResultIdMap = new Map();
+                        for (const tc of mergedToolCalls) {
+                            if (tc.toolName === 'execute_sql' && tc.result && !tc.result.error) {
+                                const persisted = await persistQueryResult(activeConvId, savedMsg.id, tc.result, tc.args?.query);
+                                if (persisted && tc.result.queryId) {
+                                    queryResultIdMap.set(tc.result.queryId, persisted.id);
+                                }
+                            }
+                            if (tc.toolName === 'display_chart' && tc.result && !tc.result.error) {
+                                const qrDbId = queryResultIdMap.get(tc.args?.query_id);
+                                if (qrDbId) {
+                                    await persistChartConfig(activeConvId, qrDbId, tc.result.chartType || tc.args?.chart_type, tc.result);
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Failed to persist assistant data:', err);
+                    }
+                })();
+            }
+        };
+
         try {
             // File context is resolved NOW (at send time): with a getter we read the
             // live content/result/chart config on demand instead of receiving them as
             // reactive props that would tie the panel to the editor's keystroke cycle.
             const liveCtx = getFileContext ? (getFileContext() || {}) : null;
             const ctxContent = liveCtx ? (liveCtx.content ?? null) : fileContent;
+            contenidoEnviado = ctxContent;
             const ctxResult = liveCtx ? (liveCtx.results ?? null) : fileResult;
             const ctxChartConfig = liveCtx ? (liveCtx.chartConfig ?? null) : fileChartConfig;
             const ctxResultsQuery = liveCtx ? (liveCtx.resultsQuery ?? null) : null;
@@ -493,6 +605,10 @@ export default function useAiChat({
             if (filePath) requestBody.filePath = filePath;
             if (fileType) requestBody.fileType = fileType;
             if (ctxContent) requestBody.currentQuery = ctxContent;
+            // E2: where the user is (selection / statement under the cursor) and what
+            // failed on the last run. The server passes both through the AI policy.
+            if (liveCtx?.foco) requestBody.foco = liveCtx.foco;
+            if (liveCtx?.resultsError) requestBody.resultsError = String(liveCtx.resultsError).slice(0, 2000);
             // Rendering context: let the agent choose chart palettes that harmonize
             // with the user's active theme and read on the current light/dark mode.
             try {
@@ -554,13 +670,10 @@ export default function useAiChat({
             // Read SSE stream
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
-            let fullText = '';
-            let toolResults = [];
             let buffer = '';
             // Reasoning timing (for the "Pensó durante Xs" chip): mark when the
             // first <think> opens and when it closes.
             let thinkStart = null;
-            let thinkingMs = null;
 
             // Text deltas arrive one per token; rendering the transcript once per
             // token saturates the main thread. Accumulate in fullText and flush to
@@ -606,6 +719,7 @@ export default function useAiChat({
 
                         if (event.type === 'text-delta') {
                             fullText += event.text;
+                            largoTextoRef.current = fullText.length;
                             // Time the reasoning span (first <think> → its </think>).
                             if (thinkStart === null && fullText.includes('<think>')) {
                                 thinkStart = performance.now();
@@ -621,6 +735,12 @@ export default function useAiChat({
                                 toolName: event.toolName,
                                 args: event.args,
                                 isLoading: true,
+                                // Where in the prose this call happened. A run is saved as ONE
+                                // message (all prose in `content`, all tools in `toolCalls`);
+                                // without the offset there is no telling which paragraph
+                                // narrates which step. Deep Dive's report interleaves them.
+                                textOffset: fullText.length,
+                                inicio: Date.now(), // for the live "Running a query… 3 s"
                             };
                             setActiveToolCalls(prev => [...prev, newActiveCall]);
                             activeToolCallsRef.current.push(newActiveCall);
@@ -638,17 +758,6 @@ export default function useAiChat({
                                     : tc)
                             );
 
-                            // edit_file: store as pending — user must accept/reject from the chat UI
-                            if (event.result?.action === 'edit_file') {
-                                setPendingEdits(prev => ({
-                                    ...prev,
-                                    [event.toolCallId]: event.result,
-                                }));
-                            }
-                            // update_chart_config: apply immediately (non-destructive)
-                            if (event.result?.action === 'update_chart_config' && onUpdateChartConfig) {
-                                onUpdateChartConfig(event.result);
-                            }
 
                         } else if (event.type === 'step-finish') {
                             // Step finished — no-op
@@ -685,18 +794,50 @@ export default function useAiChat({
                                 pendingSteps:   event.pendingSteps || 0,
                                 completedSteps: event.completedSteps || 0,
                                 planId:         event.planId || null,
+                                pausado:        !!event.pausado,
                             });
+                            setPausando(false);
+                        } else if (event.type === 'indicacion-recibida') {
+                            // An instruction given while it ran (F6): it stays in the
+                            // report where the analyst took it into account.
+                            const marca = {
+                                toolCallId: `indicacion-${Date.now()}`, toolName: 'amox_indicacion',
+                                args: { texto: event.texto }, result: { ok: true }, textOffset: fullText.length,
+                            };
+                            activeToolCallsRef.current.push(marca);
+                            setActiveToolCalls(prev => [...prev, marca]);
                             setPlanState(prev => prev ? { ...prev, status: 'paused' } : prev);
                         } else if (event.type === 'step-start') {
                             setPlanIteration(event.iteration || 0);
                             if (event.maxIterations) setPlanMaxIterations(event.maxIterations);
                         } else if (event.type === 'step-end') {
-                            // no-op
+                            // Checkpoint the run at the end of every iteration: if the
+                            // window closes or dies now, reopening the session brings
+                            // back what was done (F9).
+                            if (mode === 'diving') {
+                                guardarBorrador(activeConvId, {
+                                    id: assistantId,
+                                    texto: fullText,
+                                    toolCalls: activeToolCallsRef.current.map(tc => ({
+                                        toolCallId: tc.toolCallId, toolName: tc.toolName, args: tc.args,
+                                        result: toolResults.find(r => r.toolCallId === tc.toolCallId)?.result || tc.result,
+                                        textOffset: tc.textOffset,
+                                    })),
+                                });
+                            }
                         } else if (event.type === 'sql-correction') {
                             // SQL self-correction loop — agent is retrying a failed query
                             console.log(`[AI] SQL correction attempt ${event.attempt}`, event.errors);
+                        } else if (event.type === 'esperando-cuota') {
+                            // The provider's per-minute quota ran out: the server waits
+                            // and repeats the step (F9). Say so, with a countdown.
+                            setEsperaCuota({ hasta: Date.now() + (event.segundos || 0) * 1000, intento: event.intento, maximo: event.maximo });
+                        } else if (event.type === 'cuota-reanudada') {
+                            setEsperaCuota(null);
                         } else if (event.type === 'error') {
-                            throw new Error(event.error);
+                            const err = new Error(event.error);
+                            err.limite = event.limite || null;
+                            throw err;
                         }
                     } catch (parseErr) {
                         if (parseErr.message && !parseErr.message.includes('JSON')) throw parseErr;
@@ -706,60 +847,7 @@ export default function useAiChat({
 
             cancelStreamFlush();
             flushStream();
-
-            const mergedToolCalls = activeToolCallsRef.current.map(tc => {
-                const resultMatch = toolResults.find(r => r.toolCallId === tc.toolCallId);
-                return {
-                    toolCallId: tc.toolCallId,
-                    toolName: tc.toolName,
-                    args: tc.args,
-                    result: resultMatch?.result || tc.result,
-                };
-            });
-
-            setActiveToolCalls([]);
-            activeToolCallsRef.current = [];
-
-            await new Promise(r => setTimeout(r, 50));
-
-            const assistantMsg = {
-                id: assistantId,
-                role: 'assistant',
-                content: fullText,
-                toolCalls: mergedToolCalls.length > 0 ? mergedToolCalls : undefined,
-                thinkingMs: thinkingMs || undefined,
-            };
-            setMessages(prev => [...prev, assistantMsg]);
-            setStreamingText('');
-
-            // Persistence: save assistant message and tool results
-            if (activeConvId) {
-                (async () => {
-                    try {
-                        const savedMsg = await persistMessage(activeConvId, 'assistant', fullText, mergedToolCalls);
-                        if (!savedMsg) return;
-
-                        // Persist query results and chart configs from tool calls
-                        const queryResultIdMap = new Map();
-                        for (const tc of mergedToolCalls) {
-                            if (tc.toolName === 'execute_sql' && tc.result && !tc.result.error) {
-                                const persisted = await persistQueryResult(activeConvId, savedMsg.id, tc.result, tc.args?.query);
-                                if (persisted && tc.result.queryId) {
-                                    queryResultIdMap.set(tc.result.queryId, persisted.id);
-                                }
-                            }
-                            if (tc.toolName === 'display_chart' && tc.result && !tc.result.error) {
-                                const qrDbId = queryResultIdMap.get(tc.args?.query_id);
-                                if (qrDbId) {
-                                    await persistChartConfig(activeConvId, qrDbId, tc.result.chartType || tc.args?.chart_type, tc.result);
-                                }
-                            }
-                        }
-                    } catch (err) {
-                        console.error('Failed to persist assistant data:', err);
-                    }
-                })();
-            }
+            await guardarEjecucion(null);
 
             // Remember this mode's model (F6: assistant and diving keep separate
             // models — the server merges modelPerMode) and keep defaultModel as a
@@ -774,24 +862,44 @@ export default function useAiChat({
 
         } catch (e) {
             cancelStreamFlush();
-            if (e.name === 'AbortError') {
+            const detenido = e.name === 'AbortError';
+            const limite = e.limite || null;
+            // Keep what the run already did, with why it stopped (F9).
+            const interrupcion = {
+                motivo: detenido ? 'detenido' : (limite ? 'cuota' : 'error'),
+                diaria: !!limite?.diaria,
+                segundos: limite?.segundos ?? null,
+                proveedor: provider || null,
+                modelo: currentModel || null,
+                detalle: detenido ? '' : String(e.message || '').slice(0, 1200),
+                en: Date.now(),
+            };
+            try { await guardarEjecucion(interrupcion); } catch (err) { console.error('Failed to keep the partial run:', err); }
+            setStreamingText('');
+            setActiveToolCalls([]);
+            activeToolCallsRef.current = [];
+            if (mode === 'diving') {
+                // Deep Dive says it plainly above the box where you type (with the
+                // raw error under "Details"), instead of a red bar of provider text.
+                setInterrupcion(interrupcion);
+                setErrorMsg(null);
+            } else if (detenido) {
                 setErrorMsg('Generation cancelled.');
             } else {
                 setErrorMsg('Error: ' + e.message);
             }
-            setStreamingText('');
-            setActiveToolCalls([]);
         } finally {
             setIsGenerating(false);
             setStreamingId(null);
+            setEsperaCuota(null);
             abortControllerRef.current = null;
         }
     }, [
         inputText, isGenerating, messages, selectedModel, customModel, provider,
         contextObjects, mode, filePath, fileType, fileContent, fileResult, fileChartConfig, getFileContext, activeSkillId,
-        pendingContinue,
+        pendingContinue, interrupcion, pendingAskUser,
         ensureConversation, persistMessage, persistQueryResult, persistChartConfig, autoTitle,
-        onEditFile, onUpdateChartConfig,
+        onEditFile, onOpenFile,
     ]);
 
     // ─── Continue after loop exhaustion ───
@@ -806,7 +914,7 @@ export default function useAiChat({
         continueOptsRef.current = { finalize: false };
         const text = (typeof instruction === 'string' && instruction.trim())
             ? instruction.trim()
-            : 'Continúa con el plan donde lo dejaste.';
+            : 'Continue the plan where you left off.';
         handleSend(text);
     }, [handleSend]);
 
@@ -814,15 +922,47 @@ export default function useAiChat({
     // budget of 1 so the wrap-up turn forces a synthesis immediately.
     const handleFinalizeNow = useCallback(() => {
         continueOptsRef.current = { finalize: true };
-        handleSend('Finaliza el análisis AHORA con lo que ya tienes: no corras más queries ni pasos nuevos. Llama final_answer con un resumen de los hallazgos hasta ahora y marca lo que quedó pendiente en caveats.');
+        // Se ve en el hilo como mensaje del usuario: en el idioma de la interfaz.
+        handleSend('Finish the analysis now with what you already have: no more queries or new steps. Call final_answer with a summary of the findings so far, and list what is still pending under caveats.');
     }, [handleSend]);
 
     const handleDeclineContinue = useCallback(() => {
         setPendingContinue(null);
+        setInterrupcion(null);
         setPlanState(prev => prev ? { ...prev, status: 'cancelled' } : prev);
     }, []);
 
     // ─── Skip plan step (user-initiated) ───
+    // ─── Talk to the analysis while it runs (plan UX, F6) ───
+    // The stream only goes server → client; these go by a separate request and the
+    // loop picks them up at its next iteration.
+    const [pausando, setPausando] = useState(false);
+    const largoTextoRef = useRef(0); // length of the live run's prose (for in-flight markers)
+    const enVuelo = useCallback(async (cambio) => {
+        if (!conversationId) return false;
+        try {
+            const r = await fetch(`${API}/api/ai/conversations/${conversationId}/en-vuelo`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cambio),
+            });
+            return r.ok;
+        } catch { return false; }
+    }, [conversationId]);
+    const saltarEnVuelo = useCallback(async (stepId) => {
+        if (!(await enVuelo({ saltar: stepId }))) return;
+        const marca = {
+            toolCallId: `salto-${stepId}-${Date.now()}`, toolName: 'update_plan',
+            args: { step_id: stepId, status: 'skipped', note: 'Skipped by you while it ran' }, result: { ok: true },
+            textOffset: largoTextoRef.current, // where the prose is right now
+        };
+        activeToolCallsRef.current.push(marca);
+        setActiveToolCalls(prev => [...prev, marca]);
+    }, [enVuelo]);
+    const indicarEnVuelo = useCallback((texto) => enVuelo({ indicacion: texto }), [enVuelo]);
+    const pausarEnVuelo = useCallback(async () => {
+        if (await enVuelo({ pausar: true })) setPausando(true);
+    }, [enVuelo]);
+    useEffect(() => { if (!isGenerating) setPausando(false); }, [isGenerating]);
+
     const handleSkipPlanStep = useCallback((stepId) => {
         setUserSkippedSteps(prev => new Set([...prev, stepId]));
         // Also update planState locally so the UI reflects the skip immediately
@@ -854,6 +994,8 @@ export default function useAiChat({
         setPlanIteration(0);
         setPendingAskUser(null);
         setPendingContinue(null);
+        setInterrupcion(null);
+        setEsperaCuota(null);
         setUserSkippedSteps(new Set());
         setPendingReferences([]);
         if (mode === 'diving') setContextObjects([]);
@@ -968,7 +1110,26 @@ export default function useAiChat({
                     };
                 });
 
+                // A run the window never got to save (it closed or died mid-analysis):
+                // its last checkpoint comes back as a run that stopped short (F9).
+                const borrador = mode === 'diving' ? leerBorrador(conv.id) : null;
+                if (borrador) {
+                    const ultimoGuardado = loadedMessages[loadedMessages.length - 1];
+                    if (ultimoGuardado?.role === 'user') {
+                        const toolCalls = [...(borrador.toolCalls || []), {
+                            toolCallId: `interrupcion-${borrador.id}`, toolName: 'amox_interrupcion', args: {},
+                            result: { motivo: 'ventana', diaria: false, segundos: null, proveedor: null, detalle: '', en: borrador.en },
+                            textOffset: (borrador.texto || '').length,
+                        }];
+                        loadedMessages.push({ role: 'assistant', content: borrador.texto || '', toolCalls });
+                        persistMessage(conv.id, 'assistant', borrador.texto || '', toolCalls).catch(() => {});
+                    }
+                    borrarBorrador(conv.id);
+                }
+
                 setMessages(loadedMessages);
+                // Whatever the previous session was waiting for doesn't carry over.
+                setPendingContinue(null);
                 setStreamingText('');
                 setActiveToolCalls([]);
                 setErrorMsg(null);
@@ -1022,6 +1183,31 @@ export default function useAiChat({
                 }
                 setPlanState(reconstructedPlan);
 
+                // A question the analyst asked and nobody answered: the conversation
+                // ends on an assistant message with an ask_user call. Reopening it
+                // brings the question back where you type (it was lost on reload).
+                const ultimo = loadedMessages[loadedMessages.length - 1];
+                const pregunta = ultimo?.role === 'assistant'
+                    ? (ultimo.toolCalls || []).find(tc => tc.toolName === 'ask_user' && !tc.result?.error)
+                    : null;
+                // A run that stopped short (quota, error, Stop) and nothing after it:
+                // the card offers to continue, as it did when it happened (F9).
+                const corte = ultimo?.role === 'assistant'
+                    ? (ultimo.toolCalls || []).find(tc => tc.toolName === 'amox_interrupcion')
+                    : null;
+                setInterrupcion(corte?.result || null);
+                if (pregunta) {
+                    const a = pregunta.result || pregunta.args || {};
+                    setPendingContinue(null);
+                    setPendingAskUser({
+                        question: a.question || pregunta.args?.question || '',
+                        options:  a.options || pregunta.args?.options || [],
+                        context:  a.context || pregunta.args?.context || '',
+                    });
+                } else {
+                    setPendingAskUser(null);
+                }
+
                 // Restore persisted context objects (diving mode)
                 if (mode === 'diving' && Array.isArray(conv.context_objects) && conv.context_objects.length > 0) {
                     contextLoadedForConvRef.current = conv.id;
@@ -1033,7 +1219,7 @@ export default function useAiChat({
         } catch (err) {
             console.error('Failed to load conversation:', err);
         }
-    }, [handleClearChat, mode]);
+    }, [handleClearChat, mode, persistMessage]);
 
     // ─── Cancel ───
     const handleCancel = useCallback(() => {
@@ -1042,26 +1228,66 @@ export default function useAiChat({
         }
     }, []);
 
-    // ─── Pending Edit: Accept / Reject ───
-    const acceptEdit = useCallback((toolCallId) => {
-        const editResult = pendingEdits[toolCallId];
-        if (editResult && onEditFile) {
-            onEditFile(editResult);
-        }
-        setPendingEdits(prev => {
-            const next = { ...prev };
-            delete next[toolCallId];
-            return next;
-        });
-    }, [pendingEdits, onEditFile]);
+    // ─── Proposals: Accept / Reject (plan del Assistant, E1/A1) ───
+    /**
+     * The user's decision goes into the message (so the screen shows it) and to
+     * the server (so it is still true after reopening). If the message is not
+     * saved yet —the decision came a moment after the run ended— the server
+     * answers `guardada: false` and it is tried once more.
+     */
+    const guardarDecision = useCallback((toolCallId, estado) => {
+        setMessages(prev => conEstado(prev, toolCallId, estado));
+        const convId = conversationId;
+        if (!convId || !toolCallId) return;
+        const enviar = () => fetch(`${API}/api/ai/conversations/${convId}/propuestas/${encodeURIComponent(toolCallId)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estado }),
+        }).then(r => r.json()).catch(() => ({ guardada: false }));
+        enviar().then(r => { if (r && r.guardada === false) setTimeout(enviar, 1500); });
+    }, [conversationId]);
 
-    const rejectEdit = useCallback((toolCallId) => {
-        setPendingEdits(prev => {
-            const next = { ...prev };
-            delete next[toolCallId];
-            return next;
-        });
-    }, []);
+    /**
+     * Accept. A change to the active file is applied only if the file is still
+     * the one the model saw: otherwise it would erase what was written since,
+     * and the proposal shows as outdated. A new file is created on the server,
+     * which never overwrites one. Returns { ok } or { error }.
+     */
+    const acceptEdit = useCallback(async (tc) => {
+        if (!tc?.result) return { error: 'Nothing to apply.' };
+        if (esArchivoNuevo(tc)) {
+            try {
+                const r = await fetch(`${API}/api/ai/propuestas/crear-archivo`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: tc.result.path, content: tc.result.content ?? '' }),
+                });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) return { error: d.error || 'The file could not be created.' };
+                guardarDecision(tc.toolCallId, 'aplicada');
+                if (onOpenFile) onOpenFile(d.path || tc.result.path);
+                return { ok: true };
+            } catch (e) {
+                return { error: e.message };
+            }
+        }
+        const actual = getFileContext ? (getFileContext()?.content ?? null) : null;
+        if (estadoDe(tc, actual) === 'caducada') {
+            setRevisionPropuestas(n => n + 1);
+            return { error: 'The file changed since this was proposed.' };
+        }
+        const r = onEditFile ? onEditFile(tc.result) : null;
+        if (r?.error) {
+            setRevisionPropuestas(n => n + 1);
+            return { error: r.error };
+        }
+        guardarDecision(tc.toolCallId, 'aplicada');
+        return { ok: true };
+    }, [guardarDecision, onEditFile, onOpenFile, getFileContext]);
+
+    const rejectEdit = useCallback((tc) => {
+        if (tc?.toolCallId) guardarDecision(tc.toolCallId, 'rechazada');
+    }, [guardarDecision]);
 
     // ─── Return ───
     return {
@@ -1118,8 +1344,7 @@ export default function useAiChat({
         handleSelectConversation,
         handleCancel,
 
-        // Pending edits (edit_file proposals waiting for user accept/reject)
-        pendingEdits,
+        // Proposals of the Assistant (write_file, propose_file)
         acceptEdit,
         rejectEdit,
 
@@ -1129,6 +1354,9 @@ export default function useAiChat({
         planMaxIterations,
         pendingAskUser, setPendingAskUser,
         pendingContinue, setPendingContinue,
+        interrupcion, setInterrupcion,
+        esperaCuota,
+        saltarEnVuelo, indicarEnVuelo, pausarEnVuelo, pausando,
         handleContinue,
         handleFinalizeNow,
         handleDeclineContinue,

@@ -1,12 +1,14 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuX, LuGitCompare, LuPlus, LuMinus, LuPencil } from 'react-icons/lu';
+import { useEscape } from '../hooks/useEscape';
 
 /**
  * SchemaDiffModal — Compare schemas of two tables side by side.
  * Shows added, removed, and type-changed columns.
  */
 const SchemaDiffModal = ({ isOpen, onClose, tables = [] }) => {
+    useEscape(onClose, isOpen);
     const [leftTable, setLeftTable] = useState('');
     const [rightTable, setRightTable] = useState('');
     const [leftSchema, setLeftSchema] = useState([]);

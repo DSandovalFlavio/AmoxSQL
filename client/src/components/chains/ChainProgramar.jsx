@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LuCalendarClock, LuCirclePause, LuCirclePlay, LuPlay, LuTrash2, LuX } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
+import { useEscape } from '../../hooks/useEscape';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, { method: metodo, headers: cuerpo ? { 'Content-Type': 'application/json' } : undefined, body: cuerpo ? JSON.stringify(cuerpo) : undefined });
@@ -35,6 +36,7 @@ function reglaDe(f) {
 }
 
 export default function ChainProgramar({ chainDefinition, filePath, onClose }) {
+    useEscape(onClose);
     const defs = useMemo(() => chainDefinition.parametros || [], [chainDefinition]);
     const [datos, setDatos] = useState(null);
     const [error, setError] = useState(null);

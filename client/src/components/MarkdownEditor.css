@@ -1725,3 +1725,13 @@
 
 .mde-split-handle:hover,
 .mde-split-handle:active { background-color: var(--accent-primary); }
+
+/* E3: en la vista de lectura, el aviso de una propuesta del Assistant. */
+.mde-asistente-aviso {
+    position: sticky; top: 8px; z-index: 3; margin: 8px auto 0; width: fit-content; max-width: calc(100% - 24px);
+    display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px;
+    background: var(--surface-overlay); border: 1px solid var(--accent-primary); border-radius: 8px;
+    box-shadow: var(--shadow-md); font-size: 12.5px; color: var(--text-secondary);
+}
+.mde-asistente-aviso svg { color: var(--accent-primary); flex: none; }
+.mde-asistente-aviso button { border: none; border-radius: 6px; padding: 3px 10px; background: var(--accent-primary); color: var(--button-text-color); font: inherit; font-weight: 600; cursor: pointer; }

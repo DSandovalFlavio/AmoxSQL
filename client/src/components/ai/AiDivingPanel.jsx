@@ -1,16 +1,21 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuSend, LuTrash2, LuArrowLeft, LuWand, LuSparkles, LuDownload, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuHourglass, LuPause, LuSquarePen, LuSquare, LuPencil, LuSparkles, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
+import DecisionDelAnalista from './DecisionDelAnalista';
 import { AiModesGuideModal } from './AiModesGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
-import ChatMessage from './ChatMessage';
 import PoliticaIAChip from '../workspaces/PoliticaIAChip';
-import DeepDiveTranscript from './DeepDiveTranscript';
-import DeepDiveInspector from './DeepDiveInspector';
-import { groupIntoTurns, buildSessionArtifacts, buildStepGroups } from './deepDiveTurns';
-import ToolCallBlock from './ToolCallBlock';
+import { groupIntoTurns, buildSessionArtifacts } from './deepDiveTurns';
+import { armarInforme, seccionDeConsulta } from './informeDeepDive';
+import InformeDeepDive from './deepDive/InformeDeepDive';
+import IndiceDeepDive from './deepDive/IndiceDeepDive';
+import ComoLoObtuve from './deepDive/ComoLoObtuve';
+import InicioDeepDive from './deepDive/InicioDeepDive';
 import ModelDropdown from './ModelDropdown';
-import SessionInventory from './SessionInventory';
-import AgentPlanPanel from './AgentPlanPanel';
+import { etiquetaHerramienta } from './ToolCallBlock';
+import { planoDeGraficoIA } from './ChatResultsBlock';
+import { deckDeInforme, slugDe } from './deckDeInforme';
+import { escribirAmoxvis } from '../DataVisualizer/vega/figura';
+import { useToast } from '../ToastProvider';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
@@ -64,7 +69,8 @@ const AiDivingPanel = ({
     onOpenFile,
     availableTables,
     startConversationId,
-    onConversationChange,
+    onConversationChange,   // (convId, nombre) — la pestaña recuerda la sesión y se llama como ella
+    onEsperaChange,         // (bool) — la sesión espera tu respuesta (la pestaña lo marca)
 }) => {
     // First-run Deep Dive tour (rendered by the global OnboardingHost)
     useEffect(() => {
@@ -134,15 +140,33 @@ const AiDivingPanel = ({
         handleDeclineContinue,
         userSkippedSteps,
         handleSkipPlanStep,
+        interrupcion,
+        esperaCuota,
+        saltarEnVuelo, indicarEnVuelo, pausarEnVuelo, pausando,
     } = useAiChat({ mode: 'diving' });
 
+    // While it runs, the box gives the analyst an instruction instead of starting
+    // another question (plan UX, F6); an empty box's button is Stop.
+    const [indicacionesEnviadas, setIndicacionesEnviadas] = useState(0);
+    const enviarOIndicar = useCallback(() => {
+        const texto = inputText.trim();
+        if (isGenerating) {
+            if (!texto) { handleCancel(); return; }
+            indicarEnVuelo(texto).then(ok => { if (ok) { setInputText(''); setIndicacionesEnviadas(n => n + 1); } });
+            return;
+        }
+        handleSend();
+    }, [inputText, isGenerating, handleCancel, indicarEnVuelo, setInputText, handleSend]);
+
     // ─── Session Name ───
+    // Dos nombres guardados: `title` (el de la lista de conversaciones, sale de la
+    // primera pregunta) y `session_name` (el que el usuario escribe). Se muestra el
+    // del usuario si lo hay; al renombrar se escriben los dos para que coincidan.
     const [sessionName, setSessionName] = useState('');
+    const [convTitle, setConvTitle] = useState('');
+    const displayName = sessionName || convTitle;
     const [alertData, setAlertData] = useState({ isOpen: false, message: '' });
     const [showModesGuide, setShowModesGuide] = useState(false);
-    // Continue banner: optional focus instruction for the resumed analysis.
-    const [continueInstr, setContinueInstr] = useState('');
-    const [showContinueInput, setShowContinueInput] = useState(false);
 
     // ─── Turns (transcript) + selected turn (inspector) ───
     // Historical turns derive ONLY from messages: their identity survives both
@@ -170,51 +194,69 @@ const AiDivingPanel = ({
     useEffect(() => { handleSendRef.current = handleSend; });
     const sendFollowUp = useCallback((text) => handleSendRef.current(text), []);
 
-    // The user's explicit pin (null = auto-follow). Clicking a turn pins it; a
-    // new run clears it so the inspector follows the fresh analysis.
-    const [pinnedTurnId, setPinnedTurnId] = useState(null);
+    // ─── The report: questions, answers and plan steps (plan UX, entrega 2) ───
+    const episodios = useMemo(
+        () => armarInforme(turns, { enCurso: isGenerating, saltados: userSkippedSteps }),
+        [turns, isGenerating, userSkippedSteps],
+    );
+    const ultimoEpisodio = episodios[episodios.length - 1] || null;
 
-    // New run → drop the pin so we auto-follow the new turn (edge-triggered).
-    const wasGeneratingRef = useRef(false);
-    useEffect(() => {
-        if (isGenerating && !wasGeneratingRef.current) setPinnedTurnId(null);
-        wasGeneratingRef.current = isGenerating;
-    }, [isGenerating]);
+    // "How I got this": the process behind one part of the report, on demand.
+    // Stored as keys and resolved every render, so it follows the live analysis.
+    const [panel, setPanel] = useState(null); // { seccionKey, queryId? } | null
+    const seccionDelPanel = useMemo(() => {
+        if (!panel) return null;
+        for (const e of episodios) {
+            for (const s of [e.intro, ...e.secciones]) if (s.key === panel.seccionKey) return { seccion: s, episodio: e };
+        }
+        return null;
+    }, [panel, episodios]);
+    useEffect(() => { setPanel(null); }, [conversationId]);
 
-    // Selection is DERIVED (no lagging effect, so no empty-state flash):
-    //  - a live pin wins as long as that turn still exists;
-    //  - while generating, follow the live/last turn;
-    //  - otherwise the last AI turn that actually has step activity (skip a
-    //    trailing prose-only turn), falling back to the last AI turn.
-    const selectedTurnId = useMemo(() => {
-        if (pinnedTurnId && turns.some(t => t.id === pinnedTurnId)) return pinnedTurnId;
-        if (isGenerating && turns.length) return turns[turns.length - 1].id;
-        const aiTurns = turns.filter(t => t.type === 'ai');
-        if (!aiTurns.length) return null;
-        const withActivity = [...aiTurns].reverse().find(t => buildStepGroups(t).length > 0);
-        return (withActivity || aiTurns[aiTurns.length - 1]).id;
-    }, [pinnedTurnId, turns, isGenerating]);
-
-    const selectedTurn = turns.find(t => t.id === selectedTurnId) || null;
-
-    // ─── Preserve transcript scroll across tab switches / remounts ───
+    // ─── Scroll: land on the answer, follow the live analysis ───
     const messagesElRef = useRef(null);
     const restoredScrollRef = useRef(false);
     const handleMessagesScroll = useCallback((e) => {
         if (conversationId) scrollMemory.set(conversationId, e.currentTarget.scrollTop);
     }, [conversationId]);
+    const irA = useCallback((id, comportamiento = 'smooth') => {
+        const el = document.getElementById(id);
+        if (el && messagesElRef.current?.contains(el)) el.scrollIntoView({ behavior: comportamiento, block: 'start' });
+    }, []);
     useEffect(() => {
         if (restoredScrollRef.current) return;
         const el = messagesElRef.current;
         if (!el || !conversationId || messages.length === 0) return;
         restoredScrollRef.current = true;
         const saved = scrollMemory.get(conversationId);
-        // Restore the saved spot, or land at the bottom (latest) on a fresh open.
+        // Back to where you were; on a fresh open, to the latest answer (the
+        // report puts it on top of its analysis), or to the end if there is none.
         requestAnimationFrame(() => {
             const el = messagesElRef.current;
-            if (el) el.scrollTop = saved != null ? saved : el.scrollHeight;
+            if (!el) return;
+            if (saved != null) { el.scrollTop = saved; return; }
+            if (ultimoEpisodio?.respuesta) irA(`${ultimoEpisodio.id}-respuesta`, 'auto');
+            else el.scrollTop = el.scrollHeight;
         });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [conversationId, messages.length]);
+    // When an analysis concludes, show its answer (it sits above the steps).
+    const generabaRef = useRef(false);
+    useEffect(() => {
+        if (generabaRef.current && !isGenerating && ultimoEpisodio?.respuesta) {
+            requestAnimationFrame(() => irA(`${ultimoEpisodio.id}-respuesta`));
+        }
+        generabaRef.current = isGenerating;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isGenerating]);
+
+    // ─── Room to read: fold the side bar when the report doesn't fit ───
+    // (plan UX decision 1). Once per tab; the side bar comes back with its button.
+    const raizRef = useRef(null);
+    useEffect(() => {
+        const ancho = raizRef.current?.getBoundingClientRect().width || 0;
+        if (ancho > 0 && ancho < 860) window.dispatchEvent(new Event('amox_plegar_barra_lateral'));
+    }, []);
 
     // ─── Auto-select escalated conversation on mount ───
     const didSelectStartConvRef = useRef(false);
@@ -226,28 +268,35 @@ const AiDivingPanel = ({
     }, [startConversationId, handleSelectConversation]);
 
     // Remember this conversation on its tab (so switching tabs / reopening keeps it,
-    // and "New Conversation" never reuses an existing tab's state).
+    // and "New Conversation" never reuses an existing tab's state). The tab takes
+    // the session's name: with several sessions open they were all «Deep Dive».
     useEffect(() => {
-        if (conversationId) onConversationChange?.(conversationId);
+        if (conversationId) onConversationChange?.(conversationId, displayName || null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [conversationId]);
+    }, [conversationId, displayName]);
 
     // Reset session name when conversation changes
     useEffect(() => {
         setSessionName('');
+        setConvTitle('');
         if (!conversationId) return;
-        // Load existing session name
-        (async () => {
+        let vivo = true;
+        const cargar = async () => {
             try {
                 const res = await fetch(`${API}/api/ai/conversations/${conversationId}`);
-                if (res.ok) {
+                if (res.ok && vivo) {
                     const conv = await res.json();
                     setSessionName(conv.session_name || '');
+                    setConvTitle(conv.title && conv.title !== 'New Conversation' ? conv.title : '');
                 }
             } catch (err) {
                 console.error('Failed to load session name:', err);
             }
-        })();
+        };
+        cargar();
+        // A brand-new session gets its title from the first question a moment later.
+        window.addEventListener('amox_conversation_created', cargar);
+        return () => { vivo = false; window.removeEventListener('amox_conversation_created', cargar); };
     }, [conversationId]);
 
     const handleUpdateSessionName = useCallback(async (name) => {
@@ -259,10 +308,29 @@ const AiDivingPanel = ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sessionName: name }),
             });
+            // The list of conversations shows `title`: keep both names the same.
+            await fetch(`${API}/api/ai/conversations/${conversationId}/title`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: name }),
+            });
+            window.dispatchEvent(new Event('amox_conversation_created'));
         } catch (err) {
             console.error('Failed to update session name:', err);
         }
     }, [conversationId]);
+
+    // ─── The analyst is waiting for you ───
+    // A question (ask_user) or "out of iterations": the tab and the list of
+    // conversations mark the session, so a paused analysis is visible from anywhere.
+    const esperando = !!(pendingAskUser || pendingContinue || interrupcion) && !isGenerating;
+    useEffect(() => {
+        onEsperaChange?.(esperando);
+        if (conversationId) {
+            window.dispatchEvent(new CustomEvent('amox_deep_dive_espera', { detail: { conversationId, espera: esperando } }));
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [esperando, conversationId]);
 
     // ─── Auto-create artifacts for build_notebook, display_chart, and save_to_vault ───
     // Dedup key per tool call (STABLE across reload: toolCallId is persisted), so a
@@ -336,28 +404,8 @@ const AiDivingPanel = ({
     }, [messages, conversationId, onOpenFile]);
 
     // ─── Empty state (no conversation yet) ───
-    const emptyState = (
-        <div className="ai-empty-state ai-empty-state--diving">
-            <div className="ai-empty-state-icon">
-                <LuSparkles size={40} />
-            </div>
-            <h2 className="ai-empty-state-title">Deep Dive</h2>
-            <div className="ai-empty-state-hint">
-                Your autonomous analyst — hand it a question and it plans, explores your data, and tells the story.
-            </div>
-            <div className="ai-quick-actions">
-                <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
-                    Show all tables
-                </button>
-                <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
-                    Describe schema
-                </button>
-                <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
-                    Sample data
-                </button>
-            </div>
-        </div>
-    );
+    // A business question first, built from the project (plan UX, F5).
+    const emptyState = <InicioDeepDive onPreguntar={sendFollowUp} />;
 
     // "Ask about this" → add reference + focus the input so the user types the question
     const handleAskAbout = useCallback((ref) => {
@@ -396,6 +444,20 @@ const AiDivingPanel = ({
         setSelAsk(null);
         window.getSelection()?.removeAllRanges();
     }, [selAsk, handleAskAbout]);
+    // The button is placed where the selection WAS: it stayed floating over the
+    // report after scrolling or after the selection was gone (seen in a real
+    // session). It goes away when the selection does, on scroll, and with Escape.
+    useEffect(() => {
+        if (!selAsk) return undefined;
+        const alCambiar = () => { if (window.getSelection()?.isCollapsed) setSelAsk(null); };
+        const alTeclear = (e) => { if (e.key === 'Escape') setSelAsk(null); };
+        document.addEventListener('selectionchange', alCambiar);
+        window.addEventListener('keydown', alTeclear);
+        return () => {
+            document.removeEventListener('selectionchange', alCambiar);
+            window.removeEventListener('keydown', alTeclear);
+        };
+    }, [selAsk]);
 
     // ─── @/# mention autocomplete (reference any session artifact by typing) ───
     const sessionArtifacts = useMemo(() => {
@@ -442,8 +504,13 @@ const AiDivingPanel = ({
             if (e.key === 'Escape') { e.preventDefault(); setMention(null); return; }
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); pickMention(mentionMatches[0]); return; }
         }
+        if (e.key === 'Enter' && !e.shiftKey && isGenerating) {
+            e.preventDefault();
+            if (inputText.trim()) enviarOIndicar();
+            return;
+        }
         handleKeyDown(e);
-    }, [mention, mentionMatches, pickMention, handleKeyDown]);
+    }, [mention, mentionMatches, pickMention, handleKeyDown, isGenerating, inputText, enviarOIndicar]);
 
     const mentionIcon = (type) => {
         switch (type) {
@@ -481,7 +548,7 @@ const AiDivingPanel = ({
     // ─── Input composer (with context attach: drop tables/files here) ───
     const inputComposer = (
         <div
-            className={`ai-composer${isDragOver ? ' ai-composer--dragover' : ''}`}
+            className={`ai-composer${isDragOver ? ' ai-composer--dragover' : ''}${esperando ? ' ai-composer--atento' : ''}`}
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
             onDragLeave={() => setIsDragOver(false)}
             onDrop={handleDrop}
@@ -539,7 +606,15 @@ const AiDivingPanel = ({
                     onChange={handleInputChange}
                     onKeyDown={handleComposerKeyDown}
                     onBlur={() => setTimeout(() => setMention(null), 120)}
-                    placeholder={isDragOver ? 'Drop tables or files to add as context…' : 'Ask about your data — type @ to reference a chart/query/step…'}
+                    placeholder={isDragOver
+                        ? 'Drop tables or files to add as context…'
+                        : isGenerating
+                            ? 'Give the analyst an instruction; it takes it at the next step'
+                        : pendingAskUser
+                            ? 'Answer the analyst…'
+                            : pendingContinue
+                                ? 'Or tell the analyst how to go on…'
+                                : 'Ask about your data. Type @ to point at a chart, query or step'}
                     rows={1}
                     onInput={(e) => {
                         e.target.style.height = 'auto';
@@ -565,260 +640,321 @@ const AiDivingPanel = ({
                 <div className="ai-composer-toolbar-right">
                     <span className="ai-composer-hint">{'Enter \u21B5'}</span>
                     <button
-                        className={`ai-composer-send${isGenerating ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
-                        onClick={isGenerating ? handleCancel : () => handleSend()}
+                        className={`ai-composer-send${isGenerating && !inputText.trim() ? ' cancel' : (inputText.trim() ? ' ready' : ' idle')}`}
+                        onClick={enviarOIndicar}
                         disabled={!isGenerating && !inputText.trim()}
+                        title={isGenerating ? (inputText.trim() ? 'Send this instruction to the analyst' : 'Stop the analysis') : 'Send'}
                     >
-                        {isGenerating ? <LuX size={16} strokeWidth={2.5} /> : <LuArrowUp size={18} strokeWidth={2.5} />}
+                        {isGenerating && !inputText.trim() ? <LuX size={16} strokeWidth={2.5} /> : <LuArrowUp size={18} strokeWidth={2.5} />}
                     </button>
                 </div>
             </div>
         </div>
     );
 
+    // Technical detail (F7): the SQL inside each step, without opening the panel.
+    // Remembered per person: the analyst wants it, the business user doesn't.
+    const [detalleTecnico, setDetalleTecnico] = useState(() => {
+        try { return localStorage.getItem('amoxsql-dd-detalle') === '1'; } catch { return false; }
+    });
+    const cambiarDetalle = useCallback(() => {
+        setDetalleTecnico(v => {
+            try { localStorage.setItem('amoxsql-dd-detalle', v ? '0' : '1'); } catch { /* sin almacenamiento */ }
+            return !v;
+        });
+    }, []);
+
+    // What the analyst is doing right now (the tool still running), in words.
+    const enCursoTool = isGenerating
+        ? [...activeToolCalls].reverse().find(tc => !tc.result && !['create_plan', 'update_plan'].includes(tc.toolName))
+        : null;
+    const actividad = useMemo(
+        () => (enCursoTool ? { etiqueta: etiquetaHerramienta(enCursoTool.toolName, true), inicio: enCursoTool.inicio || null } : null),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [enCursoTool?.toolCallId],
+    );
+    useEffect(() => { if (!isGenerating) setIndicacionesEnviadas(0); }, [isGenerating]);
+
+    // ─── What the report's pieces can do (stable: the report re-renders on every flush) ───
+    const acciones = useMemo(() => ({
+        preguntar: handleAskAbout,
+        seguir: sendFollowUp,
+        exportarNotebook: onExportNotebook,
+        exportarAmoxvis: onExportAmoxvis,
+        verSeccion: (seccion, queryId) => setPanel({ seccionKey: seccion.key, queryId: queryId || null }),
+        verConsulta: (queryId) => {
+            const hallada = seccionDeConsulta(episodiosRef.current, queryId);
+            if (hallada) setPanel({ seccionKey: hallada.seccion.key, queryId });
+        },
+        esperandoCuota: !!esperaCuota,
+        actividad,
+        detalleTecnico,
+        ejecutarSql: onRunSql,
+    }), [handleAskAbout, sendFollowUp, onExportNotebook, onExportAmoxvis, esperaCuota, actividad, detalleTecnico, onRunSql]);
+    const episodiosRef = useRef(episodios);
+    episodiosRef.current = episodios;
+
+    // What the session leaves behind: its charts (they lead to where they are) and notebooks.
+    const entregables = useMemo(() => {
+        const graficos = [];
+        const notebooks = [];
+        for (const e of episodios) {
+            for (const s of [e.intro, ...e.secciones]) {
+                s.bloques.forEach((b, i) => {
+                    if (b.tipo === 'grafico') graficos.push({ id: `${s.key}-g${i}`, titulo: b.tc.result.chartConfig.title || 'Chart' });
+                });
+            }
+        }
+        for (const m of messages) {
+            for (const tc of m.toolCalls || []) {
+                if (tc.toolName === 'build_notebook' && tc.result?.path && !notebooks.some(n => n.ruta === tc.result.path)) {
+                    notebooks.push({ ruta: tc.result.path, nombre: tc.result.fileName || tc.result.path.split(/[/\\]/).pop() });
+                }
+            }
+        }
+        return { graficos, notebooks };
+    }, [episodios, messages]);
+
+    // ─── Send to Report Flow (plan UX, F8) ───
+    // The analysis becomes a deck: the answer as cover and summary, one finding
+    // slide per chart (written as .amoxvis so "Refresh all" re-queries them), next
+    // steps and caveats. From Report Flow it exports to PowerPoint and Word.
+    const toast = useToast();
+    const [enviandoDeck, setEnviandoDeck] = useState(false);
+    const enviarAReportFlow = useCallback(async () => {
+        const ep = [...episodios].reverse().find(e => e.respuesta) || episodios[episodios.length - 1];
+        if (!ep) return;
+        setEnviandoDeck(true);
+        try {
+            const ahora = new Date();
+            const sello = `${ahora.getFullYear()}${String(ahora.getMonth() + 1).padStart(2, '0')}${String(ahora.getDate()).padStart(2, '0')}-${String(ahora.getHours()).padStart(2, '0')}${String(ahora.getMinutes()).padStart(2, '0')}`;
+            const base = `${slugDe(displayName || ep.pregunta)}-${sello}`;
+            const post = async (url, body) => {
+                const r = await fetch(`${API}${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.error) throw new Error(d.error || `HTTP ${r.status}`);
+                return d;
+            };
+            await post('/api/folder', { path: 'charts/deep-dive' });
+            await post('/api/folder', { path: 'reports' });
+
+            // Each chart as an .amoxvis with its own query (the deck re-runs it).
+            const sqlDe = (qid) => {
+                for (const m of messages) for (const tc of m.toolCalls || []) {
+                    if (tc.toolName === 'execute_sql' && tc.result?.queryId === qid) return tc.args?.query || '';
+                }
+                return '';
+            };
+            const graficos = new Map();
+            let n = 0;
+            for (const s of [ep.intro, ...ep.secciones]) {
+                for (const [i, b] of s.bloques.entries()) {
+                    if (b.tipo !== 'grafico') continue;
+                    const cc = b.tc.result.chartConfig;
+                    const query = sqlDe(cc.queryId);
+                    if (!query) continue; // no query, no chart that can refresh
+                    const ruta = `charts/deep-dive/${base}-${++n}.amoxvis`;
+                    const contenido = escribirAmoxvis({ ...planoDeGraficoIA(cc), query });
+                    await post('/api/file', { path: ruta, content: JSON.stringify(contenido, null, 2) });
+                    graficos.set(`${s.key}-g${i}`, ruta);
+                }
+            }
+            const deck = deckDeInforme(ep, {
+                titulo: displayName || ep.pregunta || 'Deep Dive',
+                fecha: ahora.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }),
+                graficos,
+            });
+            const rutaDeck = `reports/${base}.amoxdeck`;
+            await post('/api/file', { path: rutaDeck, content: deck });
+            window.dispatchEvent(new Event('amox_files_changed'));
+            onOpenFile?.(rutaDeck);
+            toast.success(`Saved ${rutaDeck}, with ${graficos.size} ${graficos.size === 1 ? 'chart' : 'charts'}. Export it to PowerPoint or Word from Report Flow.`);
+        } catch (err) {
+            toast.error(`Could not create the deck: ${err.message}`);
+        } finally {
+            setEnviandoDeck(false);
+        }
+    }, [episodios, messages, displayName, onOpenFile, toast]);
+
+    const hayInforme = episodios.length > 0;
+    const pasoVivo = isGenerating ? ultimoEpisodio?.indice?.find(p => p.estado === 'in_progress') : null;
+
     // ═══════════════════════════════════════════════════════
-    // RENDER — 3-column layout
+    // RENDER — index · report · "How I got this" (plan UX, entrega 2)
     // ═══════════════════════════════════════════════════════
     return (
-        <div className="ai-diving ai-diving--no-list" style={{ width }}>
-            {/* Conversations now live in the main left sidebar (Deep Dive section) */}
-
-            {/* ─── Center column: Chat ─── */}
-            <div className="ai-diving-center">
-                {/* Diving header */}
-                <div className="ai-diving-header">
-                    <div className="ai-diving-header-left">
-                        <LuBot size={16} className="ai-diving-header-icon" />
-                        <span className="ai-diving-header-title">Deep Dive</span>
-                        {provider === 'gemini' && (
-                            <span className="ai-badge-cloud">CLOUD</span>
-                        )}
-                        <PoliticaIAChip />
-                    </div>
-                    <div className="ai-diving-header-right">
-                        {messages.length > 0 && (
-                            <button
-                                className="ai-icon-btn"
-                                onClick={() => exportConversationToMarkdown(messages, sessionName || 'Deep Dive')}
-                                title="Export conversation to Markdown"
-                            >
-                                <LuDownload size={14} />
+        <div className="ai-diving ddr" style={{ width }} ref={raizRef}>
+            <header className="ddr-cab">
+                <LuBot size={16} className="ai-diving-header-icon" />
+                <NombreDeSesion nombre={displayName} editable={!!conversationId} onCambiar={handleUpdateSessionName} />
+                {isGenerating && (esperaCuota
+                    ? <EsperaDeCuota hasta={esperaCuota.hasta} />
+                    : (
+                        <span className="ddr-chip ddr-chip--vivo">
+                            <LuLoader size={11} className="ddr-gira" />
+                            {pasoVivo && ultimoEpisodio?.indice?.length
+                                ? `Analyzing · step ${pasoVivo.numero} of ${ultimoEpisodio.indice.length}`
+                                : 'Analyzing'}
+                        </span>
+                    ))}
+                {/* Any provider but the local one sends data out: say so for all of them. */}
+                {provider && provider !== 'ollama' && (
+                    <span className="ai-badge-cloud" title="This model runs in the cloud">CLOUD</span>
+                )}
+                <PoliticaIAChip />
+                <span className="ddr-cab-der">
+                    {isGenerating && (
+                        <>
+                            {/* Pause: finishes the step it's on, keeps everything, and
+                                Continue resumes the plan. Stop: cuts it now (what was done
+                                is kept too, F9). */}
+                            {ultimoEpisodio?.indice?.length > 0 && (
+                                <button className="ddr-btn" onClick={pausarEnVuelo} disabled={pausando}
+                                    title="Pause after the step it's on. Continue resumes the plan.">
+                                    <LuPause size={11} /> {pausando ? 'Pausing after this step…' : 'Pause'}
+                                </button>
+                            )}
+                            <button className="ddr-btn ddr-btn--peligro" onClick={handleCancel} title="Stop the analysis now. What it did is kept.">
+                                <LuSquare size={11} /> Stop
                             </button>
-                        )}
-                        {messages.length > 0 && (
-                            <button className="ai-icon-btn" onClick={handleClearChat} title="Clear chat">
-                                <LuTrash2 size={14} />
-                            </button>
-                        )}
-                        <button className="ai-icon-btn" onClick={() => setShowModesGuide(true)} title="About the AI modes">
-                            <LuCircleHelp size={14} />
+                        </>
+                    )}
+                    {hayInforme && (
+                        <button className={`ddr-interruptor${detalleTecnico ? ' ddr-interruptor--on' : ''}`} onClick={cambiarDetalle}
+                            role="switch" aria-checked={detalleTecnico}
+                            title="Show the SQL and its rows inside each step">
+                            <i aria-hidden="true" /> Technical detail
                         </button>
-                    </div>
+                    )}
+                    {/* It never deleted anything: it empties the view and starts over.
+                        The session stays in the list, where it can be deleted. */}
+                    {messages.length > 0 && !isGenerating && (
+                        <button className="ai-icon-btn" onClick={handleClearChat} title="New session (this one stays in the list)">
+                            <LuSquarePen size={14} />
+                        </button>
+                    )}
+                    <button className="ai-icon-btn" onClick={() => setShowModesGuide(true)} title="About the AI modes">
+                        <LuCircleHelp size={14} />
+                    </button>
+                </span>
+            </header>
+            <AiModesGuideModal isOpen={showModesGuide} onClose={() => setShowModesGuide(false)} />
+
+            {status === 'LOADING' && (
+                <div className="ai-loading">
+                    <LuLoader size={30} style={{ marginBottom: '15px', animation: 'spin 2s linear infinite', color: 'var(--accent-primary)' }} />
+                    <h3>Loading AI Engine...</h3>
                 </div>
-                <AiModesGuideModal isOpen={showModesGuide} onClose={() => setShowModesGuide(false)} />
+            )}
 
-                {status === 'LOADING' && (
-                    <div className="ai-loading">
-                        <LuLoader size={30} style={{ marginBottom: '15px', animation: 'spin 2s linear infinite', color: 'var(--accent-primary)' }} />
-                        <h3>Loading AI Engine...</h3>
-                    </div>
-                )}
+            {status === 'ERROR' && (
+                <div className="ai-error-state">
+                    Error loading AI configuration.
+                    <button onClick={() => window.location.reload()}>Retry</button>
+                </div>
+            )}
 
-                {status === 'ERROR' && (
-                    <div className="ai-error-state">
-                        Error loading AI configuration.
-                        <button onClick={() => window.location.reload()}>Retry</button>
-                    </div>
-                )}
-
-                {status === 'READY' && (
-                    <div className="ai-diving-split">
-                        {/* LEFT: conversation thread + composer */}
-                        <div className="ai-diving-thread">
-                            <div className="ai-diving-messages" ref={messagesElRef} onScroll={handleMessagesScroll} onMouseUp={handleThreadMouseUp}>
-                                <div className="ai-diving-messages-inner">
-                                    {turns.length === 0 && !isGenerating ? emptyState : (
-                                        <DeepDiveTranscript
-                                            turns={turns}
-                                            selectedTurnId={selectedTurnId}
-                                            onSelect={setPinnedTurnId}
-                                            onFollowUp={sendFollowUp}
-                                            onAskAbout={handleAskAbout}
-                                            isGenerating={isGenerating}
-                                        />
-                                    )}
-                                    <div ref={chatEndRef} />
-                                </div>
-                            </div>
-
-                            {errorMsg && (
-                                <div className="ai-error-bar">
-                                    <span>{errorMsg}</span>
-                                    <button onClick={() => setErrorMsg(null)}>
-                                        <LuX size={12} />
-                                    </button>
-                                </div>
-                            )}
-
-                            <div className="ai-diving-composer-wrap">
-                                <div className="ai-diving-composer">
-                                    {contextObjects.length > 0 && (
-                                        <div className="ai-context-bar">
-                                            <div className="ai-context-bar-head">
-                                                <LuPaperclip size={12} />
-                                                <span className="ai-context-bar-title">Context for this conversation</span>
-                                                <span className="ai-context-bar-hint">always available · reference with @</span>
-                                            </div>
-                                            <div className="ai-context-bar-chips">
-                                                {contextObjects.map((obj, i) => (
-                                                    <span key={i} className="ai-composer-chip ai-context-chip">
-                                                        {obj.type === 'table' ? <LuTable size={11} /> : <LuFile size={11} />}
-                                                        <span className="ai-composer-chip-name">{obj.name}</span>
-                                                        <button className="ai-composer-chip-x" onClick={() => removeContextObj(i)} title="Remove from context">
-                                                            <LuX size={10} />
-                                                        </button>
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                    {inputComposer}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* CENTER: step inspector */}
-                        <div className="ai-diving-inspector-pane">
-                            <DeepDiveInspector
-                                turn={selectedTurn}
-                                allMessages={messages}
-                                onRunSql={onRunSql}
-                                onFollowUp={sendFollowUp}
-                                onAskAbout={handleAskAbout}
-                                onExportNotebook={onExportNotebook}
-                                onExportAmoxvis={onExportAmoxvis}
-                                onOpenFile={onOpenFile}
-                            />
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            {/* ─── Right column: Session Inventory (contains Agent Plan when active) ─── */}
             {status === 'READY' && (
-                <SessionInventory
-                    contextObjects={contextObjects}
-                    isDragOver={isDragOver}
-                    onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                    onDragLeave={() => setIsDragOver(false)}
-                    onDrop={handleDrop}
-                    onRemoveContext={removeContextObj}
-                    onQuickAction={(text) => handleSend(text)}
-                    hasMessages={messages.length > 0}
-                    conversationId={conversationId}
-                    onOpenFile={onOpenFile}
-                    sessionName={sessionName}
-                    onUpdateSessionName={handleUpdateSessionName}
-                >
-                    {/* Agent Plan panel — visible only when a plan is active */}
-                    <AgentPlanPanel
-                        planState={planState}
-                        isGenerating={isGenerating}
-                        iteration={planIteration}
-                        maxIterations={planMaxIterations}
-                        onSkipStep={handleSkipPlanStep}
-                        userSkippedSteps={userSkippedSteps}
-                    />
-
-                    {/* Ask-user banner — shown when agent pauses for input */}
-                    {pendingAskUser && (
-                        <div className="ai-ask-user-banner">
-                            <p className="ai-ask-user-question">{pendingAskUser.question}</p>
-                            {pendingAskUser.options.length > 0 ? (
-                                <div className="ai-ask-user-options">
-                                    {pendingAskUser.options.map((opt, i) => (
-                                        <button
-                                            key={i}
-                                            className="ai-ask-user-option"
-                                            onClick={() => {
-                                                setPendingAskUser(null);
-                                                handleSend(opt);
-                                            }}
-                                        >
-                                            {opt}
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="ai-ask-user-hint">Type your answer in the chat input.</p>
-                            )}
-                        </div>
+                <div className={`ddr-zonas${hayInforme ? '' : ' ddr-zonas--vacio'}${seccionDelPanel ? ' ddr-zonas--panel' : ''}`}>
+                    {hayInforme && (
+                        <IndiceDeepDive
+                            episodios={episodios}
+                            isGenerating={isGenerating}
+                            onIr={irA}
+                            onSaltar={isGenerating ? saltarEnVuelo : handleSkipPlanStep}
+                            entregables={entregables}
+                            onGuardarNotebook={() => sendFollowUp('Save this analysis as a notebook — include the queries, the charts, and a short narrative for each section.')}
+                            onExportar={() => exportConversationToMarkdown(messages, displayName || 'Deep Dive')}
+                            onReportFlow={enviarAReportFlow}
+                            enviandoDeck={enviandoDeck}
+                            onAbrirArchivo={onOpenFile}
+                        />
                     )}
 
-                    {/* Continue banner — loop exhausted without final_answer, or a
-                        paused plan was reopened. Offers focus/continue/finish/cancel. */}
-                    {pendingContinue && (
-                        <div className="ai-ask-user-banner ai-continue-banner">
-                            <p className="ai-ask-user-question">
-                                {pendingContinue.resumed
-                                    ? 'This analysis was left paused, unfinished.'
-                                    : 'The analysis needs more iterations to finish.'}
-                                {pendingContinue.pendingSteps > 0 && ` ${pendingContinue.pendingSteps} step(s) still pending.`}
-                            </p>
+                    <section className="ddr-informe">
+                        <div className="ai-diving-messages ddr-scroll" ref={messagesElRef} onScroll={(e) => { handleMessagesScroll(e); if (selAsk) setSelAsk(null); }} onMouseUp={handleThreadMouseUp}>
+                            {hayInforme ? (
+                                <InformeDeepDive
+                                    episodios={episodios}
+                                    allMessages={messages}
+                                    acciones={acciones}
+                                />
+                            ) : emptyState}
+                            <div ref={chatEndRef} />
+                        </div>
 
-                            {showContinueInput && (
-                                <textarea
-                                    className="ai-continue-instr"
-                                    placeholder="Instructions to continue (optional): e.g. 'just finish s6, skip the rest'"
-                                    value={continueInstr}
-                                    onChange={e => setContinueInstr(e.target.value)}
-                                    rows={2}
-                                    autoFocus
-                                    onKeyDown={e => {
-                                        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                                            handleContinue(continueInstr);
-                                            setContinueInstr(''); setShowContinueInput(false);
+                        {errorMsg && (
+                            <div className="ai-error-bar">
+                                <span>{errorMsg}</span>
+                                <button onClick={() => setErrorMsg(null)}>
+                                    <LuX size={12} />
+                                </button>
+                            </div>
+                        )}
+
+                        <div className="ai-diving-composer-wrap">
+                            {/* What the analyst needs from you, right where you type. */}
+                            {!isGenerating && (
+                                <DecisionDelAnalista
+                                    pregunta={pendingAskUser}
+                                    continuar={pendingAskUser ? null : pendingContinue}
+                                    interrupcion={pendingAskUser ? null : interrupcion}
+                                    progreso={ultimoEpisodio
+                                        ? {
+                                            hechos: (ultimoEpisodio.indice || []).filter(p => p.estado === 'done').length,
+                                            total: ultimoEpisodio.indice?.length || 0,
+                                            vacio: !ultimoEpisodio.secciones.length && !ultimoEpisodio.intro.bloques.length,
                                         }
-                                    }}
+                                        : null}
+                                    // handleSend clears the question only once the answer is
+                                    // really sent: with no model chosen, it used to vanish
+                                    // and the answer went nowhere.
+                                    onElegir={(op) => handleSend(op)}
+                                    onContinuar={(instr) => handleContinue(instr)}
+                                    onTerminar={handleFinalizeNow}
+                                    onDetener={handleDeclineContinue}
                                 />
                             )}
-
-                            <div className="ai-ask-user-options">
-                                <button
-                                    className="ai-ask-user-option ai-continue-btn"
-                                    onClick={() => {
-                                        handleContinue(showContinueInput ? continueInstr : undefined);
-                                        setContinueInstr(''); setShowContinueInput(false);
-                                    }}
-                                >
-                                    {showContinueInput && continueInstr.trim() ? 'Continuar con esto' : 'Continuar'}
-                                </button>
-                                {!showContinueInput && (
-                                    <button
-                                        className="ai-ask-user-option ai-continue-btn--ghost"
-                                        onClick={() => setShowContinueInput(true)}
-                                        title="Steer how the analysis continues"
-                                    >
-                                        With instructions…
-                                    </button>
+                            <div className="ai-diving-composer">
+                                {contextObjects.length > 0 && (
+                                    <div className="ai-context-bar">
+                                        <div className="ai-context-bar-head">
+                                            <LuPaperclip size={12} />
+                                            <span className="ai-context-bar-title">Context for this conversation</span>
+                                            <span className="ai-context-bar-hint">always available · reference with @</span>
+                                        </div>
+                                        <div className="ai-context-bar-chips">
+                                            {contextObjects.map((obj, i) => (
+                                                <span key={i} className="ai-composer-chip ai-context-chip">
+                                                    {obj.type === 'table' ? <LuTable size={11} /> : <LuFile size={11} />}
+                                                    <span className="ai-composer-chip-name">{obj.name}</span>
+                                                    <button className="ai-composer-chip-x" onClick={() => removeContextObj(i)} title="Remove from context">
+                                                        <LuX size={10} />
+                                                    </button>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
-                                <button
-                                    className="ai-ask-user-option ai-continue-btn--ghost"
-                                    onClick={() => { handleFinalizeNow(); setContinueInstr(''); setShowContinueInput(false); }}
-                                    title="Synthesise what it already has, with no further steps"
-                                >
-                                    Finish with what there is
-                                </button>
-                                <button
-                                    className="ai-ask-user-option ai-continue-btn--cancel"
-                                    onClick={() => { handleDeclineContinue(); setContinueInstr(''); setShowContinueInput(false); }}
-                                >
-                                    Cancelar
-                                </button>
+                                {isGenerating && indicacionesEnviadas > 0 && (
+                                    <p className="ddr-indicacion-ok">Instruction sent. The analyst takes it at its next step.</p>
+                                )}
+                                {inputComposer}
                             </div>
                         </div>
+                    </section>
+
+                    {seccionDelPanel && (
+                        <ComoLoObtuve
+                            seccion={seccionDelPanel.seccion}
+                            focoQueryId={panel?.queryId}
+                            enCurso={seccionDelPanel.episodio.enCurso}
+                            onClose={() => setPanel(null)}
+                            onRunSql={onRunSql}
+                            onAskAbout={handleAskAbout}
+                        />
                     )}
-                </SessionInventory>
+                </div>
             )}
 
             {selAsk && (
@@ -841,5 +977,62 @@ const AiDivingPanel = ({
         </div>
     );
 };
+
+/**
+ * F9: the provider's per-minute quota ran out and the server is waiting it out
+ * before repeating the step. A countdown, so the pause doesn't look like a hang.
+ */
+function EsperaDeCuota({ hasta }) {
+    const [ahora, setAhora] = useState(Date.now());
+    useEffect(() => {
+        const t = setInterval(() => setAhora(Date.now()), 500);
+        return () => clearInterval(t);
+    }, []);
+    const faltan = Math.max(0, Math.ceil((hasta - ahora) / 1000));
+    return (
+        <span className="ddr-chip ddr-chip--aviso" title="The model's provider allows only so many requests a minute. Your progress is safe; the analysis resumes on its own.">
+            <LuHourglass size={11} />
+            {faltan > 0 ? `Waiting for the quota · resumes in ${faltan} s` : 'Resuming…'}
+        </span>
+    );
+}
+
+/**
+ * The session's name in the header, renamed in place (it used to live at the
+ * top of the right column, away from everything else that names the session).
+ */
+function NombreDeSesion({ nombre, editable, onCambiar }) {
+    const [editando, setEditando] = useState(false);
+    const [valor, setValor] = useState(nombre || '');
+    useEffect(() => { setValor(nombre || ''); }, [nombre]);
+    const confirmar = () => {
+        setEditando(false);
+        const t = valor.trim();
+        if (t && t !== nombre) onCambiar?.(t); else setValor(nombre || '');
+    };
+    if (editando) {
+        return (
+            <input
+                className="ddr-nombre-input"
+                value={valor}
+                autoFocus
+                spellCheck={false}
+                onChange={(e) => setValor(e.target.value)}
+                onBlur={confirmar}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') confirmar();
+                    else if (e.key === 'Escape') { e.stopPropagation(); setValor(nombre || ''); setEditando(false); }
+                }}
+                aria-label="Session name"
+            />
+        );
+    }
+    return (
+        <button className="ddr-nombre" disabled={!editable} onClick={() => setEditando(true)} title={editable ? 'Rename this session' : undefined}>
+            <span>{nombre || 'Deep Dive'}</span>
+            {editable && <LuPencil size={11} className="ddr-nombre-lapiz" />}
+        </button>
+    );
+}
 
 export default AiDivingPanel;

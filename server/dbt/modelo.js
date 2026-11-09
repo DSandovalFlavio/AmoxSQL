@@ -83,6 +83,8 @@ function info(raiz, archivo) {
         materializado: nodo?.config?.materialized || null,
         relacion: nodo?.relation_name || null,
         descripcion: nodo?.description || null,
+        // Las columnas que declara su YAML, con su descripción (las lee el Assistant).
+        columnas: Object.values(nodo?.columns || {}).map(c => ({ nombre: c.name, descripcion: c.description || '' })),
         compilado: nodo?.compiled_code || null,
     };
 }

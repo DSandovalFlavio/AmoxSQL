@@ -171,8 +171,32 @@ function envolver(modelo, proveedor) {
  */
 function sanearOpciones(opciones, proveedor) {
     const datos = datosPara(proveedor);
-    if (datos === 'filas') return opciones;
     const o = { ...opciones };
+    // El archivo activo del Assistant: qué es, qué parte puede salir y si se le
+    // pueden proponer cambios. Corre con cualquier política —el tope, las fotos del
+    // Canvas y las credenciales valen también con «filas»—. `currentQuery` queda
+    // solo con SQL: es lo que el resto del prompt y la resolución de tablas leen
+    // como una consulta; cualquier otro archivo va en `archivo`.
+    if (o.mode === 'assistant' && (o.currentQuery || o.filePath)) {
+        const { prepararArchivo } = require('./archivoActivo');
+        o.archivo = prepararArchivo({
+            filePath: o.filePath, fileType: o.fileType, contenido: o.currentQuery || '',
+            datos, local: esLocal(proveedor),
+            // E3: el notebook llega con sus celdas (las del editor); E4: un deck con
+            // sus láminas y un gráfico con sus paneles.
+            estructura: o.foco?.cuaderno || o.foco?.deck || o.foco?.grafico
+                // E5: Data Flow (el estado de cada paso), Canvas y diagrama.
+                || o.foco?.flujo || o.foco?.lienzo || o.foco?.diagrama || null,
+        });
+        o.currentQuery = o.archivo.tipo === 'sql' ? o.archivo.contenido : '';
+        // Dónde está el usuario y qué falló (E2), con la misma política: la
+        // selección solo si el archivo sale, el error sin los valores que cite.
+        const { prepararFoco } = require('./archivoActivo');
+        o.enfoque = prepararFoco({ archivo: o.archivo, foco: o.foco, error: o.resultsError, datos });
+    }
+    delete o.foco;
+    delete o.resultsError;
+    if (datos === 'filas') return o;
     if (o.currentResult) o.currentResult = filtrarValor(o.currentResult, datos);
     if (Array.isArray(o.referencedArtifacts)) o.referencedArtifacts = o.referencedArtifacts.map(r => filtrarValor(r, datos));
     if (Array.isArray(o.files)) o.files = o.files.map(f => filtrarValor(f, datos));

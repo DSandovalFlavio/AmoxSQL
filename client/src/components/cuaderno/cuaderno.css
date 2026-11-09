@@ -469,6 +469,8 @@
 .cdn-btn--corre { background: var(--accent-primary); color: var(--surface-base); border-color: transparent; }
 .cdn-btn--corre:hover { background: color-mix(in oklch, var(--accent-primary) 85%, black); color: var(--surface-base); }
 .cdn-btn:disabled { opacity: .45; cursor: default; }
+/* Assist abierto: el mismo botón, marcado (antes decía «Close Assist»). */
+.cdn-btn--activo { color: var(--accent-primary); border-color: var(--accent-primary); }
 
 /* ── el cuerpo: editor | resultado ──────────────────────────────────────── */
 /* DOS variables y no una. Con `var(--reparto) 7px minmax(0,1fr)`, un reparto de
@@ -860,3 +862,21 @@ button.cdn-vista:hover { background: var(--hover-bg); }
    más largo, sigue creciendo con él. */
 .cdn-celda--escribiendo { display: flex; flex-direction: column; }
 .cdn-celda--escribiendo .cdn-texto-fuente { flex: 1 0 auto; min-height: 120px; }
+
+/* ── Las propuestas del Assistant en el cuaderno (plan del Assistant, E3) ── */
+.cdn-propuesta { margin: 6px 0 10px; display: flex; flex-direction: column; gap: 4px; }
+.cdn-propuesta .ai-edit-proposal { margin-top: 0; border-color: var(--accent-primary); }
+.cdn-propuesta-etq, .cdn-fantasma-etq { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent-primary); }
+.cdn-fila--fantasma { margin: 8px 0; }
+.cdn-fantasma { position: relative; border: 1.5px dashed var(--accent-primary); border-radius: var(--radius-md, 8px); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--surface-base); }
+.cdn-fantasma-cab { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+.cdn-fantasma-acciones { margin-left: auto; display: flex; gap: 6px; }
+.cdn-fantasma-desc { font-size: 12px; color: var(--text-secondary); }
+.cdn-fantasma-cuerpo { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 13px; line-height: 1.6; color: var(--text-primary); font-family: inherit; }
+.cdn-fantasma-cuerpo--sql { font-family: var(--font-mono); font-size: 12px; background: var(--surface-inset); border-radius: 6px; padding: 8px 10px; }
+.cdn-error-asistir { margin-top: 8px; display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--accent-primary); background: transparent; color: var(--accent-primary); font: inherit; font-family: var(--font-sans, inherit); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.cdn-error-asistir:hover { background: var(--hover-bg); }
+.cdn-asistir-menu { position: absolute; left: calc(100% + 4px); top: 0; z-index: 20; min-width: 200px; display: flex; flex-direction: column; padding: 4px; background: var(--surface-overlay); border: 1px solid var(--border-default); border-radius: 8px; box-shadow: var(--shadow-md); }
+.cdn-asistir-menu button { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: none; border-radius: 5px; background: none; color: var(--text-primary); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; white-space: nowrap; }
+.cdn-asistir-menu button:hover { background: var(--hover-bg); }
+.cdn-texto-asistir { margin-top: 6px; display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--border-subtle); background: transparent; color: var(--accent-primary); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; font-style: normal; }

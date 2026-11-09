@@ -45,7 +45,7 @@ Drag the right edge of a column header to adjust its width (minimum 50 px). Widt
 At the bottom, move between pages with **‹ ›** and choose how many rows to show per page: **50 / 100 / 500 / 1000**.
 
 ### Pop out to a separate window
-The **Pop-out** button (when available) sends the results to a standalone window — handy for viewing them on a second monitor while you keep editing.
+The **Pop-out** button sends the results to a standalone window — handy for viewing them on a second monitor while you keep editing. The window belongs to that tab: running in another one doesn't change it. See [Tabs and panes](../editor/layout-tabs-and-panes.md).
 
 ## Value-formatting reference
 
@@ -75,7 +75,7 @@ The table formats each value by its type for readability; hover a cell to see th
 
 ## Tips & gems
 
-- **Truncation warning:** if your query returns more rows than the "Max Rows" limit (Settings → Editor), you'll see "⚠ first N rows". For the full set, use **Export** in the editor or add your own `LIMIT` (see [Saving results](saving-results.md)).
+- **Truncation warning:** if your query returns more rows than the "Max Rows" limit (Settings → Editor), you'll see "⚠ first N rows". With Max Rows at 0, a safety limit of 1,000,000 rows or 256 MB still applies. For the full set, use **Export** in the editor or add your own `LIMIT` (see [Saving results](saving-results.md)).
 - **Searching doesn't re-run:** search, filters, and sorting operate **in memory** on the already-loaded rows — they're instant and don't re-query the engine.
 - **Download ≠ Export:** **Download** grabs only the rows loaded in the table (already filtered and sorted); the editor's **Export** re-runs the whole query. The distinction is explained in [Saving results](saving-results.md).
 

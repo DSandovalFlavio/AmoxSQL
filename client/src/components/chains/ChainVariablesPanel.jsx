@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LuX, LuPlus, LuMinus, LuVariable } from 'react-icons/lu';
+import { useEscape } from '../../hooks/useEscape';
 
 const TIPOS = [
     { value: '', label: 'As written' },
@@ -63,6 +64,7 @@ function Valor({ fila, onChange }) {
 }
 
 const ChainVariablesPanel = ({ variables = {}, parametros = [], onChange, onClose }) => {
+    useEscape(onClose);
     const [rows, setRows] = useState(() => filasDe(variables, parametros));
 
     const commit = (newRows) => {

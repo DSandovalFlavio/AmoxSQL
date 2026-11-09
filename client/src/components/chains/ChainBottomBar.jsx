@@ -249,15 +249,15 @@ const ChainBottomBar = ({
                     onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
                     disabled={aiLoading}
                     placeholder={hasNodes
-                        ? 'Describe a change… e.g. "add a dedup before the export"'
+                        ? 'Ask Assist… e.g. "add a dedup before the export"'
                         : 'Describe your pipeline… e.g. "import sales.csv, filter 2025, sum by region"'}
                 />
                 <button
                     className="chain-bb-ai-send"
                     onClick={submit}
                     disabled={aiLoading || !text.trim()}
-                    title="Generate (Enter)"
-                    aria-label="Generate"
+                    title="Ask Assist (Enter): the change comes as a proposal on the canvas"
+                    aria-label="Ask Assist"
                 >
                     {aiLoading ? <LuLoader size={12} className="chain-node-spin" /> : <LuSparkles size={12} />}
                 </button>

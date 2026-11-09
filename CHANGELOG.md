@@ -5,6 +5,86 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [5.19.0] — 2026-11-09 — Cada pestaña es suya, y el Assistant trabaja donde está el trabajo
+
+Tres entregas en una: cada pestaña recuerda y controla lo suyo (plan en `docs/dev/plan_5_19_interaccion.md`), los archivos grandes no congelan nada, Deep Dive se lee como un informe, y el Assistant propone cambios en cada tipo de archivo y se revisan en el propio editor (plan en `docs/dev/plan_ux_assistant.md`). El instalador de macOS sigue en beta.
+
+### Nuevo
+- **El Assistant propone, tú decides, y nada se escribe sin revisar.** Cada propuesta guarda su estado (pendiente, aplicada, rechazada) y al reabrir la conversación lo recuerda; si esa parte del archivo cambió desde entonces, lo dice y ofrece **Propose again** en lugar de borrar lo que hiciste. Un archivo nuevo se propone con su ruta y se crea solo con **Create**, nunca encima de otro.
+- **En un `.sql`, Markdown o un archivo de texto, el Assistant cambia solo las líneas que hacen falta** y el cambio se revisa **dentro del editor**: lo que sale en rojo, lo que entra en verde debajo, y **Accept / Reject** encima; Ctrl+Z lo deshace. Mientras está pendiente, esas líneas no se editan.
+- **El Assistant sabe dónde estás:** la selección o la sentencia bajo el cursor en SQL, la sección en Markdown, la celda en un notebook, la lámina en un deck, la etapa de Story Flow en un gráfico, el paso en Data Flow, la tarjeta en un Canvas, la caja en un diagrama. Y el error de la última ejecución.
+- **Seleccionar más de una palabra** saca una barra: Explain · Fix · Optimize en SQL, Rewrite · Shorter · Explain · Continue en Markdown, y **Ask…** (o Ctrl+L). **Fix with Assist** junto a un error; **Explain** y **Chart it** en los resultados.
+- **Notebook, celda a celda:** el Assistant ve las celdas, lo que lee cada una, las vistas vivas y los parámetros; propone el cambio de una celda (debajo de ella) o una celda nueva (como fantasma en su sitio), y aceptar no toca las demás ni sus resultados. Menú **Assist** en el canalón de cada celda.
+- **Report Flow, lámina a lámina:** propone el diseño, el texto, los gráficos o las notas de una lámina, o una lámina nueva; se revisa con **Before / Proposal** sobre la lámina y la nueva aparece como fantasma en el esquema. Sabe qué muestra cada gráfico del deck. Menú **Assist** en la barra de la lámina.
+- **Gráficos, por sus paneles:** propone cambios de Story Flow (tipo, ejes, resalte, título, takeaway…), nunca el JSON; un panel que ese tipo no dibuja no se propone. **Before / Proposal** sobre la figura con la lista de cambios. **Assist** en la cabecera de Story Flow con la pregunta de cada etapa; **Auto Story** propone en lugar de escribir encima.
+- **Data Flow, por pasos:** la barra de abajo es ya el Assistant de ese archivo. Propone añadir, cambiar, quitar o conectar pasos; se comprueban los tipos y los ciclos, y se ven como fantasmas sobre el lienzo con la lista de cambios. En el menú de un paso: Explain this step · Write the SQL for this step · Fix with Assist.
+- **Canvas, tarjeta a tarjeta:** cambia el SQL o el texto de una tarjeta o añade una junto a otra, revisadas como tarjetas fantasma. **Ask a question → cards…** responde con tarjetas. Nunca ve las fotos de las tarjetas.
+- **Diagramas:** **Draw with Assist…** dibuja desde una descripción o desde un `.sql` / `.sqlchain`; el diagrama se propone como grafo y siempre se puede seguir editando visualmente.
+- **Run en el chat:** una consulta del chat corre ahí mismo, con sus primeras filas y **Open in editor**.
+- **Deep Dive no pierde un análisis a medias.** Si el proveedor del modelo limita las solicitudes por minuto (la capa gratuita de Gemini permite 5), el análisis espera lo que pide el proveedor y repite el paso, con una cuenta atrás en el encabezado («Waiting for the quota · resumes in 31 s»). Si aun así se corta (una cuota diaria, un error del proveedor, Stop, o la ventana que se cierra), lo hecho se guarda: los pasos terminados con sus gráficos siguen en el informe, una línea dice dónde y por qué se cortó, y encima de la caja de texto se elige cómo seguir (**Continue**, que en una cuota por minuto puede esperar sola la cuenta atrás; con instrucciones; terminar con lo que hay; dejarlo). El error del proveedor queda plegado en **Details**. Continuar retoma el mismo plan, no lo empieza de nuevo.
+- **De Deep Dive a Report Flow en un clic.** **Send to Report Flow**, en el índice, convierte el análisis en un deck: la pregunta y la respuesta de portada, un resumen con los hallazgos, una lámina por gráfico (la conclusión del paso como título; cada gráfico como `.amoxvis` con su consulta, así **Refresh all** lo vuelve a consultar), los siguientes pasos y las salvedades. Desde Report Flow se exporta a PowerPoint o Word.
+- **Technical detail** en Deep Dive: un interruptor en el encabezado pone el SQL y sus filas dentro de cada paso, sin abrir el panel. Se recuerda.
+- **Deep Dive empieza con preguntas de tu proyecto.** En lugar de «Show all tables», propone preguntas de negocio sacadas de tus métricas (`metrics.yml`), tu glosario y tus columnas, en el idioma del proyecto, y cada una dice de dónde sale («De metrics.yml: venta_total»). Dice también qué tablas puede mirar y cómo trabaja. Sin modelo: no gasta cuota.
+- **Deep Dive se dirige mientras trabaja.** Escribir en la caja mientras analiza le da una **indicación** que toma en el paso siguiente (queda en el informe donde la tomó); **Pause** termina el paso en curso y deja seguir después con el mismo plan; **Skip** en el índice salta un paso pendiente también mientras corre. El informe dice qué está haciendo, en palabras y con los segundos («Running a query… 4 s»).
+- **La ventana se recupera sola.** Si un error al pintar o una falta de memoria tiran la interfaz, vuelve a tu proyecto con sus pestañas, también las que aún no tienen archivo, en lugar de quedarse sin contenido. Si deja de responder, pregunta si esperar o recargar.
+- **El perfil se ve y se cancela.** Dice que está calculando, con **Cancel**, y se detiene al salir de la vista. Los totales del gráfico también se pueden cancelar.
+- **Tu consulta va primero.** El perfil y los totales del gráfico ceden ante lo que ejecutas, en vez de hacerte esperar detrás sin explicación.
+- **Una consulta por pestaña.** Si ejecutas en otra pestaña mientras una corre, queda en espera, dice de cuál y empieza sola. La pestaña enseña si corre o espera, y un punto si terminó mientras mirabas otra. **Stop** y **Esc** cancelan solo la de la pestaña en la que estás; cerrar la pestaña cancela la suya.
+- **La pestaña recuerda:** su altura de resultados, Ctrl+Z, el orden, los filtros, la página, las columnas y el scroll de la tabla, y las variables abiertas.
+- **La ventana emergente es de su pestaña.** Solo la actualiza una ejecución de esa pestaña, sin quitarte el foco. Una por pestaña, para comparar. **Pin** conserva sus resultados y avisa de los nuevos. El panel se recoge en una línea en vez de dejar medio panel en blanco.
+
+### Cambiado
+- **El chat del Assistant, más corto:** la respuesta va primero y lo que hizo para llegar a ella queda plegado en una línea («Ran 2 queries · looked at 1 table»). Arriba se ve de qué archivo es la conversación, y el historial muestra también las recientes de otros archivos. El gráfico del chat tiene **Apply to this file** y el resto de acciones en un menú.
+- **El inicio del Assistant depende del archivo y de su estado** (arreglar el error, explicar la celda, escribir el takeaway…) en lugar de ser siempre el mismo.
+- **La política de IA del workspace se aplica también al archivo abierto:** con «solo esquema» o «muestras», un archivo de datos o las filas dentro de un gráfico no salen; un archivo de credenciales nunca va a un modelo en la nube; un archivo muy largo se recorta y el Assistant lo dice.
+- **Deep Dive se lee como un informe.** Una columna de lectura con tu pregunta, la **respuesta arriba** en cuanto existe (de qué sale, hallazgos, qué hacer) y debajo cada paso del plan con su narración, **sus gráficos** y su conclusión, sin tener que abrir nada. A la izquierda, el plan es un **índice** que lleva a cada paso y reúne los entregables. **How I got this** abre bajo demanda las consultas, las filas y el razonamiento de esa parte; la lupa de un hallazgo abre la consulta que produjo ese número. Reabrir un análisis terminado lleva a su respuesta. El nombre de la sesión se edita en el encabezado, que dice en qué paso va y tiene **Stop**. Si la ventana es estrecha, la barra lateral se pliega sola.
+- **Todo lo que devuelve filas lleva tope**, también `FROM 'x.parquet'`, `VALUES`, `TABLE` o `PIVOT`. Con **Max Rows** en 0 queda un tope de seguridad de 1.000.000 de filas o 256 MB; para más, **Export**.
+- Un gráfico guardado no relee su consulta cada vez que vuelves a su pestaña. **Refresh** la relee.
+- **Ctrl+K abre siempre la paleta**, también en el editor SQL. **Ctrl+L** abre Assist y **Ctrl+Shift+F** busca en el proyecto también desde el editor. Formatear queda en **Shift+Alt+F**. Los acordes del editor que empezaban por Ctrl+K dejan de existir; en Markdown, Ctrl+K sigue insertando un enlace.
+- **Ctrl+Shift+H** (historial) funciona fuera del editor. En Mac, ⌘ sirve para todos los atajos globales.
+- La búsqueda del editor queda separada de la barra de acciones.
+- **Deep Dive: cuando el analista te necesita, lo dice donde escribes.** Su pregunta, o qué hacer si se quedó sin ciclos, aparece encima de la caja de texto en lugar del panel derecho, y la caja también responde. La pestaña y la lista de conversaciones marcan la sesión que espera tu respuesta, y al reabrirla la pregunta sigue ahí.
+- **Deep Dive habla claro.** La pestaña se llama como la sesión. Los pasos tienen su nombre y su número, no `s2`; el hilo cuenta consultas y gráficos, no «steps»; el plan dice «Working on step 3 of 4» en vez de «Iteration 12/50». El icono de papelera del encabezado era «nueva sesión» y ahora lo parece; borrar una conversación pide confirmación.
+
+### Arreglado
+- **Las propuestas del Assistant no tenían Accept / Reject** desde que la herramienta cambió de nombre: parecían hechas y no lo estaban.
+- **Crear o añadir a un archivo desde el Assistant escribía en disco sin preguntar**, y crear podía pisar un archivo existente.
+- **«Apply to chart» cambiaba todos los gráficos abiertos**, también los de otras pestañas y las celdas de un notebook.
+- **Aceptar un cambio en Data Flow o en un gráfico no se veía y se perdía** al siguiente gesto: ahora los dos releen su archivo.
+- **Apply to editor reemplazaba el archivo entero** con una consulta del chat; ahora **Insert at cursor** la pone donde está el cursor.
+- Al cambiar de archivo, el panel del Assistant podía abrir la conversación de otro.
+- **Deep Dive marcaba como hechos pasos que nunca se ejecutaron** al concluir. Ahora quedan como no hechos, y un paso que se quedó a medias en un análisis sin terminar dice «interrupted».
+- Deep Dive repartía el razonamiento entre los pasos a ojo y podía ponerlo bajo el paso equivocado. Ahora va una vez por respuesta.
+- Desde la segunda respuesta, los pasos de Deep Dive se llamaban `s2`, `s3`.
+- Textos en español dentro de la interfaz en inglés: «Continuar», «Cancelar», el resumen de un análisis parcial, el razonamiento.
+- Elegir una opción del analista sin un modelo elegido borraba la pregunta y la respuesta no llegaba a ningún lado.
+- Abrir por su ruta un `.amoxdeck`, un `.amoxdiagram` o un `.amoxcanvas` (desde un enlace de otra pestaña) lo trataba como archivo de datos y abría una consulta sobre él.
+- En Deep Dive, un paso saltado con el análisis en pausa se ejecutaba igual al continuar. Y contestar una pregunta del analista empezaba el plan de nuevo.
+- En Deep Dive, el botón flotante «Ask about this» se quedaba fijo en pantalla tras seleccionar texto y desplazarse.
+- La tarjeta «Where you left off» se quedaba flotando encima de lo que abrieras después; ahora se cierra al abrir una pestaña o con Escape.
+- **En macOS la ventana usaba botones de Windows:** ahora lleva los del sistema, a la izquierda, también en los resultados en ventana aparte.
+- Traer un archivo grande entero congelaba el servidor hasta 29 s, tanto que Stop no podía llegar, y acababa en `Invalid string length`. Ahora el resultado se convierte y se envía por lotes.
+- Con varias consultas en cola, Stop podía no encontrar a la que corría de verdad.
+- **Stop nunca interrumpía la consulta en el motor:** liberaba la interfaz y la consulta seguía ocupando la conexión hasta terminar.
+- Ejecutar en una segunda pestaña dejaba la primera corriendo sin ningún botón para pararla, y bloqueaba todas las consultas.
+- **Ctrl+R recargaba toda la aplicación** y te devolvía a la bienvenida, perdiendo los resultados.
+- **Ctrl+Z dejaba de funcionar** al cambiar de pestaña. Lo que trae el asistente o el disco ahora también se puede deshacer.
+- **Ctrl+K reformateaba tu SQL** con el foco en el editor.
+- La ventana emergente cambiaba de resultados al ejecutar en otra pestaña; **Bring back** la dejaba abierta y huérfana; cerrar la principal la dejaba viva sin forma de volver.
+- Con Bloq Mayús activado no respondían Ctrl+S, B, W, N ni L fuera del editor. Ctrl+Shift+/ y Ctrl+\ ya no dependen de la distribución del teclado.
+- **Escape** cierra también el plan de ejecución, el historial, exportar, guardar, importar y casi 30 diálogos en total. Se queda fuera en los formularios largos (fuente, contrato, contexto del workspace), para no perder lo escrito.
+- El tour de bienvenida no se quedaba con el foco: lo que escribías iba al archivo de detrás.
+- La documentación de atajos decía que Ctrl+D duplicaba (selecciona la siguiente coincidencia; duplicar es Shift+Alt+Abajo). Ahora Ajustes y la documentación salen de la misma tabla.
+
+### Interno
+- Plan del Assistant (`docs/dev/auditoria_assistant_por_archivo.md`, `docs/dev/plan_ux_assistant.md`, E1–E6): `server/ai/archivoActivo.js` (qué es el archivo activo, qué sale con la política, cómo lo lee el modelo), `server/ai/estructurados.js` (Data Flow, Canvas y diagrama), `propose_change` con un objetivo por tipo y `propose_file` en `server/ai/tools.js`; estado de cada propuesta en su llamada (`POST /api/ai/conversations/:id/propuestas/:toolCallId`). En el cliente, un módulo por tipo en `ai/archivos/` (rango, cuaderno, deck, gráfico, flujo, lienzo, diagrama), la revisión en Monaco (`ai/revision/RevisionEnMonaco.jsx`) y **Antes / Propuesta** (`ai/revision/AntesYPropuesta.jsx`), el foco y el aplicador de cada editor en `memoriaDePestana`. `scripts/probarAssist.mjs` (243 pruebas).
+- `utils/colaDeEjecucion.js`, `utils/memoriaDePestana.js`, `utils/atajos.js`, `utils/atajosEnMonaco.js`, `hooks/useEscape.js`. Sin `KeyboardShortcutsModal.jsx`, que era código muerto.
+- `scripts/probarInteraccion.mjs`: maneja Electron real con home temporal. `scripts/atajosADocs.mjs`: las tablas de atajos de la documentación.
+- Deep Dive, entrega 1 del plan de UX (`docs/dev/auditoria_ux_deep_dive.md`, `docs/dev/plan_ux_deep_dive.md`): `ai/DecisionDelAnalista.jsx`, `planSteps`/`stepTitle` en `deepDiveTurns.js`, estado de paso `not_done`. `scripts/probarDeepDive.mjs`.
+- Deep Dive, entrega 2: `ai/informeDeepDive.js` (puro: conversación → preguntas, respuesta y secciones por paso), `ai/deepDive/InformeDeepDive.jsx`, `IndiceDeepDive.jsx`, `ComoLoObtuve.jsx`. Cada llamada a una herramienta guarda `textOffset` (dónde ocurrió en la prosa): una ejecución se guarda como un solo mensaje y sin eso no se sabe qué párrafo narra qué paso. Fuera `DeepDiveTranscript`, `DeepDiveInspector`, `SessionInventory` y `AgentPlanPanel`.
+- Deep Dive, F9: `server/ai/errores.js` (puro: reconoce un límite de frecuencia y cuánto esperar, también en el cuerpo del error), la espera y el reintento en `agenticLoop.js` (eventos `esperando-cuota` y `cuota-reanudada`; Stop la corta), `useAiChat.guardarEjecucion` (lo hecho se guarda también al fallar, con una llamada marcador `amox_interrupcion`), `utils/borradorDeAnalisis.js` (punto de control local por paso). `scripts/probarCuotaDeepDive.mjs` corre el bucle real con un modelo falso que devuelve 429.
+- Deep Dive, F5–F8: `server/ai/controlEnVuelo.js` (+ `POST /api/ai/conversations/:id/en-vuelo`), `server/ai/preguntasSugeridas.js` (+ `GET /api/ai/preguntas-sugeridas`), `ai/deepDive/InicioDeepDive.jsx`, `ai/deckDeInforme.js` (puro: episodio → `.amoxdeck`). `planoDeGraficoIA` sale de `ChatResultsBlock` para que el gráfico en pantalla y su `.amoxvis` sean la misma figura.
+
 ## [5.18.0] — 2026-10-27
 
 **Los gráficos son Vega-Lite.** Story Flow dibuja con la gramática abierta de gráficos y un `.amoxvis` es un Vega-Lite válido: una consulta y su gráfico ya no son de AmoxSQL, se abren en cualquier herramienta que lea Vega-Lite (plan en `docs/dev/plan_graficos_vega_lite.md`). Los paneles y el código editan la misma figura, hay 26 tipos, y un `.sql` recuerda su gráfico. Esta versión reúne la 5.16 y la 5.17, que no se publicaron por separado.

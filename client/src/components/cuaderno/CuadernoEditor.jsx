@@ -34,9 +34,8 @@
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    LuPlus, LuFileText, LuSave, LuBot, LuX, LuRefreshCw, LuFileType2, LuPresentation, LuLoaderCircle,
-    LuBookOpen, LuPencil,
-} from 'react-icons/lu';
+    LuPlus, LuFileText, LuSave, LuRefreshCw, LuFileType2, LuPresentation, LuLoaderCircle,
+    LuBookOpen, LuPencil, LuSparkles } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { leerCuaderno, escribirCuaderno, indiceDe, tituloDe } from '../../utils/cuadernoFile.js';
 import { analizarCelda } from '../../utils/celdaSql.js';
@@ -57,6 +56,10 @@ import { buildSlideRaw } from '../../utils/deckTemplates';
 import { serializeDeck } from '../../utils/deckParser';
 import './cuaderno.css';
 import { PromoverAModelo } from '../dbt/PuenteDbt';
+import { fijarProveedorDeFoco, fijarAplicador } from '../../utils/memoriaDePestana.js';
+import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
+import { estructuraDeCuaderno, ubicarCelda, aplicarACeldas, esDeCelda, describirCelda } from '../ai/archivos/cuaderno.js';
+import { RevisionDeCelda, CeldaFantasma } from './PropuestaEnCuaderno.jsx';
 
 const idNuevo = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
@@ -108,6 +111,7 @@ const CuadernoEditor = ({
     showAiSidebar,
     onCreateNew,
     onOpenFile,
+    tabId = null,     // E3: la pestaña, para que el Assistant sepa en qué celda está
 }) => {
     const [doc, setDoc] = useState(() => leerCuaderno(content));
     // 5.12 (I6): ¿el cuaderno está en un proyecto dbt? Entonces una celda se puede promover a modelo.
@@ -394,6 +398,86 @@ const CuadernoEditor = ({
 
     // ── el grafo, y qué se ha quedado viejo ─────────────────────────────────
     const grafo = useMemo(() => construirGrafo(doc.celdas, analisis), [doc.celdas, analisis]);
+
+    // ── El Assistant en el cuaderno (plan del Assistant, E3) ────────────────
+    // Lo último de cada cosa, para que el Assistant lo lea al enviar sin que el
+    // cuaderno se repinte por ello.
+    const alDia = useRef({});
+    alDia.current = { doc, resultados, analisis, vivas, seleccionada };
+
+    /**
+     * El foco: la celda activa (por su número, el mismo que ve el modelo), el
+     * cuaderno celda por celda, y el resultado o el error de esa celda. Una celda
+     * de texto toma el resultado de la de SQL de arriba: es de lo que se escribe.
+     */
+    useEffect(() => fijarProveedorDeFoco(tabId, () => {
+        const { doc: d, resultados: res, analisis: an, vivas: vv, seleccionada: sel } = alDia.current;
+        const i = d.celdas.findIndex(c => c.id === sel);
+        const c = i >= 0 ? d.celdas[i] : null;
+        const fuente = c?.tipo === 'sql' ? c : (c && i > 0 && d.celdas[i - 1].tipo === 'sql' ? d.celdas[i - 1] : null);
+        const r = fuente ? res[fuente.id] : null;
+        return {
+            celda: c ? { n: i + 1 } : null,
+            cuaderno: estructuraDeCuaderno(d, { analisis: an, resultados: res, vivas: vv }),
+            resultado: r && !r.error && r.data ? r : null,
+            error: r?.error && fuente === c ? r.error : null,
+        };
+    }), [tabId]);
+
+    /** Una pregunta sobre una celda: la deja activa y se lo pide al panel. */
+    const asistirCelda = useCallback((id, accion) => {
+        alDia.current = { ...alDia.current, seleccionada: id };
+        setSeleccionada(id);
+        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+    }, [tabId]);
+
+    /**
+     * Aceptar una propuesta: sobre el documento de este editor, no reescribiendo
+     * el archivo. Así las demás celdas conservan su `id` y, con él, su resultado
+     * y su gráfico; releer el archivo los habría perdido todos.
+     */
+    const emitirRef = useRef(null);
+    emitirRef.current = emitir;
+    useEffect(() => fijarAplicador(tabId, (resultado) => {
+        const d = alDia.current.doc;
+        const r = aplicarACeldas(d.celdas, resultado, idNuevo);
+        if (r.error) return { error: r.error };
+        emitirRef.current({ ...d, celdas: r.celdas });
+        setSeleccionada(r.id);
+        requestAnimationFrame(() => document.getElementById(`cdn-${r.id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+        toast.info(`Applied: ${describirCelda(resultado, r.donde)}.`);
+        return { ok: true };
+    }), [tabId, toast]);
+
+    // Las propuestas pendientes de este cuaderno, y cómo aceptarlas o rechazarlas.
+    const [propuestas, setPropuestas] = useState({ propuestas: [], acciones: null });
+    useEffect(() => (filePath ? suscribirPropuestas(filePath, (p) => setPropuestas({
+        propuestas: (p.propuestas || []).filter(tc => esDeCelda(tc.result)),
+        acciones: p.acciones,
+    })) : undefined), [filePath]);
+
+    // «Review» en el chat: la propuesta, a la vista.
+    useEffect(() => {
+        const alRevisar = (e) => {
+            const el = document.getElementById(`amx-prop-${e.detail?.toolCallId}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+        window.addEventListener('amox_revisar_propuesta', alRevisar);
+        return () => window.removeEventListener('amox_revisar_propuesta', alRevisar);
+    }, []);
+
+    // Dónde cae hoy cada propuesta: un cambio, bajo su celda; una celda nueva, en su hueco.
+    const { cambios, nuevas } = useMemo(() => {
+        const cambios = new Map();   // índice de la celda → [tc]
+        const nuevas = new Map();    // índice donde entra → [tc]
+        for (const tc of propuestas.propuestas) {
+            const donde = ubicarCelda(doc.celdas, tc.result);
+            if (!donde) continue;
+            const mapa = donde.insertar ? nuevas : cambios;
+            mapa.set(donde.indice, [...(mapa.get(donde.indice) || []), tc]);
+        }
+        return { cambios, nuevas };
+    }, [propuestas, doc.celdas]);
     const frescuras = useMemo(
         () => frescura(doc.celdas, grafo, ejecuciones, textos),
         [doc.celdas, grafo, ejecuciones, textos],
@@ -954,9 +1038,9 @@ const CuadernoEditor = ({
                             </button>
                         </div>
                         {onToggleAi && (
-                            <button type="button" className="cdn-btn" onClick={onToggleAi}>
-                                {showAiSidebar ? <LuX size={12} /> : <LuBot size={12} />}
-                                {showAiSidebar ? 'Close Assist' : 'Assist'}
+                            <button type="button" className={`cdn-btn${showAiSidebar ? ' cdn-btn--activo' : ''}`} onClick={onToggleAi} title="Assist (Ctrl+L)" aria-pressed={!!showAiSidebar}>
+                                <LuSparkles size={12} />
+                                Assist
                             </button>
                         )}
                     </div>
@@ -965,6 +1049,8 @@ const CuadernoEditor = ({
                 {doc.celdas.map((c, i) => (
                     <Fragment key={c.id}>
                         {i > 0 && !lectura && hueco(i)}
+                        {/* E3: una celda nueva que propone el Assistant, en su sitio. */}
+                        {!lectura && (nuevas.get(i) || []).map(tc => <CeldaFantasma key={tc.toolCallId} tc={tc} acciones={propuestas.acciones} />)}
                         {/* `data-cell-id` es lo que busca el exportador a Word
                             para capturar la figura de cada celda. Sin el, el
                             documento sale con las tablas y sin ninguna figura, y
@@ -993,6 +1079,8 @@ const CuadernoEditor = ({
                                 onBajar={bajar}
                                 onBorrar={borrar}
                                 onAmpliar={ampliar}
+                                onAsistir={tabId ? asistirCelda : undefined}
+                                resultadoArriba={c.tipo === 'texto' && i > 0 && doc.celdas[i - 1].tipo === 'sql' && !!resultados[doc.celdas[i - 1].id]?.data?.length}
                             />}
                             {c.tipo === 'texto' ? (
                                 <CeldaTexto
@@ -1002,6 +1090,8 @@ const CuadernoEditor = ({
                                     lectura={lectura}
                                     onCambiar={cambiarCelda}
                                     onEscribir={setEscribiendo}
+                                    onAsistir={tabId ? asistirCelda : undefined}
+                                    resultadoArriba={i > 0 && doc.celdas[i - 1].tipo === 'sql' && !!resultados[doc.celdas[i - 1].id]?.data?.length}
                                 />
                             ) : (
                                 <Celda
@@ -1021,8 +1111,11 @@ const CuadernoEditor = ({
                                     onEjecutar={ejecutar}
                                     onCreateNew={onCreateNew}
                                     onPromover={proyectoDbt && !lectura ? () => setPromoviendo(c) : null}
+                                    onAsistir={tabId ? asistirCelda : null}
                                 />
                             )}
+                            {/* E3: el cambio que propone el Assistant para ESTA celda, debajo de ella. */}
+                            {!lectura && (cambios.get(i) || []).map(tc => <RevisionDeCelda key={tc.toolCallId} tc={tc} acciones={propuestas.acciones} />)}
                             {promoviendo?.id === c.id && (
                                 <PromoverAModelo sql={c.contenido || ''} origen={c.nombre || 'a notebook cell'} onOpenFile={onOpenFile} onCerrar={() => setPromoviendo(null)} />
                             )}
@@ -1033,6 +1126,7 @@ const CuadernoEditor = ({
                 {/* El último hueco se queda siempre visible: es el «añadir al
                     final», y sin él un cuaderno vacío no tendría por dónde
                     empezar. */}
+                {!lectura && (nuevas.get(doc.celdas.length) || []).map(tc => <CeldaFantasma key={tc.toolCallId} tc={tc} acciones={propuestas.acciones} />)}
                 {!lectura && hueco(doc.celdas.length, true)}
             </div>
 

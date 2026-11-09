@@ -117,38 +117,63 @@ export function turnFinalAnswer(turn) {
 }
 
 /**
+ * Los pasos del plan de TODA la conversación: id → { descripcion, numero }.
+ *
+ * El plan se crea en el primer turno y los pasos se ejecutan en los siguientes.
+ * Buscarlo solo en el turno que se pinta dejaba los encabezados en `s2`, `s3`.
+ * Un plan rehecho más tarde gana (es el que el agente está siguiendo).
+ */
+export function planSteps(messages = []) {
+    const pasos = {};
+    for (const m of messages) {
+        for (const tc of m.toolCalls || []) {
+            if (tc.toolName !== 'create_plan') continue;
+            (tc.args?.steps || tc.result?.steps || []).forEach((s, i) => {
+                if (s?.id) pasos[s.id] = { descripcion: s.description || '', numero: i + 1 };
+            });
+        }
+    }
+    return pasos;
+}
+
+/** What a step is called on screen: its description, never the bare id. */
+export function stepTitle(stepId, pasos = {}) {
+    const p = pasos[stepId];
+    if (p?.descripcion) return p.descripcion;
+    const n = /^s(\d+)$/i.exec(String(stepId || ''));
+    return n ? `Step ${n[1]}` : (stepId || 'Step');
+}
+
+/**
  * Group a turn's activity by AGENT-PLAN STEP, following the real execution flow
  * instead of bundling by tool type.
  *
  * Walks the tool calls in order; `create_plan` opens a "Plan" section and each
  * `update_plan` (a step transition) opens/labels a step section. Real work tools
  * (execute_sql, display_chart, profile_data, …) attach, in order, to the current
- * step. Returns sections [{ key, stepId, label, status, tools[] }].
+ * step. Returns sections [{ key, stepId, label, numero, status, tools[] }].
+ *
+ * `pasosDeLaConversacion` (de `planSteps`) da nombre a los pasos de un plan creado
+ * en otro turno.
  */
-export function buildStepGroups(turn) {
+export function buildStepGroups(turn, pasosDeLaConversacion = null) {
     const toolStream = [];
     for (const m of turn?.messages || []) for (const tc of m.toolCalls || []) toolStream.push(tc);
 
-    // step id -> description, from create_plan
-    const planDesc = {};
-    for (const tc of toolStream) {
-        if (tc.toolName === 'create_plan') {
-            for (const s of tc.args?.steps || tc.result?.steps || []) planDesc[s.id] = s.description;
-        }
-    }
+    const pasos = { ...(pasosDeLaConversacion || {}), ...planSteps(turn?.messages || []) };
 
     const sections = [];
     let current = null;
     // React key = base + ordinal: the agent can legitimately revisit a step
     // (retries, a re-created plan emits 'plan'/'s1' again), and duplicate keys
     // make React warn on EVERY streaming render — enough volume to freeze dev.
-    const open = (key, label, stepId) => { current = { key: `${key}#${sections.length}`, label, stepId, status: null, tools: [] }; sections.push(current); };
+    const open = (key, label, stepId, numero = null) => { current = { key: `${key}#${sections.length}`, label, stepId, numero, status: null, tools: [] }; sections.push(current); };
 
     toolStream.forEach((tc, i) => {
         if (tc.toolName === 'create_plan') {
             open('plan', 'Plan', null);
             const n = (tc.args?.steps || []).length;
-            current.note = n ? `${n}-step plan created` : 'Plan created';
+            current.note = n ? `Planned ${n} steps` : 'Planned the analysis';
             return;
         }
         if (tc.toolName === 'update_plan') {
@@ -156,8 +181,7 @@ export function buildStepGroups(turn) {
             const status = tc.args?.status;
             // Start a new section when a step begins, or when the step id changes.
             if (status === 'in_progress' || !current || current.stepId !== sid) {
-                const label = sid ? (planDesc[sid] ? `${sid} · ${planDesc[sid]}` : sid) : 'Step';
-                open(sid || `u-${i}`, label, sid || null);
+                open(sid || `u-${i}`, sid ? stepTitle(sid, pasos) : 'Step', sid || null, pasos[sid]?.numero ?? null);
             }
             current.status = status || current.status;
             // The note on a closing update_plan is the step's conclusion / what it learned.
@@ -165,7 +189,7 @@ export function buildStepGroups(turn) {
             return;
         }
         if (NON_ACTIVITY_TOOLS.has(tc.toolName)) return; // final_answer / followups → chat thread
-        if (!current) open('setup', 'Setup', null);
+        if (!current) open('setup', 'Exploring the data', null);
         current.tools.push(tc);
     });
 
@@ -183,14 +207,7 @@ export function buildSessionArtifacts(messages = [], availableTables = []) {
     const seen = new Set();
     const push = (ref) => { if (ref.key && !seen.has(ref.key)) { seen.add(ref.key); out.push(ref); } };
 
-    const planDesc = {};
-    for (const m of messages) {
-        for (const tc of m.toolCalls || []) {
-            if (tc.toolName === 'create_plan') {
-                for (const s of tc.args?.steps || []) planDesc[s.id] = s.description;
-            }
-        }
-    }
+    const pasos = planSteps(messages);
 
     for (const m of messages) {
         for (const tc of m.toolCalls || []) {
@@ -210,8 +227,8 @@ export function buildSessionArtifacts(messages = [], availableTables = []) {
             if (tc.toolName === 'update_plan' && tc.args?.step_id) {
                 const sid = tc.args.step_id;
                 push({
-                    type: 'step', stepId: sid, stepLabel: planDesc[sid] || sid,
-                    insight: tc.args?.note || '', label: `Step: ${planDesc[sid] || sid}`, key: `step:${sid}`,
+                    type: 'step', stepId: sid, stepLabel: stepTitle(sid, pasos),
+                    insight: tc.args?.note || '', label: `Step: ${stepTitle(sid, pasos)}`, key: `step:${sid}`,
                 });
             }
         }

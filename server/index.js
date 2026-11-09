@@ -49,7 +49,7 @@ const lineaDeComandos  = require('./ejecucion/lineaDeComandos');
 // La apertura de la base de AmoxSQL y del llavero (ver startServer).
 let arranque = Promise.resolve();
 const scaffolder       = require('./projectScaffolder');
-const { applyRowLimit } = require('./_sqlUtils');
+const { applyRowLimit, TOPE_FILAS, TOPE_BYTES } = require('./_sqlUtils');
 const { detectResultType } = require('./_sqlClassify');
 const { crearVigilante, firmaDe } = require('./vigilanteArchivos');
 const amoxvis = require('./amoxvis');
@@ -144,11 +144,77 @@ function rearmarVigilante() {
 }
 
 // Track in-flight user queries for cancellation support
-const activeQueries = new Map(); // queryId → { interrupt }
+const activeQueries = new Map(); // queryId → { interrupt, cancelada, deFondo }
+
+/**
+ * Apunta una consulta cancelable y la ata a su respuesta.
+ *
+ * En `res` y no en `req`: en un POST, `req` se cierra en cuanto se ha leído el
+ * cuerpo. Con `req` la consulta se borraba del registro nada más empezar, y Stop
+ * respondía 404 sin interrumpir nada: el motor seguía ocupado hasta acabar.
+ *
+ * `cancelada` la mira quien está esperando su turno o convirtiendo filas, donde
+ * interrumpir al motor no serviría de nada.
+ */
+function registrarConsulta(qid, res, { deFondo = false } = {}) {
+    const registro = {
+        deFondo,
+        cancelada: false,
+        interrupt() {
+            this.cancelada = true;
+            if (dbManager.isRunning('main', qid)) dbManager.interruptQuery('main');
+        },
+    };
+    activeQueries.set(qid, registro);
+    res.on('close', () => {
+        if (activeQueries.get(qid) === registro && !res.writableFinished) registro.interrupt();
+        activeQueries.delete(qid);
+    });
+    return registro;
+}
+
+/**
+ * Lo que corre por su cuenta (perfil, totales de un gráfico) cede ante lo que pides.
+ * Antes tu consulta esperaba detrás sin explicación: parecía que Run no funcionaba.
+ */
+function cancelarLoDeFondo() {
+    let cuantas = 0;
+    for (const r of activeQueries.values()) {
+        if (r.deFondo && !r.cancelada) { r.interrupt(); cuantas++; }
+    }
+    return cuantas;
+}
+
+/**
+ * El JSON de un resultado, a trozos. `res.json` lo escribía de una vez: el servidor
+ * se quedaba sin atender a nadie, y por encima del medio GB, «Invalid string length».
+ */
+async function responderFilas(res, filas, resto) {
+    const POR_TROZO = 5000;
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.write('{"data":[');
+    for (let i = 0; i < filas.length; i += POR_TROZO) {
+        if (res.destroyed) return;
+        const trozo = JSON.stringify(filas.slice(i, i + POR_TROZO)).slice(1, -1);
+        const sigue = res.write((i > 0 ? ',' : '') + trozo);
+        if (!sigue) await new Promise(r => { const fin = () => { res.off('drain', fin); res.off('close', fin); r(); }; res.on('drain', fin); res.on('close', fin); });
+        else await new Promise(setImmediate);
+    }
+    res.end(`],${JSON.stringify(resto).slice(1)}`);
+}
 
 /* --- Project Management APIs --- */
 app.get('/api/project/path', (req, res) => {
     res.json({ path: ROOT_DIR });
+});
+
+// Lo que sigue abierto aquí, para que una ventana recuperada vuelva a la sesión.
+app.get('/api/sesion', (req, res) => {
+    res.json({
+        proyecto: PROYECTO_ABIERTO ? ROOT_DIR : null,
+        base: dbManager.getCurrentPath(),
+        soloLectura: !!dbManager._readOnly,
+    });
 });
 
 app.post('/api/project/open', async (req, res) => {
@@ -839,7 +905,7 @@ app.get('/api/db/file-schema', async (req, res) => {
         let fullSourcePath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
         fullSourcePath = fullSourcePath.replace(/\\/g, '/');
 
-        const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
+        const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`, { lane: 'meta' });
         res.json(describe);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch file schema', details: err.message });
@@ -2526,11 +2592,61 @@ async function buildFileContext(contextFiles) {
  * Returns { tables, files, roster } in the prompt's context shapes.
  */
 const { resolveQueryObjects } = require('./ai/queryObjects');
-async function buildAssistantQueryContext(currentQuery) {
+/**
+ * Lo que el Assistant necesita saber de un modelo dbt (S3), o null si el archivo
+ * no lo es. Lee el manifiesto que ya existe: nunca lanza dbt.
+ */
+function dbtDelArchivo(filePath, fileType) {
+    if (!filePath || require('./ai/archivoActivo').tipoDe(filePath, fileType) !== 'sql') return null;
+    try {
+        const i = dbtModelo.info(ROOT_DIR, archivoDelProyecto(filePath));
+        if (!i?.esDbt || i.tipo !== 'modelo') return null;
+        return {
+            nombre: i.nombre, materializado: i.materializado, descripcion: i.descripcion,
+            columnas: (i.columnas || []).slice(0, 80),
+            compilado: i.compilado ? String(i.compilado).slice(0, 8000) : null,
+            fresco: !!i.fresco,
+        };
+    } catch { return null; }
+}
+
+/**
+ * Lo que muestra cada gráfico de un deck (plan del Assistant, E4, R3): para
+ * escribir el titular de una lámina el modelo necesita saber qué gráfico es y
+ * de qué consulta sale, no solo su ruta. Lee los `.amoxvis` del proyecto; nunca
+ * los ejecuta (para sus cifras, el modelo corre la consulta con execute_sql).
+ * Deja el resumen dentro de `foco.deck.graficos`.
+ */
+function conGraficosDelDeck(foco) {
+    const deck = foco && foco.deck;
+    if (!deck || !Array.isArray(deck.laminas) || !ROOT_DIR) return foco;
+    const raiz = path.resolve(ROOT_DIR);
+    const srcs = [...new Set(deck.laminas.flatMap(l => (Array.isArray(l.graficos) ? l.graficos : [])))].slice(0, 24);
+    const graficos = {};
+    for (const src of srcs) {
+        const limpio = String(src).replace(/^(\.\/|\/)/, '');
+        const completo = path.resolve(raiz, limpio);
+        if (!completo.startsWith(raiz + path.sep)) { graficos[src] = { falta: true }; continue; }
+        try {
+            const c = amoxvis.leer(fs.readFileSync(completo, 'utf8'));
+            graficos[src] = {
+                tipo: c.chartType || null, titulo: c.chartTitle || null, takeaway: c.takeaway || null,
+                x: c.xAxisKey || null, y: Array.isArray(c.yAxisKeys) ? c.yAxisKeys : [],
+                consulta: c.query ? String(c.query).slice(0, 1500) : null,
+            };
+        } catch { graficos[src] = { falta: true }; }
+    }
+    return { ...foco, deck: { ...deck, graficos } };
+}
+
+async function buildAssistantQueryContext(currentQuery, filePath = null, fileType = null) {
     const allNames = await listAllTableNames();
     let objs = [];
+    // Solo un archivo SQL es una consulta: buscar tablas en un deck o en un JSON
+    // daba chips vacíos o con ruido (plan del Assistant, X5).
+    const esSql = require('./ai/archivoActivo').tipoDe(filePath, fileType) === 'sql';
     try {
-        objs = await resolveQueryObjects(currentQuery, dbManager, allNames);
+        if (esSql) objs = await resolveQueryObjects(currentQuery, dbManager, allNames);
     } catch (e) {
         console.warn('[AI Assistant Ctx] resolveQueryObjects failed:', e.message);
     }
@@ -2699,7 +2815,7 @@ async function expandReferencedArtifacts(refs) {
 }
 
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, currentView, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts, uiTheme } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, currentView, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts, uiTheme, foco, resultsError } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -2733,9 +2849,13 @@ app.post('/api/ai/chat/stream', async (req, res) => {
         // live query, so an edited query with a new object shows up next turn.
         let tableRoster = null;
         let tables, files, expandedReferences;
+        // Un modelo dbt (S3): su nombre, su YAML y el SQL compilado que dejó dbt
+        // en el manifiesto —sin lanzar dbt—. Con el compilado se resuelven las
+        // tablas que lee, que en Jinja (`ref('x')`) no se ven.
+        const dbt = (mode || 'diving') === 'assistant' ? dbtDelArchivo(filePath, fileType) : null;
         if ((mode || 'diving') === 'assistant' && !hasExplicitContext) {
             const [ctx, refs] = await Promise.all([
-                buildAssistantQueryContext(currentQuery),
+                buildAssistantQueryContext(dbt?.compilado || currentQuery, filePath, fileType),
                 expandReferencedArtifacts(referencedArtifacts),
                 // Make what the user is looking at chartable by its own id.
                 registerLiveResultCache(currentResult, conversationId),
@@ -2768,6 +2888,9 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             activeSkillId,
             filePath,
             fileType,
+            foco: (mode || 'diving') === 'assistant' ? conGraficosDelDeck(foco || null) : (foco || null),
+            resultsError: resultsError || null,
+            dbt,
             tableRoster,
             memoryExtraction: aiManager.getConfig().memoryExtraction || 'cloud-only',
             uiTheme: uiTheme || null,
@@ -2817,7 +2940,11 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             // ── Agentic Loop (experimental.planner=true, diving mode) ──
             console.log(`[API] Using agentic loop for ${resolvedModel} (tier: ${profile.tier})`);
 
-            for await (const event of aiManager.streamChatAgentic(chatOptions)) {
+            // Stop on the client closes the request; a quota wait inside the loop
+            // must end then too (F9), not keep the run alive in the background.
+            const corte = new AbortController();
+            res.on('close', () => corte.abort());
+            for await (const event of aiManager.streamChatAgentic({ ...chatOptions, abortSignal: corte.signal })) {
                 if (res.closed) {
                     console.log('[AI AgenticLoop] Client disconnected, stopping.');
                     break;
@@ -3006,6 +3133,40 @@ app.put('/api/ai/conversations/:id/title', async (req, res) => {
 });
 
 /**
+ * GET /api/ai/preguntas-sugeridas — Questions to start a Deep Dive (plan UX, F5),
+ * built without a model from the project's metrics, glossary and columns.
+ */
+app.get('/api/ai/preguntas-sugeridas', async (req, res) => {
+    try {
+        const { loadProjectContext } = require('./ai/contextLoader');
+        const { preguntasSugeridas } = require('./ai/preguntasSugeridas');
+        const ctx = await loadProjectContext(ROOT_DIR).catch(() => null);
+        let columnas = [];
+        try {
+            const filas = await dbManager.systemQuery(
+                `SELECT table_name, column_name, data_type FROM information_schema.columns WHERE ${userTablesWhereClause()} ORDER BY table_name, ordinal_position`,
+                { lane: 'meta' },
+            );
+            columnas = filas.map(f => ({ tabla: f.table_name, columna: f.column_name, tipo: String(f.data_type || '') }));
+        } catch { /* sin base conectada: solo métricas y glosario */ }
+        res.json(preguntasSugeridas({ metricas: ctx?.metrics || [], glosario: ctx?.glossary || '', columnas }));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/conversations/:id/en-vuelo — Talk to a Deep Dive analysis while it
+ * runs (plan UX, F6): `{ saltar: stepId }`, `{ indicacion: texto }` or
+ * `{ pausar: true }`. The agentic loop picks it up at its next iteration.
+ */
+app.post('/api/ai/conversations/:id/en-vuelo', (req, res) => {
+    const { saltar, indicacion, pausar } = req.body || {};
+    const ok = require('./ai/controlEnVuelo').anotar(req.params.id, { saltar, indicacion, pausar });
+    res.json({ ok });
+});
+
+/**
  * POST /api/ai/conversations/:id/messages — Add a message to a conversation
  * Body: { role, content, toolCalls?, tokenCount? }
  */
@@ -3024,6 +3185,59 @@ app.post('/api/ai/conversations/:id/messages', async (req, res) => {
         res.json(message);
     } catch (err) {
         console.error('[API] Add message error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/conversations/:id/propuestas/:toolCallId — what the user decided
+ * about a proposal of the Assistant. Body: { estado: 'aplicada' | 'rechazada' }.
+ * `guardada: false` means the message isn't saved yet; the client then keeps
+ * the state in the message it saves.
+ */
+app.post('/api/ai/conversations/:id/propuestas/:toolCallId', async (req, res) => {
+    const estado = req.body?.estado;
+    if (!['propuesta', 'aplicada', 'rechazada'].includes(estado)) {
+        return res.status(400).json({ error: 'estado must be propuesta, aplicada or rechazada' });
+    }
+    try {
+        const guardada = await aiPersistence.setEstadoPropuesta(dbManager, req.params.id, req.params.toolCallId, estado);
+        res.json({ guardada });
+    } catch (err) {
+        console.error('[API] Proposal state error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+/**
+ * POST /api/ai/propuestas/crear-archivo — creates the file the Assistant proposed
+ * with propose_file, once the user clicks Create. Body: { path, content }.
+ * It never overwrites: an existing file answers 409, and the path has to stay
+ * inside the project.
+ */
+app.post('/api/ai/propuestas/crear-archivo', async (req, res) => {
+    const { path: relativa, content } = req.body || {};
+    if (typeof relativa !== 'string' || typeof content !== 'string') {
+        return res.status(400).json({ error: 'path and content are required' });
+    }
+    const normalizada = path.normalize(relativa.trim());
+    if (!normalizada || normalizada === '.' || normalizada.startsWith('..') || path.isAbsolute(normalizada)) {
+        return res.status(400).json({ error: 'Use a relative path inside the project.' });
+    }
+    const destino = path.resolve(ROOT_DIR, normalizada);
+    if (!destino.startsWith(path.resolve(ROOT_DIR) + path.sep)) {
+        return res.status(400).json({ error: 'The path is outside the project.' });
+    }
+    try {
+        await fs.promises.mkdir(path.dirname(destino), { recursive: true });
+        // 'wx': falla si ya existe, también si apareció entre la propuesta y el clic.
+        await fs.promises.writeFile(destino, content, { encoding: 'utf8', flag: 'wx' });
+        res.json({ success: true, path: normalizada.split(path.sep).join('/') });
+    } catch (err) {
+        if (err.code === 'EEXIST') {
+            return res.status(409).json({ error: `${normalizada.split(path.sep).join('/')} already exists. Nothing was written.`, existe: true });
+        }
+        console.error('[API] Create proposed file error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -3903,12 +4117,13 @@ app.get('/api/charts/using-source', (req, res) => {
 // applyRowLimit lives in ./_sqlUtils (shared with ai/tools.js execute_sql).
 
 app.post('/api/query', async (req, res) => {
-    const { query, queryId, limit } = req.body;
+    const { query, queryId, limit, deFondo } = req.body;
     if (!query) {
         return res.status(400).json({ error: 'Query is required' });
     }
 
-    const { sql: limitedSql, limited, limit: rowLimit } = applyRowLimit(query, limit);
+    const topeFilas = limit > 0 ? Math.min(limit, TOPE_FILAS) : TOPE_FILAS;
+    const { sql: limitedSql, limited, limit: rowLimit } = applyRowLimit(query, topeFilas);
 
     const qid = queryId || require('crypto').randomUUID();
     // User cancellation targets ONLY the 'main' lane, and ONLY if THIS query is
@@ -3916,19 +4131,8 @@ app.post('/api/query', async (req, res) => {
     // interrupt with nothing running kills the NEXT statement — which is why
     // opening a chart used to fail with "Interrupted!" when a previous fetch
     // had been aborted client-side (e.g. dev double-mount).
-    activeQueries.set(qid, {
-        interrupt: () => {
-            if (dbManager.isRunning('main', qid)) dbManager.interruptQuery('main');
-        },
-    });
-
-    // If the client disconnects (AbortController / network drop), interrupt DuckDB
-    req.on('close', () => {
-        if (activeQueries.has(qid) && !res.headersSent && dbManager.isRunning('main', qid)) {
-            dbManager.interruptQuery('main');
-        }
-        activeQueries.delete(qid);
-    });
+    const cedieron = deFondo ? 0 : cancelarLoDeFondo();
+    const registro = registrarConsulta(qid, res, { deFondo: !!deFondo });
 
     // Mientras dbt tiene la base, se dice; lo que sólo lee fuentes o memoria corre.
     if (dbManager.prestada && !/^\s*(SELECT|WITH|FROM|DESCRIBE|SUMMARIZE|PRAGMA)\b[\s\S]*\bfuentes\s*\./i.test(query) && baseOcupadaPorDbt(res)) {
@@ -3942,16 +4146,33 @@ app.post('/api/query', async (req, res) => {
         // puedan leer (sin red, sin credencial): se anotan antes de correr.
         anotarFuentesDelSql(query);
         const start = performance.now();
-        const result = await dbManager.queryWithMetadata(limitedSql, { trackId: qid });
+        const opciones = { trackId: qid, cancelada: () => registro.cancelada, maxFilas: topeFilas + 1, maxBytes: TOPE_BYTES };
+        let result;
+        try {
+            result = await dbManager.queryWithMetadata(limitedSql, opciones).catch((err) => {
+                // Interrumpir lo de fondo justo cuando acababa deja el aviso puesto
+                // y se lo lleva la siguiente: la tuya. Se repite una vez.
+                if (cedieron && !registro.cancelada && /Interrupted/i.test(err.message)) {
+                    return dbManager.queryWithMetadata(limitedSql, opciones);
+                }
+                throw err;
+            });
+        } catch (err) {
+            // Lo poco que no admite ir de subconsulta se ejecuta tal cual; el tope
+            // de filas y de tamaño sigue valiendo.
+            if (!limited || /^\s*(SELECT|WITH)\b/i.test(query) || !/Parser Error|syntax error/i.test(err.message)) throw err;
+            result = await dbManager.queryWithMetadata(query, opciones);
+        }
         const end = performance.now();
 
         // Detect truncation: we fetched limit+1 rows, if we got them all it means there are more
         let rows = result.rows;
         let truncated = false;
-        if (limited && rows.length > rowLimit) {
-            rows = rows.slice(0, rowLimit);
+        if (rows.length > topeFilas) {
+            rows = rows.slice(0, topeFilas);
             truncated = true;
         }
+        if (result.cortadoPor === 'tamano') truncated = true;
 
         // Invalidate table context cache if query may have changed schema
         const upperQuery = query.toUpperCase().trim();
@@ -3990,20 +4211,21 @@ app.post('/api/query', async (req, res) => {
             if (count !== undefined && count !== null) rowsAffected = Number(count);
         }
 
-        res.json({
-            data: rows,
+        await responderFilas(res, rows, {
             types: result.types,
             executionTime: (end - start).toFixed(2),
             rowCount: rows.length,
             truncated,
-            rowLimit: limited ? rowLimit : null,
+            rowLimit: truncated ? rows.length : (limited ? rowLimit : null),
+            topePorTamano: result.cortadoPor === 'tamano',
             queryId: qid,
             resultType,
             resultDetails,
             rowsAffected,
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        if (res.headersSent) res.end();
+        else res.status(500).json({ error: err.message });
     } finally {
         activeQueries.delete(qid);
     }
@@ -4100,49 +4322,43 @@ app.post('/api/cuaderno/celda', async (req, res) => {
         }
     }
 
-    const { sql: lectorLimitado, limited, limit: rowLimit } = applyRowLimit(lector, limit);
+    const topeFilas = limit > 0 ? Math.min(limit, TOPE_FILAS) : TOPE_FILAS;
+    const { sql: lectorLimitado, limited, limit: rowLimit } = applyRowLimit(lector, topeFilas);
     const qid = queryId || require('crypto').randomUUID();
-    activeQueries.set(qid, {
-        interrupt: () => {
-            if (dbManager.isRunning('main', qid)) dbManager.interruptQuery('main');
-        },
-    });
-    req.on('close', () => {
-        if (activeQueries.has(qid) && !res.headersSent && dbManager.isRunning('main', qid)) {
-            dbManager.interruptQuery('main');
-        }
-        activeQueries.delete(qid);
-    });
+    cancelarLoDeFondo();
+    const registro = registrarConsulta(qid, res);
 
     try {
         const start = performance.now();
-        if (preparacion) await dbManager.queryWithMetadata(preparacion, { trackId: qid });
-        const result = await dbManager.queryWithMetadata(lectorLimitado, { trackId: qid });
+        const cancelada = () => registro.cancelada;
+        if (preparacion) await dbManager.queryWithMetadata(preparacion, { trackId: qid, cancelada });
+        const result = await dbManager.queryWithMetadata(lectorLimitado, { trackId: qid, cancelada, maxFilas: topeFilas + 1, maxBytes: TOPE_BYTES });
         const end = performance.now();
 
         let rows = result.rows;
         let truncated = false;
-        if (limited && rows.length > rowLimit) {
-            rows = rows.slice(0, rowLimit);
+        if (rows.length > topeFilas) {
+            rows = rows.slice(0, topeFilas);
             truncated = true;
         }
+        if (result.cortadoPor === 'tamano') truncated = true;
 
         // La celda ha podido crear o tapar objetos: el contexto de tablas que
         // alimenta el autocompletado y a la IA deja de valer.
         if (preparacion) invalidateTableContextCache();
 
-        res.json({
-            data: rows,
+        await responderFilas(res, rows, {
             types: result.types,
             executionTime: (end - start).toFixed(2),
             rowCount: rows.length,
             truncated,
-            rowLimit: limited ? rowLimit : null,
+            rowLimit: truncated ? rows.length : (limited ? rowLimit : null),
             queryId: qid,
             vista: vista || null,
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        if (res.headersSent) res.end();
+        else res.status(500).json({ error: err.message });
     } finally {
         activeQueries.delete(qid);
     }
@@ -4185,10 +4401,16 @@ app.post('/api/query/cancel/:queryId', (req, res) => {
 });
 
 app.post('/api/profile', async (req, res) => {
-    const { query } = req.body;
+    const { query, queryId } = req.body;
     if (!query) {
         return res.status(400).json({ error: 'Query is required' });
     }
+
+    // El perfil relee la consulta entera, varias veces. Va de fondo: se cancela al
+    // salir de la vista (se cierra la petición) o cuando corres otra consulta.
+    const qid = queryId || require('crypto').randomUUID();
+    const registro = registrarConsulta(qid, res, { deFondo: true });
+    const opciones = { trackId: qid, cancelada: () => registro.cancelada };
 
     try {
         // Strip trailing semicolons to prevent syntax errors when nesting
@@ -4197,7 +4419,7 @@ app.post('/api/profile', async (req, res) => {
         // 1. DuckDB SUMMARIZE for core statistics
         const profileQuery = `SUMMARIZE ${cleanQuery}`;
         const start = performance.now();
-        const profileData = await dbManager.systemQuery(profileQuery);
+        const profileData = await dbManager.systemQuery(profileQuery, opciones);
 
         // 2. Fetch Global Stats
         const globalRowsQuery = `SELECT COUNT(*) as total_rows FROM (${cleanQuery}) as sq`;
@@ -4293,7 +4515,7 @@ app.post('/api/profile', async (req, res) => {
 
         let visuals = {};
         if (visualQueries.length > 0) {
-            const visualResults = await Promise.all(visualQueries.map(q => dbManager.systemQuery(q)));
+            const visualResults = await Promise.all(visualQueries.map(q => dbManager.systemQuery(q, opciones)));
             visualResults.forEach(res => {
                 if (!res || res.length === 0) return;
                 const colName = res[0].col_name;
@@ -4308,11 +4530,11 @@ app.post('/api/profile', async (req, res) => {
 
         // 5. Execute Global & Advanced queries in parallel
         const parallelExecutions = [
-            dbManager.systemQuery(globalRowsQuery),
-            dbManager.systemQuery(globalDupesQuery)
+            dbManager.systemQuery(globalRowsQuery, opciones),
+            dbManager.systemQuery(globalDupesQuery, opciones)
         ];
         if (advancedQuery) {
-            parallelExecutions.push(dbManager.systemQuery(advancedQuery));
+            parallelExecutions.push(dbManager.systemQuery(advancedQuery, opciones));
         }
 
         const parallelResults = await Promise.all(parallelExecutions);
@@ -4331,7 +4553,7 @@ app.post('/api/profile', async (req, res) => {
                 const top2 = [...profileData].sort((a, b) => parseInt(b.approx_unique) - parseInt(a.approx_unique)).slice(0, 2);
                 const c1 = top2[0].column_name;
                 const c2 = top2[1].column_name;
-                const r = await dbManager.systemQuery(`SELECT (COUNT(*) = COUNT(DISTINCT (CAST("${c1}" AS VARCHAR), CAST("${c2}" AS VARCHAR)))) as is_key FROM (${cleanQuery}) __amox_ck`);
+                const r = await dbManager.systemQuery(`SELECT (COUNT(*) = COUNT(DISTINCT (CAST("${c1}" AS VARCHAR), CAST("${c2}" AS VARCHAR)))) as is_key FROM (${cleanQuery}) __amox_ck`, opciones);
                 const v = r[0]?.is_key;
                 if (v === true || v === 1 || String(v).toLowerCase() === 'true') candidateKey = [c1, c2];
             }
@@ -4367,7 +4589,10 @@ app.post('/api/profile', async (req, res) => {
             executionTime: (end - start).toFixed(2)
         });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        if (registro.cancelada) res.json({ cancelada: true });
+        else res.status(500).json({ error: err.message });
+    } finally {
+        activeQueries.delete(qid);
     }
 });
 

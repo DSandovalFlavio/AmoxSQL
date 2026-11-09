@@ -31,6 +31,23 @@ cajón de "lo dejamos para después" para no perderlo.
   se rendericen FUERA del contenedor que se transforme (en FileExplorer el context menu
   es hermano de `.file-list`, así que sería seguro). NO transformar `.sidebar` entero.
 
+### [PEND-002] `build_notebook` en modo `update` no puede leer un `.sqlnb`
+- **Visto:** 2026-11-07, en la auditoría del Assistant por archivo.
+- **Qué pasa:** `server/ai/tools.js` (`build_notebook`, `mode === 'update'`) hace `JSON.parse` del archivo, pero
+  el `.sqlnb` es markdown con front matter desde la reconstrucción del cuaderno. Añadir celdas a un cuaderno
+  existente desde Deep Dive falla con un error de JSON.
+- **Arreglo:** leer y escribir con el mismo formato que `client/src/utils/cuadernoFile.js`
+  (`leerCuaderno` / `escribirCuaderno`), o mover esa mitad a un módulo que puedan usar los dos lados.
+
+### [PEND-003] Dos cambios del editor en el mismo instante: el segundo se pierde
+- **Visto:** 2026-11-07, probando E1 del Assistant (deshacer y rehacer por código, seguidos, sin render en medio).
+- **Qué pasa:** `LayoutManager.handleContentChange` descarta el cambio si `tab.content === newContent`, leyendo
+  `stateRef.current`, que se pone al día al renderizar. Si llegan dos cambios antes de un render, el segundo se
+  compara con el contenido viejo, coincide y se descarta. La pestaña queda con el primero; al volver a ella, el
+  editor se reescribe con ese. Con el teclado no pasa (entre tecla y tecla hay render); con dos ediciones por
+  código seguidas, sí.
+- **Arreglo:** hacer la comparación dentro del `setState` funcional de `updateTab`, con el estado de ese momento.
+
 ---
 
 ## Cerrados

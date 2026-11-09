@@ -46,7 +46,9 @@ You don't invoke tools directly — the agent picks them. But you can:
 |---|---|
 | `display_chart` | Renders a fully configured chart (overlays, storytelling, color reasoning); server-side linters correct bad choices. Besides Story Flow's types it can hand over a complete **Vega-Lite** spec (`vega_lite`), which the server compiles before accepting it: if it doesn't compile or uses a column that doesn't exist, the error goes back to the model to fix |
 | `build_notebook` | Builds a `.sqlnb` notebook with cells and charts (Deep Dive) |
-| `write_file` | Proposes an edit to the active file, or writes/appends a file (Assistant) |
+| `write_file` | Proposes a new version of the active file for you to accept or reject; never writes to disk. Not offered in charts, Data Flow, Canvas or diagrams (Assistant) |
+| `propose_change` | Proposes replacing some lines of the active file (`.sql`, text, Markdown) or, in a notebook, changing a cell or adding one; in a deck, a slide; in a chart, its panels; in Data Flow, its steps; in a Canvas, a card; a diagram, as a graph; reviewed where it lives, never writes to disk (Assistant) |
+| `propose_file` | Proposes a new file; it is created only when you click **Create**, and never overwrites one (Assistant) |
 
 ### Control tools
 
@@ -64,7 +66,7 @@ You don't invoke tools directly — the agent picks them. But you can:
 | Row cap + timeout on `execute_sql` | Freezing the engine with a giant `SELECT *` |
 | *Join fan-out* warning | Trusting rows inflated by non-unique keys |
 | `display_chart` linters | 2-point lines, rainbow bars, red on neutral metrics, donuts with >7 slices |
-| Path blocking in `read_file`/`write_file` | Reading or writing outside the project |
+| Path blocking in `read_file`/`propose_file` | Reading or writing outside the project |
 
 ## Tips & gems
 
@@ -72,7 +74,7 @@ You don't invoke tools directly — the agent picks them. But you can:
 - **`display_chart` thinks like a data journalist:** it picks the type by the message and data shape, not by column type.
 - **`validate_sql` touches no data:** it only plans, ideal before a heavy query.
 - **The *join-fanout* is your friend:** if it appears, add `DISTINCT` or `GROUP BY` — the JOIN produced more rows than expected.
-- **`write_file` in overwrite mode doesn't save to disk:** it loads the proposal into the editor for you to review.
+- **Nothing the Assistant proposes writes itself:** `write_file` and `propose_file` wait for you to accept.
 
 ## Related
 

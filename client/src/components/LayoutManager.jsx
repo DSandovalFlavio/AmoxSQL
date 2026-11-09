@@ -1,3 +1,4 @@
+import { guardarCopia, leerCopia, consumirReanudada } from '../utils/copiaSinGuardar';
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect, useCallback, memo } from 'react';
 import { LuColumns2, LuMaximize2 } from "react-icons/lu";
@@ -24,6 +25,9 @@ import Retomar from './Retomar';
 import { leerAmoxvis, textoAmoxvis } from './DataVisualizer/vega/figura';
 import { leerBorrador } from '../utils/borradorGrafico';
 import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
+import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
+import { olvidarPestanas, editorDe, focoDe, aplicadorDe } from '../utils/memoriaDePestana';
+import { aplicarRango, describirRango } from './ai/archivos/rango.js';
 
 /**
  * Un .sql se abre con el gráfico que tenía la última vez (Dec-79): la vista
@@ -86,12 +90,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     // --- Split geometry (Fase 3/4) ---
     // splitRatio: the LEFT pane's share of the horizontal space, 0.2-0.8.
-    // resultsRatios: each pane's own results-panel share (height when the
-    // editor is horizontal, width when vertical) — used only while UNlinked.
-    // linkedResultsRatio: the single shared value both panes use while linked.
-    // resultsLinked defaults to true: dragging one pane's results divider
-    // moves both, which is what you want the moment you're comparing two
-    // queries side by side — that's the whole point of opening a split.
+    // La altura de resultados es de cada pestaña (`tab.resultsRatio`, Dec-82).
+    // ultimaAltura: la última que se eligió; la hereda una pestaña la primera vez
+    // que se ve. resultsLinked defaults to true: dragging one pane's results
+    // divider moves the tabs visible in both, which is what you want the moment
+    // you're comparing two queries side by side.
     //
     // Restored via LAZY initializers (read localStorage synchronously on the
     // very first render), not a post-mount effect — an effect-based restore
@@ -109,11 +112,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const v = readSplitStorage().resultsLinked;
         return typeof v === 'boolean' ? v : true;
     });
-    const [resultsRatios, setResultsRatios] = useState(() => {
-        const v = readSplitStorage().resultsRatios;
-        return { left: 0.35, right: 0.35, ...(v && typeof v === 'object' ? v : {}) };
-    });
-    const [linkedResultsRatio, setLinkedResultsRatio] = useState(() => {
+    const [ultimaAltura, setUltimaAltura] = useState(() => {
         const v = readSplitStorage().linkedResultsRatio;
         return typeof v === 'number' ? v : 0.35;
     });
@@ -140,8 +139,6 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
 
     // Query Cancellation State
-    const [runningQueryId, setRunningQueryId] = useState(null);
-    const queryAbortControllerRef = useRef(null);
     const lmContainerRef = useRef(null);
     // Real rendered width of .lm-container (== .lm-panes' width, since
     // .lm-panes is its only flex:1 child with no siblings taking horizontal
@@ -186,8 +183,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const stateRef = useRef({});
     stateRef.current = {
         leftTabs, rightTabs, leftActiveId, rightActiveId, activePane, splitEnabled,
-        queryVariables, draggedTab, runningQueryId,
-        resultsLinked, resultsRatios, linkedResultsRatio,
+        queryVariables, draggedTab,
+        resultsLinked, ultimaAltura,
         editorSettings, onRequestSaveAs, onQueryResult, onDbChange,
         toast, dialog,
     };
@@ -200,10 +197,20 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     projectPathRef.current = projectPath;
     // 5.14 (F5, Dec-46): «Donde lo dejaste», con las pestañas que volvieron.
     const [retomar, setRetomar] = useState(null);
+    const copiaRef = useRef(null);
+    // «Where you left off» se cierra en cuanto abres o cambias de pestaña: es un
+    // resumen para empezar, y se quedaba flotando encima de lo que abrieras.
+    const retomarVistoRef = useRef(null);
+    useEffect(() => {
+        if (!retomar) { retomarVistoRef.current = null; return; }
+        const activas = `${leftActiveId}|${rightActiveId}`;
+        if (retomarVistoRef.current === null) { retomarVistoRef.current = activas; return; }
+        if (retomarVistoRef.current !== activas) setRetomar(null);
+    }, [retomar, leftActiveId, rightActiveId]);
     useEffect(() => {
         const tabMeta = {
-            leftTabs: leftTabs.map(t => ({ path: t.path, name: t.name, type: t.type })),
-            rightTabs: rightTabs.map(t => ({ path: t.path, name: t.name, type: t.type })),
+            leftTabs: leftTabs.map(t => ({ path: t.path, name: t.name, type: t.type, resultsRatio: t.resultsRatio })),
+            rightTabs: rightTabs.map(t => ({ path: t.path, name: t.name, type: t.type, resultsRatio: t.resultsRatio })),
             leftActiveId,
             rightActiveId,
             splitEnabled
@@ -216,6 +223,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             try {
                 localStorage.setItem(clavePestanas(projectPath), JSON.stringify(tabMeta));
             } catch { /* ignore */ }
+            guardarCopia(projectPath, leftTabs, rightTabs);
         }, 600);
         return () => clearTimeout(timer);
     }, [leftTabs, rightTabs, leftActiveId, rightActiveId, splitEnabled]);
@@ -245,7 +253,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // que no esté en esta lista existe en el estado y no se pinta nunca.
         // `fijada` se quedó fuera al añadirla, y el resultado fue una pestaña
         // que se negaba a cerrarse sin nada que lo anunciara.
-        const metaOf = (t) => ({ id: t.id, name: t.name, dirty: !!t.dirty, path: t.path || '', type: t.type, fijada: !!t.fijada });
+        // `espera`: una sesión de Deep Dive que espera tu respuesta (le pasó lo mismo que a `fijada`).
+        const metaOf = (t) => ({ id: t.id, name: t.name, dirty: !!t.dirty, path: t.path || '', type: t.type, fijada: !!t.fijada, ejecucion: t.ejecucion || null, avisoEjecucion: t.avisoEjecucion || null, espera: !!t.espera });
         const leftMeta = leftTabs.map(metaOf);
         const rightMeta = rightTabs.map(metaOf);
         const payload = {
@@ -309,6 +318,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                             // anterior a este cambio no trae `type`, y volvía
                             // declarándose ejecutable fuera lo que fuera.
                             type: tipo,
+                            ...(typeof t.resultsRatio === 'number' ? { resultsRatio: t.resultsRatio } : {}),
                             name: tipo === 'amoxvis' ? t.path.split(/[/\\]/).pop() : t.name,
                             content: data.content,
                             firma: data.firma || null,
@@ -336,7 +346,32 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             }
             return [];
         };
-        restoreTabs().then((nombres) => setRetomar({ pestanas: nombres || [] })).finally(() => {
+        // Lee la copia antes de que se pueda escribir encima. En una ref y con ids fijos:
+        // en desarrollo este efecto corre dos veces, y la segunda restauración pisaba
+        // lo que había añadido la primera.
+        if (!copiaRef.current) {
+            const copia = consumirReanudada() ? leerCopia(projectPath) : [];
+            const base = Date.now();
+            copiaRef.current = copia.map((t, i) => ({
+                id: `${base}-copia-${i}`, path: null, name: t.name, type: t.type, content: t.content,
+                results: null, dirty: true, panel: t.panel,
+            }));
+        }
+        restoreTabs().then((nombres) => {
+            setRetomar({ pestanas: nombres || [] });
+            const izquierda = copiaRef.current.filter(t => t.panel !== 'right');
+            const derecha = copiaRef.current.filter(t => t.panel === 'right');
+            const sumar = (prev, nuevas) => [...prev.filter(t => !nuevas.some(n => n.id === t.id)), ...nuevas];
+            if (izquierda.length) {
+                setLeftTabs(prev => sumar(prev, izquierda));
+                setLeftActiveId(izquierda[izquierda.length - 1].id);
+            }
+            if (derecha.length) {
+                setRightTabs(prev => sumar(prev, derecha));
+                setRightActiveId(derecha[derecha.length - 1].id);
+                setSplitEnabled(true);
+            }
+        }).finally(() => {
             // Persisting is allowed only after the restore attempt so the initial
             // empty tab state never overwrites the saved layout.
             restoreAttemptedRef.current = true;
@@ -348,10 +383,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     useEffect(() => {
         try {
             localStorage.setItem(SPLIT_STORAGE_KEY, JSON.stringify({
-                splitRatio, resultsLinked, resultsRatios, linkedResultsRatio,
+                splitRatio, resultsLinked, linkedResultsRatio: ultimaAltura,
             }));
         } catch { /* ignore */ }
-    }, [splitRatio, resultsLinked, resultsRatios, linkedResultsRatio]);
+    }, [splitRatio, resultsLinked, ultimaAltura]);
 
     // Helpers — stable identities (read current state via stateRef)
     const getActiveTab = useCallback(() => {
@@ -382,6 +417,109 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         }
     }, []);
 
+    // Por id, sin decir el panel: lo que termina más tarde (una consulta) no sabe
+    // en qué panel está ya la pestaña, porque se ha podido mover entre tanto.
+    const actualizarPestana = useCallback((tabId, updates) => {
+        const aplicar = (prev) => (prev.some(t => t.id === tabId)
+            ? prev.map(t => t.id === tabId ? { ...t, ...updates } : t)
+            : prev);
+        setLeftTabs(aplicar);
+        setRightTabs(aplicar);
+    }, []);
+
+    // La cola de ejecución (Dec-84/85): el estado de cada pestaña va en la propia
+    // pestaña (`ejecucion`), así la barra y el panel lo leen sin más props.
+    const colaRef = useRef(null);
+    if (!colaRef.current) {
+        colaRef.current = crearCola({
+            alCambiar: (tabId, info) => actualizarPestana(tabId, { ejecucion: info }),
+            nombreDe: (tabId) => {
+                const { leftTabs, rightTabs } = stateRef.current;
+                return [...leftTabs, ...rightTabs].find(t => t.id === tabId)?.name || 'another query';
+            },
+            cancelarEnServidor: (queryId) => {
+                fetch(`${API_BASE}/api/query/cancel/${queryId}`, { method: 'POST' }).catch(() => {});
+            },
+        });
+    }
+
+    // Una pestaña que deja de existir, por el camino que sea (cerrar, cerrar las
+    // demás, cambiar de proyecto), se lleva su consulta.
+    useEffect(() => {
+        const vivas = new Set([...leftTabs, ...rightTabs].map(t => t.id));
+        for (const id of colaRef.current.pestanas()) {
+            if (!vivas.has(id)) colaRef.current.cancelar(id);
+        }
+        olvidarPestanas(vivas);
+    }, [leftTabs, rightTabs]);
+
+    // ── Ventanas emergentes (Dec-86/87) ──
+    const datosDeEmergente = (t) => ({
+        tabId: t.id,
+        data: t.results.data,
+        types: t.results.types,
+        executionTime: t.results.executionTime,
+        truncated: t.results.truncated,
+        rowLimit: t.results.rowLimit,
+        query: t.resultsQuery || t.content,
+        cellTitle: t.name,
+        viewMode: t.viewMode || null,
+        chartConfig: t.chartConfig || t.initialChartConfig || null,
+    });
+    const enviadosRef = useRef(new Map()); // tabId → los resultados que ya tiene su ventana
+
+    const abrirEmergente = useCallback((tabId) => {
+        const { leftTabs, rightTabs } = stateRef.current;
+        const t = [...leftTabs, ...rightTabs].find(x => x.id === tabId);
+        if (!t?.results || !window.electronAPI?.openPopout) return;
+        enviadosRef.current.set(tabId, t.results);
+        window.electronAPI.openPopout(datosDeEmergente(t));
+        actualizarPestana(tabId, { emergente: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [actualizarPestana]);
+
+    // La ventana cerrada, por donde sea: los resultados vuelven a su pestaña.
+    // Al montar se cierran las que hubiera: son de pestañas que ya no existen.
+    useEffect(() => {
+        window.electronAPI?.closeAllPopouts?.();
+        const quitar = window.electronAPI?.onPopoutClosed?.((tabId) => {
+            enviadosRef.current.delete(tabId);
+            actualizarPestana(tabId, { emergente: false });
+        });
+        return () => quitar?.();
+    }, [actualizarPestana]);
+
+    // Solo una ejecución de ESA pestaña la actualiza, esté activa o no.
+    useEffect(() => {
+        const vivas = new Set();
+        for (const t of [...leftTabs, ...rightTabs]) {
+            vivas.add(t.id);
+            if (!t.emergente || !t.results || enviadosRef.current.get(t.id) === t.results) continue;
+            enviadosRef.current.set(t.id, t.results);
+            window.electronAPI?.updatePopout?.(datosDeEmergente(t));
+        }
+        // La pestaña que se cerró se lleva su ventana.
+        for (const id of [...enviadosRef.current.keys()]) {
+            if (!vivas.has(id)) {
+                enviadosRef.current.delete(id);
+                window.electronAPI?.closePopout?.(id);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [leftTabs, rightTabs]);
+
+    // Volver a una pestaña apaga la marca de «terminó mientras no mirabas».
+    useEffect(() => {
+        for (const t of [...leftTabs, ...rightTabs]) {
+            if (t.id !== leftActiveId && t.id !== rightActiveId) continue;
+            if (t.avisoEjecucion) actualizarPestana(t.id, { avisoEjecucion: null });
+            // La primera vez que se ve hereda la última altura, y desde ahí es suya:
+            // arrastrar en otra pestaña ya no la mueve.
+            if (typeof t.resultsRatio !== 'number') actualizarPestana(t.id, { resultsRatio: ultimaAltura });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [leftActiveId, rightActiveId, actualizarPestana]);
+
     // Actions
     const handleContentChange = useCallback((tabId, newContent) => {
         // Need to find which pane has this tab
@@ -402,11 +540,18 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
     // A Deep Dive tab remembers its conversation in `content` (used as
     // startConversationId). Update it WITHOUT marking the tab dirty.
-    const handleConversationChange = useCallback((tabId, convId) => {
-        if (!convId) return;
+    // `extra`: `name` — the tab takes the session's name (with several sessions open
+    // they were all «Deep Dive»); `espera` — the analyst is waiting for your answer.
+    const handleConversationChange = useCallback((tabId, convId, extra = {}) => {
+        const cambios = {};
+        if (convId) cambios.content = convId;
+        if (extra.name) cambios.name = extra.name;
+        if (extra.espera !== undefined) cambios.espera = !!extra.espera;
+        if (!Object.keys(cambios).length) return;
         const { leftTabs, rightTabs } = stateRef.current;
-        if (leftTabs.find(t => t.id === tabId)) updateTab('left', tabId, { content: convId });
-        else if (rightTabs.find(t => t.id === tabId)) updateTab('right', tabId, { content: convId });
+        const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
+        if (!tab || Object.entries(cambios).every(([k, v]) => tab[k] === v)) return;
+        updateTab(leftTabs.includes(tab) ? 'left' : 'right', tabId, cambios);
     }, [updateTab]);
 
     /**
@@ -578,26 +723,30 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         return { line, column: column || 1, message };
     };
 
-    const cancelQuery = useCallback(async () => {
-        const { runningQueryId } = stateRef.current;
-        if (!runningQueryId) return;
-        // Abort the in-flight fetch immediately so the UI unblocks
-        queryAbortControllerRef.current?.abort();
-        // Also tell the server to interrupt the DuckDB query
-        try {
-            await fetch(`${API_BASE}/api/query/cancel/${runningQueryId}`, { method: 'POST' });
-        } catch {}
-        setRunningQueryId(null);
-    }, []);
+    // Cancela la consulta de ESA pestaña: la que corre o la que espera su turno.
+    const cancelQuery = useCallback((tabId) => colaRef.current.cancelar(tabId), []);
+
+    // Entra en la cola y, si terminó con la pestaña en segundo plano, lo deja dicho.
+    const enCola = useCallback(async (tabId, trabajo) => {
+        const resultado = await colaRef.current.poner(tabId, trabajo);
+        if (resultado?.yaEnMarcha) {
+            stateRef.current.toast.info('This tab is already running a query. Stop it first.');
+            return resultado;
+        }
+        const { leftActiveId, rightActiveId } = stateRef.current;
+        const marca = marcaAlTerminar(resultado);
+        if (marca && tabId !== leftActiveId && tabId !== rightActiveId) {
+            actualizarPestana(tabId, { avisoEjecucion: marca });
+        }
+        return resultado;
+    }, [actualizarPestana]);
 
     // Run a multi-statement script sequentially, stopping at the first error.
     // Produces a `scriptRun` log (one step per statement) rather than N tables;
     // the last statement that yields rows still shows its table, preserving the
     // "one query → one table" model for the tabular part.
-    const runAsScript = useCallback(async (pane, tabId, statements, rowLimit) => {
+    const runAsScript = useCallback(async (tabId, statements, rowLimit, { controller, ponerQueryId }) => {
         const { onQueryResult, onDbChange } = stateRef.current;
-        const controller = new AbortController();
-        queryAbortControllerRef.current = controller;
 
         const steps = [];
         let finalTable = null;        // last statement's tabular data
@@ -612,7 +761,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 const stmt = statements[idx];
                 const stepStart = performance.now();
                 const qid = crypto.randomUUID();
-                setRunningQueryId(qid); // so cancelQuery targets the running statement
+                ponerQueryId(qid); // so a cancel targets the running statement
                 const step = {
                     index: idx,
                     sqlPreview: stmt.code.replace(/\s+/g, ' ').slice(0, 120),
@@ -621,7 +770,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 };
                 steps.push(step);
                 // Live snapshot so the summary fills in as it runs.
-                updateTab(pane, tabId, {
+                actualizarPestana(tabId, {
                     scriptRun: { steps: steps.map(s => ({ ...s })), running: true, total: statements.length },
                     results: finalTable, resultsQuery: finalTableQuery, resultsError: null,
                 });
@@ -671,15 +820,15 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     finalTableQuery = stmt.raw;
                 }
             }
-        } finally {
-            setRunningQueryId(null);
-            queryAbortControllerRef.current = null;
+        } catch (err) {
+            // Solo llega aquí lo inesperado; lo de cada sentencia se atrapa dentro.
+            console.error('[Script] Failed:', err);
         }
 
         const totalMs = (performance.now() - scriptStart).toFixed(0);
         const failCount = steps.filter(s => s.status === 'error').length;
         const okCount = steps.filter(s => s.status === 'ok').length;
-        updateTab(pane, tabId, {
+        actualizarPestana(tabId, {
             scriptRun: {
                 steps, totalMs, okCount, failCount, cancelled,
                 stoppedAtError: failCount > 0,
@@ -696,12 +845,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         if (onQueryResult) onQueryResult({ executionTime: totalMs, rowCount: finalTable?.data?.length ?? null });
 
         return { script: true, okCount, failCount, cancelled };
-    }, [updateTab]);
+    }, [actualizarPestana]);
 
     const executeQuery = useCallback(async (tabId, query) => {
         const { leftTabs, rightTabs, queryVariables, editorSettings, dialog, onQueryResult, onDbChange } = stateRef.current;
         const tab = leftTabs.find(t => t.id === tabId) || rightTabs.find(t => t.id === tabId);
-        const pane = leftTabs.find(t => t.id === tabId) ? 'left' : 'right';
         // Resolve variables before execution
         const resolvedQuery = resolveVariables(query, queryVariables);
         const rowLimit = editorSettings?.queryResultLimit ?? 10000;
@@ -745,25 +893,24 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 return { cancelled: true };
             }
 
-            return await runAsScript(pane, tabId, statements, rowLimit);
+            return await enCola(tabId, (ctx) => runAsScript(tabId, statements, rowLimit, ctx));
         }
 
         // ── Single statement (original behavior) ────────────────────────────
+        return await enCola(tabId, async ({ signal, ponerQueryId }) => {
         const qid = crypto.randomUUID();
-        const controller = new AbortController();
-        queryAbortControllerRef.current = controller;
-        setRunningQueryId(qid);
+        ponerQueryId(qid);
         try {
             const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: rowLimit }),
-                signal: controller.signal,
+                signal,
             });
             const data = await response.json();
 
             if (response.ok) {
-                updateTab(pane, tabId, { results: data, resultsQuery: resolvedQuery, resultsError: null, errorMarker: null, scriptRun: null });
+                actualizarPestana(tabId, { results: data, resultsQuery: resolvedQuery, resultsError: null, errorMarker: null, scriptRun: null });
 
                 // Notify parent of query result for status bar
                 if (onQueryResult) {
@@ -794,23 +941,21 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 };
             } else {
                 const marker = parseDuckDBError(data.error);
-                updateTab(pane, tabId, { results: null, resultsError: data.error, errorMarker: marker, scriptRun: null });
+                actualizarPestana(tabId, { results: null, resultsError: data.error, errorMarker: marker, scriptRun: null });
                 return { error: data.error };
             }
         } catch (err) {
             if (err.name === 'AbortError') {
                 // User cancelled — clear state silently, no error shown
-                updateTab(pane, tabId, { results: null, resultsError: null, errorMarker: null, scriptRun: null });
+                actualizarPestana(tabId, { results: null, resultsError: null, errorMarker: null, scriptRun: null });
                 return { cancelled: true };
             }
             const marker = parseDuckDBError(err.message);
-            updateTab(pane, tabId, { results: null, resultsError: err.message, errorMarker: marker, scriptRun: null });
+            actualizarPestana(tabId, { results: null, resultsError: err.message, errorMarker: marker, scriptRun: null });
             return { error: err.message };
-        } finally {
-            setRunningQueryId(null);
-            queryAbortControllerRef.current = null;
         }
-    }, [updateTab, runAsScript]); // reads the rest via stateRef; createNew (stable) resolved by closure
+        });
+    }, [actualizarPestana, enCola, runAsScript]); // reads the rest via stateRef; createNew (stable) resolved by closure
 
     const handleRunActive = useCallback(async () => {
         const tab = getActiveTab();
@@ -1404,6 +1549,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             createNew('datadiving', convId || '');
         },
         handleTriggerRun: () => handleRunActive(),
+        // Esc: la consulta de la pestaña activa, si tiene. Dice si hizo algo.
+        cancelarActiva: () => {
+            const tab = getActiveTab();
+            return tab ? colaRef.current.cancelar(tab.id) : false;
+        },
         handleTriggerSave: (isSilent = false) => handleSaveActive(isSilent),
         handleTriggerAnalyze: () => handleAnalyzeActive(),
         handleTriggerSaveAs: () => {
@@ -1557,56 +1707,152 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         // --- Standalone handleQueryFile function (used by imperative handle + DnD) ---
         handleQueryFile: (filePath) => handleQueryFile(filePath),
-        // ─── AI Integration: update active tab content (for edit_file tool) ───
+        // ─── AI Integration: an accepted write_file proposal ───
+        // With the file's editor on screen the change goes through Monaco, so
+        // Ctrl+Z undoes it like any other edit; otherwise into the tab's state.
         updateActiveContent: (content) => {
             const tab = getActiveTab();
-            if (tab) {
+            if (!tab) return;
+            const ed = editorDe(tab.id);
+            const modelo = ed?.getModel();
+            if (modelo) {
+                ed.pushUndoStop();
+                ed.executeEdits('assist', [{ range: modelo.getFullModelRange(), text: content }]);
+                ed.pushUndoStop();
+            } else {
                 updateTab(activePane, tab.id, { content, dirty: true });
-                toast.info('AI updated the file — review changes before saving');
             }
+            toast.info('Assist changed the file. Review it before saving (Ctrl+Z undoes it).');
         },
 
-        // ─── AI Integration: append SQL to current file content ───
-        appendToActiveContent: (sql) => {
+        // ─── AI Integration: an accepted propose_change (plan del Assistant, E2) ───
+        // Only the lines it changes, wherever they are now (`ubicarRango`): the user
+        // may have typed above them since. One edit through Monaco, so the cursor
+        // stays where it was and Ctrl+Z undoes it. Returns { ok } or { error }.
+        aplicarPropuesta: (resultado) => {
             const tab = getActiveTab();
-            if (tab) {
-                const current = tab.content || '';
-                const separator = current.trim().length > 0 ? '\n\n' : '';
-                updateTab(activePane, tab.id, { content: current + separator + sql, dirty: true });
+            if (!tab) return { error: 'No file is open.' };
+            // E3: a notebook applies a cell proposal on its own document, keeping
+            // the other cells (and their results) as they are.
+            // E4: so do a deck (a slide, through the Studio's history) and a chart
+            // (its panels, through Story Flow's own state).
+            const propio = { celda: 'notebook', lamina: 'deck', paneles: 'chart', spec: 'chart', pasos: 'Data Flow', tarjeta: 'canvas', diagrama: 'diagram' }[resultado?.objetivo?.tipo];
+            if (propio) {
+                const aplicar = aplicadorDe(tab.id);
+                return aplicar ? aplicar(resultado) : { error: `Show the ${propio} to apply this change.` };
             }
+            const ed = editorDe(tab.id);
+            const modelo = ed?.getModel();
+            const texto = modelo ? modelo.getValue() : (tab.content || '');
+            const r = aplicarRango(texto, resultado);
+            if (r.error) return { error: r.error };
+            if (!modelo) {
+                updateTab(activePane, tab.id, { content: r.texto, dirty: true });
+            } else {
+                const { desde, hasta } = r.donde;
+                const n = modelo.getLineCount();
+                const fin = (l) => modelo.getLineMaxColumn(l);
+                const nuevo = String(resultado.contenido ?? '').replace(/\r/g, '');
+                let range, text;
+                if (hasta >= desde && nuevo !== '') {
+                    range = { startLineNumber: desde, startColumn: 1, endLineNumber: hasta, endColumn: fin(hasta) };
+                    text = nuevo;
+                } else if (hasta >= desde) {
+                    // Borrar las líneas enteras, con su salto.
+                    range = hasta < n
+                        ? { startLineNumber: desde, startColumn: 1, endLineNumber: hasta + 1, endColumn: 1 }
+                        : { startLineNumber: Math.max(1, desde - 1), startColumn: desde > 1 ? fin(desde - 1) : 1, endLineNumber: hasta, endColumn: fin(hasta) };
+                    text = '';
+                } else if (desde <= n) {
+                    range = { startLineNumber: desde, startColumn: 1, endLineNumber: desde, endColumn: 1 };
+                    text = `${nuevo}\n`;
+                } else {
+                    range = { startLineNumber: n, startColumn: fin(n), endLineNumber: n, endColumn: fin(n) };
+                    text = `\n${nuevo}`;
+                }
+                ed.pushUndoStop();
+                ed.executeEdits('assist', [{ range, text, forceMoveMarkers: true }]);
+                ed.pushUndoStop();
+            }
+            toast.info(`${r.donde.hasta < r.donde.desde ? 'Inserted' : 'Applied to'} ${describirRango(resultado, r.donde)}. Ctrl+Z undoes it.`);
+            return { ok: true };
         },
 
-        // ─── AI Integration: merge chart config changes (for update_chart_config tool) ───
+        // ─── AI Integration: insert SQL from the chat (plan del Assistant, A2) ───
+        // At the cursor, or over the selected text; never the whole file (that
+        // was «Apply to editor»: it replaced everything else with no warning).
+        // On a line that has text, the query goes after it, separated by a blank line.
+        insertarEnEditor: (texto) => {
+            const tab = getActiveTab();
+            const ed = tab ? editorDe(tab.id) : null;
+            const modelo = ed?.getModel();
+            if (!modelo) {
+                toast.info('Show the file in the editor to insert the query there.');
+                return false;
+            }
+            const sel = ed.getSelection();
+            const sobreSeleccion = !sel.isEmpty();
+            let range = sel;
+            let text = texto;
+            let linea = sel.startLineNumber;
+            if (!sobreSeleccion && modelo.getLineContent(sel.positionLineNumber).trim()) {
+                const n = sel.positionLineNumber;
+                const fin = modelo.getLineMaxColumn(n);
+                range = { startLineNumber: n, startColumn: fin, endLineNumber: n, endColumn: fin };
+                text = `\n\n${texto}`;
+                linea = n + 2;
+            }
+            ed.pushUndoStop();
+            ed.executeEdits('assist', [{ range, text, forceMoveMarkers: true }]);
+            ed.pushUndoStop();
+            ed.revealLineInCenterIfOutsideViewport(linea);
+            ed.focus();
+            toast.info(sobreSeleccion
+                ? 'Replaced the selected text. Ctrl+Z undoes it.'
+                : `Inserted at line ${linea}. Ctrl+Z undoes it.`);
+            return true;
+        },
+
+        // ─── AI Integration: «Apply to chart» from a chart in the chat ───
+        // Only the chart of THIS tab's results takes it (X4): the event used to
+        // be global, and every chart on screen —each chart cell of a notebook—
+        // changed at once.
         updateActiveChartConfig: (changes) => {
             const tab = getActiveTab();
-            if (tab) {
-                const current = tab.chartConfig || tab.initialChartConfig || {};
-                updateTab(activePane, tab.id, {
-                    chartConfig: { ...current, ...changes },
-                    initialChartConfig: { ...current, ...changes },
-                });
-                // Dispatch event so any mounted DataVisualizer (sql or sqlnb) merges
-                // changes into its current state immediately via setFields — this
-                // preserves auto-detected axes and avoids the LOAD_CONFIG defaults reset.
-                window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { changes } }));
-                toast.info('AI updated the chart configuration');
-            }
+            if (!tab || tab.type !== 'sql') return;
+            const current = tab.chartConfig || tab.initialChartConfig || {};
+            updateTab(activePane, tab.id, {
+                chartConfig: { ...current, ...changes },
+                initialChartConfig: { ...current, ...changes },
+            });
+            // The mounted DataVisualizer of this tab merges the changes into its
+            // state via setFields (keeps auto-detected axes; no defaults reset).
+            window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { changes, tabId: tab.id } }));
+            toast.info('Assist updated the chart of this query');
         },
 
         // ─── AI Integration: get info about the active tab ───
         getActiveTabInfo: () => {
             const tab = getActiveTab();
             if (!tab) return null;
+            // E3: a notebook runs by itself, so its active cell's result and error
+            // come from its focus. They travel as `results` / `resultsError` (the
+            // server passes them through the AI policy), never inside `foco`.
+            const { resultado = null, error = null, ...foco } = focoDe(tab.id) || {};
             return {
+                id: tab.id,
                 path: tab.path,
                 name: tab.name,
                 type: tab.type,
                 content: tab.content,
-                results: tab.results,
-                resultsQuery: tab.resultsQuery,
+                results: tab.results || resultado,
+                resultsQuery: tab.resultsQuery || resultado?.consulta || null,
                 chartConfig: tab.chartConfig || tab.initialChartConfig || null,
                 activeView: tab.viewMode || null,
                 dirty: tab.dirty,
+                // E2: what failed (S1) and where the user is (selection / statement / cell).
+                resultsError: tab.resultsError || error || null,
+                foco: Object.keys(foco).length ? foco : null,
             };
         },
 
@@ -1899,8 +2145,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             return;
         }
 
-        // SQL and Markdown files: open directly
-        if (lowerName.endsWith('.sql') || lowerName.endsWith('.sqlnb') || lowerName.endsWith('.sqlchain') || lowerName.endsWith('.md')) {
+        // SQL, Markdown and AmoxSQL's own documents: open directly. A deck, a
+        // diagram or a canvas fell through to the data-file branch below and opened
+        // as a SQL query over the file (seen with Deep Dive's "Send to Report Flow").
+        if (/\.(sql|sqlnb|sqlchain|md|amoxdeck|amoxdiagram|amoxcanvas)$/.test(lowerName)) {
             try {
                 const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(filePath)}`);
                 const data = await res.json();
@@ -2123,6 +2371,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             path: '',
             dirty: true,
             results: null, resultsQuery: null, resultsError: null, scriptRun: null, errorMarker: null,
+            ejecucion: null, avisoEjecucion: null, emergente: false,
         };
         setSplitEnabled(true);
         if (target === 'left') { setLeftTabs(prev => [...prev, clone]); setLeftActiveId(clone.id); }
@@ -2227,12 +2476,16 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // linked, BOTH panes write to the same shared value; while unlinked, each
     // pane keeps its own entry in `resultsRatios`.
     const handleResultsRatioChange = useCallback((paneId, ratio) => {
-        if (stateRef.current.resultsLinked) {
-            setLinkedResultsRatio(ratio);
+        const { resultsLinked, splitEnabled, leftActiveId, rightActiveId } = stateRef.current;
+        setUltimaAltura(ratio);
+        if (resultsLinked && splitEnabled) {
+            if (leftActiveId) actualizarPestana(leftActiveId, { resultsRatio: ratio });
+            if (rightActiveId) actualizarPestana(rightActiveId, { resultsRatio: ratio });
         } else {
-            setResultsRatios(prev => ({ ...prev, [paneId]: ratio }));
+            const id = paneId === 'left' ? leftActiveId : rightActiveId;
+            if (id) actualizarPestana(id, { resultsRatio: ratio });
         }
-    }, []);
+    }, [actualizarPestana]);
     const handleLeftResultsRatioChange = useCallback((ratio) => handleResultsRatioChange('left', ratio), [handleResultsRatioChange]);
     const handleRightResultsRatioChange = useCallback((ratio) => handleResultsRatioChange('right', ratio), [handleResultsRatioChange]);
 
@@ -2257,16 +2510,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         setResultsLinked(prev => {
             const next = !prev;
             if (next) {
-                // Turning ON: adopt the ACTIVE pane's current ratio as the shared
-                // value, so the OTHER pane visibly animates to match it instead of
-                // jumping to some unrelated number.
-                const { activePane, resultsRatios } = stateRef.current;
-                setLinkedResultsRatio(resultsRatios[activePane] ?? 0.35);
-            } else {
-                // Turning OFF: both panes keep exactly the size they had while
-                // linked — nothing should visibly move at the moment of unlinking.
-                const shared = stateRef.current.linkedResultsRatio;
-                setResultsRatios({ left: shared, right: shared });
+                // Turning ON: the tab visible in the other pane adopts the ACTIVE
+                // pane's height. Turning OFF moves nothing: each tab keeps its own.
+                const { activePane, leftActiveId, rightActiveId, leftTabs, rightTabs } = stateRef.current;
+                const [origen, destino] = activePane === 'left' ? [leftActiveId, rightActiveId] : [rightActiveId, leftActiveId];
+                const altura = [...leftTabs, ...rightTabs].find(t => t.id === origen)?.resultsRatio;
+                if (destino && typeof altura === 'number') actualizarPestana(destino, { resultsRatio: altura });
             }
             return next;
         });
@@ -2383,12 +2632,11 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         availableTables={availableTables}
                         onExportNotebook={onExportNotebook}
                         onExportAmoxvis={onExportAmoxvis}
-                        isRunning={!!runningQueryId}
-                        onCancelQuery={cancelQuery}
+                        onCancelQuery={cancelQuery} onAbrirEmergente={abrirEmergente}
                         onShowHistory={onShowHistorySidebar}
                         onOpenAmoxvisAsSql={openAmoxvisAsSql}
                         onPersistUiState={updateTab}
-                        resultsRatio={resultsLinked ? linkedResultsRatio : resultsRatios.left}
+                        resultsRatio={leftTabs.find(t => t.id === leftActiveId)?.resultsRatio ?? ultimaAltura}
                         onResultsRatioChange={handleLeftResultsRatioChange}
                         splitEnabled={splitEnabled}
                         onGetOtherPaneResults={getOtherPaneResults}
@@ -2443,11 +2691,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                                 availableTables={availableTables}
                                 onExportNotebook={onExportNotebook}
                                 onExportAmoxvis={onExportAmoxvis}
-                                isRunning={!!runningQueryId}
-                                onCancelQuery={cancelQuery}
+                                onCancelQuery={cancelQuery} onAbrirEmergente={abrirEmergente}
                                 onOpenAmoxvisAsSql={openAmoxvisAsSql}
                                 onPersistUiState={updateTab}
-                                resultsRatio={resultsLinked ? linkedResultsRatio : resultsRatios.right}
+                                resultsRatio={rightTabs.find(t => t.id === rightActiveId)?.resultsRatio ?? ultimaAltura}
                                 onResultsRatioChange={handleRightResultsRatioChange}
                                 splitEnabled={splitEnabled}
                                 onGetOtherPaneResults={getOtherPaneResults}

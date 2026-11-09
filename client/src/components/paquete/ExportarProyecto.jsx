@@ -10,10 +10,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LuPackage, LuX, LuCheck, LuDatabase, LuFileSpreadsheet, LuFolderOpen, LuTriangleAlert, LuShieldCheck } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
+import { useEscape } from '../../hooks/useEscape';
 
 const tamano = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : b >= 1024 ? `${Math.round(b / 1024)} KB` : `${b} B`);
 
 export default function ExportarProyecto({ plantilla = false, proyecto = 'project', onClose }) {
+    useEscape(onClose);
     const [c, setC] = useState(null);
     const [elegidos, setElegidos] = useState(new Set());
     const [error, setError] = useState(null);

@@ -5,7 +5,9 @@
  * detrás se sigue viendo y se puede usar— con lo que hace falta para retomarlo:
  * las pestañas que volvieron, lo que falló sin nadie delante, la última
  * ejecución de cada proceso, la entrega, lo que cambió en git y las fuentes que
- * aquí no se leen. Se cierra con **Continue**. Si no hay nada que contar, no sale.
+ * aquí no se leen. Se cierra con **Continue**, con Escape o al abrir cualquier
+ * pestaña (LayoutManager): antes se quedaba flotando encima de lo que abrieras,
+ * Deep Dive incluido. Si no hay nada que contar, no sale.
  */
 import { useEffect, useState } from 'react';
 import {
@@ -14,6 +16,7 @@ import {
 import { API_BASE } from '../api.js';
 import { ESTADOS } from './workspaces/VistaWorkspaces';
 import { marcarVistas } from './operacion/Atencion';
+import { useEscape } from '../hooks/useEscape';
 
 const ESTADO = Object.fromEntries(ESTADOS.map(([k, t]) => [k, t]));
 
@@ -52,6 +55,8 @@ const abrirFicha = (runId) => {
 
 export default function Retomar({ pestanas = [], onAbrirArchivo, onClose }) {
     const [d, setD] = useState(null);
+    // Escape también la cierra: flota encima de lo que abras después.
+    useEscape(onClose, !!d && (d.hayAlgo || pestanas.length > 0));
 
     useEffect(() => {
         let vivo = true;

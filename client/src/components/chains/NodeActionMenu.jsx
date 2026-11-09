@@ -6,10 +6,10 @@
 import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
-    LuPlay, LuCode, LuCopy, LuPause, LuCircleCheck, LuPencil, LuCircleHelp, LuTrash2,
+    LuPlay, LuCode, LuCopy, LuPause, LuCircleCheck, LuPencil, LuCircleHelp, LuTrash2, LuSparkles, LuWrench, LuFileCode,
 } from 'react-icons/lu';
 
-const NodeActionMenu = ({ x, y, disabled, onAction, onClose }) => {
+const NodeActionMenu = ({ x, y, disabled, failed = false, asistir = false, onAction, onClose }) => {
     const ref = useRef(null);
 
     useEffect(() => {
@@ -35,7 +35,7 @@ const NodeActionMenu = ({ x, y, disabled, onAction, onClose }) => {
     }, [onClose]);
 
     // Keep the menu on-screen — flip up/left if it would overflow.
-    const w = 190, h = 260;
+    const w = 220, h = asistir ? 380 : 260;
     const left = Math.min(x, window.innerWidth - w - 8);
     const top = Math.min(y, window.innerHeight - h - 8);
 
@@ -46,6 +46,12 @@ const NodeActionMenu = ({ x, y, disabled, onAction, onClose }) => {
         { id: 'toggle-disable', icon: disabled ? LuCircleCheck : LuPause, label: disabled ? 'Enable' : 'Disable' },
         { id: 'rename', icon: LuPencil, label: 'Rename' },
         { id: 'docs', icon: LuCircleHelp, label: 'Documentation' },
+        // E5 (plan del Assistant): el paso, al Assistant de este archivo.
+        ...(asistir ? [
+            ...(failed ? [{ id: 'assist-fix', icon: LuWrench, label: 'Fix with Assist', sep: true, asistir: true }] : []),
+            { id: 'assist-explain', icon: LuSparkles, label: 'Explain this step', sep: !failed, asistir: true },
+            { id: 'assist-sql', icon: LuFileCode, label: 'Write the SQL for this step', asistir: true },
+        ] : []),
         { id: 'delete', icon: LuTrash2, label: 'Delete', danger: true },
     ];
 
@@ -53,9 +59,9 @@ const NodeActionMenu = ({ x, y, disabled, onAction, onClose }) => {
         <div ref={ref} className="chain-node-menu" style={{ left, top }} onWheel={(e) => e.stopPropagation()}>
             {items.map((it, i) => (
                 <div key={it.id}>
-                    {it.id === 'delete' && <div className="chain-node-menu-sep" />}
+                    {(it.id === 'delete' || it.sep) && <div className="chain-node-menu-sep" />}
                     <button
-                        className={`chain-node-menu-item${it.danger ? ' chain-node-menu-item-danger' : ''}`}
+                        className={`chain-node-menu-item${it.danger ? ' chain-node-menu-item-danger' : ''}${it.asistir ? ' chain-node-menu-item-asistir' : ''}`}
                         onClick={() => { onAction(it.id); onClose(); }}
                     >
                         <it.icon size={13} /><span>{it.label}</span>

@@ -66,7 +66,7 @@ Al abrir un chain vacío aparece la galería con plantillas de arranque:
 | **Multi-Source Merge** | Combinar varias fuentes en una sola tabla |
 
 ### Generar con IA
-El panel de IA del lienzo convierte una descripción en lenguaje natural en un pipeline. Escribe lo que quieres ("importa ventas.csv, filtra 2025, agrupa por región y exporta a Parquet") y Data Flow propone el flujo. Antes de aplicarlo, muestra una **vista previa** de los nodos para que confirmes. Si el lienzo ya tiene nodos, la IA **extiende/edita** el pipeline existente (reemplazando el lienzo tras tu confirmación).
+La barra de abajo del lienzo es el [Asistente](../ai/editor-assistant.md#en-data-flow) de este archivo. Escribe lo que quieres ("importa ventas.csv, filtra 2025, agrupa por región y exporta a Parquet", o "añade un dedup antes del export") y el Asistente lo propone como pasos: los nuevos aparecen como fantasmas sobre el lienzo, junto a la lista de cambios, y tú decides con **Accept** o **Reject**. Nada reemplaza el lienzo entero: los pasos que se quedan no se mueven.
 
 ## Referencia de la barra de herramientas
 

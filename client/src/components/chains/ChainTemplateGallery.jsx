@@ -8,6 +8,7 @@ import excelToParquet from './templates/excel-to-parquet.json';
 import csvCleanup from './templates/csv-cleanup.json';
 import multiSourceMerge from './templates/multi-source-merge.json';
 import dataQualityCheck from './templates/data-quality-check.json';
+import { useEscape } from '../../hooks/useEscape';
 
 const TEMPLATES = [
     {
@@ -53,6 +54,7 @@ const TEMPLATES = [
 ];
 
 const ChainTemplateGallery = ({ onSelect, onClose }) => {
+    useEscape(onClose);
     const modal = (
         <div
             className="modal-overlay"

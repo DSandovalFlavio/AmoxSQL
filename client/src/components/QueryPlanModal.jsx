@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LuSparkles } from 'react-icons/lu';
 import QueryPlanViewer from './QueryPlanViewer';
+import { useEscape } from '../hooks/useEscape';
 
 const fmtMs = (s) => {
     if (s == null) return '—';
@@ -75,6 +76,7 @@ function summarizeTree(node, depth = 0, lines = []) {
 }
 
 const QueryPlanModal = ({ isOpen, onClose, plan, query, mode = 'analyze', metrics = null, note = null, loading = false, onSetMode }) => {
+    useEscape(onClose, isOpen);
     const [queryWidth, setQueryWidth] = useState(300); // Initial width for query pane
     const [isDragging, setIsDragging] = useState(false);
     const containerRef = useRef(null);

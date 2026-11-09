@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { LuMessageSquarePlus, LuArrowLeft, LuMessageSquare, LuLoader, LuTrash2 } from 'react-icons/lu';
+import { LuMessageSquarePlus, LuArrowLeft, LuMessageSquare, LuLoader, LuTrash2, LuFile } from 'react-icons/lu';
 
 import { API_BASE as API } from '../../api.js';
 
@@ -70,9 +70,23 @@ const GROUP_LABELS = {
 /**
  * FileConversationList — Full-panel history view showing all conversations
  * for the currently active file, grouped by date (Cursor/ChatGPT style).
+ *
+ * E6/A9 (plan del Assistant): it says which file they are of, and below, the
+ * recent conversations of OTHER files — choosing one opens its file, with it.
  */
-const FileConversationList = ({ filePath, activeConversationId, onSelect, onNew, onBack }) => {
+const nombreDe = (ruta) => String(ruta || '').split(/[\\/]/).pop();
+const normal = (ruta) => String(ruta || '').replace(/\\/g, '/').toLowerCase();
+
+const FileConversationList = ({ filePath, activeConversationId, onSelect, onNew, onBack, onAbrirOtra }) => {
     const [conversations, setConversations] = useState([]);
+    const [recientes, setRecientes] = useState([]);
+    useEffect(() => {
+        if (!onAbrirOtra) return;
+        fetch(`${API}/api/ai/conversations?mode=assistant&limit=30`)
+            .then(r => (r.ok ? r.json() : []))
+            .then(d => setRecientes((Array.isArray(d) ? d : []).filter(c => c.file_path && normal(c.file_path) !== normal(filePath)).slice(0, 8)))
+            .catch(() => {});
+    }, [filePath, onAbrirOtra]);
     const [loading, setLoading] = useState(true);
     const [deletingId, setDeletingId] = useState(null);
 
@@ -135,7 +149,9 @@ const FileConversationList = ({ filePath, activeConversationId, onSelect, onNew,
                 <button className="ai-icon-btn" onClick={onBack} title="Back to chat">
                     <LuArrowLeft size={16} />
                 </button>
-                <span className="ai-history-title">Chat History</span>
+                <span className="ai-history-title" title={filePath || ''}>
+                    {filePath ? <>Chats about <strong>{nombreDe(filePath)}</strong></> : 'Chat History'}
+                </span>
                 <button
                     className="ai-history-new-btn"
                     onClick={() => { onNew(); onBack(); }}
@@ -197,6 +213,21 @@ const FileConversationList = ({ filePath, activeConversationId, onSelect, onNew,
                             </div>
                         );
                     })
+                )}
+
+                {recientes.length > 0 && (
+                    <div className="ai-history-group ai-history-group--otros">
+                        <div className="ai-history-group-label">Recent, in other files</div>
+                        {recientes.map(conv => (
+                            <div key={conv.id} className="ai-history-item" onClick={() => onAbrirOtra(conv)} title={`Open ${conv.file_path} with this conversation`}>
+                                <div className="ai-history-item-icon"><LuFile size={14} /></div>
+                                <div className="ai-history-item-content">
+                                    <span className="ai-history-item-title">{conv.title || 'New Conversation'}</span>
+                                    <span className="ai-history-item-meta">{nombreDe(conv.file_path)} · {formatTime(conv.updated_at || conv.created_at)}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </div>
         </div>

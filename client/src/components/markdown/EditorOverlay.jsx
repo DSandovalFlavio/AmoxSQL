@@ -4,8 +4,9 @@
  * Tres piezas sobre el lienzo de Monaco, nunca a la vez:
  *
  *  · **Burbuja de selección** — al seleccionar texto. Formato en línea, enlace,
- *    cita y convertir en tarea. Sin acciones de asistente: para eso está el
- *    panel lateral que ya existe.
+ *    cita y convertir en tarea, ENCIMA de la selección. Las acciones del
+ *    Assistant (Rewrite · Shorter · Explain · Continue) van en su propia barra,
+ *    DEBAJO (`ai/revision/conectarAsistente.jsx`, plan del Assistant E3).
  *  · **Barra del bloque** — con el cursor dentro de una tabla o de un bloque de
  *    código, pegada encima de él. Es lo que evita que la barra superior crezca
  *    con controles que solo valen dentro de un bloque concreto.

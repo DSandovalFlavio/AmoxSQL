@@ -25,6 +25,7 @@ import { openTour, hasSeenTour } from './onboarding/tourRegistry';
 // Los acentos viven fuera: el inspector del deck necesita la misma lista y no
 // puede importar 97 KB de modal para leer dos arrays.
 import { VIBRANT_ACCENTS, SOBER_ACCENTS } from '../accents.js';
+import { seccionesDeAtajos } from '../utils/atajos';
 
 const RECOMMENDED_MODELS = [
     // ── Edge / Lightweight ──
@@ -110,69 +111,7 @@ const TAB_TITLES = {
     gallery:     'Chart Gallery',
 };
 
-const SHORTCUT_SECTIONS = [
-    {
-        category: 'General',
-        items: [
-            { keys: 'Ctrl + Shift + P', description: 'Command Palette' },
-            { keys: 'Ctrl + ,', description: 'Open Settings' },
-            { keys: 'Ctrl + S', description: 'Save File' },
-            { keys: 'Ctrl + Shift + S', description: 'Save As…' },
-            { keys: 'Ctrl + N', description: 'New SQL File' },
-            { keys: 'Ctrl + Shift + N', description: 'New Notebook' },
-            { keys: 'Ctrl + W', description: 'Close Current Tab' },
-            { keys: 'Ctrl + Shift + /', description: 'Keyboard Shortcuts' },
-        ]
-    },
-    {
-        category: 'Query Execution',
-        items: [
-            { keys: 'Ctrl + Enter', description: 'Run Query / Run Cell' },
-            { keys: 'F5', description: 'Run Query (alias)' },
-            { keys: 'Ctrl + Alt + Enter', description: 'Run Only the Statement Under the Cursor' },
-            { keys: 'Ctrl + Shift + A', description: 'Analyze Query Plan (EXPLAIN)' },
-            { keys: 'Ctrl + Shift + Enter', description: 'Run All Cells (Notebooks)' },
-            { keys: 'Ctrl + Shift + R', description: 'Run Both Split Panes' },
-        ]
-    },
-    {
-        category: 'Navigation',
-        items: [
-            { keys: 'Ctrl + Tab', description: 'Next Tab' },
-            { keys: 'Ctrl + Shift + Tab', description: 'Previous Tab' },
-            { keys: 'Ctrl + B', description: 'Toggle Sidebar' },
-            { keys: 'Ctrl + L', description: 'Toggle Assist' },
-            { keys: 'Ctrl + Shift + E', description: 'Focus File Explorer' },
-            { keys: 'Ctrl + Shift + D', description: 'Focus Database Explorer' },
-            { keys: 'Ctrl + \\', description: 'Toggle Split View' },
-            { keys: 'Ctrl + Shift + \\', description: 'Duplicate Active Tab to the Other Pane' },
-        ]
-    },
-    {
-        category: 'Editor',
-        items: [
-            { keys: 'Ctrl + /', description: 'Toggle Line Comment' },
-            { keys: 'Ctrl + D', description: 'Duplicate Selection / Line' },
-            { keys: 'Ctrl + Shift + K', description: 'Delete Line' },
-            { keys: 'Ctrl + F', description: 'Find in Editor' },
-            { keys: 'Ctrl + H', description: 'Find and Replace' },
-            { keys: 'Ctrl + K', description: 'Format SQL (Prettify)' },
-            { keys: 'Ctrl + Shift + F', description: 'Format SQL (Alternative)' },
-            { keys: 'Ctrl + Z', description: 'Undo' },
-            { keys: 'Ctrl + Shift + Z', description: 'Redo' },
-            { keys: 'Ctrl + A', description: 'Select All' },
-        ]
-    },
-    {
-        category: 'View',
-        items: [
-            { keys: 'Ctrl + =', description: 'Zoom In' },
-            { keys: 'Ctrl + -', description: 'Zoom Out' },
-            { keys: 'Ctrl + 0', description: 'Reset Zoom' },
-            { keys: 'Escape', description: 'Close Modals / Exit Full View' },
-        ]
-    },
-];
+const SHORTCUT_SECTIONS = seccionesDeAtajos();
 
 // ─── AI Context Tab ───
 
@@ -1530,7 +1469,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         </div>
                                         {editorSettings.queryResultLimit === 0 && (
                                             <div className="stg-alert stg-alert--warning stg-mt8">
-                                                <strong>Warning:</strong> removing the result limit can eat a lot of memory or freeze the interface if the table has too many records. We recommend using SQL notebooks with aggregate queries to explore very large data.
+                                                <strong>Warning:</strong> without a limit, a result can use a lot of memory and slow the interface. A safety limit of 1,000,000 rows or 256 MB still applies; use Export for more. We recommend using SQL notebooks with aggregate queries to explore very large data.
                                             </div>
                                         )}
                                     </div>

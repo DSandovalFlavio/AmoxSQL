@@ -36,7 +36,13 @@ Arrastra una pestaña para reordenarla dentro de su panel o moverla al otro. Mie
 <!-- 📷 CAPTURE: docs/images/editor/drag-drop-zones.png — overlay de zonas de destino al arrastrar una pestaña entre paneles -->
 
 ### Sacar los resultados a una ventana aparte
-El panel de resultados puede **abrirse en una ventana independiente** (pop-out) para tenerlo en otra pantalla o junto al editor. La ventana se actualiza sola cuando cambian los resultados. Ver [Tabla de resultados](../results/results-table.md).
+El panel de resultados puede **abrirse en una ventana independiente** (pop-out) para tenerlo en otra pantalla o junto al editor. La ventana es **de su pestaña**: solo la actualiza una nueva ejecución de esa pestaña, y puedes tener una por pestaña para comparar. Mientras tanto el panel se recoge en una línea y el código se queda con el sitio. **Bring back** o cerrar la ventana devuelve la tabla. Con **Pin**, la ventana conserva sus resultados y te avisa cuando hay otros más nuevos. Ver [Tabla de resultados](../results/results-table.md).
+
+### Cada pestaña recuerda lo suyo
+Al cambiar de pestaña y volver, todo sigue igual: la altura de resultados, el orden, los filtros, la página y el scroll de la tabla, la historia de **Ctrl+Z**, la selección y las variables abiertas. Una pestaña nueva empieza con la última altura que elegiste, y desde ahí es suya. Con el panel dividido, el vínculo de resultados mueve a la vez las dos pestañas visibles.
+
+### Varias consultas a la vez
+Las consultas corren de una en una porque comparten la sesión de la base (vistas temporales, variables y macros). Si ejecutas en otra pestaña mientras una corre, queda **en espera** y te dice de cuál; empieza sola al terminar la anterior. Cada pestaña lleva su indicador, y un punto te avisa si terminó mientras mirabas otra. **Stop** y **Esc** cancelan solo la consulta de la pestaña en la que estás.
 
 ### Recuperación tras cierre inesperado
 Mientras editas, AmoxSQL guarda un borrador local del contenido. Si reabres un archivo y hay un borrador con cambios que no se guardaron, aparece un aviso con un botón **Recover** para restaurarlos; si no, se descarta.

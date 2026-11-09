@@ -50,7 +50,7 @@ As you type, the editor suggests DuckDB tables, columns, and functions based on 
 Every `name AS (` definition shows a ▶ glyph in the gutter: click it to run the query truncated up to that CTE and inspect its intermediate result. See [Debugging CTEs](cte-debugging.md).
 
 ### Format SQL
-Press **Ctrl+K** (or **Shift+Alt+F**) to format the selection or the whole document. The style (tab width, keyword case, lines between queries) is set in Settings → Editor.
+Press **Shift+Alt+F** to format the selection or the whole document. The style (tab width, keyword case, lines between queries) is set in Settings → Editor.
 
 ### Find and replace
 **Ctrl+F** opens find; **Ctrl+H** opens find & replace within the editor.
@@ -90,7 +90,7 @@ The view state (cursor and scroll) is remembered per tab, so switching away and 
 | Ctrl+Enter · F5 | Run (selection or all) |
 | Ctrl+S · Ctrl+Shift+S | Save · Save As |
 | Ctrl+Shift+A | Analyze plan |
-| Ctrl+K · Shift+Alt+F | Format SQL |
+| Shift+Alt+F | Format SQL |
 | Ctrl+F · Ctrl+H | Find · Find & replace |
 | Ctrl+Shift+H | Query history |
 | Ctrl+/ · Ctrl+D · Ctrl+Shift+K | Comment · duplicate line · delete line |

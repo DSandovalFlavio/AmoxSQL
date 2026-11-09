@@ -1,9 +1,10 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo } from 'react';
-import { LuPlay, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2, LuLayoutDashboard } from "react-icons/lu";
+import { LuPlay, LuHourglass, LuExternalLink, LuActivity, LuSave, LuChevronDown, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2, LuLayoutDashboard, LuSparkles, LuWrench } from "react-icons/lu";
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
+import FalloDeInterfaz from './FalloDeInterfaz';
 import ScriptRunSummary from './ScriptRunSummary';
 import ExportDataModal from './ExportDataModal';
 import ExportAiContextModal from './ExportAiContextModal';
@@ -38,7 +39,11 @@ import { guardarBorrador } from '../utils/borradorGrafico';
  */
 const ResultadosDePestana = ({ tab, ...resto }) => {
     const [inicial] = useState(() => tab.chartConfig || tab.initialChartConfig || null);
-    return <ResultsTable initialChartConfig={inicial} initialViewMode={tab.viewMode} {...resto} />;
+    return (
+        <FalloDeInterfaz compacto>
+            <ResultsTable initialChartConfig={inicial} initialViewMode={tab.viewMode} clavePestana={tab.id} {...resto} />
+        </FalloDeInterfaz>
+    );
 };
 
 const PaneLoading = ({ label = 'Loading…' }) => (
@@ -79,7 +84,7 @@ const EditorPane = ({
     onPaneFocus,      // () -> mark this pane active even when it has no tabs
     onTabClose,
     onContentChange, // (tabId, newContent)
-    onConversationChange, // (tabId, convId) — Deep Dive: remember the conversation without marking dirty
+    onConversationChange, // (tabId, convId, { name?, espera? }) — Deep Dive: remember the conversation without marking dirty
     onRunQuery,      // (tabId, queryToRun) -> returns Promise<Result>
     onSave,           // Trigger save needed? Actually App handles save button. This is just for internal updates.
     onAnalyze,
@@ -103,8 +108,8 @@ const EditorPane = ({
     availableTables,  // Data Diving only
     onExportNotebook, // Data Diving only
     onExportAmoxvis, // Data Diving chart export
-    isRunning,        // boolean — a query is currently executing
-    onCancelQuery,    // () -> cancel the running query
+    onCancelQuery,    // (tabId) -> cancel that tab's query, running or waiting
+    onAbrirEmergente, // (tabId) -> open that tab's results in their own window
     onShowHistory,    // () -> navigate left sidebar to 'history' tab
     onOpenAmoxvisAsSql, // (tab) -> switch amoxvis tab to SQL editor mode
     onPersistUiState, // (pane, tabId, patch) -> persist view state to the tab (for AI session-awareness)
@@ -129,17 +134,6 @@ const EditorPane = ({
     const [showDropZone, setShowDropZone] = useState(false);
     const dropCounterRef = useRef(0);
 
-    const [isPoppedOut, setIsPoppedOut] = useState(false);
-
-    // Listen for popout window being closed by the user
-    useEffect(() => {
-        if (!window.electronAPI?.onPopoutClosed) return;
-        const cleanup = window.electronAPI.onPopoutClosed(() => {
-            setIsPoppedOut(false);
-        });
-        return cleanup;
-    }, []);
-
     const activeTab = tabs.find(t => t.id === activeTabId);
     // Latest active tab, readable from stable callbacks/getters without
     // changing their identity per keystroke (G4).
@@ -157,7 +151,11 @@ const EditorPane = ({
     // on every keystroke; PaneTimestamps refreshes the label on its own tick.
     const lastEditTimeRef = useRef(null);
     const lastRunTimeRef = useRef(null);
-    const [varsExpanded, setVarsExpanded] = useState(false);
+    // De la pestaña, como la altura: abrir las variables en una no las abre en otra.
+    const varsExpanded = !!activeTab?.variablesAbiertas;
+    const setVarsExpanded = (abiertas) => {
+        if (activeTab && onPersistUiState) onPersistUiState(paneId, activeTab.id, { variablesAbiertas: abiertas });
+    };
 
     // Close save dropdown on outside click
     useEffect(() => {
@@ -179,19 +177,12 @@ const EditorPane = ({
         return () => document.removeEventListener('mousedown', handler);
     }, [showExportMenu]);
 
+    // La emergente es de la pestaña (Dec-86): LayoutManager la abre, la actualiza
+    // con las ejecuciones de esa pestaña y sabe cuándo se cierra.
     const handlePopout = useCallback(() => {
         const tab = activeTabRef.current;
-        if (!tab?.results) return;
-        const payload = {
-            data: tab.results.data,
-            types: tab.results.types,
-            executionTime: tab.results.executionTime,
-            query: tab.resultsQuery || tab.content,
-            cellTitle: tab.name,
-        };
-        window.electronAPI?.openPopout(payload);
-        setIsPoppedOut(true);
-    }, []);
+        if (tab?.results) onAbrirEmergente?.(tab.id);
+    }, [onAbrirEmergente]);
 
     // Stable getter for the live editor content — passed to ResultsTable instead
     // of the content string itself, so its memo survives keystrokes (G4).
@@ -204,20 +195,6 @@ const EditorPane = ({
         () => (onGetOtherPaneResults ? onGetOtherPaneResults(paneId) : null),
         [onGetOtherPaneResults, paneId]
     );
-
-    // Auto-update the pop-out window when results change
-    useEffect(() => {
-        if (!isPoppedOut || !activeTab?.results) return;
-        const payload = {
-            data: activeTab.results.data,
-            types: activeTab.results.types,
-            executionTime: activeTab.results.executionTime,
-            query: activeTab.resultsQuery || activeTab.content,
-            cellTitle: activeTab.name,
-        };
-        window.electronAPI?.openPopout(payload);
-    }, [isPoppedOut, activeTab?.results]);
-
 
     // Resizing Logic specific to this pane
     const startResizing = (e) => {
@@ -445,7 +422,14 @@ const EditorPane = ({
      * tipo en la pestaña.
      */
     const isTexto = activeTab.type === 'texto';
-    const resultadosVacios = !activeTab.results && !activeTab.resultsError && !activeTab.scriptRun && !isRunning && !isPoppedOut;
+    // La consulta de ESTA pestaña; la de otra no le cambia nada aquí (Dec-84).
+    const ejecucion = activeTab.ejecucion || null;
+    const isRunning = !!ejecucion;
+    const enEmergente = !!activeTab.emergente;
+    // Con el resultado en su ventana, el panel se recoge igual que sin resultados:
+    // un aviso que ocupaba media pantalla le quitaba el sitio al código (Dec-87).
+    const resultadosVacios = enEmergente
+        || (!activeTab.results && !activeTab.resultsError && !activeTab.scriptRun && !isRunning);
 
     // Track last edit time on content change — ref only, no setState per keystroke
     const handleContentChangeWithTimestamp = (tabId, newContent) => {
@@ -475,16 +459,38 @@ const EditorPane = ({
     const recordarGrafico = !!(activeTab && activeTab.type === 'sql' && activeTab.path
         && /\.sql$/i.test(activeTab.path) && !activeTab.procedencia);
 
+    // The doors to Assist from the error and the results (plan del Assistant, E2).
+    // App opens the panel; the panel turns the action into the question.
+    const asistir = (accion) => window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId: activeTab.id } }));
+
     // Results panel content (shared between both layouts)
     const resultsContent = (
         <>
-            {activeTab.resultsError && <div className="ep-error">Error: {activeTab.resultsError}</div>}
+            {ejecucion?.estado === 'en_espera' && (
+                <div className="ep-espera" role="status">
+                    <LuHourglass size={13} />
+                    <span>Waiting for <strong>{ejecucion.tras}</strong> to finish. Queries run one at a time.</span>
+                    <button type="button" onClick={() => onCancelQuery(activeTab.id)}>Cancel</button>
+                </div>
+            )}
+
+            {activeTab.resultsError && (
+                <div className="ep-error">
+                    <span className="ep-error-texto">Error: {activeTab.resultsError}</span>
+                    {/* E2: the error is a door to Assist — it already knows the error and the query. */}
+                    {activeTab.type === 'sql' && activeTab.path && (
+                        <button type="button" className="ep-error-asistir" onClick={() => asistir('arreglar_error')}>
+                            <LuWrench size={12} /> Fix with Assist
+                        </button>
+                    )}
+                </div>
+            )}
 
             {activeTab.scriptRun && <ScriptRunSummary scriptRun={activeTab.scriptRun} compact={!!activeTab.results} />}
 
             {activeTab.results && (
                 <>
-                    {!isPoppedOut && (
+                    {!enEmergente && (
                         <ResultadosDePestana
                             key={activeTab.id}
                             tab={activeTab}
@@ -513,19 +519,18 @@ const EditorPane = ({
                             }}
                             recordadoCon={recordarGrafico ? activeTab.name : null}
                             onAbrirArchivo={onOpenFile}
+                            onAsistir={activeTab.type === 'sql' && activeTab.path ? asistir : undefined}
                             splitEnabled={splitEnabled}
                             onGetOtherPaneResults={handleGetOtherPaneResults}
                         />
                     )}
 
-                    {isPoppedOut && (
-                        <div className="ep-popout-notice">
-                            Results for {activeTab.name} are actively displayed in a detached window.
-                            <div>
-                                <button onClick={() => setIsPoppedOut(false)}>
-                                    Bring Back Here
-                                </button>
-                            </div>
+                    {enEmergente && (
+                        <div className="ep-emergente" role="status">
+                            <LuExternalLink size={13} />
+                            <span>Results are in a separate window.</span>
+                            <button type="button" onClick={() => window.electronAPI?.focusPopout?.(activeTab.id)}>Show</button>
+                            <button type="button" onClick={() => window.electronAPI?.closePopout?.(activeTab.id)}>Bring back</button>
                         </div>
                     )}
                 </>
@@ -533,7 +538,7 @@ const EditorPane = ({
 
             {!activeTab.results && !activeTab.resultsError && !activeTab.scriptRun && (
                 <div className="ep-no-results">
-                    Run query (Ctrl+Enter) to see results.
+                    {ejecucion?.estado === 'corriendo' ? 'Running…' : (ejecucion ? null : 'Run query (Ctrl+Enter) to see results.')}
                 </div>
             )}
         </>
@@ -616,7 +621,8 @@ const EditorPane = ({
                             onOpenFile={onOpenFile}
                             availableTables={availableTables}
                             startConversationId={activeTab?.content || null}
-                            onConversationChange={(cid) => onConversationChange?.(activeTab.id, cid)}
+                            onConversationChange={(cid, nombre) => onConversationChange?.(activeTab.id, cid, nombre ? { name: nombre } : {})}
+                            onEsperaChange={(espera) => onConversationChange?.(activeTab.id, null, { espera })}
                         />
                     </div>
                 ) : isErDiagram ? (
@@ -641,6 +647,7 @@ const EditorPane = ({
                                 filePath={activeTab.path || null}
                                 onOpenFile={onOpenFile}
                                 onSave={onSave}
+                                tabId={activeTab.id}
                             />
                         </Suspense>
                     </div>
@@ -659,6 +666,8 @@ const EditorPane = ({
                             showAiSidebar={showAiSidebar}
                             isActive={isActive}
                             onOpenFile={onOpenFile}
+                            tabId={activeTab.id}
+                            filePath={activeTab.path}
                         />
                         </Suspense>
                     </div>
@@ -675,6 +684,7 @@ const EditorPane = ({
                                 isActive={isActive}
                                 filePath={activeTab.path || null}
                                 onCreateNew={onCreateNew}
+                                tabId={activeTab.id}
                             />
                         </Suspense>
                     </div>
@@ -695,6 +705,7 @@ const EditorPane = ({
                             // pestaña es un archivo propio.
                             procedencia={activeTab.procedencia || null}
                             onOpenFile={onOpenFile}
+                            tabId={activeTab.id}
                         />
                         </Suspense>
                     </div>
@@ -703,6 +714,7 @@ const EditorPane = ({
                         <Suspense fallback={<PaneLoading />}>
                         <MarkdownEditor
                             key={activeTab.id}
+                            tabId={activeTab.id}
                             content={activeTab.content}
                             onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
                             onSave={onSave}
@@ -739,6 +751,7 @@ const EditorPane = ({
                         <Suspense fallback={<PaneLoading />}>
                         <CuadernoEditor
                             key={activeTab.id}
+                            tabId={activeTab.id}
                             content={activeTab.content}
                             onChange={(val) => handleContentChangeWithTimestamp(activeTab.id, val)}
                             /* El cuaderno ejecuta por su cuenta —tiene que mandar la vista
@@ -768,7 +781,7 @@ const EditorPane = ({
                                         {isRunning ? (
                                             <button
                                                 className="ep-action-run sql-btn-stop"
-                                                onClick={onCancelQuery}
+                                                onClick={() => onCancelQuery(activeTab.id)}
                                                 title="Cancel (Esc)"
                                                 aria-label="Cancel running query"
                                             >
@@ -872,7 +885,7 @@ const EditorPane = ({
                                     <VariablesToggle
                                         count={(variables || []).length}
                                         isExpanded={varsExpanded}
-                                        onToggle={() => setVarsExpanded(v => !v)}
+                                        onToggle={() => setVarsExpanded(!varsExpanded)}
                                         onAdd={() => {
                                             const vars = variables || [];
                                             const name = `var_${vars.length + 1}`;
@@ -890,10 +903,11 @@ const EditorPane = ({
                                         <button
                                             className={`ep-action-ai${showAiSidebar ? ' active' : ''}`}
                                             onClick={onToggleAi}
-                                            title="Toggle Assist"
+                                            title="Assist (Ctrl+L)"
+                                            aria-pressed={!!showAiSidebar}
                                         >
-                                            {showAiSidebar ? <LuX size={13} /> : <LuBot size={13} />}
-                                            <span>{showAiSidebar ? 'Close Assist' : 'Assist'}</span>
+                                            <LuSparkles size={13} />
+                                            <span>Assist</span>
                                         </button>
                                     )}
                                 </div>
@@ -932,6 +946,7 @@ const EditorPane = ({
                                 <div className={`ep-editor-wrapper${isActive ? ' active' : ''}`}>
                                     <SqlEditor
                                         tabId={activeTab.id}
+                                        modeloPorPestana
                                         value={activeTab.content}
                                         // La línea que era toda la premisa:
                                         // `md ? 'markdown' : 'sql'`. Lo dice la

@@ -10,6 +10,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LuGitCompareArrows, LuX, LuPlus, LuMinus, LuPencil, LuTriangleAlert, LuLoader } from 'react-icons/lu';
 import { API_BASE } from '../api.js';
+import { useEscape } from '../hooks/useEscape';
 
 const cuando = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
 const num = (n) => Number(n || 0).toLocaleString();
@@ -49,6 +50,7 @@ function Tabla({ filas, columnas, cambios = false }) {
 }
 
 export default function CompararEntrega({ copia, onClose }) {
+    useEscape(onClose);
     const [info, setInfo] = useState(null);        // { ruta, actual, copias, clave }
     const [elegida, setElegida] = useState(copia);
     const [clave, setClave] = useState(null);       // '' = sin clave

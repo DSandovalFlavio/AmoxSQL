@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useEscape } from '../hooks/useEscape';
 
 const OpenProjectModal = ({ isOpen, onClose, onOpen }) => {
+    useEscape(onClose, isOpen);
     const [path, setPath] = useState('');
 
     if (!isOpen) return null;

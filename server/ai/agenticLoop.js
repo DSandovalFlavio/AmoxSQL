@@ -48,6 +48,11 @@ const MAX_SQL_CORRECTION_RETRIES = 3;
 const ITER_STALL_TIMEOUT_MS = 90_000;
 // Max consecutive stalled iterations before giving up on the analysis
 const MAX_STALL_RETRIES = 2;
+// Rate-limit waits per run (F9): enough to get a 5-a-minute free tier through a
+// whole analysis without hanging forever on a provider that keeps refusing.
+const MAX_ESPERAS_CUOTA = 6;
+const { leerLimite, sePuedeEsperar, esperar } = require('./errores');
+const enVuelo = require('./controlEnVuelo');
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -189,11 +194,12 @@ function buildFallbackSummary(activePlan) {
         s => s.status === 'pending' || s.status === 'in_progress' || s.status === 'interrupted'
     );
 
-    let out = `**Análisis parcial** — se alcanzó el límite de iteraciones antes de terminar.\n\n`;
-    if (activePlan.goal) out += `Objetivo: ${activePlan.goal}\n\n`;
-    if (notes.length)   out += `Lo que alcancé a completar:\n${notes.join('\n')}\n\n`;
-    if (pending.length) out += `Quedó pendiente: ${pending.map(s => s.description).join('; ')}.\n\n`;
-    out += `Pulsa **Continuar** para que termine el análisis.`;
+    // En el idioma de la interfaz: este texto lo lee el usuario tal cual.
+    let out = `**Partial analysis.** The analyst ran out of iterations before finishing.\n\n`;
+    if (activePlan.goal) out += `Goal: ${activePlan.goal}\n\n`;
+    if (notes.length)   out += `What it finished:\n${notes.join('\n')}\n\n`;
+    if (pending.length) out += `Still pending: ${pending.map(s => s.description).join('; ')}.\n\n`;
+    out += `Choose **Continue** to let it finish.`;
     return out;
 }
 
@@ -235,6 +241,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         uiTheme = null,
         memoryExtraction = 'cloud-only',
         memoriasRetenidas = false,
+        archivo = null,
     } = options;
 
     const provider = providerOverride;
@@ -288,7 +295,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         currentQuery, currentResult, currentChartConfig, currentView,
         referencedArtifacts,
         activeSkill, modelProfile: profile,
-        filePath, fileType,
+        filePath, fileType, archivo,
         enablePlanner: mode === 'diving',
         projectCtx,
         grupo,
@@ -368,6 +375,15 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         } catch { /* plan rehydration is best-effort */ }
     }
 
+    // Steps the user skipped while the analysis was paused: apply them to the
+    // rehydrated plan (before, they only applied if the agent re-created the plan,
+    // so a skipped step still ran on Continue).
+    if (continueMode && activePlan.id && planStepOverrides.length) {
+        enVuelo.aplicarSaltos(activePlan, planStepOverrides, 'Skipped by you');
+    }
+    // Whatever was left from a previous run of this conversation doesn't apply.
+    enVuelo.limpiar(conversationId);
+
     // On a continuation, inject the (rehydrated) plan status into the first iteration
     // so the agent resumes immediately instead of relying on content-only history.
     let iterMessages = messages;
@@ -388,11 +404,52 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
     let anyIterationHadText  = false; // tracks if any prior iter produced text (for fallback message)
     let fullRunText          = '';    // all narrated text across the run (for the prose-first safety net)
     let totalUsage           = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
+    let esperasDeCuota       = 0;     // rate-limit waits this run (F9)
+    // Stop on the client closes the request: it must also cut a quota wait short.
+    const senalCorte         = opcionesOriginales.abortSignal || null;
 
     console.log(`[AgenticLoop] Starting | Provider: ${provider} | Model: ${model} | maxIter: ${maxIterations}`);
 
     // The loop runs the working budget PLUS one reserved wrap-up turn.
     while (iteration < effectiveMaxIterations + WRAP_UP_RESERVE && !loopDone) {
+        // ── What the user said while it runs (plan UX, F6) ──
+        // Collected between iterations: a step to skip, an instruction, a pause.
+        const control = enVuelo.tomar(conversationId);
+        if (control.saltar.length && activePlan.id) {
+            const saltados = enVuelo.aplicarSaltos(activePlan, control.saltar, 'Skipped by you while it ran');
+            if (saltados.length) {
+                yield { type: 'plan-progress', steps: activePlan.steps };
+                if (aiPersistence && activePlan.id && conversationId) {
+                    aiPersistence.updatePlan(dbManager, activePlan.id, { steps: activePlan.steps }).catch(() => {});
+                }
+                iterMessages = [...iterMessages, { role: 'user', content: `[The user skipped these plan steps while you were working: ${saltados.join(', ')}. Do not do them; go on with the rest of the plan.]` }];
+            }
+        }
+        for (const texto of control.indicaciones) {
+            yield { type: 'indicacion-recibida', texto };
+            iterMessages = [...iterMessages, { role: 'user', content: `[The user added an instruction while you were working. Take it into account from now on, without starting over:]\n${texto}` }];
+        }
+        if (control.pausar && iteration > 0) {
+            // Pause between steps: nothing is cut halfway, and Continue resumes the plan.
+            for (const step of activePlan.steps || []) {
+                if (step.status === 'in_progress' || step.status === 'running') step.status = 'interrupted';
+            }
+            if (activePlan.steps?.length) yield { type: 'plan-progress', steps: activePlan.steps };
+            if (aiPersistence && activePlan.id && conversationId) {
+                aiPersistence.updatePlan(dbManager, activePlan.id, { status: 'paused', steps: activePlan.steps }).catch(() => {});
+            }
+            yield {
+                type: 'ask-continue',
+                planGoal: activePlan.goal || '',
+                pendingSteps: (activePlan.steps || []).filter(s => s.status === 'pending' || s.status === 'interrupted').length,
+                completedSteps: (activePlan.steps || []).filter(s => s.status === 'done').length,
+                planId: activePlan.id || null,
+                pausado: true,
+            };
+            loopDone = true;
+            break;
+        }
+
         iteration++;
         // The reserved final turn: working budget spent, plan still unfinished.
         // Force a synthesis instead of running more work.
@@ -423,7 +480,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         // ── Build tools with shared state ──
         const tools = createTools({
             dbManager, queryResults, projectPath, mode,
-            conversationId, aiPersistence,
+            conversationId, aiPersistence, archivo,
             activePlan, enablePlanner: mode === 'diving',
         });
 
@@ -597,16 +654,16 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                             // Legacy: stream summary as text when no structured fields
                             const summaryText = toolResult.summary +
                                 (toolResult.followup_questions?.length
-                                    ? '\n\n**Preguntas de seguimiento:**\n' +
+                                    ? '\n\n**Follow-up questions:**\n' +
                                       toolResult.followup_questions.map(q => `- ${q}`).join('\n')
                                     : '');
                             yield { type: 'text-delta', text: summaryText };
                             iterText += summaryText;
                         } else if (!hasStructuredOutput && modelAlreadyWroteSummary && toolResult.followup_questions?.length) {
                             // Legacy: model wrote text, only append follow-ups if not already present
-                            const followupsBlock = '\n\n**Preguntas de seguimiento:**\n' +
+                            const followupsBlock = '\n\n**Follow-up questions:**\n' +
                                 toolResult.followup_questions.map(q => `- ${q}`).join('\n');
-                            if (!iterText.includes('Preguntas de seguimiento')) {
+                            if (!iterText.includes('Follow-up questions')) {
                                 yield { type: 'text-delta', text: followupsBlock };
                                 iterText += followupsBlock;
                             }
@@ -617,6 +674,9 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                             iterText += toolResult.summary;
                         }
                         // Structured (rich prose case): NarrativeCard handles tldr/findings/followups visually
+                        // The final snapshot of the steps: a step never started now says
+                        // so (not_done), and the client shows it as it is, not as done.
+                        if (activePlan?.steps) yield { type: 'plan-progress', steps: activePlan.steps };
                         yield {
                             type:     'plan-completed',
                             summary:  toolResult.summary,
@@ -691,9 +751,8 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                     }
 
                 } else if (part.type === 'error') {
-                    const errMsg = part.error?.message || String(part.error);
-                    yield { type: 'error', error: errMsg };
-                    loopDone = true;
+                    // Al catch: ahí se decide si es un límite de cuota que se puede esperar.
+                    throw (part.error instanceof Error ? part.error : Object.assign(new Error(part.error?.message || String(part.error)), part.error || {}));
                 }
             }
             if (stallTimer) clearTimeout(stallTimer);
@@ -717,14 +776,45 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                 }
                 // Out of stall retries — stop cleanly so the UI isn't left spinning.
                 if (!anyIterationHadText) {
-                    yield { type: 'text-delta', text: 'El modelo dejó de responder a mitad del análisis. Intenta de nuevo o usa un modelo distinto.' };
+                    yield { type: 'text-delta', text: 'The model stopped responding in the middle of the analysis. Try again, or pick a different model.' };
                 }
                 loopDone = true;
                 break;
             }
 
+            // ── A rate limit is not the end of the analysis (plan UX, F9) ──
+            // A per-minute quota (Gemini's free tier: 5 requests a minute) says how
+            // long to wait in the error body, which the SDK's own retries ignore.
+            // Wait it out, tell the client, and repeat this iteration. A daily quota
+            // can't be waited out: the client keeps what was done and offers choices.
+            const limite = leerLimite(err);
+            if (limite.esLimite && esperasDeCuota < MAX_ESPERAS_CUOTA && sePuedeEsperar(limite) && !senalCorte?.aborted) {
+                esperasDeCuota++;
+                const segundos = (limite.segundos ?? 20) + 1;
+                console.warn(`[AgenticLoop] Rate limit on iteration ${iteration}: waiting ${segundos}s (${esperasDeCuota}/${MAX_ESPERAS_CUOTA})`);
+                yield { type: 'esperando-cuota', segundos, intento: esperasDeCuota, maximo: MAX_ESPERAS_CUOTA };
+                const siguio = await esperar(segundos, senalCorte);
+                if (!siguio) { loopDone = true; break; }
+                yield { type: 'cuota-reanudada' };
+                iteration--; // the refused request didn't spend the budget
+                // If part of this iteration already ran (text or tools reached the
+                // client), resume from the plan instead of repeating that work.
+                if (activePlan.id && (iterText || iterToolResults.length)) {
+                    iterMessages = [
+                        ...compactedMessages,
+                        { role: 'user', content: '[The previous request hit the provider\'s rate limit after doing part of the work. Resume from where the plan stands — do NOT call create_plan again and do not repeat what is already done.]\n\n' + buildContinuationPrompt(activePlan, iteration, effectiveMaxIterations) },
+                    ];
+                }
+                continue;
+            }
+
             console.error(`[AgenticLoop] Iteration ${iteration} error:`, err.message);
-            yield { type: 'error', error: err.message || String(err) };
+            yield {
+                type: 'error',
+                error: err.message || String(err),
+                // What the client needs to say it plainly and offer the right exits.
+                limite: limite.esLimite ? { diaria: limite.diaria, segundos: limite.segundos, esperas: esperasDeCuota } : null,
+            };
             loopDone = true;
             break;
         }
@@ -829,7 +919,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                 // ── Too many idle retries — give up ──
                 // Only emit error message if no text was generated in any iteration
                 if (!anyIterationHadText) {
-                    yield { type: 'text-delta', text: 'Lo siento, no pude iniciar el análisis. Por favor intenta de nuevo con una pregunta más específica.' };
+                    yield { type: 'text-delta', text: 'The analysis could not start. Try again with a more specific question.' };
                 }
                 loopDone = true;
             }
@@ -845,7 +935,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         for (const step of activePlan.steps || []) {
             if (step.status === 'in_progress' || step.status === 'running') {
                 step.status = 'interrupted';
-                step.note = step.note || 'Interrumpido — se agotaron las iteraciones';
+                step.note = step.note || 'Interrupted: the analyst ran out of iterations';
                 snapshotChanged = true;
             }
         }

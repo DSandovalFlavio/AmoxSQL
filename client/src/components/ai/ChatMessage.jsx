@@ -11,17 +11,36 @@ import remarkGfm from 'remark-gfm';
 export const citeUrlTransform = (url) =>
     (typeof url === 'string' && url.startsWith('cite:')) ? url : defaultUrlTransform(url);
 import { API_BASE } from '../../api.js';
-import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen, LuMessageSquareQuote, LuPlay, LuFileInput } from 'react-icons/lu';
+import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen, LuMessageSquareQuote, LuPlay, LuFileInput, LuCopy, LuCheck } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
+import { useConsultaEnChat, ResultadoEnChat } from './ResultadoEnChat.jsx';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
-import EditProposalBlock from './EditProposalBlock';
+import PropuestaBlock from './PropuestaBlock';
+import { esPropuesta } from './propuestas';
+import { resumenDelTrabajo } from './trabajo.js';
 import StreamingMarkdown, { MarkdownChunk } from './StreamingMarkdown';
 
 /**
  * Markdown renderers for chat prose. Module-level factory so the object can be
  * memoized per message (stable identity keeps memoized markdown chunks alive).
  */
+/** Copy, for SQL in the prose: with Insert at cursor it replaces «Apply to editor», which overwrote the file. */
+function BotonCopiar({ texto }) {
+    const [copiado, setCopiado] = useState(false);
+    const copiar = () => {
+        navigator.clipboard?.writeText(texto).then(() => {
+            setCopiado(true);
+            setTimeout(() => setCopiado(false), 1500);
+        }).catch(() => {});
+    };
+    return (
+        <button className="ai-code-action-btn" onClick={copiar} title="Copy the query">
+            {copiado ? <LuCheck size={12} /> : <LuCopy size={12} />} {copiado ? 'Copied' : 'Copy'}
+        </button>
+    );
+}
+
 // Pull the raw text out of a <code> element's children (string or nested nodes).
 function codeText(node) {
     if (typeof node === 'string') return node;
@@ -60,24 +79,11 @@ export function makeMdComponents(setCiteQueryId, sqlActionsRef) {
             const actions = sqlActionsRef?.current || {};
             const isSql = lang === 'sql';
             const sql = isSql ? codeText(codeEl?.props?.children).trim() : '';
-            const showBar = isSql && sql && (actions.onApplyToFile || actions.onRunSql);
+            const showBar = isSql && sql && (actions.onInsertar || actions.onRunSql || actions.enChat);
             return (
                 <div className={showBar ? 'ai-msg-code-wrap' : undefined}>
                     <pre className="ai-msg-code-block" {...props}>{children}</pre>
-                    {showBar && (
-                        <div className="ai-msg-code-actions">
-                            {actions.onApplyToFile && (
-                                <button className="ai-code-action-btn" onClick={() => actions.onApplyToFile(sql)} title="Reemplazar el contenido del editor con esta consulta">
-                                    <LuFileInput size={12} /> Aplicar al editor
-                                </button>
-                            )}
-                            {actions.onRunSql && (
-                                <button className="ai-code-action-btn" onClick={() => actions.onRunSql(sql)} title="Ejecutar esta consulta">
-                                    <LuPlay size={12} /> Run
-                                </button>
-                            )}
-                        </div>
-                    )}
+                    {showBar && <BarraDeSql sql={sql} actions={actions} />}
                 </div>
             );
         },
@@ -190,7 +196,7 @@ export function QueryAuditModal({ queryId, onClose }) {
 /**
  * NarrativeCard — renders a structured final_answer with tldr/findings/cause/actions/caveats.
  */
-export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
+export function NarrativeCard({ result, onFollowUp, onAskAbout, onVerConsulta }) {
     const { tldr, findings, likely_cause, suggested_actions, caveats, followup_questions } = result;
     // Findings are the payload of the analysis — show them expanded by default.
     // Collapsing them behind "Show summary" made Deep Dive answers look empty.
@@ -200,7 +206,8 @@ export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
     // Caveats render outside the collapse (always visible), so they don't count here.
     const hasDetails = findings?.length > 0 || !!likely_cause || suggested_actions?.length > 0;
 
-    const openAudit = useCallback((qid) => setAuditQueryId(qid), []);
+    // Deep Dive opens the source query in its "How I got this" panel; elsewhere, a modal.
+    const openAudit = useCallback((qid) => (onVerConsulta ? onVerConsulta(qid) : setAuditQueryId(qid)), [onVerConsulta]);
     const closeAudit = useCallback(() => setAuditQueryId(null), []);
 
     return (
@@ -249,7 +256,7 @@ export function NarrativeCard({ result, onFollowUp, onAskAbout }) {
                                         {f.source_query_id && (
                                             <button
                                                 className="ai-narrative-audit-btn"
-                                                title="Ver consulta fuente"
+                                                title="See the query behind this number"
                                                 onClick={() => openAudit(f.source_query_id)}
                                             >
                                                 <LuSearch size={10} />
@@ -419,8 +426,8 @@ const ThinkingBlock = ({ content, isStreaming, durationMs }) => {
     }, [isStreaming]);
 
     const label = isStreaming
-        ? 'Razonando…'
-        : (durationMs ? `Thought for ${(durationMs / 1000).toFixed(1)}s` : 'Razonamiento');
+        ? 'Reasoning…'
+        : (durationMs ? `Thought for ${(durationMs / 1000).toFixed(1)}s` : 'Reasoning');
 
     return (
         <div className="ai-msg-thinking">
@@ -492,7 +499,39 @@ function extractCitations(toolCalls) {
  * User messages render as right-aligned bubbles, assistant messages as
  * left-aligned cards with avatar and grouped content sections.
  */
-const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, thinkingMs, onRunSql, onApplyToFile, onAppendToFile, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, pendingEdits, acceptEdit, rejectEdit, currentFileContent, activityOnly = false }) => {
+/**
+ * Las acciones de un bloque SQL de la prosa: Insert at cursor, Copy y Run. En el
+ * Assistant, Run corre aquí y el resultado sale debajo, con «Open in editor»
+ * (E6/A7); en Deep Dive sigue abriendo una pestaña.
+ */
+function BarraDeSql({ sql, actions }) {
+    const consulta = useConsultaEnChat();
+    return (
+        <>
+            <div className="ai-msg-code-actions">
+                {/* Insert, never replace the whole file (A2): at the cursor, or over the selection. */}
+                {actions.onInsertar && (
+                    <button className="ai-code-action-btn" onClick={() => actions.onInsertar(sql)} title="Insert at the cursor, or replace the selected text (Ctrl+Z undoes it)">
+                        <LuFileInput size={12} /> Insert at cursor
+                    </button>
+                )}
+                <BotonCopiar texto={sql} />
+                {(actions.enChat || actions.onRunSql) && (
+                    <button className="ai-code-action-btn" onClick={() => (actions.enChat ? consulta.correr(sql) : actions.onRunSql(sql))}
+                        title={actions.enChat ? 'Run it here, in the chat' : 'Run this query'}>
+                        <LuPlay size={12} /> Run
+                    </button>
+                )}
+            </div>
+            {actions.enChat && (
+                <ResultadoEnChat estado={consulta.estado} onCerrar={consulta.cerrar}
+                    onAbrirEnEditor={actions.onRunSql ? () => actions.onRunSql(sql) : null} />
+            )}
+        </>
+    );
+}
+
+const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, thinkingMs, onRunSql, onInsertar, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, acceptEdit, rejectEdit, onProponerDeNuevo, onRevisar, currentFileContent, activityOnly = false, destinoGrafico = null }) => {
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
@@ -514,9 +553,12 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     // Kept in a ref so mdComponents stays memo-stable while always current.
     const sqlActionsRef = useRef({});
     sqlActionsRef.current = {
-        onApplyToFile: !isDiving ? onApplyToFile : undefined,
+        onInsertar: !isDiving ? onInsertar : undefined,
         onRunSql: onRunSql,
+        // E6/A7: in the Assistant, Run runs in the chat.
+        enChat: !isDiving,
     };
+    const [verTrabajo, setVerTrabajo] = useState(false);
 
     // Stable markdown renderers (setCiteQueryId is a stable setter). A fresh
     // components object per render would defeat the memoized markdown chunks.
@@ -532,17 +574,21 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     // Chart visualizations from display_chart tool calls
     const chartCalls = toolCalls?.filter(tc => tc.toolName === 'display_chart') || [];
 
-    // edit_file tool calls — shown as accept/reject proposals (assistant mode only)
-    const editFileCalls = !isDiving ? (toolCalls?.filter(tc => tc.toolName === 'edit_file') || []) : [];
+    // Proposals of the Assistant (write_file, propose_file), shown with their
+    // state: pending, applied, rejected, outdated (plan del Assistant, E1/A1).
+    const propuestas = !isDiving ? (toolCalls?.filter(esPropuesta) || []) : [];
 
     // final_answer structured results — rendered as NarrativeCard when structured fields are present
     const narrativeCalls = toolCalls?.filter(tc =>
         tc.toolName === 'final_answer' && tc.result && (tc.result.tldr || tc.result.findings?.length)
     ) || [];
 
-    // Other tool calls (list_tables, describe_table, read_file) — exclude edit_file and final_answer (handled separately)
+    // Other tool calls (list_tables, describe_table, read_file) — proposals and
+    // final_answer are drawn separately. A proposal that failed (a file that
+    // already exists) stays here, as the error it is.
     const otherCalls = toolCalls?.filter(tc =>
-        tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart' && tc.toolName !== 'build_notebook' && tc.toolName !== 'edit_file' && tc.toolName !== 'final_answer'
+        tc.toolName !== 'execute_sql' && tc.toolName !== 'suggest_followups' && tc.toolName !== 'display_chart' && tc.toolName !== 'build_notebook' && tc.toolName !== 'final_answer'
+        && !(!isDiving && esPropuesta(tc))
     ) || [];
 
     // Notebook creation results
@@ -565,16 +611,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
         );
     }
 
-    // --- Assistant message: left-aligned card with avatar ---
-    return (
-        <div className="ai-msg ai-msg--assistant">
-            <div className="ai-msg-avatar">
-                <LuBot size={14} />
-            </div>
-
-            <div className="ai-msg-body">
-                <span className="ai-msg-role">AmoxSQL AI</span>
-
+    const bloqueOtros = (<>
                 {/* Other tool calls (shown before text) */}
                 {otherCalls.length > 0 && (
                     <div className="ai-msg-tools">
@@ -589,35 +626,23 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         ))}
                     </div>
                 )}
-
-                {/* edit_file proposals: Accept/Reject diff view */}
-                {editFileCalls.length > 0 && editFileCalls.map((tc, i) => {
-                    const isPending = pendingEdits && tc.result?.action === 'edit_file' && pendingEdits[tc.toolCallId || `edit_${i}`];
-                    if (isPending) {
-                        return (
-                            <EditProposalBlock
-                                key={i}
-                                currentContent={currentFileContent || ''}
-                                proposedContent={tc.result?.content || ''}
-                                description={tc.result?.description}
-                                onAccept={() => acceptEdit(tc.toolCallId || `edit_${i}`)}
-                                onReject={() => rejectEdit(tc.toolCallId || `edit_${i}`)}
-                            />
-                        );
-                    }
-                    // Already accepted or rejected — show compact status
-                    return (
-                        <div key={i} className="ai-msg-tools">
-                            <ToolCallBlock
-                                toolName="edit_file"
-                                args={tc.args}
-                                result={tc.result}
-                                isLoading={false}
-                            />
-                        </div>
-                    );
-                })}
-
+    </>);
+    const bloquePropuestas = (<>
+                {/* Proposals: a change to this file or a new file, each with its state */}
+                {propuestas.map((tc, i) => (
+                    <PropuestaBlock
+                        key={tc.toolCallId || `propuesta_${i}`}
+                        tc={tc}
+                        contenidoActual={currentFileContent}
+                        enCurso={isStreaming}
+                        onAccept={acceptEdit}
+                        onReject={rejectEdit}
+                        onProponerDeNuevo={onProponerDeNuevo}
+                        onRevisar={onRevisar}
+                    />
+                ))}
+    </>);
+    const bloqueSql = (<>
                 {/* SQL blocks */}
                 {sqlCalls.length > 0 && (
                     <div className="ai-msg-tools">
@@ -626,9 +651,9 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                 <SqlBlock
                                     sql={tc.args?.query || ''}
                                     onRun={onRunSql}
-                                    onApplyToFile={!isDiving ? onApplyToFile : undefined}
-                                    onAppendToFile={!isDiving ? onAppendToFile : undefined}
+                                    onInsert={!isDiving ? onInsertar : undefined}
                                     defaultExpanded={sqlCalls.length <= 2}
+                                    enChat={!isDiving}
                                 />
                                 {tc.result && !tc.result.error && tc.result.rowCount !== undefined && (
                                     <div className="ai-msg-sql-result ai-msg-sql-result--success">
@@ -697,7 +722,8 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         ))}
                     </div>
                 )}
-
+    </>);
+    const bloqueTexto = (<>
                 {/* Text content (markdown) — with thinking block support.
                     Closed parts render through memoized chunks (parse once);
                     while streaming, only the growing tail re-parses per flush. */}
@@ -725,6 +751,34 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         </div>
                     );
                 })()}
+    </>);
+
+    // --- Assistant message: left-aligned card with avatar ---
+    return (
+        <div className="ai-msg ai-msg--assistant">
+            <div className="ai-msg-avatar">
+                <LuBot size={14} />
+            </div>
+
+            <div className="ai-msg-body">
+                <span className="ai-msg-role">AmoxSQL AI</span>
+
+                {isDiving && bloqueOtros}
+                {isDiving && bloquePropuestas}
+                {isDiving && bloqueSql}
+                {bloqueTexto}
+                {/* E6/A5: in the Assistant the answer comes first; then what to decide
+                    (the proposals), and the work folded in one line. */}
+                {!isDiving && bloquePropuestas}
+                {!isDiving && (otherCalls.length > 0 || sqlCalls.length > 0) && (
+                    <div className="ai-msg-trabajo">
+                        <button type="button" className="ai-msg-trabajo-linea" onClick={() => setVerTrabajo(v => !v)} aria-expanded={verTrabajo}>
+                            {verTrabajo ? <LuChevronDown size={11} /> : <LuChevronRight size={11} />}
+                            <span>{resumenDelTrabajo(toolCalls) || 'Work'}</span>
+                        </button>
+                        {verTrabajo && <>{bloqueOtros}{bloqueSql}</>}
+                    </div>
+                )}
 
                 {/* Citations — tables referenced in this response */}
                 {citations.length > 0 && (
@@ -799,6 +853,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                         onExportNotebook={onExportNotebook}
                                         onExportAmoxvis={onExportAmoxvis}
                                         onApplyChart={!isDiving ? onApplyChart : undefined}
+                                        destinoGrafico={destinoGrafico}
                                     />
                                 )}
                             </div>
@@ -833,7 +888,8 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     );
 };
 
-// Memoize: re-render only when actual message content or pendingEdits change.
+// Memoize: re-render only when the message, its tool calls (a proposal's state
+// lives there) or the file it compares against change.
 // Callbacks from parent may be recreated on every render (input keystrokes etc),
 // but they are functionally identical so we intentionally ignore them in the compare.
 export default memo(ChatMessage, (prev, next) => (
@@ -844,6 +900,6 @@ export default memo(ChatMessage, (prev, next) => (
     prev.thinkingMs === next.thinkingMs &&
     prev.isDiving === next.isDiving &&
     prev.allMessages === next.allMessages &&
-    prev.pendingEdits === next.pendingEdits &&
+    prev.onInsertar === next.onInsertar &&
     prev.currentFileContent === next.currentFileContent
 ));

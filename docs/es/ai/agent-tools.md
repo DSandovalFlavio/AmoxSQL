@@ -46,7 +46,9 @@ No invocas las herramientas directamente — el agente las elige. Pero puedes:
 |---|---|
 | `display_chart` | Genera un gráfico totalmente configurado (overlays, storytelling, razonamiento de color); linters del servidor corrigen elecciones malas. Además de los tipos de Story Flow puede entregar un **Vega-Lite** completo (`vega_lite`), que el servidor compila antes de aceptarlo: si no compila o usa una columna que no existe, el error vuelve al modelo para que lo corrija |
 | `build_notebook` | Construye un notebook `.sqlnb` con celdas y gráficos (Deep Dive) |
-| `write_file` | Propone una edición del archivo activo o escribe/anexa un archivo (Asistente) |
+| `write_file` | Propone una versión nueva del archivo activo, que aceptas o rechazas; no escribe en disco. No se ofrece en gráficos, Data Flow, Canvas ni diagramas (Asistente) |
+| `propose_change` | Propone reemplazar unas líneas del archivo activo (`.sql`, texto, Markdown) o, en un notebook, cambiar una celda o añadir una; en un deck, una lámina; en un gráfico, sus paneles; en Data Flow, sus pasos; en un Canvas, una tarjeta; un diagrama, como grafo; se revisa donde vive y no escribe en disco (Asistente) |
+| `propose_file` | Propone un archivo nuevo; se crea solo si pulsas **Create** y nunca sobrescribe uno (Asistente) |
 
 ### Herramientas de control
 
@@ -64,7 +66,7 @@ No invocas las herramientas directamente — el agente las elige. Pero puedes:
 | Tope de filas + timeout en `execute_sql` | Congelar el motor con un `SELECT *` gigante |
 | Aviso de *join fan-out* | Confiar en filas infladas por claves no únicas |
 | Linters de `display_chart` | Líneas con 2 puntos, arcoíris de barras, rojo en métricas neutras, donuts con >7 rebanadas |
-| Bloqueo de rutas en `read_file`/`write_file` | Leer o escribir fuera del proyecto |
+| Bloqueo de rutas en `read_file`/`propose_file` | Leer o escribir fuera del proyecto |
 
 ## Tips y gemas
 
@@ -72,7 +74,7 @@ No invocas las herramientas directamente — el agente las elige. Pero puedes:
 - **`display_chart` piensa como periodista de datos:** elige el tipo por el mensaje y la forma del dato, no por el tipo de columna.
 - **`validate_sql` no toca los datos:** solo planifica, ideal antes de una query pesada.
 - **El *join-fanout* es tu amigo:** si aparece, añade `DISTINCT` o `GROUP BY` — el JOIN produjo más filas de las esperadas.
-- **`write_file` en modo overwrite no guarda en disco:** carga la propuesta en el editor para que revises.
+- **Nada de lo que propone el Asistente se escribe solo:** `write_file` y `propose_file` esperan a que aceptes.
 
 ## Relacionado
 

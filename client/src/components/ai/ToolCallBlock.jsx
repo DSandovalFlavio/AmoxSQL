@@ -9,13 +9,36 @@ const TOOL_ICONS = {
     suggest_followups: LuMessageSquare,
 };
 
+// [mientras corre, cuando terminó]: con una sola forma, un gráfico ya dibujado
+// seguía diciendo «Building chart».
 const TOOL_LABELS = {
-    execute_sql: 'Running SQL',
-    list_tables: 'Listing tables',
-    describe_table: 'Describing table',
-    display_chart: 'Building chart',
-    suggest_followups: 'Suggesting questions',
+    execute_sql: ['Running a query', 'Ran a query'],
+    list_tables: ['Listing tables', 'Listed the tables'],
+    describe_table: ['Reading the table structure', 'Read the table structure'],
+    display_chart: ['Drawing a chart', 'Drew a chart'],
+    suggest_followups: ['Suggesting questions', 'Suggested questions'],
+    profile_data: ['Profiling the data', 'Profiled the data'],
+    build_notebook: ['Writing a notebook', 'Wrote a notebook'],
+    save_to_vault: ['Saving the analysis', 'Saved the analysis'],
+    lookup_duckdb_docs: ['Checking the SQL reference', 'Checked the SQL reference'],
+    ask_user: ['Asking you a question', 'Asked you a question'],
+    // Only when they fail (a file that already exists): a proposal that worked is
+    // drawn by PropuestaBlock with its state.
+    write_file: ['Proposing a change', 'Could not propose a change'],
+    propose_file: ['Proposing a file', 'Could not propose the file'],
 };
+
+// Una herramienta sin etiqueta no enseña su nombre interno tal cual (`profile_data`).
+const legible = (nombre) => {
+    const t = String(nombre || '').replace(/_/g, ' ').trim();
+    return t ? t[0].toUpperCase() + t.slice(1) : 'Working';
+};
+
+/** What a tool is doing (or did), in words. Also Deep Dive's live status line. */
+export function etiquetaHerramienta(nombre, cargando) {
+    const [haciendo, hecho] = TOOL_LABELS[nombre] || [legible(nombre), legible(nombre)];
+    return cargando ? haciendo : hecho;
+}
 
 /**
  * ToolCallBlock — Collapsible indicator for a tool call in the agent loop.
@@ -24,7 +47,8 @@ const TOOL_LABELS = {
 const ToolCallBlock = ({ toolName, args, result, isLoading = false }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const Icon = TOOL_ICONS[toolName] || LuDatabase;
-    const label = TOOL_LABELS[toolName] || toolName;
+    const [haciendo, hecho] = TOOL_LABELS[toolName] || [legible(toolName), legible(toolName)];
+    const label = isLoading ? haciendo : hecho;
     const hasError = result?.error;
 
     const stateClass = isLoading
@@ -54,7 +78,7 @@ const ToolCallBlock = ({ toolName, args, result, isLoading = false }) => {
                 <Icon size={13} className="ai-tool-type-icon" />
 
                 <span className="ai-tool-label">
-                    {isLoading ? `${label}...` : label}
+                    {isLoading ? `${label}…` : label}
                 </span>
 
                 {toolName === 'execute_sql' && result?.rowCount !== undefined && !hasError && (

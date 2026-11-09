@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useEscape } from '../hooks/useEscape';
 
 const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = false }) => {
+    useEscape(onClose, isOpen);
     const [tableName, setTableName] = useState('');
     const [targetSchema, setTargetSchema] = useState('');
     const [cleanColumns, setCleanColumns] = useState(true);

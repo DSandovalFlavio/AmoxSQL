@@ -13,10 +13,14 @@ function toolCallsToMarkdown(toolCalls) {
             }
         } else if (tc.toolName === 'display_chart') {
             lines.push(`\n> 📊 **Chart**: ${tc.result?.chartConfig?.title || tc.args?.title || 'Chart'} (${tc.args?.chart_type})`);
-        } else if (tc.toolName === 'edit_file') {
-            lines.push(`\n> ✏️ **File updated**: ${tc.result?.description || ''}`);
-        } else if (tc.toolName === 'update_chart_config') {
-            lines.push(`\n> 🎨 **Chart config updated**: ${tc.result?.explanation || ''}`);
+        } else if (tc.toolName === 'write_file' || tc.toolName === 'edit_file' || tc.toolName === 'propose_file') {
+            // What the user decided, not just that something was proposed.
+            const nuevo = tc.result?.action === 'propose_file';
+            const que = nuevo ? `New file \`${tc.result?.path || ''}\`` : 'Change to the file';
+            const estado = tc.result?.error ? 'failed'
+                : tc.estado === 'aplicada' ? (nuevo ? 'created' : 'applied')
+                : tc.estado === 'rechazada' ? 'rejected' : 'proposed';
+            lines.push(`\n> ✏️ **${que}** (${estado})${tc.result?.description ? `: ${tc.result.description}` : ''}`);
         } else if (tc.toolName === 'build_notebook') {
             lines.push(`\n> 📓 **Notebook created**: ${tc.result?.fileName || ''}`);
         } else if (tc.toolName === 'suggest_followups') {

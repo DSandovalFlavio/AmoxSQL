@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LuCheck, LuLoader, LuPlay, LuRepeat, LuSquare, LuX } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
+import { useEscape } from '../../hooks/useEscape';
 
 const ident = (s) => `"${String(s).replace(/"/g, '""')}"`;
 
@@ -27,6 +28,7 @@ const ChainLote = ({ chainDefinition, chainFile, onClose }) => {
     const [runs, setRuns] = useState(null);         // [{ valor, estado, error }]
     const [resumen, setResumen] = useState(null);
     const corriendo = runs && !resumen;
+    useEscape(onClose, !corriendo);
     const abortar = useRef(null);
 
     // A list parameter starts with its options.

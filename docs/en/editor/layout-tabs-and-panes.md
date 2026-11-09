@@ -36,7 +36,13 @@ Drag a tab to reorder it within its pane or move it to the other. As you drag, h
 <!-- 📷 CAPTURE: docs/images/editor/drag-drop-zones.png — drop-zone overlay while dragging a tab between panes -->
 
 ### Pop the results out into a separate window
-The results panel can **open in its own window** (pop-out) so you can keep it on another screen or beside the editor. The window updates itself as the results change. See [Results table](../results/results-table.md).
+The results panel can **open in its own window** (pop-out) so you can keep it on another screen or beside the editor. The window **belongs to its tab**: only a new run of that tab updates it, and you can have one per tab to compare. Meanwhile the panel collapses to one line and the code gets the room. **Bring back**, or closing the window, returns the table. With **Pin**, the window keeps its results and tells you when newer ones exist. See [Results table](../results/results-table.md).
+
+### Each tab remembers its own
+Switch tabs and come back: everything stays put — the results height, the table's sort, filters, page and scroll, the **Ctrl+Z** history, the selection and the open variables. A new tab starts with the last height you chose, and from there it's its own. In a split, the results link moves the two visible tabs together.
+
+### Several queries at once
+Queries run one at a time because they share the database session (temporary views, variables and macros). If you run in another tab while one is running, it **waits** and says for which; it starts on its own when the other ends. Each tab shows its indicator, and a dot tells you it finished while you were elsewhere. **Stop** and **Esc** cancel only the query of the tab you're on.
 
 ### Recovery after an unexpected close
 As you edit, AmoxSQL saves a local draft of the content. If you reopen a file and there's a draft with unsaved changes, a notice appears with a **Recover** button to restore them; otherwise it's discarded.

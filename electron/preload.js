@@ -4,8 +4,22 @@ const { contextBridge, ipcRenderer, webFrame } = require('electron');
 // Falls back to 3001 if running outside Electron (e.g. Vite dev server).
 const serverPort = ipcRenderer.sendSync('server:get-port');
 
+// macOS: los botones nativos no cambian con el zoom de la interfaz, pero el hueco
+// que les deja la barra sí. El CSS lo compensa con esta variable.
+const enMac = process.platform === 'darwin';
+const marcarZoom = (factor) => {
+    if (enMac) document.documentElement?.style.setProperty('--zoom-ventana', String(factor));
+};
+if (enMac) {
+    ipcRenderer.on('zoom:changed', (_event, factor) => marcarZoom(factor));
+    ipcRenderer.on('ventana:pantalla-completa', (_event, activa) => {
+        document.documentElement?.toggleAttribute('data-pantalla-completa', activa);
+    });
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
     serverPort,
+    platform: process.platform,
     selectFolder: () => ipcRenderer.invoke('dialog:selectFolder'),
     openFileDialog: (opts) => ipcRenderer.invoke('dialog:openFile', opts),
     saveFileDialog: (opts) => ipcRenderer.invoke('dialog:saveFile', opts),
@@ -36,7 +50,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     // UI Zoom
     zoom: {
-        setFactor: (factor) => webFrame.setZoomFactor(factor),
+        setFactor: (factor) => {
+            webFrame.setZoomFactor(factor);
+            marcarZoom(factor);
+        },
         getFactor: () => webFrame.getZoomFactor(),
         onChanged: (callback) => {
             const handler = (_event, factor) => callback(factor);
@@ -46,9 +63,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     // Pop-out Results Window
     openPopout: (data) => ipcRenderer.invoke('popout:open', data),
+    updatePopout: (data) => ipcRenderer.invoke('popout:update', data),
+    focusPopout: (tabId) => ipcRenderer.invoke('popout:focus', tabId),
+    closePopout: (tabId) => ipcRenderer.invoke('popout:close', tabId),
+    closeAllPopouts: () => ipcRenderer.invoke('popout:closeAll'),
     onPopoutClosed: (callback) => {
-        ipcRenderer.on('popout:closed', callback);
-        return () => ipcRenderer.removeListener('popout:closed', callback);
+        const handler = (_event, tabId) => callback(tabId);
+        ipcRenderer.on('popout:closed', handler);
+        return () => ipcRenderer.removeListener('popout:closed', handler);
     },
     // Child window: receive popout data
     onPopoutData: (callback) => {
@@ -67,6 +89,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const factor = parseFloat(saved);
             if (factor >= 0.5 && factor <= 2.0) {
                 webFrame.setZoomFactor(factor);
+                marcarZoom(factor);
             }
         }
     } catch (e) { /* ignore */ }

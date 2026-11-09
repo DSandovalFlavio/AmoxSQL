@@ -50,7 +50,7 @@ Mientras escribes, el editor sugiere tablas, columnas y funciones de DuckDB seg�
 Cada definición `nombre AS (` muestra un glifo ▶ en el margen: haz clic para ejecutar la query truncada hasta esa CTE y ver su resultado intermedio. Ver [Depurar CTEs](cte-debugging.md).
 
 ### Formatear SQL
-Presiona **Ctrl+K** (o **Shift+Alt+F**) para formatear la selección o todo el documento. El estilo (ancho de tabulación, mayúsculas de keywords, líneas entre queries) se configura en Ajustes → Editor.
+Presiona **Shift+Alt+F** para formatear la selección o todo el documento. El estilo (ancho de tabulación, mayúsculas de keywords, líneas entre queries) se configura en Ajustes → Editor.
 
 ### Buscar y reemplazar
 **Ctrl+F** abre buscar; **Ctrl+H** abre buscar y reemplazar dentro del editor.
@@ -90,7 +90,7 @@ El estado de vista (cursor y scroll) se recuerda por pestaña, así que cambiar 
 | Ctrl+Enter · F5 | Ejecutar (selección o todo) |
 | Ctrl+S · Ctrl+Shift+S | Guardar · Guardar como |
 | Ctrl+Shift+A | Analizar plan |
-| Ctrl+K · Shift+Alt+F | Formatear SQL |
+| Shift+Alt+F | Formatear SQL |
 | Ctrl+F · Ctrl+H | Buscar · Buscar y reemplazar |
 | Ctrl+Shift+H | Historial de consultas |
 | Ctrl+/ · Ctrl+D · Ctrl+Shift+K | Comentar · duplicar línea · borrar línea |

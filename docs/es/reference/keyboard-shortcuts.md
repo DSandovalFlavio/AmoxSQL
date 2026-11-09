@@ -12,62 +12,86 @@ AmoxSQL está pensado para operarse con el teclado. Esta página lista todos los
 
 | Atajo | Acción |
 |---|---|
-| Ctrl + Shift + P | Paleta de comandos |
-| Ctrl + , | Abrir Ajustes |
-| Ctrl + S | Guardar archivo |
+| Ctrl + K | Paleta de comandos |
+| Ctrl + P | Saltar a un archivo, tabla o columna |
+| Ctrl + Shift + P | Paleta de comandos (alias) |
+| Ctrl + , | Ajustes |
+| Ctrl + Shift + / | Esta lista |
+
+## Archivos
+
+| Atajo | Acción |
+|---|---|
+| Ctrl + S | Guardar |
 | Ctrl + Shift + S | Guardar como… |
-| Ctrl + N | Nuevo archivo SQL |
-| Ctrl + Shift + N | Nuevo Notebook |
-| Ctrl + W | Cerrar pestaña actual |
-| Ctrl + Shift + / | Atajos de teclado |
+| Ctrl + N | Nueva consulta SQL |
+| Ctrl + Shift + N | Nuevo cuaderno |
+| Ctrl + Shift + F | Buscar en todo el proyecto |
 
-## Ejecución de consultas
-
-| Atajo | Acción |
-|---|---|
-| Ctrl + Enter | Ejecutar consulta / Ejecutar celda |
-| F5 | Ejecutar consulta (alias) |
-| Ctrl + Shift + A | Analizar plan de consulta (EXPLAIN) |
-| Ctrl + Shift + Enter | Ejecutar todas las celdas (Notebooks) |
-
-## Navegación
+## Consultas
 
 | Atajo | Acción |
 |---|---|
-| Ctrl + Tab | Pestaña siguiente |
-| Ctrl + Shift + Tab | Pestaña anterior |
-| Ctrl + B | Alternar barra lateral |
-| Ctrl + L | Alternar Asistente |
-| Ctrl + Shift + E | Enfocar el explorador de archivos |
-| Ctrl + Shift + D | Enfocar el explorador de base de datos |
+| Ctrl + Enter | Ejecutar (la selección, o todo el script) |
+| F5 | Ejecutar |
+| Ctrl + Alt + Enter | Ejecutar solo la sentencia bajo el cursor |
+| Esc | Detener la consulta de esta pestaña (si no hay nada más abierto) |
+| Ctrl + Shift + A | Analizar el plan de ejecución |
+| Ctrl + E | Analizar el plan de ejecución (alias) |
+| Ctrl + Shift + H | Historial de consultas |
+| Ctrl + Shift + R | Ejecutar los dos paneles |
+| Ctrl + Shift + Enter | Ejecutar todas las celdas |
+
+## Pestañas
+
+| Atajo | Acción |
+|---|---|
+| Ctrl + W | Cerrar la pestaña |
+| Ctrl + Shift + T | Reabrir la última que cerraste |
+| Alt + P | Fijar o soltar la pestaña |
+| Ctrl + Tab | Ir a la usada más recientemente |
+| Ctrl + Shift + Tab | Al revés |
+| Alt + Left | Atrás por las pestañas visitadas |
+| Alt + Right | Adelante por las pestañas visitadas |
+| Ctrl + \\ | Dividir la pantalla en dos |
+| Ctrl + Shift + \\ | Duplicar la pestaña al otro panel |
+
+## Paneles
+
+| Atajo | Acción |
+|---|---|
+| Ctrl + B | Mostrar u ocultar la barra lateral |
+| Ctrl + L | Mostrar u ocultar Assist; con texto seleccionado, preguntar por él |
+| Ctrl + Shift + E | Ir al explorador de archivos |
+| Ctrl + Shift + D | Ir al esquema de la base de datos |
 
 ## Editor
 
 | Atajo | Acción |
 |---|---|
-| Ctrl + / | Alternar comentario de línea |
-| Ctrl + D | Duplicar selección / línea |
-| Ctrl + Shift + K | Borrar línea |
-| Ctrl + F | Buscar en el editor |
+| Ctrl + F | Buscar |
 | Ctrl + H | Buscar y reemplazar |
-| Ctrl + K | Formatear SQL (embellecer) |
-| Ctrl + Shift + F | Formatear SQL (alternativo) |
-| Ctrl + Z | Deshacer |
+| Shift + Alt + F | Formatear el SQL |
+| Ctrl + / | Comentar o descomentar la línea |
+| Ctrl + D | Seleccionar la siguiente coincidencia (varios cursores) |
+| Shift + Alt + Down | Duplicar la línea |
+| Alt + Up | Subir la línea (Alt+Abajo, bajarla) |
+| Ctrl + Shift + K | Borrar la línea |
+| Ctrl + Z | Deshacer (cada pestaña guarda su historia) |
 | Ctrl + Shift + Z | Rehacer |
-| Ctrl + A | Seleccionar todo |
 
 ## Vista
 
 | Atajo | Acción |
 |---|---|
-| Ctrl + = | Acercar (zoom in) |
-| Ctrl + - | Alejar (zoom out) |
-| Ctrl + 0 | Restablecer zoom |
-| Escape | Cerrar modales / salir de vista completa |
+| Ctrl + = | Acercar |
+| Ctrl + - | Alejar |
+| Ctrl + 0 | Restablecer el zoom |
+| Escape | Cerrar el diálogo de encima |
 
 ## Tips y gemas
 
-- **La paleta de comandos manda:** **Ctrl+Shift+P** abre acciones rápidas buscables — el atajo que recordar cuando no recuerdas los demás.
+- **La paleta de comandos manda:** **Ctrl+K** abre acciones rápidas buscables — el atajo que recordar cuando no recuerdas los demás.
 - **Selección = ejecución parcial:** con texto seleccionado, **Ctrl+Enter** ejecuta solo esa selección.
 - **Zoom global:** **Ctrl +/-/0** escala toda la interfaz, no solo el editor.
 - **La referencia siempre está a mano:** **Ctrl+Shift+/** abre este mismo listado dentro de la app.

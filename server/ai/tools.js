@@ -32,6 +32,7 @@ const TOOL_ROW_LIMIT = 500;
  * @param {string} [context.conversationId] - Active conversation ID
  * @param {object} [context.aiPersistence] - Persistence layer for query_cache writes
  * @param {object} [context.activePlan] - Shared mutable plan ref (planner tools)
+ * @param {object} [context.archivo] - The active file as prepared by archivoActivo (assistant): decides whether write_file is offered
  * @param {boolean} [context.enablePlanner=false] - Enable create_plan/update_plan (analysis-planning skill only)
  * @returns {object} Tools object for Vercel AI SDK
  */
@@ -39,6 +40,7 @@ function createTools(context) {
     const {
         dbManager, queryResults, projectPath, mode = 'diving',
         conversationId = null, aiPersistence = null,
+        archivo = null,
         activePlan = null,
         enablePlanner = false,
     } = context;
@@ -1100,42 +1102,469 @@ function createTools(context) {
     // ─── Mode-specific tools ───────────────────────────────────────────────────
 
     if (mode === 'assistant') {
-        // write_file: replaces edit_file. 'overwrite' mode → editor update (no disk write).
-        // 'create' / 'append' → actual disk writes.
-        allTools.write_file = tool({
-            description: "Write content to a file. mode='overwrite' (default): replaces the active SQL file or notebook content in the editor without saving to disk — the user reviews and saves. mode='create': writes a new file to file_path. mode='append': appends content to an existing file.",
+        // Los modelos pequeños mandan a veces el objetivo de propose_change como un
+        // número suelto («"4"»), sin `kind` o con los números como texto (visto con
+        // un modelo local de 2B en E4). Se convierte antes de validar, en vez de
+        // devolverles un error de esquema que no saben leer. El JSON Schema que ve
+        // el modelo no cambia (el conversor usa el esquema de dentro).
+        const tolerante = ({ porNumero = null, porClave = [], numericos = [] }) => (v) => {
+            const esNumero = (x) => typeof x === 'number' || (typeof x === 'string' && /^\s*\d+\s*$/.test(x));
+            if (porNumero && esNumero(v)) return { kind: porNumero.kind, [porNumero.campo]: Number(v) };
+            if (!v || typeof v !== 'object' || Array.isArray(v)) return v;
+            const o = { ...v };
+            for (const k of numericos) if (typeof o[k] === 'string' && esNumero(o[k])) o[k] = Number(o[k]);
+            if (!o.kind) { const m = porClave.find(([campo]) => campo in o); if (m) o.kind = m[1]; }
+            return o;
+        };
+
+        // Nada de lo que propone el Assistant escribe en disco (plan del
+        // Assistant, E1/X1). Antes `write_file` tenía además los modos `create` y
+        // `append`, que escribían directamente —`create` pisaba un archivo que ya
+        // existiera— sin que el usuario viera nada.
+        //
+        // write_file: una versión nueva del archivo activo, para revisar en el
+        // chat. Solo se ofrece si el archivo admite propuestas: en los
+        // estructurados (gráfico, Data Flow, Canvas, diagrama) reescribir el
+        // fuente a mano lo rompe o no se ve, y si el modelo no ve el archivo
+        // entero (recortado o con partes retenidas) perdería lo que no ve.
+        // propose_change (E2): en los archivos que se cambian por líneas (.sql,
+        // texto), un RANGO en lugar del archivo entero. El modelo ve las líneas
+        // numeradas; aquí se comprueba que el rango exista y, si manda el texto que
+        // cree reemplazar, que coincida (o se busca dónde está). La respuesta lleva
+        // `original` y las líneas vecinas: el cliente ubica el cambio aunque el
+        // archivo se haya movido, y lo da por caducado si esa parte cambió.
+        if (archivo && archivo.porLineas && archivo.puedeProponer) {
+            allTools.propose_change = tool({
+                description: "Propose replacing a range of lines of the ACTIVE file. The user reviews it as a diff in their editor and accepts or rejects it; nothing is saved to disk. Use the line numbers shown in 'Current editor state'. Change only the lines the request needs. To insert without replacing anything, set end_line = start_line - 1 (the text goes before start_line); to add at the end, start_line = last line + 1.",
+                inputSchema: z.object({
+                    target: z.preprocess(tolerante({ porClave: [['start_line', 'lines']], numericos: ['start_line', 'end_line'] }), z.discriminatedUnion('kind', [
+                        z.object({
+                            kind: z.literal('lines'),
+                            start_line: z.number().int().min(1).describe('First line replaced (1-based).'),
+                            end_line: z.number().int().min(0).describe('Last line replaced, inclusive. start_line - 1 to insert without replacing.'),
+                            current_text: z.string().optional().describe('The exact current text of those lines (without line-number prefixes), to make sure the change lands in the right place.'),
+                        }),
+                    ])),
+                    new_text: z.string().describe('The new text for those lines, without line-number prefixes. Empty string deletes them.'),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ target, new_text: nuevo, summary = '' }) => {
+                    const lineas = String(archivo.contenido || '').split(/\r?\n/);
+                    const n = lineas.length;
+                    let desde = target.start_line;
+                    let hasta = target.end_line;
+                    if (desde > n + 1 || hasta < desde - 1 || hasta > n) {
+                        return { error: `The file has ${n} lines: start_line must be 1–${n + 1} and end_line between start_line - 1 and ${n}.` };
+                    }
+                    const sinPrefijo = (t) => String(t || '').replace(/\r/g, '').split('\n').map(l => l.replace(/^\s*\d+\s\|\s?/, ''));
+                    const igual = (a, b) => a.length === b.length && a.every((l, i) => l.trimEnd() === b[i].trimEnd());
+                    if (target.current_text !== undefined && target.current_text.trim()) {
+                        const buscado = sinPrefijo(target.current_text);
+                        if (!igual(lineas.slice(desde - 1, hasta), buscado)) {
+                            // El texto existe en otro sitio (números corridos): se corrige el rango si es único.
+                            const hallados = [];
+                            for (let i = 0; i + buscado.length <= n; i++) {
+                                if (igual(lineas.slice(i, i + buscado.length), buscado)) hallados.push(i);
+                            }
+                            if (hallados.length !== 1) {
+                                return { error: `Lines ${desde}–${hasta} are:\n${lineas.slice(desde - 1, hasta).join('\n') || '(nothing: it is an insertion point)'}\nThey don't match current_text${hallados.length > 1 ? ', which appears more than once' : ''}. Check the line numbers and call again.` };
+                            }
+                            desde = hallados[0] + 1;
+                            hasta = hallados[0] + buscado.length;
+                        }
+                    }
+                    const original = lineas.slice(desde - 1, hasta).join('\n');
+                    const contenido = sinPrefijo(nuevo).join('\n');
+                    if (contenido === original) return { error: 'new_text is the same as the current lines: there is nothing to change.' };
+                    return {
+                        success: true,
+                        action: 'propose_change',
+                        objetivo: { tipo: 'rango', desde, hasta },
+                        contenido,
+                        original,
+                        // Las líneas vecinas: con ellas se ubica una inserción (que no tiene `original`).
+                        ancla: { antes: desde > 1 ? lineas[desde - 2] : null, despues: hasta < n ? lineas[hasta] : null },
+                        resumen: summary,
+                    };
+                },
+            });
+        }
+
+        // propose_change por celdas (E3): un notebook se cambia celda a celda,
+        // nunca entero. El modelo señala la celda por su número; aquí se comprueba
+        // que exista y que sea del tipo que dice, y la respuesta lleva su nombre y
+        // su texto, con los que el editor la vuelve a encontrar aunque se haya
+        // movido, o da la propuesta por caducada si cambió.
+        if (archivo && archivo.porCeldas && archivo.puedeProponer) {
+            const celdas = archivo.celdas || [];
+            allTools.propose_change = tool({
+                description: "Propose ONE change to the ACTIVE notebook: replace the text of a cell (kind 'cell', with its number as shown in 'Current editor state') or add a new cell after one (kind 'new_cell', after_cell = its number, 0 for the top). The user reviews it on the cell and accepts or rejects it; nothing is saved to disk. For several cells, call it once per cell.",
+                inputSchema: z.object({
+                    target: z.preprocess(tolerante({ porNumero: { kind: 'cell', campo: 'cell' }, porClave: [['after_cell', 'new_cell'], ['cell', 'cell']], numericos: ['cell', 'after_cell'] }), z.discriminatedUnion('kind', [
+                        z.object({
+                            kind: z.literal('cell'),
+                            cell: z.number().int().min(1).describe('The number of the cell whose text changes.'),
+                        }),
+                        z.object({
+                            kind: z.literal('new_cell'),
+                            after_cell: z.number().int().min(0).describe('The new cell goes after this cell number (0 = at the top).'),
+                            cell_type: z.enum(['sql', 'text']),
+                            name: z.string().optional().describe('For a SQL cell: a short snake_case name, different from the other cells (it becomes the view other cells read).'),
+                        }),
+                    ])),
+                    new_text: z.string().describe('The full new text of that cell (SQL, or Markdown for a text cell), without fences or cell markers.'),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ target, new_text: nuevo, summary = '' }) => {
+                    const sinCerca = String(nuevo || '').replace(/\r/g, '').replace(/^\s*```(?:sql)?\s*\n/, '').replace(/\n\s*```\s*$/, '').trim();
+                    const lista = celdas.map(c => `${c.n} ${c.tipo === 'texto' ? 'text' : 'SQL'}${c.nombre ? ` ${c.nombre}` : ''}`).join(', ');
+                    if (target.kind === 'cell') {
+                        const c = celdas.find(x => x.n === target.cell);
+                        if (!c) return { error: `There is no cell ${target.cell}. The cells are: ${lista}.` };
+                        if (sinCerca === String(c.texto).trim()) return { error: 'new_text is the same as the cell: there is nothing to change.' };
+                        return {
+                            success: true, action: 'propose_change',
+                            objetivo: { tipo: 'celda', accion: 'cambiar', n: c.n, celdaTipo: c.tipo },
+                            contenido: sinCerca, original: c.texto, anclaNombre: c.nombre || null, resumen: summary,
+                        };
+                    }
+                    const tras = target.after_cell;
+                    if (tras > celdas.length) return { error: `There are ${celdas.length} cells: after_cell must be 0–${celdas.length}.` };
+                    const tipo = target.cell_type === 'text' ? 'texto' : 'sql';
+                    let nombre = null;
+                    if (tipo === 'sql' && target.name) {
+                        nombre = String(target.name).trim();
+                        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(nombre)) return { error: `"${nombre}" is not a valid cell name: use letters, digits and underscores, starting with a letter.` };
+                        if (celdas.some(c => String(c.nombre || '').toLowerCase() === nombre.toLowerCase())) return { error: `There is already a cell named ${nombre}. Pick another name.` };
+                    }
+                    if (!sinCerca) return { error: 'new_text is empty.' };
+                    const ancla = tras ? celdas.find(x => x.n === tras) : null;
+                    return {
+                        success: true, action: 'propose_change',
+                        objetivo: { tipo: 'celda', accion: 'despues_de', n: tras, celdaTipo: tipo, nombre },
+                        contenido: sinCerca, original: ancla ? ancla.texto : null, anclaNombre: ancla?.nombre || null, resumen: summary,
+                    };
+                },
+            });
+        }
+
+        // propose_change por láminas (E4): un deck se cambia lámina a lámina, nunca
+        // entero (R1). El modelo manda las PARTES de la lámina —diseño, texto,
+        // gráficos, notas— y el Studio la compone con su propio constructor, así
+        // las directivas que no ve (antetítulo, pie, tono) no se pierden. Aquí se
+        // comprueba que el diseño exista, que los gráficos que nombra existan y que
+        // el texto no parta la lámina en dos.
+        if (archivo && archivo.porLaminas && archivo.puedeProponer) {
+            const laminas = archivo.laminas || [];
+            const disenos = archivo.disenos || [];
+            allTools.propose_change = tool({
+                description: "Propose ONE change to the ACTIVE Report Flow deck: change a slide (kind 'slide', its number as shown in 'Current editor state') or add a new slide after one (kind 'new_slide', after_slide = its number, 0 for the start). Send the slide's parts: layout, text (its markdown, without charts or notes), charts (paths of .amoxvis files) and notes. A part you leave out stays as it is. The user reviews it on the slide and accepts or rejects it; nothing is saved to disk. For several slides, call it once per slide.",
+                inputSchema: z.object({
+                    target: z.preprocess(tolerante({ porNumero: { kind: 'slide', campo: 'slide' }, porClave: [['after_slide', 'new_slide'], ['slide', 'slide']], numericos: ['slide', 'after_slide'] }), z.discriminatedUnion('kind', [
+                        z.object({ kind: z.literal('slide'), slide: z.number().int().min(1).describe('The number of the slide that changes.') }),
+                        z.object({ kind: z.literal('new_slide'), after_slide: z.number().int().min(0).describe('The new slide goes after this slide number (0 = at the start).') }),
+                    ])),
+                    layout: z.string().optional().describe(`The slide's layout, one of: ${disenos.join(', ')}. Leave it out to keep the current one (a new slide defaults to content).`),
+                    text: z.string().optional().describe("The slide's markdown text: its heading (the claim) and body. No ```amoxchart or ```notes blocks and no --- lines (they would split the slide). Leave it out to keep the current text."),
+                    charts: z.array(z.string()).optional().describe('Paths of the .amoxvis charts on the slide, in order (project-relative). Leave it out to keep the current charts; [] removes them.'),
+                    notes: z.string().optional().describe('Speaker notes. Leave it out to keep the current ones.'),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ target, layout, text, charts, notes, summary = '' }) => {
+                    const lista = laminas.map(l => `${l.n} ${l.diseno}${l.titulo ? ` "${l.titulo}"` : ''}`).join(', ');
+                    if (layout !== undefined && !disenos.includes(layout)) {
+                        return { error: `"${layout}" is not a layout. Use one of: ${disenos.join(', ')}.` };
+                    }
+                    let prosa = text;
+                    if (prosa !== undefined) {
+                        prosa = String(prosa).replace(/\r/g, '').replace(/^\s*<!--\s*layout:\s*[\w-]+\s*-->\s*\n?/, '').trim();
+                        if (/```(amoxchart|notes)\b/.test(prosa)) return { error: 'Put charts in `charts` and speaker notes in `notes`, not as blocks inside `text`.' };
+                        let enCerca = false;
+                        for (const linea of prosa.split('\n')) {
+                            if (/^\s*(```|~~~)/.test(linea)) enCerca = !enCerca;
+                            if (!enCerca && linea.trim() === '---') return { error: 'A line with only --- splits the slide in two. Remove it (to add a slide, call propose_change again with kind new_slide).' };
+                        }
+                    }
+                    if (Array.isArray(charts) && projectPath) {
+                        const raiz = path.resolve(projectPath);
+                        const faltan = charts.filter(src => {
+                            const completo = path.resolve(raiz, String(src).replace(/^(\.\/|\/)/, ''));
+                            return !completo.startsWith(raiz + path.sep) || !/\.amoxvis$/i.test(completo) || !fs.existsSync(completo);
+                        });
+                        if (faltan.length) return { error: `These charts do not exist in the project: ${faltan.join(', ')}. Use the path of an existing .amoxvis (list them with read_file mode 'list').` };
+                    }
+                    const parte = {
+                        ...(layout !== undefined ? { diseno: layout } : {}),
+                        ...(prosa !== undefined ? { prosa } : {}),
+                        ...(Array.isArray(charts) ? { graficos: charts.map(String) } : {}),
+                        ...(notes !== undefined ? { notas: String(notes) } : {}),
+                    };
+                    if (target.kind === 'slide') {
+                        const l = laminas.find(x => x.n === target.slide);
+                        if (!l) return { error: `There is no slide ${target.slide}. The slides are: ${lista}.` };
+                        const igual = (parte.diseno === undefined || parte.diseno === l.diseno)
+                            && (parte.prosa === undefined || parte.prosa === String(l.prosa).trim())
+                            && (parte.graficos === undefined || JSON.stringify(parte.graficos) === JSON.stringify(l.graficos))
+                            && (parte.notas === undefined || parte.notas.trim() === String(l.notas).trim());
+                        if (igual) return { error: 'That is the slide as it already is: there is nothing to change.' };
+                        return {
+                            success: true, action: 'propose_change',
+                            objetivo: { tipo: 'lamina', accion: 'cambiar', n: l.n },
+                            lamina: parte, original: l.raw, resumen: summary,
+                        };
+                    }
+                    const tras = target.after_slide;
+                    if (tras > laminas.length) return { error: `There are ${laminas.length} slides: after_slide must be 0–${laminas.length}.` };
+                    if (!parte.prosa && !parte.graficos?.length) return { error: 'A new slide needs a text or a chart.' };
+                    const ancla = tras ? laminas.find(x => x.n === tras) : null;
+                    return {
+                        success: true, action: 'propose_change',
+                        objetivo: { tipo: 'lamina', accion: 'despues_de', n: tras },
+                        lamina: { diseno: 'content', ...parte }, original: ancla ? ancla.raw : null, resumen: summary,
+                    };
+                },
+            });
+        }
+
+        // propose_change por paneles (E4, V1): un gráfico se cambia por sus paneles
+        // —las mismas claves que guarda Story Flow—, nunca reescribiendo su JSON,
+        // que en modo interfaz se rehace al abrir. Se validan las claves, el tipo
+        // de valor, las columnas y que el tipo de gráfico dibuje ese panel (la tabla
+        // `capacidades` del cliente, que llega en la estructura). En la vista Code
+        // cabe además un Vega-Lite entero, compilado aquí como en display_chart.
+        if (archivo && archivo.porPaneles && archivo.puedeProponer) {
+            const g = archivo.grafico;
+            const claves = g.claves || {};
+            const columnas = (g.columnas || []).map(c => (typeof c === 'string' ? c : c.name));
+            const COMPUESTOS = { 'bar-stacked': { chartType: 'bar', barStackMode: 'stack' }, 'bar-100': { chartType: 'bar', barStackMode: 'expand' }, 'bar-horizontal-stacked': { chartType: 'bar-horizontal', barStackMode: 'stack' }, 'bar-horizontal-100': { chartType: 'bar-horizontal', barStackMode: 'expand' }, bubble: { chartType: 'scatter' } };
+            const DE_COLUMNA = ['xAxisKey', 'yAxisKeys', 'rightYAxisKey', 'splitByKey', 'bubbleSizeKey', 'errorLowKey', 'errorHighKey', 'bandLowKey', 'bandHighKey', 'facetKey', 'tooltipFields', 'comboLineKeys'];
+            const FUNCION = { highlightConfig: 'resalte', refLine: 'referencias', goalLine: 'referencias', refArea: 'referencias', trendLine: 'tendencia', annotations: 'anotaciones', splitByKey: 'partir', bubbleSizeKey: 'tamano', rightYAxisKey: 'derecha', bandLowKey: 'banda', bandHighKey: 'banda', showLabels: 'etiquetas', facetKey: 'facetas', isCumulative: 'acumulado', endLabels: 'finales' };
+            const esObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+            const igual = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+            allTools.propose_change = tool({
+                description: "Propose a change to the ACTIVE Story Flow chart. kind 'panels': the Story Flow settings that change (the same keys the chart keeps, e.g. chartType, xAxisKey, yAxisKeys, splitByKey, sortMode, limit, colorTheme, chartTitle, chartSubtitle, takeaway, highlightConfig, refLine, goalLine, trendLine, annotations, showLabels, legendPosition). Objects (highlightConfig, refLine…) merge with their current value. kind 'spec' (only in the Code view): a complete Vega-Lite v6 spec with data {\"name\": \"dataset\"}. The user sees Before / Proposal on the figure and accepts or rejects it; nothing is saved to disk.",
+                inputSchema: z.object({
+                    target: z.preprocess((v) => {
+                        if (!v || typeof v !== 'object' || Array.isArray(v) || v.kind) return v;
+                        if (v.vega_lite) return { kind: 'spec', vega_lite: v.vega_lite };
+                        if (v.changes) return { kind: 'panels', changes: v.changes };
+                        return { kind: 'panels', changes: v };
+                    }, z.discriminatedUnion('kind', [
+                        z.object({ kind: z.literal('panels'), changes: z.record(z.string(), z.any()).describe('Story Flow keys → new values. Only the keys that change.') }),
+                        z.object({ kind: z.literal('spec'), vega_lite: z.record(z.string(), z.any()).describe('A complete Vega-Lite v6 spec; data must be {"name": "dataset"}. Only in the Code view.') }),
+                    ])),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ target, summary = '' }) => {
+                    if (target.kind === 'spec') {
+                        if (g.vista !== 'codigo' && g.modo !== 'codigo') return { error: "A Vega-Lite spec is only proposed in the Code view. Use kind 'panels' with Story Flow keys." };
+                        const { title: _t, usermeta: _u, ...resto } = target.vega_lite || {};
+                        const spec = { $schema: 'https://vega.github.io/schema/vega-lite/v6.json', ...resto, data: { name: 'dataset' } };
+                        try {
+                            const vl = await import('vega-lite');
+                            const logger = { level() { return this; }, warn() {}, info() {}, debug() {}, error() {} };
+                            vl.compile(spec, { logger });
+                        } catch (e) {
+                            return { error: `The spec does not compile: ${e.message}. Fix it and call again.` };
+                        }
+                        if (columnas.length) {
+                            const usados = new Set();
+                            const derivados = new Set();
+                            JSON.stringify(spec, (k, v) => {
+                                if (k === 'field' && typeof v === 'string') usados.add(v.replace(/\\(.)/g, '$1'));
+                                if (k === 'as') (Array.isArray(v) ? v : [v]).forEach(x => typeof x === 'string' && derivados.add(x));
+                                return v;
+                            });
+                            const ajenos = [...usados].filter(f => !columnas.includes(f) && !derivados.has(f));
+                            if (ajenos.length) return { error: `The spec uses field(s) not in the result: ${ajenos.join(', ')}. Columns: ${columnas.join(', ')}.` };
+                        }
+                        return { success: true, action: 'propose_change', objetivo: { tipo: 'spec' }, spec, resumen: summary };
+                    }
+                    const errores = [];
+                    let cambios = {};
+                    for (const [k, v] of Object.entries(target.changes || {})) {
+                        if (k === 'chartType' && COMPUESTOS[v]) { cambios = { ...cambios, ...COMPUESTOS[v] }; continue; }
+                        if (!(k in claves)) { errores.push(`"${k}" is not a Story Flow setting`); continue; }
+                        const t = claves[k];
+                        if (t !== 'any' && !(t === 'array' ? Array.isArray(v) : typeof v === t)) { errores.push(`"${k}" must be ${t === 'array' ? 'a list' : `a ${t}`}`); continue; }
+                        cambios[k] = v;
+                    }
+                    if (cambios.chartType && g.tipos.length && !g.tipos.includes(cambios.chartType)) {
+                        errores.push(`"${cambios.chartType}" is not a chart type (use one of: ${g.tipos.join(', ')})`);
+                        delete cambios.chartType;
+                    }
+                    if (columnas.length) {
+                        for (const k of DE_COLUMNA) {
+                            if (!(k in cambios)) continue;
+                            const fuera = (Array.isArray(cambios[k]) ? cambios[k] : [cambios[k]]).filter(x => x !== '' && x != null && !columnas.includes(x));
+                            if (fuera.length) { errores.push(`${k}: ${fuera.join(', ')} is not a column of the result (columns: ${columnas.join(', ')})`); delete cambios[k]; }
+                        }
+                    }
+                    const tipo = cambios.chartType || g.tipo;
+                    for (const [k, pieza] of Object.entries(FUNCION)) {
+                        if (!(k in cambios) || !Array.isArray(g.admite[pieza])) continue;
+                        const v = cambios[k];
+                        const apaga = v === '' || v === false || (Array.isArray(v) && !v.length) || (esObj(v) && (v.type === 'none' || v.enabled === false));
+                        if (!apaga && !g.admite[pieza].includes(tipo)) { errores.push(`a ${tipo} chart does not draw ${k}`); delete cambios[k]; }
+                    }
+                    if (errores.length) return { error: `Nothing was proposed: ${errores.join('; ')}. Fix it and call again.` };
+                    const original = {};
+                    for (const k of Object.keys(cambios)) original[k] = g.valores[k] === undefined ? null : g.valores[k];
+                    const cambia = Object.keys(cambios).some(k => !igual(esObj(cambios[k]) && esObj(original[k]) ? { ...original[k], ...cambios[k] } : cambios[k], original[k]));
+                    if (!cambia) return { error: 'Those settings are already as they are: there is nothing to change.' };
+                    return { success: true, action: 'propose_change', objetivo: { tipo: 'paneles' }, cambios, original, resumen: summary };
+                },
+            });
+        }
+
+        // propose_change por pasos (E5, F1): un Data Flow se cambia con operaciones
+        // sobre sus pasos —añadir, cambiar la configuración, quitar, conectar—, que
+        // se aplican aquí sobre el .sqlchain: tipos de paso que existen, ids que no
+        // chocan, sin ciclos. La respuesta lleva el flujo que quedaría (sin
+        // posiciones: las pone el lienzo) y la lista de diffDeProcesos (F3).
+        if (archivo && archivo.porPasos && archivo.puedeProponer) {
+            const E = require('./estructurados');
+            const paso = z.object({ id: z.string(), type: z.string(), label: z.string().optional(), config: z.record(z.string(), z.any()).optional(), after: z.array(z.string()).optional().describe('The steps it reads from (its inputs).') });
+            const lista = (s) => z.preprocess((v) => (v == null ? [] : Array.isArray(v) ? v : [v]), z.array(s)).optional();
+            allTools.propose_change = tool({
+                description: "Propose a change to the ACTIVE Data Flow through operations on its steps: add steps (with the steps they read from), change a step's label or config (the keys you send replace those keys), remove steps, connect or disconnect two steps. Use the step ids shown in 'Current editor state'. The user sees the new steps as ghosts on the canvas with the list of changes, and accepts or rejects; nothing is saved to disk. Several operations can go in one call.",
+                inputSchema: z.object({
+                    add: lista(paso).describe('New steps. id: short snake_case, not used yet. type: one of the step types. config: as in the step types list.'),
+                    change: lista(z.object({ id: z.string(), label: z.string().optional(), config: z.record(z.string(), z.any()).optional(), disabled: z.boolean().optional() })),
+                    remove: lista(z.string()),
+                    connect: lista(z.object({ from: z.string(), to: z.string() })),
+                    disconnect: lista(z.object({ from: z.string(), to: z.string() })),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ summary = '', ...ops }) => {
+                    const r = E.aplicarPasos(archivo.flujo, ops);
+                    if (r.error) return { error: r.error };
+                    const sinPos = (d) => ({ nodes: d.nodes, edges: d.edges });
+                    return {
+                        success: true, action: 'propose_change', objetivo: { tipo: 'pasos' },
+                        despues: sinPos(r.despues), original: r.original, cambios: r.lineas, resumen: summary,
+                    };
+                },
+            });
+        }
+
+        // propose_change por tarjetas (E5): en el Canvas, cambiar el SQL o el texto
+        // de una tarjeta, o añadir una (una consulta que lee la seleccionada, una
+        // nota, un texto). Nunca las fotos ni las posiciones.
+        if (archivo && archivo.porTarjetas && archivo.puedeProponer) {
+            const E = require('./estructurados');
+            const tarjetas = archivo.lienzo.tarjetas;
+            allTools.propose_change = tool({
+                description: "Propose ONE change to the ACTIVE Canvas: change the SQL of a Query card or the text of a Note/Text card (kind 'card'), or add a new card (kind 'new_card': a 'query' that reads other cards with FROM <their name>, a 'note' or a 'text'), placed next to the card in `near`. The user sees it on the canvas as a ghost card and accepts or rejects it; nothing is saved to disk.",
+                inputSchema: z.object({
+                    target: z.preprocess(tolerante({ porClave: [['card_type', 'new_card'], ['card', 'card']] }), z.discriminatedUnion('kind', [
+                        z.object({ kind: z.literal('card'), card: z.string().describe('The id (name) of the card that changes.') }),
+                        z.object({
+                            kind: z.literal('new_card'),
+                            card_type: z.enum(['query', 'note', 'text']),
+                            name: z.string().optional().describe('For a query: a short snake_case name (it becomes the view other cards read). Must be new.'),
+                            near: z.string().optional().describe('The card it goes next to (usually the one it reads, or the selected one).'),
+                        }),
+                    ])),
+                    content: z.string().describe('The SQL (for a query) or the text (for a note or a text card).'),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ target, content, summary = '' }) => {
+                    const nuevo = String(content || '').replace(/\r/g, '').replace(/^\s*```(?:sql)?\s*\n/, '').replace(/\n\s*```\s*$/, '').trim();
+                    if (!nuevo) return { error: 'content is empty.' };
+                    const ids = tarjetas.map(t => `${t.id} (${t.tipo})`).join(', ');
+                    if (target.kind === 'card') {
+                        const t = tarjetas.find(x => x.id === target.card);
+                        if (!t) return { error: `There is no card "${target.card}". The cards are: ${ids}.` };
+                        const campo = t.tipo === 'query' ? 'sql' : (t.tipo === 'note' || t.tipo === 'text') ? 'texto' : null;
+                        if (!campo) return { error: `A ${t.tipo} card is not changed with text: only queries (SQL), notes and texts.` };
+                        const antes = String(t[campo] || '');
+                        if (antes.trim() === nuevo) return { error: 'That is the card as it already is: there is nothing to change.' };
+                        return { success: true, action: 'propose_change', objetivo: { tipo: 'tarjeta', accion: 'cambiar', id: t.id, tarjetaTipo: t.tipo, campo }, contenido: nuevo, original: antes, resumen: summary };
+                    }
+                    const tipo = target.card_type;
+                    let id = target.name ? String(target.name).trim() : null;
+                    if (id && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(id)) return { error: `"${id}" is not a valid card name: letters, digits and underscores, starting with a letter.` };
+                    if (id && tarjetas.some(t => t.id.toLowerCase() === id.toLowerCase())) return { error: `There is already a card named "${id}". Pick another name.` };
+                    if (tipo === 'query' && !id) return { error: 'A new query needs a name (it becomes the view other cards read).' };
+                    if (target.near && !tarjetas.some(t => t.id === target.near)) return { error: `There is no card "${target.near}" to place it next to. The cards are: ${ids}.` };
+                    return {
+                        success: true, action: 'propose_change',
+                        objetivo: { tipo: 'tarjeta', accion: 'nueva', id, tarjetaTipo: tipo, campo: E.TARJETAS_NUEVAS[tipo], cerca: target.near || null },
+                        contenido: nuevo, original: null, resumen: summary,
+                    };
+                },
+            });
+        }
+
+        // propose_change del diagrama (E5, D1): el diagrama entero —es pequeño y es
+        // la unidad—, pero como grafo (cajas, flechas, grupos), nunca como mermaid:
+        // el editor lo escribe con su propio serializador, así que lo que entra
+        // siempre se puede volver a editar visualmente.
+        if (archivo && archivo.porDiagrama && archivo.puedeProponer) {
+            const E = require('./estructurados');
+            const d = archivo.diagrama;
+            allTools.propose_change = tool({
+                description: `Propose the ACTIVE diagram as it should be: all its boxes, arrows and groups (boxes you leave out are removed). Keep the ids of the boxes that stay. Shapes: ${d.formas.join(', ')}. Arrow styles: ${d.estilos.join(', ')}. The user sees Before / Proposal drawn and accepts or rejects it; nothing is saved to disk.`,
+                inputSchema: z.object({
+                    diagram: z.object({
+                        direction: z.enum(['TB', 'TD', 'BT', 'LR', 'RL']).optional(),
+                        nodes: z.array(z.object({ id: z.string(), text: z.string(), shape: z.string().optional(), layer: z.string().optional() })),
+                        edges: z.array(z.object({ from: z.string(), to: z.string(), label: z.string().optional(), style: z.string().optional() })).optional(),
+                        groups: z.array(z.object({ id: z.string(), title: z.string().optional(), nodes: z.array(z.string()) })).optional(),
+                    }),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ diagram, summary = '' }) => {
+                    const v = E.validarDiagrama(diagram, d);
+                    if (v.error) return { error: v.error };
+                    if (E.estable({ ...v.grafo }) === E.estable({ direccion: d.grafo.direccion, nodos: d.grafo.nodos, aristas: d.grafo.aristas, subgrafos: d.grafo.subgrafos || [] })) {
+                        return { error: 'That is the diagram as it already is: there is nothing to change.' };
+                    }
+                    return { success: true, action: 'propose_change', objetivo: { tipo: 'diagrama' }, grafo: v.grafo, original: d.mermaid, resumen: summary };
+                },
+            });
+        }
+
+        if (!archivo || (archivo.puedeProponer && !archivo.porLineas && !archivo.porCeldas && !archivo.porLaminas && !archivo.porPaneles
+            && !archivo.porPasos && !archivo.porTarjetas && !archivo.porDiagrama)) {
+            allTools.write_file = tool({
+                description: "Propose a new version of the ACTIVE file. The user reviews it in the chat and clicks Accept or Reject; accepting puts it in the editor without saving to disk. Send the COMPLETE file content, keeping every part you were not asked to change exactly as it is.",
+                inputSchema: z.object({
+                    content: z.string().describe('The complete new content of the active file.'),
+                    description: z.string().optional().default('Updated by AmoxSQL AI').describe('One short line saying what changed.'),
+                }),
+                execute: async ({ content, description: desc = 'Updated by AmoxSQL AI' }) => (
+                    // El cliente la guarda como propuesta pendiente: no se escribe nada.
+                    { success: true, content, description: desc, action: 'edit_file' }
+                ),
+            });
+        }
+
+        // propose_file: un archivo NUEVO. El usuario lo ve y decide si se crea;
+        // si ya existe, se dice y no se ofrece crear (nunca se pisa).
+        allTools.propose_file = tool({
+            description: "Propose creating a NEW file in the project (for example a .sql with a query the user asked for). Nothing is written: the user sees the path and content and decides whether to create it. It never overwrites an existing file — pick a new name if the path exists.",
             inputSchema: z.object({
-                content: z.string().describe('Complete new content (overwrite/create) or text to append.'),
-                description: z.string().optional().default('Updated by AmoxSQL AI').describe('Optional short description of the change.'),
-                mode: z.enum(['overwrite', 'create', 'append']).optional().default('overwrite'),
-                file_path: z.string().optional().describe("For create/append: relative path within the project. Not needed for 'overwrite'."),
+                file_path: z.string().describe("Relative path inside the project, with its extension, e.g. 'queries/ventas_por_region.sql'."),
+                content: z.string().describe('The complete content of the new file.'),
+                description: z.string().optional().default('').describe('One short line saying what the file is for.'),
             }),
-            execute: async ({ content, description: desc = 'Updated by AmoxSQL AI', mode: writeMode = 'overwrite', file_path: filePath }) => {
-                if (writeMode === 'overwrite') {
-                    // Frontend handles this via action field (no disk write)
-                    return { success: true, content, description: desc, action: 'edit_file' };
-                }
+            execute: async ({ file_path: filePath, content, description: desc = '' }) => {
                 if (!projectPath) return { error: 'No project directory.' };
-                if (!filePath) return { error: 'file_path is required for create/append.' };
-                const normalized = path.normalize(filePath);
-                if (normalized.startsWith('..') || path.isAbsolute(normalized)) {
-                    return { error: 'Invalid path. Use relative paths within the project directory.' };
+                const normalized = path.normalize(String(filePath || '').trim());
+                if (!normalized || normalized === '.' || normalized.startsWith('..') || path.isAbsolute(normalized)) {
+                    return { error: 'Invalid path. Use a relative path inside the project, with the file name and extension.' };
                 }
                 const fullPath = path.join(projectPath, normalized);
-                if (!path.resolve(fullPath).startsWith(path.resolve(projectPath))) {
+                if (!path.resolve(fullPath).startsWith(path.resolve(projectPath) + path.sep)) {
                     return { error: 'Path is outside the project directory.' };
                 }
-                try {
-                    if (writeMode === 'append') {
-                        await fs.promises.appendFile(fullPath, content, 'utf8');
-                    } else {
-                        await fs.promises.mkdir(path.dirname(fullPath), { recursive: true });
-                        await fs.promises.writeFile(fullPath, content, 'utf8');
-                    }
-                    return { success: true, path: filePath, description: desc };
-                } catch (err) {
-                    return { error: err?.message || String(err) };
+                const ruta = normalized.split(path.sep).join('/');
+                if (fs.existsSync(fullPath)) {
+                    return { error: `${ruta} already exists. Propose a different file name; an existing file is never overwritten.` };
                 }
+                return { success: true, action: 'propose_file', path: ruta, content, description: desc };
             },
         });
 
@@ -1186,11 +1615,15 @@ function createTools(context) {
 
                 if (activePlan?.steps) {
                     for (const step of activePlan.steps) {
-                        // Sweep every non-terminal status to done. NOTE: update_plan
-                        // writes 'in_progress' (never 'running'); the missing case here
-                        // was why the last in-progress step stayed stuck forever.
-                        if (step.status === 'pending' || step.status === 'running' || step.status === 'in_progress') {
+                        // The step the agent was working on when it concluded is done
+                        // (update_plan writes 'in_progress', never 'running'; missing it
+                        // left the last step spinning forever). A step it never started
+                        // is NOT done: marking it so put a green check on work that never
+                        // happened. It stays visibly unfinished.
+                        if (step.status === 'running' || step.status === 'in_progress') {
                             step.status = 'done';
+                        } else if (step.status === 'pending') {
+                            step.status = 'not_done';
                         }
                     }
                 }

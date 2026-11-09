@@ -1,8 +1,10 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect } from 'react';
 import { LuTable, LuX } from "react-icons/lu";
+import { useEscape } from '../hooks/useEscape';
 
 const TableDetailsModal = ({ isOpen, onClose, tableName, schema }) => {
+    useEscape(onClose, isOpen);
     const [activeTab, setActiveTab] = useState('schema'); // schema, details, preview, ddl
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);

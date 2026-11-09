@@ -1,6 +1,7 @@
 import { API_BASE } from '../api.js';
-import { useState, useEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuColumns3, LuChevronLeft, LuChevronRight, LuTriangleAlert, LuPin, LuPinOff, LuX } from "react-icons/lu";
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
+import { leerResultados, recordarResultados } from '../utils/memoriaDePestana';
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuColumns3, LuChevronLeft, LuChevronRight, LuTriangleAlert, LuPin, LuPinOff, LuX, LuSparkles, LuChartColumn } from "react-icons/lu";
 
 const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
@@ -24,13 +25,15 @@ const ROWNUM_WIDTH = 54;
 // match the `columnWidths[col] || 150` default used when resizing.
 const DEFAULT_COL_WIDTH = 150;
 
-const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null, onCreateNew = null, lazyPanels = false, lectura = false, recordadoCon = null, onAbrirArchivo = null }) => {
+const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null, onCreateNew = null, lazyPanels = false, lectura = false, recordadoCon = null, onAbrirArchivo = null, clavePestana = null, onAsistir = null }) => {
+    // Lo que tenía esta pestaña la última vez, si son los mismos datos (Dec-82).
+    const [memoria] = useState(() => (clavePestana ? leerResultados(clavePestana, data) : null));
     const toast = useToast();
     // currentEditorQuery may be a string (notebook cells) or a getter function
     // (EditorPane passes a stable getter so typing doesn't break this memo).
     const resolveEditorQuery = () => (typeof currentEditorQuery === 'function' ? currentEditorQuery() : currentEditorQuery);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [pageSize, setPageSize] = useState(50);
+    const [currentPage, setCurrentPage] = useState(memoria?.currentPage ?? 1);
+    const [pageSize, setPageSize] = useState(memoria?.pageSize ?? 50);
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [showVaultPrompt, setShowVaultPrompt] = useState(false);
@@ -86,26 +89,26 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
     }, [viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Enhanced Table State
-    const [globalSearch, setGlobalSearch] = useState('');
+    const [globalSearch, setGlobalSearch] = useState(memoria?.globalSearch ?? '');
     const deferredGlobalSearch = useDeferredValue(globalSearch);
 
-    const [sortConfig, setSortConfig] = useState(null); // { key: string, direction: 'asc' | 'desc' }
+    const [sortConfig, setSortConfig] = useState(memoria?.sortConfig ?? null); // { key: string, direction: 'asc' | 'desc' }
 
-    const [columnFilters, setColumnFilters] = useState({}); // { [key]: rawFilterString }
+    const [columnFilters, setColumnFilters] = useState(memoria?.columnFilters ?? {}); // { [key]: rawFilterString }
     const deferredColumnFilters = useDeferredValue(columnFilters);
 
-    const [showFilters, setShowFilters] = useState(false); // Toggle filter row
+    const [showFilters, setShowFilters] = useState(memoria?.showFilters ?? false); // Toggle filter row
 
     // --- Wide-result column windowing (Fase 0/1: perf guard for 100s-1000s of columns) ---
-    const [selectedColumns, setSelectedColumns] = useState(null); // null = auto window; Set = manual pick, overrides windowing
-    const [columnPage, setColumnPage] = useState(0); // which MAX_VISIBLE_COLS window is showing (when no manual selection)
+    const [selectedColumns, setSelectedColumns] = useState(memoria?.selectedColumns ?? null); // null = auto window; Set = manual pick, overrides windowing
+    const [columnPage, setColumnPage] = useState(memoria?.columnPage ?? 0); // which MAX_VISIBLE_COLS window is showing (when no manual selection)
     const [showColumnPicker, setShowColumnPicker] = useState(false);
     const [columnPickerSearch, setColumnPickerSearch] = useState('');
 
     // --- Pinned columns ---
     // Order is insertion order; the render orders them by their position in the
     // table so the sticky offsets stack in the same order the user sees.
-    const [pinnedColumns, setPinnedColumns] = useState([]);
+    const [pinnedColumns, setPinnedColumns] = useState(memoria?.pinnedColumns ?? []);
 
     // --- Cell peek (triple-click a cell to read long text in full) ---
     const [cellPeek, setCellPeek] = useState(null); // { column, text, x, y }
@@ -118,7 +121,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
     const [compareOpen, setCompareOpen] = useState(false);
 
     // --- Column Resizing State ---
-    const [columnWidths, setColumnWidths] = useState({}); // { [colName]: widthInPx }
+    const [columnWidths, setColumnWidths] = useState(memoria?.columnWidths ?? {}); // { [colName]: widthInPx }
     const [resizeState, setResizeState] = useState({ isResizing: false, column: null, startX: 0, startWidth: 0 });
     const resizeRafRef = useRef(null);
 
@@ -195,8 +198,27 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
         return () => window.removeEventListener('keydown', onKey);
     }, [cellPeek]);
 
+    // Al volver a la pestaña, la tabla se deja como estaba: estado y scroll. El
+    // scroll se lee aquí (efecto de layout) porque después ya no hay elemento.
+    const contenidoRef = useRef(null);
+    const estadoRef = useRef(null);
+    estadoRef.current = { datos: data, currentPage, pageSize, globalSearch, sortConfig, columnFilters, showFilters, selectedColumns, columnPage, pinnedColumns, columnWidths };
+    useLayoutEffect(() => {
+        const el = contenidoRef.current;
+        if (el && memoria) { el.scrollTop = memoria.scrollTop || 0; el.scrollLeft = memoria.scrollLeft || 0; }
+        return () => {
+            if (!clavePestana) return;
+            recordarResultados(clavePestana, { ...estadoRef.current, scrollTop: el?.scrollTop || 0, scrollLeft: el?.scrollLeft || 0 });
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Reset page when data changes
+    const datosVistosRef = useRef(memoria ? data : null);
     useEffect(() => {
+        // Son los datos con los que se restauró: no hay nada que reiniciar.
+        if (datosVistosRef.current === data) return;
+        datosVistosRef.current = data;
         setCurrentPage(1);
         setPinnedColumns([]);
         setCellPeek(null);
@@ -633,7 +655,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                 {data.length !== totalRows && ` [Filtered from ${data.length}]`}
                                 {truncated && (
                                     <span style={{ marginLeft: 8, color: 'var(--feedback-warning)', fontWeight: 500 }}
-                                          title={`Result capped at ${rowLimit?.toLocaleString()} rows. Adjust "Max Rows" in Settings → Editor, or use LIMIT in your query, or Export for full data.`}>
+                                          title={`Result capped at ${rowLimit?.toLocaleString()} rows, so the window stays responsive. Adjust "Max Rows" in Settings → Editor (there is a safety limit of 1,000,000 rows or 256 MB), use LIMIT or an aggregate in your query, or Export for the full data.`}>
                                         ⚠ first {rowLimit?.toLocaleString()} rows shown
                                     </span>
                                 )}
@@ -642,6 +664,17 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
 
                         {/* Right Actions */}
                         <div className="rt-toolbar-right">
+                            {/* E2: the result as a door to Assist (only a .sql's results). */}
+                            {onAsistir && (
+                                <>
+                                    <button className="rt-action-btn" style={{ whiteSpace: 'nowrap' }} onClick={() => onAsistir('explicar_resultado')} title="Ask Assist what stands out in this result">
+                                        <LuSparkles size={12} /> Explain
+                                    </button>
+                                    <button className="rt-action-btn" style={{ whiteSpace: 'nowrap' }} onClick={() => onAsistir('graficar')} title="Ask Assist for a chart of this result">
+                                        <LuChartColumn size={12} /> Chart it
+                                    </button>
+                                </>
+                            )}
                             {/* Global Search */}
                             {viewMode === 'table' && (
                                 <div className="rt-search">
@@ -831,7 +864,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
             )}
 
             {/* Results Content */}
-            <div className={`rt-content${isReportMode ? ' report-mode' : ''}`} style={viewMode === 'chart' ? { overflow: 'hidden', minHeight: '200px' } : undefined}>
+            <div ref={contenidoRef} className={`rt-content${isReportMode ? ' report-mode' : ''}`} style={viewMode === 'chart' ? { overflow: 'hidden', minHeight: '200px' } : undefined}>
                 {/* Table */}
                 <div style={{ display: viewMode === 'table' ? 'contents' : 'none' }}>
                     <table className="rt-table" style={{ fontSize: `${editorSettings.resultsFontSize || 13}px` }}>
@@ -981,7 +1014,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
 
                 {/* Chart */}
                 <div className={`rt-panel chart${viewMode === 'chart' ? ' visible' : ' hidden'}`}>
-                    {montarPanel('chart') && <DataVisualizer data={data} truncado={truncated} isReportMode={isReportMode} lectura={lectura} query={query} sourcePath={sourcePath} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} isActive={viewMode === 'chart'} onCreateNew={onCreateNew} recordadoCon={recordadoCon} onAbrirArchivo={onAbrirArchivo} />}
+                    {montarPanel('chart') && <DataVisualizer data={data} truncado={truncated} isReportMode={isReportMode} lectura={lectura} query={query} sourcePath={sourcePath} initialChartConfig={initialChartConfig} onConfigChange={onConfigChange} isActive={viewMode === 'chart'} onCreateNew={onCreateNew} recordadoCon={recordadoCon} onAbrirArchivo={onAbrirArchivo} destinoIa={clavePestana} />}
                 </div>
 
                 {/* Profile */}

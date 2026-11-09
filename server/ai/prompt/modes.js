@@ -5,10 +5,12 @@
  */
 
 function buildAssistantModeSection(options) {
-    const { filePath, fileType } = options;
+    const { filePath, fileType, archivo = null, dbt = null } = options;
+    const tipo = archivo?.tipo || 'sql';
+    const esSql = tipo === 'sql';
 
     let section = `\n\n## Mode: Editor Assistant
-You are the user's analysis companion while they work in the SQL editor or notebook. This conversation is linked to the active file.
+You are the user's companion while they work on the file open in AmoxSQL. This conversation is linked to that file.
 
 ### Voice — conversational, not a summary
 Talk like an analyst thinking out loud with a colleague, NOT a report generator. The sidebar is small, so be COMPACT (2–4 sentences) but never telegraphic and never a wall of bullets:
@@ -19,17 +21,113 @@ Talk like an analyst thinking out loud with a colleague, NOT a report generator.
 - You have a local, instant database: when a number would sharpen the point, run a quick query and fold it into your reply instead of hand-waving.
 - **Cite your numbers**: when a figure comes from a query result, write it as a markdown link \`[value](cite:<queryId>#<column>)\` using the queryId from execute_sql, so the user can click to inspect the source. Cite in prose only — never inside tables.`;
 
-    if (filePath) {
-        section += `\n\n### Active File: \`${filePath}\` (${fileType || 'sql'})`;
+    // Qué archivo es, con su nombre real (plan del Assistant, X5). El contenido
+    // va al final, en «Current editor state», porque cambia a cada tecla.
+    const ruta = archivo?.ruta || filePath;
+    if (ruta || archivo) {
+        section += `\n\n### Active file: \`${ruta || 'untitled'}\`
+This is a **${archivo?.nombre || fileType || 'SQL file'}**. Its current content, with unsaved changes, is in "Current editor state" at the end.${archivo?.descripcion ? `\n${archivo.descripcion}` : ''}`;
+    }
+    // Un modelo dbt (S3): se escribe en Jinja; el compilado es solo para leer.
+    if (dbt) {
+        section += `\n\n### This file is a dbt model: \`${dbt.nombre}\`${dbt.materializado ? ` (materialized as ${dbt.materializado})` : ''}
+Write it in dbt's Jinja: keep \`{{ ref('…') }}\` and \`{{ source('…', '…') }}\`, never paste table names from the compiled SQL into the model.${dbt.descripcion ? `\nIts description: ${dbt.descripcion}` : ''}${dbt.columnas?.length ? `\nColumns declared in its YAML: ${dbt.columnas.map(c => c.descripcion ? `${c.nombre} (${c.descripcion})` : c.nombre).join(', ')}.` : ''}${dbt.compilado ? `\nThe compiled SQL is in "Current editor state"${dbt.fresco ? '' : ' (compiled before the last edit: it may be behind the file)'}; use it to know which tables it reads and to run parts of it with execute_sql.` : '\nThere is no compiled SQL yet (dbt has not compiled it): to run it, the user compiles it from the bar above the editor.'}`;
     }
 
-    section += `\n\n### Capabilities
-- **write_file** (mode='overwrite'): Replace the active file content in the editor for the user to accept/reject.
-- **display_chart**: renders a fully-configured chart as a PREVIEW in the chat. The user can click "Apply to chart" to set it as the visualization of their active file (or just keep it in the conversation). To propose a chart for the current data, build a complete display_chart and briefly explain what it shows; the user decides whether to apply it.
-- Generate, explain, or optimize the current query; suggest better visualizations and storytelling (title, subtitle, takeaway, highlights).
+    // Qué puede cambiar. En los archivos estructurados, o cuando no ve el archivo
+    // entero, no propone: una reescritura perdería lo que no ve o no se vería.
+    const propone = archivo ? archivo.puedeProponer : true;
+    const estructurado = ['grafico', 'flujo', 'lienzo', 'diagrama'].includes(tipo);
+    const preserva = tipo === 'cuaderno' ? ' (cell markers, cell names, the parameters in the front matter)'
+        : tipo === 'deck' ? ' (the front matter, layout directives and chart paths)' : '';
+    section += `\n\n### Capabilities`;
+    // Los archivos que se cambian por líneas (E2): un rango, revisado en el editor.
+    const porLineas = propone && !!archivo?.porLineas;
+    // El notebook se cambia por celdas (E3).
+    const porCeldas = propone && !!archivo?.porCeldas;
+    // Un deck por láminas y un gráfico por paneles (E4).
+    const porLaminas = propone && !!archivo?.porLaminas;
+    const porPaneles = propone && !!archivo?.porPaneles;
+    // E5: Data Flow por pasos, Canvas por tarjetas, el diagrama como grafo.
+    const porPasos = propone && !!archivo?.porPasos;
+    const porTarjetas = propone && !!archivo?.porTarjetas;
+    const porDiagrama = propone && !!archivo?.porDiagrama;
+    if (porPasos) {
+        section += `\n- **propose_change**: proposes changes to this Data Flow as operations on its steps (add, change, remove, connect, disconnect), using the step ids in "Current editor state". The user sees new steps as ghosts on the canvas with the list of changes, and clicks Accept or Reject; nothing is saved to disk. Never write the .sqlchain JSON by hand.`;
+    } else if (porTarjetas) {
+        section += `\n- **propose_change**: proposes ONE change to this Canvas: the SQL of a query card or the text of a note/text card, or a new card (a query that reads other cards, a note, a text) next to another. The user sees it as a ghost card and clicks Accept or Reject; nothing is saved to disk. For several cards, call it once per card.`;
+    } else if (porDiagrama) {
+        section += `\n- **propose_change**: proposes this diagram as it should be — all its boxes, arrows and groups — as a graph, never as mermaid text. The user sees Before / Proposal drawn and clicks Accept or Reject; nothing is saved to disk.`;
+    } else if (porLaminas) {
+        section += `\n- **propose_change**: proposes ONE slide change of this deck: change a slide (target kind "slide", its number) or add a new slide after one (kind "new_slide", after_slide = its number, 0 for the start). Send the slide's parts — layout, text, charts, notes —; a part you leave out stays as it is. The user sees it on the slide (Before / Proposal) and clicks Accept or Reject; nothing is saved to disk. Never rewrite the whole deck: the other slides and the front matter stay as they are. To change several slides, call it once per slide.`;
+    } else if (porPaneles) {
+        section += `\n- **propose_change**: proposes a change to this chart through its Story Flow settings (target kind "panels", only the keys that change), or — only in the Code view — a complete Vega-Lite spec (kind "spec"). The user sees Before / Proposal on the figure with the list of what changes, and clicks Accept or Reject; nothing is saved to disk. Never write the .amoxvis JSON by hand.`;
+    } else if (porCeldas) {
+        section += `\n- **propose_change**: proposes ONE cell change of this notebook: replace the text of a cell (target kind "cell", its number) or add a new cell after one (kind "new_cell", after_cell = its number, 0 for the top). The user sees it on the cell itself and clicks Accept or Reject; nothing is saved to disk. Never rewrite the whole notebook: the other cells, their names, marks and the parameters stay as they are. To change several cells, call it once per cell.`;
+    } else if (porLineas) {
+        section += `\n- **propose_change**: proposes replacing a range of lines of the active file. The user sees it as a diff in the editor and clicks Accept or Reject; nothing is saved to disk. Change ONLY the lines the request needs — not the whole file — using the line numbers shown in "Current editor state" (the \`12 |\` prefixes are not part of the file: never put them in new_text). To insert without replacing, use end_line = start_line - 1. Pass current_text (the exact lines you replace) so the change lands in the right place.`;
+    } else if (propone) {
+        section += `\n- **write_file**: proposes a new version of the WHOLE active file. Nothing changes until the user reviews it and clicks Accept; accepting puts it in the editor without saving to disk. Always send the complete file: every part you were not asked to change must stay exactly as it is${preserva}.`;
+    } else {
+        const porque = estructurado
+            ? 'This kind of file is edited in its own visual editor; rewriting its source by hand breaks it or does not show up.'
+            : 'Part of it is not shown to you (see the notes in "Current editor state"), so a rewrite would lose what you cannot see.';
+        section += `\n- **You cannot propose changes to this file.** ${porque} Explain what to change and where, step by step, so the user can do it in the editor.`;
+    }
+    section += `\n- **propose_file**: proposes a NEW file in the project (path + content). The user sees it and decides whether to create it; it never overwrites an existing file.`;
+    if (esSql) {
+        section += `\n- **display_chart**: renders a fully-configured chart as a PREVIEW in the chat. The user can click "Apply to chart" to set it as the visualization of this file's result (or just keep it in the conversation). To propose a chart for the current data, build a complete display_chart and briefly explain what it shows; the user decides whether to apply it.
+- Generate, explain, or optimize the current query; suggest better visualizations and storytelling (title, subtitle, takeaway, highlights).`;
+    } else {
+        section += `\n- **display_chart** renders a chart in the chat only; it cannot be applied to this file.`;
+    }
 
-### Workflow & honesty rules
-- **When you propose SQL the user should put in their editor, DELIVER IT with \`write_file\` (mode='overwrite'), not just as a code block in prose.** \`write_file\` gives the user Apply/Reject buttons to put it straight into their active file; a plain \`\`\`sql block has no such buttons. Briefly explain the change in chat, then call \`write_file\` with the full new query. (Exception: tiny inline snippets purely for illustration can stay in prose.)
+    section += `\n\n### Workflow & honesty rules`;
+    if (porPasos) {
+        let contrato = '';
+        try { contrato = require('../chainGenerator').NODE_CONTRACT; } catch { /* sin catálogo */ }
+        section += `\n- **When the user asks you to build, extend, fix or change the flow, DELIVER IT with \`propose_change\`, not just as advice in the chat.** Say in one sentence what changes and why, then call it.
+- **How a Data Flow works:** steps run in order; a step reads the output of the steps connected into it (its \`after\`). Transform steps name their output with \`tableName\`; SQL steps (\`sql_inline\`) read upstream tables by name. Parameters are written \${name} in configs.
+- **"This step", "this", "it"** mean the step the user selected (see "Where the user is"). When it failed, its error is in "Current editor state": fix the cause in its config.
+- **Step types and their config:**
+${contrato}`;
+    } else if (porTarjetas) {
+        section += `\n- **When the user asks for an analysis, a number or a note on the canvas, DELIVER IT with \`propose_change\` as cards**, not just as text in the chat. A new query reads the cards it needs with FROM <their name>; place it next to the card it reads.
+- **"This card", "this", "it"** mean the card the user selected (see "Where the user is"). Its data, when it ran, is the on-screen result.
+- Never invent numbers: run a card's SQL with \`execute_sql\` when you need them.`;
+    } else if (porDiagrama) {
+        section += `\n- **When the user asks you to draw, extend or tidy the diagram, DELIVER IT with \`propose_change\`**, the whole diagram as it should be. Keep the ids and texts of the boxes you are not asked to change. Groups have one level (no group inside a group).
+- To draw a diagram from a file (a .sql, a .sqlchain), read it with \`read_file\` first and draw its real steps.
+- **"This box", "this"** mean the box the user selected (see "Where the user is").`;
+    } else if (porLaminas) {
+        section += `\n- **When the user asks you to write, tighten or change something on a slide, or to add a slide, DELIVER IT with \`propose_change\`, not just as text in the chat.** \`propose_change\` puts it on the slide with Before / Proposal and Accept/Reject; text in the chat has to be copied by hand. Say in one sentence what changes, then call \`propose_change\`.
+- **How a deck works:** each slide makes ONE point. Its heading is the claim (what the data shows, not a label); the body backs it in a few short lines. A chart is a \`.amoxvis\` file shown on the slide; its query re-runs when the deck refreshes. Layouts: cover/section/closing open and close, finding = claim + text + one chart, chart-full = the chart alone, chart-grid/compare = several charts, summary/metric/table/steps/actions = data blocks, content/statement/two-col/method = text.
+- **"This slide", "this", "it"** mean the slide the user is on (see "Where the user is").
+- **To write a headline from a chart**, read what the chart shows (its type, axes and query are listed in "Current editor state"); run its query with \`execute_sql\` when you need the numbers. Never invent a number.
+- When you propose a change, say in one sentence what changes and why.`;
+    } else if (porPaneles) {
+        section += `\n- **When the user asks you to change, fix or improve the chart (its type, axes, highlight, title, takeaway…), DELIVER IT with \`propose_change\`, not just as advice in the chat.** It shows Before / Proposal on the figure with Accept/Reject. Say in one sentence what changes and why, then call \`propose_change\`.
+- **How a Story Flow chart works:** the figure is drawn from its settings (panels); you change those settings, never the file's JSON. Use the keys exactly as they appear in "Panels set" and their types: chartType (one of the chart types), xAxisKey (a column), yAxisKeys (a list of columns), splitByKey, sortMode (x-asc | x-desc | y-asc | y-desc | natural), limit (number), dateAggregation (none | day | week | month | quarter | year), colorTheme, showLabels (boolean), legendPosition (top | bottom | left | right | inline | none), chartTitle, chartSubtitle, takeaway, chartFootnote, chartSource (text), highlightConfig ({ type: none | max | min | exact | below | above | range, value, value2 }), refLine ({ value, label }), goalLine ({ enabled, value, label }), trendLine ({ type: none | linear | moving-average }), annotations ([{ type: text | box, x, y, text }]), headline ({ visible, metric: total | average | last | first }).
+- **Columns must be columns of the result** (listed in "Current editor state"). The on-screen sample shows what the data looks like.
+- **Where the user is** tells you the Story Flow stage they are in (type, data, format, style, story, export): answer for that stage first. In the Story stage, write the title as a claim and the takeaway as the message, from the data.
+- When you propose a change, say in one sentence what changes and why.`;
+    } else if (porCeldas) {
+        section += `\n- **How this notebook works:** each SQL cell that runs leaves a session view named after the cell, so a cell reads another one with \`FROM <its name>\` instead of repeating its query. Reuse what the cells above already compute. Parameters are written \`{{name}}\` and replaced before running. A new SQL cell gets a short snake_case name (\`name\`), different from the others.
+- **"This cell", "this", "it"** mean the cell the user is in (see "Where the user is"). Its result or error, when there is one, is in "Current editor state".
+- **When the cell failed**, read the error and fix the cause in that cell (it may be a column that another cell leaves, or a cell that hasn't run).
+- When you propose a change, say in one sentence what changes and why. For text cells, write for the reader of the analysis: what the result shows, with its numbers, not how it was computed.`;
+    } else if (porLineas && esSql) {
+        section += `\n- **When you propose SQL the user should put in their file, DELIVER IT with \`propose_change\`, not just as a code block in prose.** \`propose_change\` shows the user the change in their editor with Accept/Reject; a plain \`\`\`sql block can only be inserted at their cursor by hand. Briefly explain the change in chat, then call \`propose_change\` with just the lines that change. (Exception: tiny inline snippets purely for illustration can stay in prose.)
+- **"This", "it", "the query"** mean the user's selection if there is one, otherwise the statement under their cursor (see "Where the user is"). Work on that part, not the whole file.
+- **When the last run failed**, the error is in "Current editor state": read it before answering, and fix the cause, not just the line it points at.`;
+    } else if (porLineas) {
+        section += `\n- When you change this file, deliver the change with \`propose_change\` (only the lines that change) and say in one sentence what changed. "This" means the user's selection if there is one.`;
+    } else if (propone && esSql) {
+        section += `\n- **When you propose SQL the user should put in their file, DELIVER IT with \`write_file\`, not just as a code block in prose.** \`write_file\` gives the user Accept/Reject; a plain \`\`\`sql block can only be inserted at their cursor by hand. Briefly explain the change in chat, then call \`write_file\` with the full new file. (Exception: tiny inline snippets purely for illustration can stay in prose.)`;
+    } else if (propone) {
+        section += `\n- When you change this file, deliver the change with \`write_file\` (the whole file) and say in one or two sentences what changed.`;
+    }
+    section += `
 - **To chart:** if the "Current editor state" section shows an on-screen result with a \`queryId\`, pass THAT id straight to \`display_chart\` — it's the exact result the user is looking at, no re-run needed. Otherwise call \`execute_sql\` first and use the \`queryId\` it returns. Never invent or guess an id (e.g. "current", "latest"). Also: NEVER ask the user for a \`query_id\` — they can't see it; either use the on-screen result's id or run \`execute_sql\` yourself.
 - **When the request is ambiguous, ASK before acting.** If you're unsure which column, metric, period, or comparison the user means, ask one short clarifying question in your reply instead of guessing or fabricating values. A good question beats a wrong chart — do not invent data, columns, or ids to force a result.
 - **Choose the chart with the "Chart Selection" framework above** and let the data shape decide (2–3 time periods = a comparison → grouped bars, not a line). If \`display_chart\` returns a warning or error, follow its guidance and re-call with the corrected choice — do not repeat the same chart.`;
@@ -142,7 +240,14 @@ Every finding you report MUST end with "— this matters because ___". A number 
  * doesn't bust the KV/prefix cache for the stable schema + instructions above:
  * when the user edits their query, only these trailing tokens change.
  */
-function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView } = {}) {
+/** Las líneas numeradas, para que el modelo proponga un rango (E2). */
+function numerar(texto) {
+    const lineas = String(texto || '').split(/\r?\n/);
+    const ancho = String(lineas.length).length;
+    return lineas.map((l, i) => `${String(i + 1).padStart(ancho, ' ')} | ${l}`).join('\n');
+}
+
+function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView, archivo = null, enfoque = null, dbt = null } = {}) {
     let s = '';
     let opened = false;
     const open = () => {
@@ -156,9 +261,83 @@ function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig,
             : 'the TABLE (results grid) view';
         s += `\n**Active view:** the user is currently looking at ${v}.`;
     }
-    if (currentQuery) {
+    // Numeradas cuando el modelo puede proponer un rango de líneas (E2).
+    const numeradas = !!(archivo?.porLineas && archivo.puedeProponer);
+    const cuerpo = (t) => (numeradas ? numerar(t) : t);
+    if (archivo?.porCeldas) {
+        // E3: el notebook, celda por celda (cada SQL ya va en su bloque).
         open();
-        s += `\n**Current query (editor):**\n\`\`\`sql\n${currentQuery}\n\`\`\``;
+        s += `\n**Active notebook (${archivo.ruta || 'untitled'}), cell by cell:**\n\n${archivo.contenido}\n`;
+    } else if (archivo?.porLaminas) {
+        // E4: el deck, lámina por lámina (cada texto ya va en su bloque).
+        open();
+        s += `\n**Active deck (${archivo.ruta || 'untitled'}), slide by slide:**\n\n${archivo.contenido}\n`;
+    } else if (archivo?.porPaneles) {
+        // E4: el gráfico por sus paneles, no su JSON.
+        open();
+        s += `\n**Active chart (${archivo.ruta || 'untitled'}):**\n\n${archivo.contenido}\n`;
+    } else if (archivo?.porPasos || archivo?.porTarjetas || archivo?.porDiagrama) {
+        // E5: el flujo paso a paso, el Canvas tarjeta a tarjeta, el diagrama como grafo.
+        open();
+        const que = archivo.porPasos ? 'Data Flow, step by step' : archivo.porTarjetas ? 'Canvas, card by card' : 'diagram';
+        s += `\n**Active ${que} (${archivo.ruta || 'untitled'}):**\n\n${archivo.contenido}\n`;
+    } else if (archivo && archivo.tipo !== 'sql') {
+        // Cualquier otro archivo va con su nombre y en su idioma: llamarle
+        // «query» a un deck o a un YAML hacía que el modelo lo tratara como SQL.
+        open();
+        s += archivo.contenido
+            ? `\n**Active file content (${archivo.ruta || 'untitled'})${numeradas ? ', with line numbers' : ''}:**\n\`\`\`${archivo.idioma}\n${cuerpo(archivo.contenido)}\n\`\`\``
+            : `\n**Active file content (${archivo.ruta || 'untitled'}):** not shown.`;
+    } else if (currentQuery) {
+        open();
+        s += `\n**Current query (editor)${numeradas ? ', with line numbers' : ''}:**\n\`\`\`sql\n${cuerpo(currentQuery)}\n\`\`\``;
+    }
+    if (dbt?.compilado) {
+        open();
+        s += `\n**Compiled SQL of this dbt model** (read-only, for reference):\n\`\`\`sql\n${dbt.compilado}\n\`\`\``;
+    }
+    // Dónde está el usuario y qué falló (E2).
+    if (enfoque?.seleccion) {
+        open();
+        const e = enfoque.seleccion;
+        s += `\n**Where the user is:** they selected ${e.desde === e.hasta ? `line ${e.desde}` : `lines ${e.desde}–${e.hasta}`}:\n\`\`\`${archivo?.idioma || 'sql'}\n${e.texto}\n\`\`\`\n_"This" means this selection._`;
+    } else if (enfoque?.sentencia) {
+        open();
+        s += `\n**Where the user is:** the cursor is in the statement at lines ${enfoque.sentencia.desde}–${enfoque.sentencia.hasta}. _"This query" means that statement._`;
+    } else if (enfoque?.celda) {
+        open();
+        const c = enfoque.celda;
+        s += `\n**Where the user is:** cell ${c.n} (${c.tipo === 'texto' ? 'text' : `SQL${c.nombre ? ` \`${c.nombre}\`` : ''}`}). _"This cell" means cell ${c.n}._${currentResult ? ' The on-screen result below is the result of this cell.' : ''}`;
+    } else if (enfoque?.paso) {
+        open();
+        const p = enfoque.paso;
+        s += `\n**Where the user is:** step \`${p.id}\` (${p.tipo}${p.nombre ? `, "${p.nombre}"` : ''}). _"This step" means \`${p.id}\`._`;
+    } else if (enfoque?.tarjeta) {
+        open();
+        const t = enfoque.tarjeta;
+        s += `\n**Where the user is:** card \`${t.id}\` (${t.tipo}). _"This card" means \`${t.id}\`._${currentResult ? ' The on-screen result below is its data.' : ''}`;
+    } else if (enfoque?.nodo) {
+        open();
+        s += `\n**Where the user is:** the box \`${enfoque.nodo.id}\` ("${enfoque.nodo.texto}"). _"This box" means it._`;
+    } else if (enfoque?.lamina) {
+        open();
+        const l = enfoque.lamina;
+        s += `\n**Where the user is:** slide ${l.n} (layout ${l.diseno}${l.titulo ? `, "${l.titulo}"` : ''}). _"This slide" means slide ${l.n}._`;
+    } else if (enfoque?.etapa || enfoque?.vista) {
+        open();
+        s += `\n**Where the user is:** ${enfoque.vista === 'codigo' ? 'the Code view (the Vega-Lite spec)' : `the ${enfoque.etapa} stage of Story Flow`}.${currentResult ? ' The on-screen result below is the data of this chart.' : ''}`;
+    } else if (enfoque?.seccion) {
+        open();
+        const e = enfoque.seccion;
+        s += `\n**Where the user is:** the section ${e.titulo ? `"${e.titulo}" ` : ''}at lines ${e.desde}–${e.hasta}. _"This" means that section._`;
+    }
+    if (enfoque?.error) {
+        open();
+        s += `\n**The last run failed** with this error:\n\`\`\`\n${enfoque.error}\n\`\`\``;
+    }
+    if (archivo?.notas?.length) {
+        open();
+        s += `\n${archivo.notas.map(n => `_Note: ${n}_`).join('\n')}`;
     }
     if (currentResult) {
         open();

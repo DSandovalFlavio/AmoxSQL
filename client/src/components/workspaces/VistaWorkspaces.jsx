@@ -26,6 +26,7 @@ import CalendarioDelWorkspace from './CalendarioDelWorkspace';
 import Atencion from '../operacion/Atencion';
 import DesdePaquete from '../paquete/DesdePaquete';
 import VistaOperacion from '../operacion/VistaOperacion';
+import { useEscape } from '../../hooks/useEscape';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, {
@@ -117,6 +118,7 @@ function SelectorEnlace({ workspaces, etiqueta, onElegir }) {
 
 /** Importar un .amoxworkspace: lo que trae, qué cambia, y qué sobrescribir. */
 function Importar({ contenido, analisis, etiqueta, onCerrar, onHecho }) {
+    useEscape(onCerrar);
     const [sobrescribir, setSobrescribir] = useState(new Set());
     const [metadatos, setMetadatos] = useState(false);
     const [ocupado, setOcupado] = useState(false);

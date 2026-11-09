@@ -3,7 +3,7 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
-const { app, BrowserWindow, dialog, ipcMain, shell, utilityProcess, protocol, net, safeStorage } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell, utilityProcess, protocol, net, safeStorage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -319,9 +319,93 @@ ipcMain.on('window-control:close', (event) => {
     senderWindow(event)?.close();
 });
 
+/**
+ * Sin menú de aplicación (Dec-89). El de serie de Electron, aunque esté oculto,
+ * sigue atendiendo sus teclas: Ctrl+R recargaba la aplicación entera y te dejaba
+ * en la bienvenida sin un resultado. En macOS hace falta el de Edición para que
+ * copiar y pegar funcionen; en Windows y Linux los atiende el propio motor.
+ */
+function ponerMenu() {
+    Menu.setApplicationMenu(process.platform === 'darwin'
+        ? Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }])
+        : null);
+}
+
+/**
+ * Las teclas de ventana, en todas las ventanas de la app: zoom y, solo en
+ * desarrollo, las herramientas de depuración (ya no las trae el menú).
+ */
+function atajosDeVentana(win) {
+    const conDepuracion = !app.isPackaged || process.env.AMOX_DEVTOOLS === '1';
+    win.webContents.setVisualZoomLevelLimits(1, 1);
+    win.webContents.on('before-input-event', (event, input) => {
+        if (input.type !== 'keyDown') return;
+        if (conDepuracion && (input.key === 'F12' || (input.control && input.shift && input.key.toLowerCase() === 'i'))) {
+            event.preventDefault();
+            win.webContents.toggleDevTools();
+            return;
+        }
+        if (input.control && !input.shift && !input.alt) {
+            let factor = null;
+            if (input.key === '=' || input.key === '+') factor = Math.min(win.webContents.getZoomFactor() + 0.1, 2.0);
+            else if (input.key === '-') factor = Math.max(win.webContents.getZoomFactor() - 0.1, 0.5);
+            else if (input.key === '0') factor = 1.0;
+            if (factor === null) return;
+            event.preventDefault();
+            win.webContents.setZoomFactor(factor);
+            win.webContents.send('zoom:changed', factor);
+        }
+    });
+}
+
 let mainWindow;
-let popoutWindow = null;
-let pendingPopoutData = null;
+/**
+ * **Nunca atrapado** (fase 5). Si el proceso de la ventana muere —falta de memoria,
+ * un fallo del motor de pintado— la ventana se quedaba abierta y muerta, con el
+ * servidor vivo. Se recarga sola y vuelve a la sesión (`?reanudar=1`, App.jsx). Si
+ * muere una y otra vez, va a la bienvenida para no entrar en bucle.
+ */
+const recuperaciones = [];
+function urlDeLaVentana() {
+    return !app.isPackaged
+        ? (process.env.AMOX_DEV_URL || 'http://localhost:5173')
+        : `${APP_ORIGIN}/index.html`;
+}
+function vigilarVentana(win) {
+    win.webContents.on('render-process-gone', (_e, detalle) => {
+        if (detalle.reason === 'clean-exit' || win.isDestroyed()) return;
+        console.error('[Main] Window process gone:', detalle.reason, detalle.exitCode);
+        const ahora = Date.now();
+        while (recuperaciones.length && ahora - recuperaciones[0] > 120000) recuperaciones.shift();
+        recuperaciones.push(ahora);
+        if (recuperaciones.length >= 3) {
+            dialog.showErrorBox('AmoxSQL', 'The window keeps stopping, so AmoxSQL went back to the start. Your files are safe.');
+            win.loadURL(urlDeLaVentana()).catch(() => {});
+            return;
+        }
+        win.loadURL(`${urlDeLaVentana()}?reanudar=1&motivo=ventana`).catch(() => {});
+    });
+
+    let preguntando = false;
+    win.on('unresponsive', async () => {
+        if (preguntando || win.isDestroyed()) return;
+        preguntando = true;
+        const { response } = await dialog.showMessageBox(win, {
+            type: 'warning',
+            title: 'AmoxSQL',
+            message: 'The window is not responding',
+            detail: 'A large result may still be loading. You can wait, or reload to go back to your tabs (results will need to run again).',
+            buttons: ['Wait', 'Reload'],
+            defaultId: 0,
+            cancelId: 0,
+        });
+        preguntando = false;
+        if (response === 1 && !win.isDestroyed()) win.webContents.forcefullyCrashRenderer();
+    });
+}
+
+// Una ventana emergente por pestaña (Dec-86): tabId → { win, pendiente }.
+const emergentes = new Map();
 let serverProcess = null;
 // Distingue "el servidor se murio" de "lo estamos matando nosotros al salir":
 // solo el primer caso merece avisar al usuario.
@@ -359,12 +443,36 @@ async function shutdownServer() {
     }
 }
 
+/**
+ * El marco de cada sistema. En Windows y Linux la ventana no tiene marco y la
+ * barra de la app dibuja sus controles. En macOS `frame: false` quitaría también
+ * los botones nativos: se oculta solo la barra y ellos quedan encima de la nuestra,
+ * centrados en ella (`y`: su alto es de 14 px).
+ */
+const marcoDeVentana = (y) => (process.platform === 'darwin'
+    ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 14, y } }
+    : { frame: false });
+
+/**
+ * En pantalla completa macOS esconde sus botones: la barra deja de reservarles sitio.
+ * También al terminar de cargar, porque una recarga pierde la marca.
+ */
+function seguirPantallaCompleta(win) {
+    if (process.platform !== 'darwin') return;
+    const avisar = () => {
+        if (!win.isDestroyed()) win.webContents.send('ventana:pantalla-completa', win.isFullScreen());
+    };
+    win.on('enter-full-screen', avisar);
+    win.on('leave-full-screen', avisar);
+    win.webContents.on('did-finish-load', avisar);
+}
+
 const createWindow = () => {
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 800,
         icon: path.join(__dirname, '../assets/icon.ico'),
-        frame: false,
+        ...marcoDeVentana(16),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -375,6 +483,7 @@ const createWindow = () => {
         autoHideMenuBar: true,
         backgroundColor: '#0F1012'
     });
+    seguirPantallaCompleta(mainWindow);
 
     // === EXPORT DOWNLOADS ===
     // Every export in the app (chart PNG, HTML/Word report, PowerPoint deck)
@@ -426,29 +535,11 @@ const createWindow = () => {
     // Zoom is managed centrally from main process via webContents.setZoomFactor().
     // We intercept Ctrl+Plus/Minus/0, preventDefault to stop Chromium's default,
     // then apply our own zoom factor and notify the renderer to sync UI state.
-    mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
+    atajosDeVentana(mainWindow);
+    vigilarVentana(mainWindow);
 
-    mainWindow.webContents.on('before-input-event', (event, input) => {
-        if (input.control && !input.shift && !input.alt && input.type === 'keyDown') {
-            if (input.key === '=' || input.key === '+') {
-                event.preventDefault();
-                const current = mainWindow.webContents.getZoomFactor();
-                const next = Math.min(current + 0.1, 2.0);
-                mainWindow.webContents.setZoomFactor(next);
-                mainWindow.webContents.send('zoom:changed', next);
-            } else if (input.key === '-') {
-                event.preventDefault();
-                const current = mainWindow.webContents.getZoomFactor();
-                const next = Math.max(current - 0.1, 0.5);
-                mainWindow.webContents.setZoomFactor(next);
-                mainWindow.webContents.send('zoom:changed', next);
-            } else if (input.key === '0') {
-                event.preventDefault();
-                mainWindow.webContents.setZoomFactor(1.0);
-                mainWindow.webContents.send('zoom:changed', 1.0);
-            }
-        }
-    });
+    // Sin la principal no hay forma de volver: las emergentes se van con ella.
+    mainWindow.on('closed', () => cerrarEmergentes());
 
     // Load the App
     if (!app.isPackaged) {
@@ -470,16 +561,23 @@ const createWindow = () => {
 };
 
 // --- Pop-out Results Window IPC ---
+// Cada ventana es de una pestaña: solo la actualiza una ejecución de esa pestaña.
+
+const entradaDe = (tabId) => {
+    const e = emergentes.get(tabId);
+    return e && !e.win.isDestroyed() ? e : null;
+};
 
 ipcMain.handle('popout:open', async (_event, data) => {
-    // If there's already a popout window, focus it and send new data
-    if (popoutWindow && !popoutWindow.isDestroyed()) {
-        popoutWindow.focus();
-        popoutWindow.webContents.send('popout:data', data);
+    const tabId = data?.tabId;
+    if (!tabId) return false;
+    const abierta = entradaDe(tabId);
+    if (abierta) {
+        abierta.win.show();
+        abierta.win.focus();
+        abierta.win.webContents.send('popout:data', data);
         return true;
     }
-
-    pendingPopoutData = data;
 
     // Mismo origen que la ventana principal: si no, la emergente tendria su
     // propio localStorage y sus propios ajustes.
@@ -487,13 +585,13 @@ ipcMain.handle('popout:open', async (_event, data) => {
         ? 'http://localhost:5173'
         : `${APP_ORIGIN}/index.html`;
 
-    popoutWindow = new BrowserWindow({
+    const win = new BrowserWindow({
         width: 1000,
         height: 700,
         // Sin marco, igual que la principal: la cabecera de PopoutResultsPage
         // hace de barra de ventana. Con marco nativo salian DOS barras, una
         // encima de la otra, y la de arriba no seguia el tema.
-        frame: false,
+        ...marcoDeVentana(12),
         autoHideMenuBar: true,
         backgroundColor: '#0F1012',
         icon: path.join(__dirname, '../assets/icon.ico'),
@@ -505,35 +603,61 @@ ipcMain.handle('popout:open', async (_event, data) => {
             spellcheck: false,
         }
     });
+    emergentes.set(tabId, { win, pendiente: data });
+    seguirPantallaCompleta(win);
 
-    popoutWindow.loadURL(`${baseUrl}?popout=true`);
+    atajosDeVentana(win);
+    win.loadURL(`${baseUrl}?popout=true`);
 
-    popoutWindow.webContents.on('did-finish-load', () => {
-        // Data will be requested by the child via popout:requestData
-        // We keep pendingPopoutData available for that request
-    });
-
-    popoutWindow.on('closed', () => {
-        popoutWindow = null;
-        pendingPopoutData = null;
+    win.on('closed', () => {
+        emergentes.delete(tabId);
         if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('popout:closed');
+            mainWindow.webContents.send('popout:closed', tabId);
         }
     });
 
     return true;
 });
 
+// Una ejecución nueva de la pestaña: sin robar el foco, que estás en la principal.
+ipcMain.handle('popout:update', (_event, data) => {
+    entradaDe(data?.tabId)?.win.webContents.send('popout:data', data);
+});
+
+ipcMain.handle('popout:focus', (_event, tabId) => {
+    const e = entradaDe(tabId);
+    if (e) { e.win.show(); e.win.focus(); }
+});
+
+ipcMain.handle('popout:close', (_event, tabId) => {
+    entradaDe(tabId)?.win.close();
+});
+
+function cerrarEmergentes() {
+    for (const { win } of emergentes.values()) {
+        if (!win.isDestroyed()) win.close();
+    }
+}
+
+// Al montarse la interfaz (recarga, otro proyecto): las pestañas son otras, así
+// que las ventanas de antes ya no son de nadie.
+ipcMain.handle('popout:closeAll', () => cerrarEmergentes());
+
 // Child window requests its initial data after React mounts
-ipcMain.handle('popout:requestData', () => {
-    const data = pendingPopoutData;
-    pendingPopoutData = null;
-    return data;
+ipcMain.handle('popout:requestData', (event) => {
+    for (const e of emergentes.values()) {
+        if (!e.win.isDestroyed() && e.win.webContents === event.sender) {
+            const data = e.pendiente;
+            e.pendiente = null;
+            return data;
+        }
+    }
+    return null;
 });
 
 ipcMain.handle('popout:isPopout', (event) => {
-    if (popoutWindow && !popoutWindow.isDestroyed()) {
-        return event.sender === popoutWindow.webContents;
+    for (const e of emergentes.values()) {
+        if (!e.win.isDestroyed() && e.win.webContents === event.sender) return true;
     }
     return false;
 });
@@ -755,6 +879,7 @@ app.on('before-quit', async (event) => {
 });
 
 app.whenReady().then(() => {
+    ponerMenu();
     // Sin el bloqueo, este arranque sólo entrega una orden y espera (o ya salió).
     if (!gotTheLock) return;
     initApp();

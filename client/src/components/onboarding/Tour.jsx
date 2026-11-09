@@ -10,7 +10,7 @@
  *   { icon, title, tagline, headline, desc, points?: string[],
  *     when?: string, examples?: string[] }
  */
-import { memo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback, useRef } from 'react';
 import { LuArrowRight, LuX } from 'react-icons/lu';
 import './onboarding.css';
 
@@ -24,6 +24,7 @@ export const Tour = memo(({
     doneLabel = 'Done',
 }) => {
     const [step, setStep] = useState(0);
+    const panelRef = useRef(null);
     useEffect(() => { if (isOpen) setStep(0); }, [isOpen]);
 
     const total = steps.length;
@@ -44,6 +45,15 @@ export const Tour = memo(({
         return () => window.removeEventListener('keydown', onKey);
     }, [isOpen, step, last, go, onClose]);
 
+    // El foco va al tour y vuelve a donde estaba. Sin esto se quedaba en el editor
+    // de detrás: lo que escribías mientras leías el tour acababa en tu archivo.
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const previo = document.activeElement;
+        panelRef.current?.focus();
+        return () => { if (previo?.isConnected) previo.focus?.(); };
+    }, [isOpen]);
+
     if (!isOpen || total === 0) return null;
 
     const s = steps[step];
@@ -51,7 +61,7 @@ export const Tour = memo(({
 
     return (
         <div className="ob-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label={brandLabel}>
-            <div className="ob-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="ob-panel" ref={panelRef} tabIndex={-1} onClick={(e) => e.stopPropagation()}>
                 <div className="ob-head">
                     <span className="ob-brand">
                         {BrandIcon && <BrandIcon size={13} />} {brandLabel}

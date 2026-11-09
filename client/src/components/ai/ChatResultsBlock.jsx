@@ -1,5 +1,5 @@
-import { memo, useMemo, useState, Component } from 'react';
-import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn, LuMessageSquareQuote } from 'react-icons/lu';
+import { memo, useMemo, useState, useEffect, useRef, Component } from 'react';
+import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn, LuMessageSquareQuote, LuEllipsis } from 'react-icons/lu';
 import html2canvas from 'html2canvas-pro';
 import FiguraVega from '../DataVisualizer/vega/FiguraVega';
 import { deStoryFlow } from '../DataVisualizer/vega/deStoryFlow';
@@ -32,12 +32,131 @@ class ChartErrorBoundary extends Component {
 }
 
 /**
+ * The assistant's chart config, completed with the panel defaults: what the chart
+ * draws and what an .amoxvis carries (Open in Story Flow, Deep Dive's Report Flow
+ * deck). One function so both are the same figure.
+ */
+export function planoDeGraficoIA(cc = {}) {
+    const hasXLabel = !!cc.xAxisLabel;
+    const hasYLabel = !!cc.yAxisLabel;
+    const isHorizontalBar = (cc.chartType || '').startsWith('bar-horizontal');
+    const showsLabels = cc.showLabels ?? false;
+    return {
+        // ── Core ──────────────────────────────────────────────────────────────
+        chartType:   cc.chartType || 'bar',
+        xAxisKey:    cc.xAxisKey,
+        yAxisKeys:   cc.yAxisKeys || [],
+        chartTitle:  cc.title || cc.chartTitle || '',
+        chartSubtitle: cc.chartSubtitle || '',
+        chartFootnote: cc.chartFootnote || '',
+
+        // ── Data mapping ──────────────────────────────────────────────────────
+        rightYAxisKey: cc.rightYAxisKey || '',
+        splitByKey:    cc.splitByKey    || '',
+        bubbleSizeKey: cc.bubbleSizeKey || '',
+
+        // ── Axes ──────────────────────────────────────────────────────────────
+        customAxisTitles: { x: cc.xAxisLabel || '', y: cc.yAxisLabel || '' },
+        showXAxisTitle:   hasXLabel,
+        showYAxisTitle:   hasYLabel,
+        xAxisLabelAngle:  cc.xAxisLabelAngle ?? 0,
+        dateAggregation:  cc.dateAggregation || 'none',
+        yLogScale:        cc.yLogScale ?? false,
+        yAxisDomain:      ['auto', 'auto'],
+        yAxisPosition:    'left',
+        showAxisLines:    true,
+
+        // ── Data options ──────────────────────────────────────────────────────
+        numberFormat:  cc.numberFormat  || 'compact',
+        decimalPlaces: -1,
+        sortMode:      cc.sortMode      || 'natural',
+        limit:         cc.limit         ?? 0,
+        isCumulative:  cc.isCumulative  ?? false,
+
+        // ── Visual style ──────────────────────────────────────────────────────
+        colorTheme:     cc.colorTheme    || 'default',
+        showLabels:     cc.showLabels    ?? false,
+        dataLabelPosition: 'outside',
+        dataLabelSize:  10,
+        legendPosition: cc.legendPosition || 'top',
+        gridMode:       cc.gridMode      || 'horizontal',
+        tooltipShowPercent: false,
+        textScale:  0.9,
+        textAlign:  cc.textAlign || 'left',
+        titleSpacing: 10,
+        // Horizontal bars draw their value labels to the RIGHT of each bar;
+        // a 10px right margin clips the longest one (e.g. "46.5M"). Give it room.
+        marginTop: 10, marginBottom: 10, marginLeft: 10,
+        marginRight: isHorizontalBar && showsLabels ? 52 : 10,
+
+        // ── Line/Area ─────────────────────────────────────────────────────────
+        lineType:     cc.lineType    || 'monotone',
+        lineAreaFill: false,
+        showDots:     cc.showDots    ?? true,
+
+        // ── Bar ───────────────────────────────────────────────────────────────
+        barStackMode:  'none',
+        barRadius:     cc.barRadius     ?? 2,
+        barColorMode:  cc.barColorMode  || 'series',
+
+        // ── Donut ─────────────────────────────────────────────────────────────
+        donutThickness:        60,
+        donutCenterKpi:        cc.donutCenterKpi    || 'none',
+        donutLabelContent:     cc.donutLabelContent || 'percent',
+        donutLabelPosition:    'outside',
+        donutGroupingThreshold: 0,
+
+        // ── Scatter ───────────────────────────────────────────────────────────
+        scatterQuadrants: false,
+
+        // ── Analytical overlays ───────────────────────────────────────────────
+        trendLine:       cc.trendLine     || { type: 'none', windowSize: 3, color: '#fbbf24' },
+        goalLine:        cc.goalLine      || { enabled: false, value: '', label: '', color: '#22c55e', style: 'dashed' },
+        refLine:         cc.refLine       || { value: '', label: '', color: '#ff4444', style: 'dashed' },
+        refArea:         { x1: '', x2: '', y1: '', y2: '', color: '#ffffff', opacity: 0.1 },
+        highlightConfig: cc.highlightConfig || { type: 'none', value: '', color: 'var(--accent-primary)' },
+
+        // ── Headline KPI ──────────────────────────────────────────────────────
+        headline: cc.headline || { visible: false, metric: 'total', compareWith: 'none', size: 'auto' },
+
+        // ── Series colors ─────────────────────────────────────────────────────
+        seriesConfig: {},
+
+        // ── Storytelling layer (AI can set these) ─────────────────────────────
+        annotations:  cc.annotations  || [],
+        takeaway:     cc.takeaway     || '',
+
+        // ── 5.17: distribución, intervalos y el Vega-Lite escrito por el modelo ──
+        binCount:       cc.binCount       ?? 20,
+        histogramStats: cc.histogramStats || [],
+        errorLowKey:    cc.errorLowKey    || '',
+        errorHighKey:   cc.errorHighKey   || '',
+        orientation:    cc.orientation    || 'horizontal',
+        facetKey:       cc.facetKey       || '',
+        facetColumns:   cc.facetColumns   ?? 3,
+        endLabels:      cc.endLabels      ?? false,
+        tooltipFields:  cc.tooltipFields  || [],
+        modo:           cc.modo === 'codigo' && cc.spec ? 'codigo' : 'interfaz',
+        spec:           cc.modo === 'codigo' && cc.spec ? cc.spec : null,
+    };
+}
+
+/**
  * ChatResultsBlock — Renders an inline chart visualization for the AI chat.
  * Finds the data from previous messages using queryId and draws it with Vega-Lite.
  */
-const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook, onExportAmoxvis, onApplyChart, onAskAbout }) => {
+const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook, onExportAmoxvis, onApplyChart, onAskAbout, destinoGrafico = null }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [applied, setApplied] = useState(false);
+    // E6/A12: las acciones secundarias, en un menú: en 380 px los botones se partían en dos líneas.
+    const [menu, setMenu] = useState(false);
+    const menuRef = useRef(null);
+    useEffect(() => {
+        if (!menu) return undefined;
+        const fuera = (e) => { if (!menuRef.current?.contains(e.target)) setMenu(false); };
+        document.addEventListener('mousedown', fuera);
+        return () => document.removeEventListener('mousedown', fuera);
+    }, [menu]);
     const chartDOMId = useMemo(() => `ai-chart-${Math.random().toString(36).substr(2, 9)}`, []);
 
     // Find the data in previous messages
@@ -62,111 +181,7 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
 
 
     // Merge LLM config with defaults. AI-supplied values always win over defaults.
-    const fullConfig = useMemo(() => {
-        const cc = chartConfig;
-        const hasXLabel = !!cc.xAxisLabel;
-        const hasYLabel = !!cc.yAxisLabel;
-        const isHorizontalBar = (cc.chartType || '').startsWith('bar-horizontal');
-        const showsLabels = cc.showLabels ?? false;
-        return {
-            // ── Core ──────────────────────────────────────────────────────────────
-            chartType:   cc.chartType || 'bar',
-            xAxisKey:    cc.xAxisKey,
-            yAxisKeys:   cc.yAxisKeys || [],
-            chartTitle:  cc.title || cc.chartTitle || '',
-            chartSubtitle: cc.chartSubtitle || '',
-            chartFootnote: cc.chartFootnote || '',
-
-            // ── Data mapping ──────────────────────────────────────────────────────
-            rightYAxisKey: cc.rightYAxisKey || '',
-            splitByKey:    cc.splitByKey    || '',
-            bubbleSizeKey: cc.bubbleSizeKey || '',
-
-            // ── Axes ──────────────────────────────────────────────────────────────
-            customAxisTitles: { x: cc.xAxisLabel || '', y: cc.yAxisLabel || '' },
-            showXAxisTitle:   hasXLabel,
-            showYAxisTitle:   hasYLabel,
-            xAxisLabelAngle:  cc.xAxisLabelAngle ?? 0,
-            dateAggregation:  cc.dateAggregation || 'none',
-            yLogScale:        cc.yLogScale ?? false,
-            yAxisDomain:      ['auto', 'auto'],
-            yAxisPosition:    'left',
-            showAxisLines:    true,
-
-            // ── Data options ──────────────────────────────────────────────────────
-            numberFormat:  cc.numberFormat  || 'compact',
-            decimalPlaces: -1,
-            sortMode:      cc.sortMode      || 'natural',
-            limit:         cc.limit         ?? 0,
-            isCumulative:  cc.isCumulative  ?? false,
-
-            // ── Visual style ──────────────────────────────────────────────────────
-            colorTheme:     cc.colorTheme    || 'default',
-            showLabels:     cc.showLabels    ?? false,
-            dataLabelPosition: 'outside',
-            dataLabelSize:  10,
-            legendPosition: cc.legendPosition || 'top',
-            gridMode:       cc.gridMode      || 'horizontal',
-            tooltipShowPercent: false,
-            textScale:  0.9,
-            textAlign:  cc.textAlign || 'left',
-            titleSpacing: 10,
-            // Horizontal bars draw their value labels to the RIGHT of each bar;
-            // a 10px right margin clips the longest one (e.g. "46.5M"). Give it room.
-            marginTop: 10, marginBottom: 10, marginLeft: 10,
-            marginRight: isHorizontalBar && showsLabels ? 52 : 10,
-
-            // ── Line/Area ─────────────────────────────────────────────────────────
-            lineType:     cc.lineType    || 'monotone',
-            lineAreaFill: false,
-            showDots:     cc.showDots    ?? true,
-
-            // ── Bar ───────────────────────────────────────────────────────────────
-            barStackMode:  'none',
-            barRadius:     cc.barRadius     ?? 2,
-            barColorMode:  cc.barColorMode  || 'series',
-
-            // ── Donut ─────────────────────────────────────────────────────────────
-            donutThickness:        60,
-            donutCenterKpi:        cc.donutCenterKpi    || 'none',
-            donutLabelContent:     cc.donutLabelContent || 'percent',
-            donutLabelPosition:    'outside',
-            donutGroupingThreshold: 0,
-
-            // ── Scatter ───────────────────────────────────────────────────────────
-            scatterQuadrants: false,
-
-            // ── Analytical overlays ───────────────────────────────────────────────
-            trendLine:       cc.trendLine     || { type: 'none', windowSize: 3, color: '#fbbf24' },
-            goalLine:        cc.goalLine      || { enabled: false, value: '', label: '', color: '#22c55e', style: 'dashed' },
-            refLine:         cc.refLine       || { value: '', label: '', color: '#ff4444', style: 'dashed' },
-            refArea:         { x1: '', x2: '', y1: '', y2: '', color: '#ffffff', opacity: 0.1 },
-            highlightConfig: cc.highlightConfig || { type: 'none', value: '', color: 'var(--accent-primary)' },
-
-            // ── Headline KPI ──────────────────────────────────────────────────────
-            headline: cc.headline || { visible: false, metric: 'total', compareWith: 'none', size: 'auto' },
-
-            // ── Series colors ─────────────────────────────────────────────────────
-            seriesConfig: {},
-
-            // ── Storytelling layer (AI can set these) ─────────────────────────────
-            annotations:  cc.annotations  || [],
-            takeaway:     cc.takeaway     || '',
-
-            // ── 5.17: distribución, intervalos y el Vega-Lite escrito por el modelo ──
-            binCount:       cc.binCount       ?? 20,
-            histogramStats: cc.histogramStats || [],
-            errorLowKey:    cc.errorLowKey    || '',
-            errorHighKey:   cc.errorHighKey   || '',
-            orientation:    cc.orientation    || 'horizontal',
-            facetKey:       cc.facetKey       || '',
-            facetColumns:   cc.facetColumns   ?? 3,
-            endLabels:      cc.endLabels      ?? false,
-            tooltipFields:  cc.tooltipFields  || [],
-            modo:           cc.modo === 'codigo' && cc.spec ? 'codigo' : 'interfaz',
-            spec:           cc.modo === 'codigo' && cc.spec ? cc.spec : null,
-        };
-    }, [chartConfig]);
+    const fullConfig = useMemo(() => planoDeGraficoIA(chartConfig), [chartConfig]);
 
     const activeColors = COLOR_PALETTES[fullConfig.colorTheme] || COLOR_PALETTES.default;
     // Sin título: el bloque ya lo pone en su cabecera. Con identidad estable para
@@ -280,21 +295,6 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                     Based on {data.length} rows {executionTime ? `(${executionTime}ms)` : ''}
                 </span>
                 <div className="ai-chart-footer-actions">
-                    {onAskAbout && chartConfig?.queryId && (
-                        <button
-                            className="ai-chart-btn"
-                            onClick={() => onAskAbout({
-                                type: 'chart',
-                                queryId: chartConfig.queryId,
-                                chartConfig: fullConfig,
-                                label: chartConfig.title || chartConfig.chartTitle || 'Chart',
-                                key: `chart:${chartConfig.queryId}`,
-                            })}
-                            title="Ask the agent about this chart"
-                        >
-                            <LuMessageSquareQuote size={12} /> Ask about this
-                        </button>
-                    )}
                     {onApplyChart && (
                         <button
                             className="ai-chart-btn"
@@ -307,27 +307,37 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                                 onApplyChart(applyCfg);
                                 setApplied(true);
                             }}
-                            title="Apply this chart to your file's visualization"
+                            title={destinoGrafico ? `Make this the chart of ${destinoGrafico}'s result` : "Apply this chart to your file's visualization"}
                         >
-                            {applied ? <><LuCheck size={12} /> Applied</> : <><LuChartColumn size={12} /> Apply to chart</>}
+                            {applied ? <><LuCheck size={12} /> Applied</> : <><LuChartColumn size={12} /> {destinoGrafico ? 'Apply to this file' : 'Apply to chart'}</>}
                         </button>
                     )}
-                    <button
-                        className="ai-chart-btn"
-                        onClick={handleDownloadImage}
-                        title="Download Chart as PNG"
-                    >
-                        <LuImage size={12} /> PNG
-                    </button>
-                    <button
-                        className="ai-chart-btn"
-                        onClick={handleDownloadConfig}
-                        title={onExportAmoxvis
-                            ? 'Save as .amoxvis and open it in the Story Flow editor'
-                            : 'Download the chart config as a .json file'}
-                    >
-                        <LuFileJson size={12} /> {onExportAmoxvis ? 'Open in Story Flow' : 'Export config (.json)'}
-                    </button>
+                    <div className="ai-chart-menu" ref={menuRef}>
+                        <button className="ai-chart-btn" onClick={() => setMenu(v => !v)} title="More actions" aria-haspopup="menu" aria-expanded={menu}>
+                            <LuEllipsis size={13} />
+                        </button>
+                        {menu && (
+                            <div className="ai-chart-menu-lista" role="menu">
+                                {onAskAbout && chartConfig?.queryId && (
+                                    <button role="menuitem" onClick={() => {
+                                        setMenu(false);
+                                        onAskAbout({
+                                            type: 'chart', queryId: chartConfig.queryId, chartConfig: fullConfig,
+                                            label: chartConfig.title || chartConfig.chartTitle || 'Chart', key: `chart:${chartConfig.queryId}`,
+                                        });
+                                    }}>
+                                        <LuMessageSquareQuote size={12} /> Ask about this
+                                    </button>
+                                )}
+                                <button role="menuitem" onClick={() => { setMenu(false); handleDownloadConfig(); }}>
+                                    <LuFileJson size={12} /> {onExportAmoxvis ? 'Open in Story Flow' : 'Export config (.json)'}
+                                </button>
+                                <button role="menuitem" onClick={() => { setMenu(false); handleDownloadImage(); }}>
+                                    <LuImage size={12} /> Download PNG
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

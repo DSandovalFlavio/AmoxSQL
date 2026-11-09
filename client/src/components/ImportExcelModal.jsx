@@ -15,10 +15,12 @@ import { createPortal } from 'react-dom';
 import { LuSheet, LuX, LuCheck, LuTriangleAlert, LuFileText, LuLoader } from 'react-icons/lu';
 import LecturaExcel from './excel/LecturaExcel';
 import { hojasDelLibro, lecturaRecordada } from './excel/api';
+import { useEscape } from '../hooks/useEscape';
 
 const nombreDeTabla = (ruta) => (ruta.split(/[/\\]/).pop() || 'datos').replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'datos';
 
 const ImportExcelModal = ({ isOpen, onClose, onImport, initialFile = '' }) => {
+    useEscape(onClose, isOpen);
     const [hojas, setHojas] = useState([]);
     const [elegidas, setElegidas] = useState([]);
     const [activa, setActiva] = useState(null);
