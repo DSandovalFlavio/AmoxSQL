@@ -28,6 +28,7 @@ import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
 import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
 import { olvidarPestanas, editorDe, focoDe, aplicadorDe } from '../utils/memoriaDePestana';
 import { aplicarRango, describirRango } from './ai/archivos/rango.js';
+import { cargarVariables, guardarVariables, aBarra, deBarra } from '../utils/variablesProyecto';
 
 /**
  * Un .sql se abre con el gráfico que tenía la última vez (Dec-79): la vista
@@ -132,8 +133,26 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const [planNote, setPlanNote] = useState(null);
     const [planLoading, setPlanLoading] = useState(false);
 
-    // Variables State (shared across session)
-    const [queryVariables, setQueryVariables] = useState([]);
+    // 6.0 (Dec-98): the bar shows the PROJECT's variables (.amoxsql/variables.json):
+    // the same list as SQL Snippets › Variables. `$name` reads them in the engine;
+    // `${name}` still pastes the text. A change is saved after a short pause.
+    const [queryVariables, setQueryVariablesLocal] = useState([]);
+    const guardarVarsRef = useRef(null);
+    useEffect(() => {
+        let vivo = true;
+        cargarVariables().then(({ variables }) => { if (vivo) setQueryVariablesLocal(aBarra(variables)); });
+        const alCambiar = (e) => { if (!guardarVarsRef.current) setQueryVariablesLocal(aBarra(e.detail?.variables)); };
+        window.addEventListener('amox_variables', alCambiar);
+        return () => { vivo = false; window.removeEventListener('amox_variables', alCambiar); };
+    }, []);
+    const setQueryVariables = useCallback((lista) => {
+        setQueryVariablesLocal(lista);
+        clearTimeout(guardarVarsRef.current);
+        guardarVarsRef.current = setTimeout(async () => {
+            guardarVarsRef.current = null;
+            await guardarVariables(deBarra(lista));
+        }, 600);
+    }, []);
 
     // Alert Modal State
     const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });

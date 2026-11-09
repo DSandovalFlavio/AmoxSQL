@@ -53,8 +53,8 @@ export const VariablesPanel = ({ variables, onChange }) => {
     return (
         <div className="ep-variables-panel">
             {variables.map((v, idx) => (
-                <div key={idx} className="ep-var-chip">
-                    <span className="ep-var-syntax">${'{'}</span>
+                <div key={idx} className="ep-var-chip" title={`${v.descripcion ? v.descripcion + ' · ' : ''}A project variable: $${v.name} reads it with its type; \${${v.name}} pastes the text.`}>
+                    <span className="ep-var-syntax">$</span>
                     <input
                         type="text"
                         value={v.name}
@@ -62,7 +62,6 @@ export const VariablesPanel = ({ variables, onChange }) => {
                         placeholder="name"
                         className="ep-var-input ep-var-name"
                     />
-                    <span className="ep-var-syntax">{'}'}</span>
                     <span className="ep-var-equals">=</span>
                     {v.type === 'date' ? (
                         <input
@@ -80,15 +79,20 @@ export const VariablesPanel = ({ variables, onChange }) => {
                             className="ep-var-input ep-var-value"
                         />
                     )}
-                    <select
-                        value={v.type}
-                        onChange={e => handleUpdate(idx, 'type', e.target.value)}
-                        className="ep-var-select"
-                    >
-                        <option value="text">text</option>
-                        <option value="date">date</option>
-                        <option value="number">number</option>
-                    </select>
+                    {v.tipo === 'logico' || v.tipo === 'lista' ? (
+                        // Edited in SQL Snippets › Variables; the bar keeps the type.
+                        <span className="ep-var-select" title="Edit it in SQL Snippets › Variables">{v.tipo === 'lista' ? 'list' : 'yes/no'}</span>
+                    ) : (
+                        <select
+                            value={v.type}
+                            onChange={e => { const t = e.target.value; const u = [...variables]; u[idx] = { ...u[idx], type: t, tipo: undefined }; onChange(u); }}
+                            className="ep-var-select"
+                        >
+                            <option value="text">text</option>
+                            <option value="date">date</option>
+                            <option value="number">number</option>
+                        </select>
+                    )}
                     <button
                         onClick={() => handleRemove(idx)}
                         className="ep-var-remove"

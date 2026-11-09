@@ -1073,6 +1073,38 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 }
             });
 
+            // 6.0 (Dec-98): `$` offers the project's variables (window.__amoxVariables,
+            // published by utils/variablesProyecto). Its own provider: the main one
+            // routes to a worker that knows nothing about them.
+            const describirVariable = (v) => {
+                const valor = v.tipo === 'lista' ? `[${(v.valor || []).join(', ')}]` : v.tipo === 'logico' ? (v.valor ? 'true' : 'false') : String(v.valor ?? '');
+                const tipos = { texto: 'text', numero: 'number', fecha: 'date', logico: 'yes/no', lista: 'list' };
+                return `**$${v.nombre}** · ${tipos[v.tipo] || v.tipo} = \`${valor}\`${v.descripcion ? `\n\n${v.descripcion}` : ''}\n\n_Project variable (SQL Snippets › Variables)._`;
+            };
+            monaco.languages.registerCompletionItemProvider('sql', {
+                triggerCharacters: ['$'],
+                provideCompletionItems: (model, position) => {
+                    const antes = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+                    const m = /\$([A-Za-z_]\w*)?$/.exec(antes);
+                    // `${` is a text placeholder, not an engine variable.
+                    if (!m || /\$\{$/.test(antes)) return { suggestions: [] };
+                    const desde = position.column - m[0].length;
+                    const range = new monaco.Range(position.lineNumber, desde, position.lineNumber, position.column);
+                    return {
+                        suggestions: (window.__amoxVariables || []).map(v => ({
+                            label: `$${v.nombre}`,
+                            kind: monaco.languages.CompletionItemKind.Variable,
+                            detail: 'Project variable',
+                            documentation: { value: describirVariable(v) },
+                            insertText: `$${v.nombre}`,
+                            filterText: `$${v.nombre}`,
+                            sortText: `0_${v.nombre}`,
+                            range,
+                        })),
+                    };
+                },
+            });
+
             // --- HOVER PROVIDER: DuckDB Function Documentation ---
             // Build lookup lazily from same catalog used by autocomplete
             const hoverLookup = {};
@@ -1096,6 +1128,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     }
                     const word = model.getWordAtPosition(position);
                     if (!word) return null;
+                    // 6.0 (Dec-98): `$nombre`, una variable del proyecto.
+                    if (word.startColumn > 1 && model.getLineContent(position.lineNumber)[word.startColumn - 2] === '$') {
+                        const v = (window.__amoxVariables || []).find(x => x.nombre.toLowerCase() === word.word.toLowerCase());
+                        if (v) return {
+                            range: new monaco.Range(position.lineNumber, word.startColumn - 1, position.lineNumber, word.endColumn),
+                            contents: [{ value: describirVariable(v) }],
+                        };
+                    }
                     // 5.13 (Dec-41): una medida del workspace o del proyecto.
                     const medida = (window.__amoxMedidas || []).find(m => m.nombre.toLowerCase() === word.word.toLowerCase());
                     if (medida) {
