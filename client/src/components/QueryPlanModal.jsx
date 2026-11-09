@@ -37,7 +37,7 @@ function sumTimings(node) {
 const PhaseBar = ({ plan, metrics }) => {
     if (!metrics || !(metrics.latency > 0)) return null;
     const p = metrics.phases || {};
-    const planning = (p.planner || 0) + (p.optimizer || 0) + (p.physicalPlanner || 0);
+    const planning = (p.parser || 0) + (p.planner || 0) + (p.optimizer || 0) + (p.physicalPlanner || 0);
     const execution = sumTimings(planRoot(plan));
     const other = Math.max(0, metrics.latency - planning - execution);
     const segs = [

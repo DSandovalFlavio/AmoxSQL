@@ -55,6 +55,7 @@ const { crearVigilante, firmaDe } = require('./vigilanteArchivos');
 const amoxvis = require('./amoxvis');
 const borradores = require('./borradores');
 
+const planDeEjecucion = require('./planDeEjecucion');
 const app = express();
 const PORT = 3001;
 
@@ -974,57 +975,7 @@ app.post('/api/db/describe', async (req, res) => {
     }
 });
 
-// Normalize DuckDB EXPLAIN output (estimated array, or ANALYZE top-level object) into the
-// shape the plan viewer expects: { name, timing, cardinality, estimated_cardinality, extra_info, children }.
-function normalizeExplain(raw, mode) {
-    let top = null;
-    let rootRaw;
-    if (Array.isArray(raw)) {
-        rootRaw = raw[0];
-    } else if (raw && (raw.operator_name || raw.operator_type)) {
-        rootRaw = raw;
-    } else if (raw && Array.isArray(raw.children)) {
-        top = raw;                       // ANALYZE: top-level metrics object wrapping the operator tree
-        rootRaw = raw.children[0] || raw;
-    } else {
-        rootRaw = raw;
-    }
-
-    const norm = (n) => {
-        if (!n || typeof n !== 'object') return null;
-        const ei = n.extra_info;
-        const estFromInfo = (ei && typeof ei === 'object')
-            ? (ei['Estimated Cardinality'] ?? ei.estimated_cardinality) : undefined;
-        return {
-            name: n.operator_name || n.operator_type || n.name || 'Operator',
-            timing: typeof n.operator_timing === 'number' ? n.operator_timing : undefined,
-            cardinality: typeof n.operator_cardinality === 'number' ? n.operator_cardinality : undefined,
-            estimated_cardinality: n.estimated_cardinality ?? estFromInfo,
-            extra_info: ei,
-            children: Array.isArray(n.children) ? n.children.map(norm).filter(Boolean) : [],
-        };
-    };
-
-    const plan = norm(rootRaw);
-    const metrics = (mode === 'analyze' && top) ? {
-        latency: top.latency,
-        rowsReturned: top.rows_returned,
-        resultSetSize: top.result_set_size,
-        cpuTime: top.cpu_time,
-        rowsScanned: top.cumulative_rows_scanned,
-        bytesRead: top.total_bytes_read,
-        peakMemory: top.system_peak_buffer_memory,
-        tempDirSize: top.system_peak_temp_dir_size,
-        // Phase timings (only present with profiling_mode='detailed').
-        phases: {
-            planner: top.planner,
-            optimizer: top.all_optimizers,
-            physicalPlanner: top.physical_planner,
-        },
-    } : null;
-    return { plan, metrics };
-}
-
+// The plan viewer's shape comes from server/planDeEjecucion.js (Dec-65).
 // POST /api/db/explain — query plan for the editor's plan viewer.
 //  · mode='explain'  → EXPLAIN (FORMAT json): the ESTIMATED plan, does NOT run the query.
 //  · mode='analyze'  → EXPLAIN (ANALYZE, FORMAT json): runs the query and returns REAL per-operator
@@ -1055,21 +1006,10 @@ app.post('/api/db/explain', async (req, res) => {
         : `EXPLAIN (FORMAT json) ${query}`;
 
     try {
-        // Detailed profiling adds planner/optimizer/physical-planner phase timings (QUERY_ROOT only).
-        if (effectiveMode === 'analyze') {
-            await dbManager.systemQuery("PRAGMA profiling_mode='detailed'").catch(() => {});
-        }
-        let rows;
-        try {
-            rows = await dbManager.systemQuery(explainSql);
-        } finally {
-            if (effectiveMode === 'analyze') {
-                await dbManager.systemQuery("PRAGMA profiling_mode='standard'").catch(() => {});
-            }
-        }
-        const cell = (rows && rows[0]) ? (rows[0].explain_value ?? Object.values(rows[0]).pop()) : null;
-        const raw = typeof cell === 'string' ? JSON.parse(cell) : cell;
-        const { plan, metrics } = normalizeExplain(raw, effectiveMode);
+        // DuckDB 2 returns the planner phases with every ANALYZE: no profiling_mode (which in 2.0
+        // left profiling switched on for the connection).
+        const rows = await dbManager.systemQuery(explainSql);
+        const { plan, metrics } = planDeEjecucion.normalizar(planDeEjecucion.deFilas(rows), effectiveMode);
         if (!plan) return res.status(400).json({ error: 'Could not parse the execution plan.' });
         res.json({ mode: effectiveMode, plan, metrics, note });
     } catch (err) {
