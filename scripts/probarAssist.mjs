@@ -703,6 +703,22 @@ const { leerDiagrama } = await import(pathToFileURL(path.join(RAIZ, 'client/src/
         && arch.inicioDe({ type: 'sqlchain', path: 'f.sqlchain', content: '{}', resultsError: 'x', foco: { paso: { id: 'a' } } })[0]?.etiqueta === 'Fix this step');
 }
 
+// ── E6. El chat, más corto ──────────────────────────────────────────────────
+console.log('\nE6 · el trabajo en una línea');
+{
+    const { resumenDelTrabajo } = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/trabajo.js')).href);
+    const llamadas = [
+        { toolName: 'execute_sql', result: { rowCount: 3 } },
+        { toolName: 'execute_sql', result: { error: 'boom' } },
+        { toolName: 'describe_table', result: {} },
+        { toolName: 'propose_change', result: { action: 'propose_change', objetivo: { tipo: 'rango', desde: 1, hasta: 1 } } },
+        { toolName: 'suggest_followups', result: { suggestions: [] } },
+    ];
+    bien('consultas, tablas y propuestas, en una línea', resumenDelTrabajo(llamadas) === 'Ran 2 queries (1 failed) · looked at 1 table · proposed 1 change', resumenDelTrabajo(llamadas));
+    bien('una sola consulta, en singular; sin trabajo, nada', resumenDelTrabajo([{ toolName: 'execute_sql', result: {} }]) === 'Ran 1 query' && resumenDelTrabajo([]) === '');
+    bien('una herramienta que no se nombra cuenta como paso', resumenDelTrabajo([{ toolName: 'create_plan', result: {} }]) === '1 more step');
+}
+
 // ── 6. El servidor ──────────────────────────────────────────────────────────
 console.log('\nel servidor');
 try {

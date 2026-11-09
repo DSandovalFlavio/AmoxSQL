@@ -317,6 +317,15 @@ const AiAssistantPanel = ({
         }
     }, [conversationId]);
 
+    // E6/A9: a conversation of another file, from the history: its file opens and
+    // the panel shows that conversation (the switch reads it from the cache).
+    const abrirConversacionDeOtro = useCallback((conv) => {
+        if (!conv?.file_path) return;
+        fileConvCacheRef.current[conv.file_path] = conv.id;
+        setViewMode('chat');
+        onOpenFile?.(conv.file_path);
+    }, [onOpenFile]);
+
     // ─── Skill activation from Command Palette ───
     useEffect(() => {
         const SKILL_MESSAGES = {
@@ -477,6 +486,7 @@ const AiAssistantPanel = ({
                     onSelect={handleSelectConversation}
                     onNew={handleNewConversation}
                     onBack={() => setViewMode('chat')}
+                    onAbrirOtra={onOpenFile ? abrirConversacionDeOtro : undefined}
                 />
             </div>
         );
@@ -555,6 +565,17 @@ const AiAssistantPanel = ({
 
             <AiModesGuideModal isOpen={showModesGuide} onClose={() => setShowModesGuide(false)} />
 
+            {/* E6/A9: the file this conversation is about; it changes with the tab, and now says so. */}
+            {activeFilePath && (
+                <button type="button" className="ai-archivo-barra" onClick={() => setViewMode('history')}
+                    title={`${activeFilePath} — this conversation is linked to this file. Click to see its other chats.`}>
+                    <LuFile size={12} />
+                    <span className="ai-archivo-barra-nombre">{activeFilePath.split(/[\\/]/).pop()}</span>
+                    <span className="ai-archivo-barra-nota">this file's chat</span>
+                    <LuHistory size={11} className="ai-archivo-barra-icono" />
+                </button>
+            )}
+
             {status === 'LOADING' && (
                 <div className="ai-loading">
                     <LuLoader size={30} style={{ marginBottom: '15px', animation: 'spin 2s linear infinite', color: 'var(--accent-primary)' }} />
@@ -606,6 +627,7 @@ const AiAssistantPanel = ({
                                 onRunSql={onRunSql}
                                 onInsertar={esSql ? onInsertarEnEditor : undefined}
                                 onApplyChart={esSql ? onUpdateChartConfig : undefined}
+                                destinoGrafico={esSql && activeFilePath ? `${activeFilePath.split(/[\\/]/).pop()}` : null}
                                 onFollowUp={(text) => handleSend(text)}
                                 acceptEdit={acceptEdit}
                                 rejectEdit={rejectEdit}

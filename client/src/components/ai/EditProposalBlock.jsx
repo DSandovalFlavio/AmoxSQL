@@ -16,7 +16,7 @@ const CONTEXTO = 2;
  * `titulo` names the change («Change to lines 18–20»); `onRevisar` (E2) takes the
  * user to the editor, where the same change is drawn on the file itself.
  */
-const EditProposalBlock = ({ currentContent, proposedContent, description, titulo = 'Change to the file', onAccept, onReject, onRevisar, abierto = true }) => {
+const EditProposalBlock = ({ currentContent, proposedContent, description, titulo = 'Change to the file', onAccept, onReject, onRevisar, abierto = true, icono: Icono = LuFilePen }) => {
     const [showDiff, setShowDiff] = useState(abierto);
     const { operaciones, quitadas, agregadas } = useMemo(
         () => diffLineas(currentContent ?? '', proposedContent ?? ''),
@@ -45,7 +45,7 @@ const EditProposalBlock = ({ currentContent, proposedContent, description, titul
             <div className="ai-edit-proposal__header">
                 <button type="button" className="ai-propuesta__titulo" onClick={() => setShowDiff(v => !v)}>
                     {showDiff ? <LuChevronDown size={12} /> : <LuChevronRight size={12} />}
-                    <LuFilePen size={13} />
+                    <Icono size={13} />
                     <span>{titulo}</span>
                 </button>
                 <span className="ai-propuesta__cuenta">

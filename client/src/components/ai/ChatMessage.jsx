@@ -13,10 +13,12 @@ export const citeUrlTransform = (url) =>
 import { API_BASE } from '../../api.js';
 import { LuUser, LuBot, LuDatabase, LuBrain, LuChevronDown, LuChevronRight, LuZap, LuTrendingUp, LuCircleHelp, LuArrowRight, LuTriangleAlert, LuSearch, LuX, LuNotebookPen, LuMessageSquareQuote, LuPlay, LuFileInput, LuCopy, LuCheck } from 'react-icons/lu';
 import SqlBlock from './SqlBlock';
+import { useConsultaEnChat, ResultadoEnChat } from './ResultadoEnChat.jsx';
 import ToolCallBlock from './ToolCallBlock';
 import ChatResultsBlock from './ChatResultsBlock';
 import PropuestaBlock from './PropuestaBlock';
 import { esPropuesta } from './propuestas';
+import { resumenDelTrabajo } from './trabajo.js';
 import StreamingMarkdown, { MarkdownChunk } from './StreamingMarkdown';
 
 /**
@@ -77,26 +79,11 @@ export function makeMdComponents(setCiteQueryId, sqlActionsRef) {
             const actions = sqlActionsRef?.current || {};
             const isSql = lang === 'sql';
             const sql = isSql ? codeText(codeEl?.props?.children).trim() : '';
-            const showBar = isSql && sql && (actions.onInsertar || actions.onRunSql);
+            const showBar = isSql && sql && (actions.onInsertar || actions.onRunSql || actions.enChat);
             return (
                 <div className={showBar ? 'ai-msg-code-wrap' : undefined}>
                     <pre className="ai-msg-code-block" {...props}>{children}</pre>
-                    {showBar && (
-                        <div className="ai-msg-code-actions">
-                            {/* Insert, never replace the whole file (A2): at the cursor, or over the selection. */}
-                            {actions.onInsertar && (
-                                <button className="ai-code-action-btn" onClick={() => actions.onInsertar(sql)} title="Insert at the cursor, or replace the selected text (Ctrl+Z undoes it)">
-                                    <LuFileInput size={12} /> Insert at cursor
-                                </button>
-                            )}
-                            <BotonCopiar texto={sql} />
-                            {actions.onRunSql && (
-                                <button className="ai-code-action-btn" onClick={() => actions.onRunSql(sql)} title="Run this query">
-                                    <LuPlay size={12} /> Run
-                                </button>
-                            )}
-                        </div>
-                    )}
+                    {showBar && <BarraDeSql sql={sql} actions={actions} />}
                 </div>
             );
         },
@@ -512,7 +499,39 @@ function extractCitations(toolCalls) {
  * User messages render as right-aligned bubbles, assistant messages as
  * left-aligned cards with avatar and grouped content sections.
  */
-const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, thinkingMs, onRunSql, onInsertar, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, acceptEdit, rejectEdit, onProponerDeNuevo, onRevisar, currentFileContent, activityOnly = false }) => {
+/**
+ * Las acciones de un bloque SQL de la prosa: Insert at cursor, Copy y Run. En el
+ * Assistant, Run corre aquí y el resultado sale debajo, con «Open in editor»
+ * (E6/A7); en Deep Dive sigue abriendo una pestaña.
+ */
+function BarraDeSql({ sql, actions }) {
+    const consulta = useConsultaEnChat();
+    return (
+        <>
+            <div className="ai-msg-code-actions">
+                {/* Insert, never replace the whole file (A2): at the cursor, or over the selection. */}
+                {actions.onInsertar && (
+                    <button className="ai-code-action-btn" onClick={() => actions.onInsertar(sql)} title="Insert at the cursor, or replace the selected text (Ctrl+Z undoes it)">
+                        <LuFileInput size={12} /> Insert at cursor
+                    </button>
+                )}
+                <BotonCopiar texto={sql} />
+                {(actions.enChat || actions.onRunSql) && (
+                    <button className="ai-code-action-btn" onClick={() => (actions.enChat ? consulta.correr(sql) : actions.onRunSql(sql))}
+                        title={actions.enChat ? 'Run it here, in the chat' : 'Run this query'}>
+                        <LuPlay size={12} /> Run
+                    </button>
+                )}
+            </div>
+            {actions.enChat && (
+                <ResultadoEnChat estado={consulta.estado} onCerrar={consulta.cerrar}
+                    onAbrirEnEditor={actions.onRunSql ? () => actions.onRunSql(sql) : null} />
+            )}
+        </>
+    );
+}
+
+const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, thinkingMs, onRunSql, onInsertar, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, acceptEdit, rejectEdit, onProponerDeNuevo, onRevisar, currentFileContent, activityOnly = false, destinoGrafico = null }) => {
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
@@ -536,7 +555,10 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
     sqlActionsRef.current = {
         onInsertar: !isDiving ? onInsertar : undefined,
         onRunSql: onRunSql,
+        // E6/A7: in the Assistant, Run runs in the chat.
+        enChat: !isDiving,
     };
+    const [verTrabajo, setVerTrabajo] = useState(false);
 
     // Stable markdown renderers (setCiteQueryId is a stable setter). A fresh
     // components object per render would defeat the memoized markdown chunks.
@@ -589,16 +611,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
         );
     }
 
-    // --- Assistant message: left-aligned card with avatar ---
-    return (
-        <div className="ai-msg ai-msg--assistant">
-            <div className="ai-msg-avatar">
-                <LuBot size={14} />
-            </div>
-
-            <div className="ai-msg-body">
-                <span className="ai-msg-role">AmoxSQL AI</span>
-
+    const bloqueOtros = (<>
                 {/* Other tool calls (shown before text) */}
                 {otherCalls.length > 0 && (
                     <div className="ai-msg-tools">
@@ -613,7 +626,8 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         ))}
                     </div>
                 )}
-
+    </>);
+    const bloquePropuestas = (<>
                 {/* Proposals: a change to this file or a new file, each with its state */}
                 {propuestas.map((tc, i) => (
                     <PropuestaBlock
@@ -627,7 +641,8 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         onRevisar={onRevisar}
                     />
                 ))}
-
+    </>);
+    const bloqueSql = (<>
                 {/* SQL blocks */}
                 {sqlCalls.length > 0 && (
                     <div className="ai-msg-tools">
@@ -638,6 +653,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                     onRun={onRunSql}
                                     onInsert={!isDiving ? onInsertar : undefined}
                                     defaultExpanded={sqlCalls.length <= 2}
+                                    enChat={!isDiving}
                                 />
                                 {tc.result && !tc.result.error && tc.result.rowCount !== undefined && (
                                     <div className="ai-msg-sql-result ai-msg-sql-result--success">
@@ -706,7 +722,8 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         ))}
                     </div>
                 )}
-
+    </>);
+    const bloqueTexto = (<>
                 {/* Text content (markdown) — with thinking block support.
                     Closed parts render through memoized chunks (parse once);
                     while streaming, only the growing tail re-parses per flush. */}
@@ -734,6 +751,34 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         </div>
                     );
                 })()}
+    </>);
+
+    // --- Assistant message: left-aligned card with avatar ---
+    return (
+        <div className="ai-msg ai-msg--assistant">
+            <div className="ai-msg-avatar">
+                <LuBot size={14} />
+            </div>
+
+            <div className="ai-msg-body">
+                <span className="ai-msg-role">AmoxSQL AI</span>
+
+                {isDiving && bloqueOtros}
+                {isDiving && bloquePropuestas}
+                {isDiving && bloqueSql}
+                {bloqueTexto}
+                {/* E6/A5: in the Assistant the answer comes first; then what to decide
+                    (the proposals), and the work folded in one line. */}
+                {!isDiving && bloquePropuestas}
+                {!isDiving && (otherCalls.length > 0 || sqlCalls.length > 0) && (
+                    <div className="ai-msg-trabajo">
+                        <button type="button" className="ai-msg-trabajo-linea" onClick={() => setVerTrabajo(v => !v)} aria-expanded={verTrabajo}>
+                            {verTrabajo ? <LuChevronDown size={11} /> : <LuChevronRight size={11} />}
+                            <span>{resumenDelTrabajo(toolCalls) || 'Work'}</span>
+                        </button>
+                        {verTrabajo && <>{bloqueOtros}{bloqueSql}</>}
+                    </div>
+                )}
 
                 {/* Citations — tables referenced in this response */}
                 {citations.length > 0 && (
@@ -808,6 +853,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                                         onExportNotebook={onExportNotebook}
                                         onExportAmoxvis={onExportAmoxvis}
                                         onApplyChart={!isDiving ? onApplyChart : undefined}
+                                        destinoGrafico={destinoGrafico}
                                     />
                                 )}
                             </div>

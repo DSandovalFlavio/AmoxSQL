@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LuCheck, LuX, LuFilePlus2, LuFilePen, LuHistory, LuRefreshCw, LuChevronDown, LuChevronRight, LuLoader, LuScanSearch, LuChartColumn, LuWorkflow, LuShare2 } from 'react-icons/lu';
+import { LuCheck, LuX, LuFilePlus2, LuFilePen, LuHistory, LuRefreshCw, LuChevronDown, LuChevronRight, LuLoader, LuScanSearch, LuChartColumn, LuWorkflow, LuShare2, LuFileCode, LuNotebookPen, LuPresentation, LuLayoutDashboard } from 'react-icons/lu';
 import EditProposalBlock from './EditProposalBlock';
 import { estadoDe, esArchivoNuevo } from './propuestas';
 import { esDeRango, ubicarRango } from './archivos/rango.js';
@@ -112,6 +112,7 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
         return (
             <>
                 <EditProposalBlock
+                    icono={LuFileCode}
                     titulo={describirPropuesta(r, donde)}
                     currentContent={r.objetivo.hasta >= r.objetivo.desde ? r.original : []}
                     proposedContent={r.contenido === '' ? [] : r.contenido}
@@ -132,6 +133,7 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
         return (
             <>
                 <EditProposalBlock
+                    icono={LuNotebookPen}
                     titulo={describirPropuesta(r)}
                     currentContent={nueva ? [] : r.original}
                     proposedContent={r.contenido}
@@ -153,6 +155,7 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
         return (
             <>
                 <EditProposalBlock
+                    icono={LuPresentation}
                     titulo={describirPropuesta(r, propuesta?.donde)}
                     currentContent={nueva ? [] : r.original}
                     proposedContent={propuesta ? propuesta.raw : (r.lamina?.prosa || '')}
@@ -173,6 +176,7 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
         return (
             <>
                 <EditProposalBlock
+                    icono={LuLayoutDashboard}
                     titulo={describirPropuesta(r)}
                     currentContent={r.objetivo.accion === 'nueva' ? [] : r.original}
                     proposedContent={r.contenido}

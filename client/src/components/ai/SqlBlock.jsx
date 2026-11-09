@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { LuCopy, LuPlay, LuChevronDown, LuChevronRight, LuFileInput } from 'react-icons/lu';
+import { useConsultaEnChat, ResultadoEnChat } from './ResultadoEnChat.jsx';
 
 /**
  * SqlBlock — Collapsible SQL code block with copy, run, and syntax highlighting.
@@ -10,10 +11,14 @@ import { LuCopy, LuPlay, LuChevronDown, LuChevronRight, LuFileInput } from 'reac
  * and «Append to file»: the first wiped everything else in the file with no
  * warning, and both cut the editor's undo history.
  *
+ * `enChat` (E6/A7): «Run» runs the query here and shows the result below it;
+ * `onRun` becomes «Open in editor». Without it (Deep Dive), «Run» opens a tab.
+ *
  * Linear UI redesign: all styles in index.css under ai-sql-* classes.
  */
-const SqlBlock = ({ sql, onRun, onInsert, defaultExpanded = true }) => {
+const SqlBlock = ({ sql, onRun, onInsert, defaultExpanded = true, enChat = false }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+    const consulta = useConsultaEnChat();
     const [copied, setCopied] = useState(false);
 
     const handleCopy = () => {
@@ -62,11 +67,11 @@ const SqlBlock = ({ sql, onRun, onInsert, defaultExpanded = true }) => {
                         </button>
                     )}
 
-                    {onRun && (
+                    {(onRun || enChat) && (
                         <button
                             className="ai-sql-btn ai-sql-btn--accent"
-                            onClick={() => onRun(sql)}
-                            title="Run in editor"
+                            onClick={() => (enChat ? consulta.correr(sql) : onRun(sql))}
+                            title={enChat ? 'Run it here, in the chat' : 'Run in editor'}
                         >
                             <LuPlay size={11} /> Run
                         </button>
@@ -79,6 +84,9 @@ const SqlBlock = ({ sql, onRun, onInsert, defaultExpanded = true }) => {
                 <pre className="ai-sql-code">
                     {sql}
                 </pre>
+            )}
+            {enChat && (
+                <ResultadoEnChat estado={consulta.estado} onCerrar={consulta.cerrar} onAbrirEnEditor={onRun ? () => onRun(sql) : null} />
             )}
         </div>
     );

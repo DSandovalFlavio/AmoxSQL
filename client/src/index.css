@@ -22262,3 +22262,42 @@ tr:hover td {
 .react-flow__node.chain-node--sale { opacity: 0.4; }
 .react-flow__node.chain-node--sale > * { outline: 2px dashed var(--color-error); outline-offset: 3px; border-radius: 10px; }
 .chain-node-menu-item-asistir svg { color: var(--accent-primary); }
+
+/* ── E6: el chat, más corto — el trabajo plegado y el resultado de Run (plan del Assistant) ── */
+.ai-msg-trabajo { margin: 6px 0 2px; display: flex; flex-direction: column; gap: 6px; }
+.ai-msg-trabajo-linea {
+  display: inline-flex; align-items: center; gap: 5px; align-self: flex-start; padding: 2px 6px 2px 2px;
+  border: none; background: none; border-radius: 4px; color: var(--text-tertiary); font: inherit; font-size: 11.5px; cursor: pointer;
+}
+.ai-msg-trabajo-linea:hover { color: var(--text-secondary); background: var(--hover-bg); }
+.ai-chat-resultado { margin-top: 4px; border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--surface-base); font-size: 11.5px; overflow: hidden; }
+.ai-chat-resultado--cargando { display: flex; align-items: center; gap: 6px; padding: 6px 8px; color: var(--text-tertiary); }
+.ai-chat-resultado-cab { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 8px; color: var(--text-secondary); border-bottom: 1px solid var(--border-subtle); }
+.ai-chat-resultado--error .ai-chat-resultado-cab { border-bottom: none; color: var(--color-error-text); }
+.ai-chat-resultado-error { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+.ai-chat-resultado-acciones { margin-left: auto; display: inline-flex; gap: 4px; flex: none; }
+.ai-chat-resultado .ai-msg-table-wrap { max-height: 260px; overflow: auto; margin: 0; border: none; border-radius: 0; }
+/* E6/A12: las acciones del gráfico del chat, en un menú. */
+.ai-chart-menu { position: relative; }
+.ai-chart-footer-actions .ai-chart-btn { white-space: nowrap; }
+.ai-chart-menu-lista {
+  position: absolute; bottom: calc(100% + 4px); right: 0; z-index: 30; min-width: 190px; padding: 4px;
+  background: var(--surface-overlay); border: 1px solid var(--border-default); border-radius: 7px; box-shadow: var(--shadow-md, 0 6px 20px rgba(0,0,0,.25));
+  display: flex; flex-direction: column;
+}
+.ai-chart-menu-lista button {
+  display: flex; align-items: center; gap: 7px; padding: 6px 8px; border: none; background: none; border-radius: 5px;
+  color: var(--text-primary); font: inherit; font-size: 12px; text-align: left; cursor: pointer; white-space: nowrap;
+}
+.ai-chart-menu-lista button:hover { background: var(--hover-bg); }
+/* E6/A9: de qué archivo es la conversación, bajo la cabecera del panel. */
+.ai-archivo-barra {
+  display: flex; align-items: center; gap: 6px; margin: 0 10px 4px; padding: 4px 8px; border: 1px solid var(--border-subtle);
+  border-radius: 6px; background: var(--surface-base); color: var(--text-secondary); font: inherit; font-size: 11.5px; cursor: pointer; text-align: left;
+}
+.ai-archivo-barra:hover { border-color: var(--border-default); color: var(--text-primary); }
+.ai-archivo-barra svg { flex: none; color: var(--text-tertiary); }
+.ai-archivo-barra-nombre { color: var(--text-primary); font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-archivo-barra-nota { color: var(--text-tertiary); white-space: nowrap; }
+.ai-archivo-barra-icono { margin-left: auto; }
+.ai-history-group--otros { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-subtle); }

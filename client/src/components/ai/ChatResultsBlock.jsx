@@ -1,5 +1,5 @@
-import { memo, useMemo, useState, Component } from 'react';
-import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn, LuMessageSquareQuote } from 'react-icons/lu';
+import { memo, useMemo, useState, useEffect, useRef, Component } from 'react';
+import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn, LuMessageSquareQuote, LuEllipsis } from 'react-icons/lu';
 import html2canvas from 'html2canvas-pro';
 import FiguraVega from '../DataVisualizer/vega/FiguraVega';
 import { deStoryFlow } from '../DataVisualizer/vega/deStoryFlow';
@@ -145,9 +145,18 @@ export function planoDeGraficoIA(cc = {}) {
  * ChatResultsBlock — Renders an inline chart visualization for the AI chat.
  * Finds the data from previous messages using queryId and draws it with Vega-Lite.
  */
-const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook, onExportAmoxvis, onApplyChart, onAskAbout }) => {
+const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook, onExportAmoxvis, onApplyChart, onAskAbout, destinoGrafico = null }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [applied, setApplied] = useState(false);
+    // E6/A12: las acciones secundarias, en un menú: en 380 px los botones se partían en dos líneas.
+    const [menu, setMenu] = useState(false);
+    const menuRef = useRef(null);
+    useEffect(() => {
+        if (!menu) return undefined;
+        const fuera = (e) => { if (!menuRef.current?.contains(e.target)) setMenu(false); };
+        document.addEventListener('mousedown', fuera);
+        return () => document.removeEventListener('mousedown', fuera);
+    }, [menu]);
     const chartDOMId = useMemo(() => `ai-chart-${Math.random().toString(36).substr(2, 9)}`, []);
 
     // Find the data in previous messages
@@ -286,21 +295,6 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                     Based on {data.length} rows {executionTime ? `(${executionTime}ms)` : ''}
                 </span>
                 <div className="ai-chart-footer-actions">
-                    {onAskAbout && chartConfig?.queryId && (
-                        <button
-                            className="ai-chart-btn"
-                            onClick={() => onAskAbout({
-                                type: 'chart',
-                                queryId: chartConfig.queryId,
-                                chartConfig: fullConfig,
-                                label: chartConfig.title || chartConfig.chartTitle || 'Chart',
-                                key: `chart:${chartConfig.queryId}`,
-                            })}
-                            title="Ask the agent about this chart"
-                        >
-                            <LuMessageSquareQuote size={12} /> Ask about this
-                        </button>
-                    )}
                     {onApplyChart && (
                         <button
                             className="ai-chart-btn"
@@ -313,27 +307,37 @@ const ChatResultsBlock = ({ chartConfig, allMessages, isDiving, onExportNotebook
                                 onApplyChart(applyCfg);
                                 setApplied(true);
                             }}
-                            title="Apply this chart to your file's visualization"
+                            title={destinoGrafico ? `Make this the chart of ${destinoGrafico}'s result` : "Apply this chart to your file's visualization"}
                         >
-                            {applied ? <><LuCheck size={12} /> Applied</> : <><LuChartColumn size={12} /> Apply to chart</>}
+                            {applied ? <><LuCheck size={12} /> Applied</> : <><LuChartColumn size={12} /> {destinoGrafico ? 'Apply to this file' : 'Apply to chart'}</>}
                         </button>
                     )}
-                    <button
-                        className="ai-chart-btn"
-                        onClick={handleDownloadImage}
-                        title="Download Chart as PNG"
-                    >
-                        <LuImage size={12} /> PNG
-                    </button>
-                    <button
-                        className="ai-chart-btn"
-                        onClick={handleDownloadConfig}
-                        title={onExportAmoxvis
-                            ? 'Save as .amoxvis and open it in the Story Flow editor'
-                            : 'Download the chart config as a .json file'}
-                    >
-                        <LuFileJson size={12} /> {onExportAmoxvis ? 'Open in Story Flow' : 'Export config (.json)'}
-                    </button>
+                    <div className="ai-chart-menu" ref={menuRef}>
+                        <button className="ai-chart-btn" onClick={() => setMenu(v => !v)} title="More actions" aria-haspopup="menu" aria-expanded={menu}>
+                            <LuEllipsis size={13} />
+                        </button>
+                        {menu && (
+                            <div className="ai-chart-menu-lista" role="menu">
+                                {onAskAbout && chartConfig?.queryId && (
+                                    <button role="menuitem" onClick={() => {
+                                        setMenu(false);
+                                        onAskAbout({
+                                            type: 'chart', queryId: chartConfig.queryId, chartConfig: fullConfig,
+                                            label: chartConfig.title || chartConfig.chartTitle || 'Chart', key: `chart:${chartConfig.queryId}`,
+                                        });
+                                    }}>
+                                        <LuMessageSquareQuote size={12} /> Ask about this
+                                    </button>
+                                )}
+                                <button role="menuitem" onClick={() => { setMenu(false); handleDownloadConfig(); }}>
+                                    <LuFileJson size={12} /> {onExportAmoxvis ? 'Open in Story Flow' : 'Export config (.json)'}
+                                </button>
+                                <button role="menuitem" onClick={() => { setMenu(false); handleDownloadImage(); }}>
+                                    <LuImage size={12} /> Download PNG
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

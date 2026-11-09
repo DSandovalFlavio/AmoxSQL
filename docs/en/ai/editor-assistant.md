@@ -108,9 +108,15 @@ If you ask for something that belongs in another file (*"save this query to a fi
 ### Insert a query from the chat
 Under each SQL block in the chat, **Insert at cursor** puts the query where the editor's cursor is, or over the selected text if there is a selection. The rest of the file is untouched and **Ctrl+Z** undoes it. You also have **Copy** and **Run**.
 
+**Run** runs the query right there, in the chat: below it you see how many rows it returned, how long it took and the first 20. **Open in editor** takes it to a new tab when you want to keep working on it.
+
+### Reading the chat
+- The answer comes first. What the Assistant did to get there (the queries it ran, the tables it looked at) is folded into one line below it, like *Ran 2 queries · looked at 1 table*; click it to see it.
+- Above the chat you see which file the conversation is about. Clicking it opens the history: that file's conversations and, apart, the recent ones of other files; choosing one opens its file with it.
+
 ### Apply a chart
 1. On a result of a `.sql`, ask *"chart this by region"* or similar.
-2. The Assistant proposes a fully configured chart; click **Apply to chart** to send it to the chart of that query's results, in [Story Flow](../visualization/story-flow.md). Only that chart changes, not the ones in other tabs.
+2. The Assistant proposes a fully configured chart; click **Apply to this file** to send it to the chart of that query's results, in [Story Flow](../visualization/story-flow.md). Only that chart changes, not the ones in other tabs. The other actions (export the config, download the PNG) are in the chart's **…** menu.
 
 ### Add context (drag & drop)
 Drag a table from the [database explorer](../data/database-explorer.md) or a file from the [file explorer](../data/file-explorer.md) and drop it on the chat. It stays as conversation context and is sent with every question.

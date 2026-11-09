@@ -108,9 +108,15 @@ Si le pides algo que va en otro archivo (*"guárdame esta consulta en un archivo
 ### Insertar una consulta del chat
 Bajo cada bloque SQL del chat, **Insert at cursor** pone la consulta donde está el cursor del editor, o sobre el texto seleccionado si hay selección. El resto del archivo no se toca y **Ctrl+Z** lo deshace. También tienes **Copy** y **Run**.
 
+**Run** corre la consulta ahí mismo, en el chat: debajo salen cuántas filas dio, cuánto tardó y las primeras 20. **Open in editor** la lleva a una pestaña nueva cuando quieras seguir con ella.
+
+### Leer el chat
+- La respuesta va primero. Lo que el Asistente hizo para llegar a ella (las consultas que corrió, las tablas que miró) queda plegado en una línea debajo, como *Ran 2 queries · looked at 1 table*; púlsala para verlo.
+- Arriba del chat se ve de qué archivo es la conversación. Al pulsarlo se abre el historial: las conversaciones de ese archivo y, aparte, las recientes de otros archivos; elegir una abre su archivo con ella.
+
 ### Aplicar un gráfico
 1. Sobre un resultado de un `.sql`, pide *"grafica esto por región"* o similar.
-2. El Asistente propone un gráfico completamente configurado; pulsa **Apply to chart** para llevarlo al gráfico de los resultados de esa consulta, en [Story Flow](../visualization/story-flow.md). Solo cambia ese gráfico, no los de otras pestañas.
+2. El Asistente propone un gráfico completamente configurado; pulsa **Apply to this file** para llevarlo al gráfico de los resultados de esa consulta, en [Story Flow](../visualization/story-flow.md). Solo cambia ese gráfico, no los de otras pestañas. El resto de acciones (exportar la configuración, descargar el PNG) están en el menú **…** del gráfico.
 
 ### Añadir contexto (drag & drop)
 Arrastra una tabla del [explorador de base de datos](../data/database-explorer.md) o un archivo del [explorador de archivos](../data/file-explorer.md) y suéltalo en el chat. Queda como contexto de la conversación y se envía en cada pregunta.

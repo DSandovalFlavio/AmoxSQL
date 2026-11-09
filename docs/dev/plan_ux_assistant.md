@@ -2,7 +2,7 @@
 
 **Sale de:** [auditoria_ux_assistant.md](auditoria_ux_assistant.md) (A1–A13) y
 [auditoria_assistant_por_archivo.md](auditoria_assistant_por_archivo.md) (X1–X10 y los hallazgos por tipo)
-**Estado:** **E1 a E5 hechas** (2026-11-07/09, rama `claude/plan-5-19-interaccion`); E6 sin empezar. Las seis decisiones,
+**Estado:** **E1 a E6 hechas** (2026-11-07/09, rama `claude/plan-5-19-interaccion`): el plan, completo. Las seis decisiones,
 tomadas como se proponían. Mockups en el artifact «El Assistant donde está el trabajo».
 
 ## La idea
@@ -491,6 +491,30 @@ subconjunto rechazado.
 - El anuncio de cada propuesta con su icono de tipo y **Review**, que lleva al sitio.
 
 **Tamaño:** pequeño.
+
+**Hecha (2026-11-09).**
+- **A7.** «Run» corre la consulta en el chat (`ai/ResultadoEnChat.jsx`: `useConsultaEnChat` + `ResultadoEnChat`, por
+  `/api/query` con 200 filas): filas, tiempo, las 20 primeras, **Open in editor** (la pestaña nueva de antes) y
+  cerrar. En los bloques de `execute_sql` (`SqlBlock enChat`) y en los ` ```sql ` de la prosa (`BarraDeSql`). Deep
+  Dive sigue como estaba.
+- **A5.** En el Assistant la respuesta va primero; después lo que hay que decidir (las propuestas) y el trabajo
+  plegado en una línea (`ai/trabajo.js` → «Ran 2 queries (1 failed) · looked at 1 table · proposed 1 change»).
+  En Deep Dive, el orden de siempre.
+- **A12.** El gráfico del chat: **Apply to this file** (el nombre del archivo en el tooltip) y lo demás (Ask about
+  this, Open in Story Flow / Export config, Download PNG) en un menú «…»; ya no se parte en dos líneas.
+- **A9.** Bajo la cabecera, el archivo de la conversación («top_ciudades.sql · this file's chat»), que abre el
+  historial. El historial dice «Chats about x» y añade «Recent, in other files»
+  (`/api/ai/conversations?mode=assistant`); elegir una abre su archivo con esa conversación (se deja en la caché
+  del panel antes de abrirlo).
+- **El anuncio de cada propuesta** lleva el icono de su tipo (líneas, celda, lámina, tarjeta, gráfico, pasos,
+  diagrama); **Review** ya estaba en todas.
+- **Pruebas.** `probarAssist.mjs` 243/0 (3 nuevas, `resumenDelTrabajo`); `probarDeepDive` 46,
+  `probarCuotaDeepDive` 14, `probarGraficoIA` 14. En la app, con una conversación sembrada sobre
+  `queries/top_ciudades.sql`: la respuesta primero y el trabajo en una línea que se despliega; Run en el chat
+  (22 filas, sin pestaña nueva); el pie del gráfico en una línea con su menú; el historial con las de otros
+  archivos, y elegir una abre `venta_mensual.amoxvis` con su conversación.
+- **Arreglado en el camino:** «Apply to top_ciudades.sql's chart» se partía en tres líneas: pasó a «Apply to this
+  file».
 
 ## Orden
 
