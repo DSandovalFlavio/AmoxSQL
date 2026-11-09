@@ -153,7 +153,7 @@ try {
     comprobar('el de AmoxSQL vive en <home>/entornos/dbt-<motor>', corredor.carpetaDelEntornoPropio('1.5.6') === path.join(HOME, 'entornos', 'dbt-1.5.6'));
     const v = entorno.versionesFijas();
     comprobar('con el MISMO motor que AmoxSQL', v.duckdb === require(path.join(RAIZ, 'node_modules/@duckdb/node-api/package.json')).version.replace(/-.*$/, '') && !!v['dbt-core'] && !!v['dbt-duckdb'], JSON.stringify(v));
-    comprobar('Python 3.10–3.13 sí; 3.14 y 3.9 no', entorno.admitida([3, 13]) && entorno.admitida([3, 10]) && !entorno.admitida([3, 14]) && !entorno.admitida([3, 9]));
+    comprobar('Python 3.11–3.13 sí (duckdb 2 pide 3.11); 3.10, 3.14 y 3.9 no', entorno.admitida([3, 13]) && entorno.admitida([3, 11]) && !entorno.admitida([3, 10]) && !entorno.admitida([3, 14]) && !entorno.admitida([3, 9]));
     comprobar('sin crear: «no existe»', entorno.estado().existe === false);
     e = await entorno.crear({ python: path.join(TMP, 'no-hay-python.exe') }).catch(x => x);
     comprobar('crear con un Python que no corre lo dice', /does not run/.test(e?.message || ''), e?.message);

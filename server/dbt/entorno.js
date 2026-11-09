@@ -4,9 +4,14 @@
  *
  * «Set up dbt…» crea un entorno de Python en `<home>/entornos/dbt-<motor>/` con
  * versiones FIJAS: `duckdb` igual al motor de AmoxSQL (así dbt escribe bases y lagos
- * que AmoxSQL abre: un entorno nuevo de hoy instalaría DuckDB 2.0, que no) y la
- * versión de dbt-core y dbt-duckdb probada con él en la fase 0. Uno por máquina y por
- * versión del motor, para todos los proyectos. Nunca toca los entornos del usuario.
+ * que AmoxSQL abre, y abre los que escribe AmoxSQL) y la versión de dbt-core y
+ * dbt-duckdb probada con él. Uno por máquina y por versión del motor, para todos los
+ * proyectos. Nunca toca los entornos del usuario.
+ *
+ * 6.0 (Dec-68): con DuckDB 2.0, el paquete `duckdb` pide Python 3.11 o más; la
+ * combinación dbt-core 1.12.6 + dbt-duckdb 1.11.0 + duckdb 2.0.0 se probó en la fase 0
+ * de la 6.0 (`dbt build` completo). dbt 2.0, con su DuckDB incluido (1.5), no sirve:
+ * no abre lo que crea AmoxSQL 6 (Dec-97).
  *
  * Necesita un Python instalado de una versión que dbt admita, y red la primera vez.
  */
@@ -17,12 +22,12 @@ const { carpetaDelEntornoPropio, versionDelMotor } = require('./correr');
 
 const WIN = process.platform === 'win32';
 
-/** Las versiones con las que se crea (comprobadas juntas en scripts/poc512/p00_dbt.mjs). */
+/** Las versiones con las que se crea (comprobadas juntas en la fase 0 de la 6.0, con duckdb 2.0.0). */
 function versionesFijas() {
     return { 'dbt-core': '1.12.6', 'dbt-duckdb': '1.11.0', duckdb: versionDelMotor() };
 }
-// Las de Python que admite esa versión de dbt-core.
-const PYTHON_MIN = [3, 10], PYTHON_MAX = [3, 13];
+// Las de Python que admiten esa versión de dbt-core y el paquete duckdb 2 (desde 3.11).
+const PYTHON_MIN = [3, 11], PYTHON_MAX = [3, 13];
 const admitida = ([a, b]) => (a > PYTHON_MIN[0] || (a === PYTHON_MIN[0] && b >= PYTHON_MIN[1])) && (a < PYTHON_MAX[0] || (a === PYTHON_MAX[0] && b <= PYTHON_MAX[1]));
 
 const ejecutar = (exe, args, opciones = {}) => new Promise((resolve) => {
@@ -52,7 +57,10 @@ async function buscarPythons() {
         const version = r.salida.trim();
         const [a, b] = version.split('.').map(Number);
         const ok = admitida([a, b]);
-        lista.push({ ruta, version, admitida: ok, motivo: ok ? null : `dbt does not support Python ${version} yet (it needs ${PYTHON_MIN.join('.')} to ${PYTHON_MAX.join('.')})` });
+        const viejo = a < PYTHON_MIN[0] || (a === PYTHON_MIN[0] && b < PYTHON_MIN[1]);
+        lista.push({ ruta, version, admitida: ok, motivo: ok ? null : (viejo
+            ? `Python ${version} is too old for AmoxSQL's engine in dbt (it needs ${PYTHON_MIN.join('.')} to ${PYTHON_MAX.join('.')})`
+            : `dbt does not support Python ${version} yet (it needs ${PYTHON_MIN.join('.')} to ${PYTHON_MAX.join('.')})`) });
     }
     return lista.sort((x, y) => (y.admitida - x.admitida) || y.version.localeCompare(x.version, undefined, { numeric: true }));
 }
@@ -109,6 +117,10 @@ async function crear({ python, alProgreso = () => {}, senal = null }) {
     if (!r.ok) {
         const ultimo = r.lineas.slice(-4).join(' ');
         const sinRed = /Could not fetch|connection|getaddrinfo|Temporary failure|NewConnectionError|timed out/i.test(ultimo);
+        // Comprobado en la fase 0 de la 6.0: un paquete de dbt trae rutas muy largas y,
+        // sin las rutas largas de Windows activadas, pip falla si la carpeta es profunda.
+        const rutaLarga = /Long Path|No such file or directory: '.{180,}'/i.test(r.lineas.join(' '));
+        if (rutaLarga) throw new Error(`The packages could not be installed: some of dbt's files have very long paths, and Windows refuses them inside ${carpeta}. Turn on long paths in Windows (LongPathsEnabled) or move AmoxSQL's home to a shorter folder, and try again.`);
         throw new Error(sinRed ? 'The packages could not be downloaded: check the internet connection and try again.' : `The packages could not be installed: ${ultimo.slice(-400)}`);
     }
 
