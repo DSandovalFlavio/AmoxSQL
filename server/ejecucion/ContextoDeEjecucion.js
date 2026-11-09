@@ -280,6 +280,9 @@ async function abrirContexto(modo, { dbManager, proyecto, chainFile, fuera = fal
         // 5.13 (Dec-41): las medidas del workspace, como en la interfaz.
         try { await require('../medidas').enContexto(ctx, proyecto); }
         catch (e) { console.warn('[Medidas] Contexto aislado sin medidas:', e?.message || e); }
+        // 6.0 (Dec-98): las variables del proyecto (`$nombre`), como en la interfaz.
+        try { await require('../variables').enContexto(ctx, proyecto); }
+        catch (e) { console.warn('[Variables] Contexto aislado sin variables:', e?.message || e); }
     }
     return ctx;
 }

@@ -57,6 +57,7 @@ const borradores = require('./borradores');
 
 const planDeEjecucion = require('./planDeEjecucion');
 const esquemas = require('./esquemas');
+const variablesDelProyecto = require('./variables');
 const app = express();
 const PORT = 3001;
 
@@ -4178,7 +4179,8 @@ app.post('/api/query', async (req, res) => {
         });
     } catch (err) {
         if (res.headersSent) res.end();
-        else res.status(500).json({ error: err.message });
+        // 6.0: `$x` sin declarar, en palabras.
+        else res.status(500).json({ error: variablesDelProyecto.explicarError(err.message) || err.message });
     } finally {
         activeQueries.delete(qid);
     }
@@ -4311,7 +4313,8 @@ app.post('/api/cuaderno/celda', async (req, res) => {
         });
     } catch (err) {
         if (res.headersSent) res.end();
-        else res.status(500).json({ error: err.message });
+        // 6.0: `$x` sin declarar, en palabras.
+        else res.status(500).json({ error: variablesDelProyecto.explicarError(err.message) || err.message });
     } finally {
         activeQueries.delete(qid);
     }
@@ -5109,6 +5112,26 @@ app.get('/api/functions/coverage', (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- Las variables del proyecto (6.0, Dec-98) --- */
+
+app.get('/api/variables', (req, res) => {
+    const raiz = PROYECTO_ABIERTO ? ROOT_DIR : null;
+    const { variables, avisos } = variablesDelProyecto.leer(raiz);
+    res.json({ variables, avisos, proyecto: !!raiz, tipos: variablesDelProyecto.TIPOS });
+});
+
+app.put('/api/variables', async (req, res) => {
+    const raiz = PROYECTO_ABIERTO ? ROOT_DIR : null;
+    try {
+        variablesDelProyecto.guardar(raiz, req.body?.variables);
+        const r = await variablesDelProyecto.montar(dbManager, raiz);
+        invalidateTableContextCache();
+        res.json({ variables: r.variables, avisos: r.avisos });
+    } catch (e) {
+        res.status(e instanceof variablesDelProyecto.ErrorDeVariable ? 400 : 500).json({ error: e.message });
     }
 });
 
@@ -6689,6 +6712,8 @@ function remontarFuentes() {
                 const informe = await fuentes.montar(meta, { raiz });
                 // 5.13 (Dec-41): las medidas del workspace, como macros en cada carril.
                 await medidas.montar(dbManager, raiz).catch(e => console.warn('[Medidas] No se pudieron montar:', e?.message || e));
+                // 6.0 (Dec-98): las variables del proyecto, en cada carril (`$nombre`).
+                await variablesDelProyecto.montar(dbManager, raiz).catch(e => console.warn('[Variables] No se pudieron montar:', e?.message || e));
                 ultimoMontaje = { informe, esquemaHomonimo: raiz ? await fuentes.hayEsquemaHomonimo(meta) : false, en: new Date().toISOString() };
                 invalidateTableContextCache();
                 // C3: vigilar las carpetas de las fuentes de tipo carpeta.
