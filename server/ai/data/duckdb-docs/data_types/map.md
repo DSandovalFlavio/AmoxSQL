@@ -1,9 +1,12 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/map
 - /docs/sql/data_types/map
 - /docs/stable/sql/data_types/map
+- /docs/current/sql/data_types/map
+- /docs/lts/sql/data_types/map
+- /docs/preview/sql/data_types/map
+tested: true
 title: Map Type
 ---
 
@@ -11,7 +14,7 @@ title: Map Type
 
 `MAP`s must have a single type for all keys, and a single type for all values. Keys and values can be any type, and the type of the keys does not need to match the type of the values (e.g., a `MAP` of `VARCHAR` to `INT` is valid). `MAP`s may not have duplicate keys. `MAP`s return `NULL` if a key is not found rather than throwing an error as structs do.
 
-In contrast, `STRUCT`s must have string keys, but each value may have a different type. See the [data types overview]({% link docs/current/sql/data_types/overview.md %}) for a comparison between nested data types.
+In contrast, `STRUCT`s must have string keys, but each value may have a different type. See the [data types overview]({% link docs/2.0/sql/data_types/overview.md %}) for a comparison between nested data types.
 
 To construct a `MAP`, use the bracket syntax preceded by the `MAP` keyword.
 
@@ -86,7 +89,7 @@ SELECT map_extract(MAP {'key1': 5, 'key2': 43}, 'key1');
 ```
 
 ```sql
-SELECT MAP {'key1': 5, 'key2': 43}['key3'];
+SELECT map_extract(MAP {'key1': 5, 'key2': 43}, 'key3');
 ```
 
 ```text
@@ -95,9 +98,9 @@ SELECT MAP {'key1': 5, 'key2': 43}['key3'];
 
 ## Comparison Operators
 
-Nested types can be compared using all the [comparison operators]({% link docs/current/sql/expressions/comparison_operators.md %}).
-These comparisons can be used in [logical expressions]({% link docs/current/sql/expressions/logical_operators.md %})
-for both `WHERE` and `HAVING` clauses, as well as for creating [Boolean values]({% link docs/current/sql/data_types/boolean.md %}).
+Nested types can be compared using all the [comparison operators]({% link docs/2.0/sql/expressions/comparison_operators.md %}).
+These comparisons can be used in [logical expressions]({% link docs/2.0/sql/expressions/logical_operators.md %})
+for both `WHERE` and `HAVING` clauses, as well as for creating [Boolean values]({% link docs/2.0/sql/data_types/boolean.md %}).
 
 The ordering is defined positionally in the same way that words can be ordered in a dictionary.
 `NULL` values compare greater than all other values and are considered equal to each other.
@@ -109,4 +112,4 @@ and a `NULL` nested value member will compare above a non-`NULL` nested value me
 
 ## Functions
 
-See [Map Functions]({% link docs/current/sql/functions/map.md %}).
+See [Map Functions]({% link docs/2.0/sql/functions/map.md %}).

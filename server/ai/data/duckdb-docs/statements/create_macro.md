@@ -2,18 +2,93 @@
 layout: docu
 railroad: statements/createmacro.js
 redirect_from:
-- /docs/preview/sql/statements/create_macro
 - /docs/sql/statements/create_macro
 - /docs/stable/sql/statements/create_macro
+- /docs/current/sql/statements/create_macro
+- /docs/lts/sql/statements/create_macro
+- /docs/preview/sql/statements/create_macro
+tested: true
 title: CREATE MACRO Statement
 ---
 
-The `CREATE MACRO` statement can create a scalar or table macro (function) in the catalog.
+The `CREATE MACRO` statement defines a named, callable SQL expression as a database schema object.
 
-For a scalar macro, `CREATE MACRO` is followed by the name of the macro, and optionally parameters within a set of parentheses. The keyword `AS` is next, followed by the text of the macro. By design, a scalar macro may only return a single value.
-For a table macro, the syntax is similar to a scalar macro except `AS` is replaced with `AS TABLE`. A table macro may return a table of arbitrary size and shape.
+Macros may declare parameters, which can be referenced by its expression.
+Once a macro is created, it may be called by referencing its name and by passing values to its parameters; this causes its expression to be evaluated, yielding a value.
+Depending on the macro type, the value may be scalar, or a `TABLE` value.
+The `CREATE FUNCTION` statement is an alias for `CREATE MACRO`.
 
-> If a `MACRO` is temporary, it is only usable within the same database connection and is deleted when the connection is closed.
+The simplified syntax for creating a macro is:
+
+```sql
+CREATE [OR REPLACE] [TEMPORARY] MACRO [IF NOT EXISTS] ⟨identifier⟩( [⟨parameters⟩] ) AS [TABLE] ⟨expression⟩;
+```
+
+* The identifier consists of the macro's name, which can be any valid SQL identifier. A macro may be explicitly qualified with an existing database schema. If a schema is specified, then it appears in the usual way: before the name, with a dot separating schema name and macro name. When not explicitly specified, the macro will be associated with the current schema.
+* When connected to a persistent database file, the macro will be stored in the database. The optional `TEMPORARY` keyword indicates that the macro is not to be persisted.
+* An `OR REPLACE` clause may occur immediately after the `CREATE` keyword, which causes an existing macro with the same name (within the schema) to be overwritten. Without `OR REPLACE` such an attempt will fail with a `Macro Function already exists` error.
+* An `IF NOT EXISTS` clause may occur immediately before the identifier, and has the effect of only creating the macro if it does not already exist. Either the `OR REPLACE` or the `IF NOT EXISTS` clause may be present, but not both.
+* The macro name is followed by parentheses. If the macro has [parameters](#declaring-parameters), then they must be declared within the parentheses.
+* The `AS` keyword appears after the right parenthesis but before the expression
+* The `TABLE` keyword may appear right after the `AS` keyword, directly before the expression, indicating the macro is a [table macro](#types-of-macros) and returns a result set. When omitted, the macro is automatically a scalar macro.
+* The expression can be any valid SQL expression provided the expression's type is aligned with the [macro's type](#types-of-macros).
+
+Please review the [syntax diagram](#syntax) for a more precise and detailed overview of the `CREATE MACRO` statement.
+
+## Types of Macros
+
+The contexts where a particular macro may be called depends on the data type of its result value:
+* Scalar macros evaluate to a scalar value. For scalar macros, the expression can either be a simple expression, or a scalar subquery.
+* Table macros return a tabular result: when called, they act essentially as [table functions]({% link docs/2.0/sql/query_syntax/from.md %}#table-functions) and return a table value. Their expression can be a `SELECT` statement, or a call to another table function.
+
+## Declaring Parameters
+
+Macros may declare parameters. The parameter declarations appear as a comma-separated list between the parentheses before the `AS` keyword. The simplified syntax for a single parameter declaration is:
+
+```sql
+⟨parameter-name⟩ [⟨datatype⟩] [ := ⟨default-value⟩ ]
+```
+* The parameter name is mandatory and can be any valid SQL identifier. Parameter names must be unique within the parameter list. An attempt to define multiple parameters with the same name results in a `Duplicate parameter` error.
+* Optionally, a parameter may explicitly specify a particular datatype. This can be any of the existing DuckDB [data types]({% link docs/2.0/sql/data_types/overview.md %}). Note: there is no way to specify a parameter of a `TABLE` type.
+* A parameter can optionally specify a default value. This is done with the assignment operator `:=`, followed by the expression that is to be used as default value.
+* The default value expression is in principle evaluated at definition-time - NOT at run-time. (There are a few exceptions, like `CURRENT_SCHEMA`. But it's best not to rely on that: if you need a default value to be dynamic, use a well-known value like `NULL` as default and use conditional logic in the expression to produce the run-time value).
+* Specifying a default value expression effectively makes the parameter optional: when the macro is called, the DuckDb binder will find candidate signatures based on passed parameters, but backfilled by signatures that specify default values for missing parameters.
+* A parameter that specifies a default value cannot appear before a definition of a parameter that does not have a default value. In other words, parameters without default values have to be defined “in the front”; any parameters with default values appear “at the back”.
+* Multiple parameter declarations are separated from one another with a comma.
+
+### Overloading
+
+Macros support overloading:
+
+* A single `CREATE MACRO` statement can define multiple implementations (sometimes called 'overloads'), each having its own parameter list, `AS` keyword, and expression. Note that all of the implementations are defined in the same `CREATE MACRO` statement: it is not possible to add, remove, or alter individual implementations after the macro is created.
+* Multiple implementations are separated from one another by a comma.
+* Each implementation must have a unique parameter-type signature: that is, in one `CREATE MACRO` statement, all implementations having the same number of parameters must each have a unique sequence of parameter types - regardless of the parameter names. If a parameter type signature is not unique, it results in a `Ambiguity in macro overloads` error.
+* Overloading only applies to the parameter-types, but not to the macro type itself: for a single macro, all of its implementations are either scalar or `TABLE`.
+* When overloading table functions that are defined using a `SELECT` statement as expression, you will probably need to wrap the `SELECT` statement in parentheses.
+
+## Calling Macros
+
+Macros are called by mentioning their name, followed by parentheses. A comma-separated list of value-expressions may appear between the parentheses - these are the actual parameters.
+The DuckDB binder examines the data types of the actual parameters and tries to find an implementation of the macro that has a matching signature.
+If an implementation is found, the parameter values are passed and the implementation's expression is evaluated; finally, its resulting value is returned and used in place where the macro was called.
+This is similar to calling a [function]({% link docs/2.0/sql/functions/overview.md %}).
+
+In general, a call to a macro is valid if its expression could also appear in that context:
+* A call to a scalar macro can be used in the `SELECT` clause or in the `WHERE` clause of a `SELECT`statement.
+* If the expression of a scalar macro references an [aggregate function]({% link docs/2.0/sql/functions/aggregates.md %}), then the macro behaves like an aggregate function too.
+* A call to a table macro can appear in the `FROM` clause of a `SELECT` statement, or in a [`CALL` statement]({% link docs/2.0/sql/statements/call.md %}).
+
+### Passing Parameters
+
+Parameter values can be passed to the macro as a comma-separated list of expressions appearing between the parentheses following the macro's name.
+
+Parameter values may be passed either positionally or by name.
+
+* Positional parameter passing means that only the value expression is passed;
+* In contrast to positional parameter passing, named parameter passing explicitly assigns the actual parameter value to a specific formal parameter. This is done by mentioning the parameter name followed by the assignment operator `:=`, followed by the parameter value expression.
+* Note that some built-in functions also allow named parameters, but allow `=` as assignment operator. For macros, this won't work! Instead, the `=` is interpreted as comparison operator. This effectively turns the - intended - named parameter into a positional parameter passing the result of comparing the parameter name with the parameter value expression.
+* If a macro call contains named parameters, then they must appear after any positional parameters. In other words, any positional parameters must appear “in the front”; while all named parameters must appear “at the back”.
+* By definition, positional parameters are passed in the same order as they were declared. But named parameters can appear in any order (provided they appear after any of the positional parameters).
 
 ## Examples
 
@@ -61,7 +136,7 @@ Create a macro with a default parameter:
 CREATE MACRO add_default(a, b := 5) AS a + b;
 ```
 
-Create a macro `arr_append` (with a functionality equivalent to `array_append`):
+Create a macro `arr_append` (with functionality equivalent to `array_append`):
 
 ```sql
 CREATE MACRO arr_append(l, e) AS list_concat(l, list_value(e));
@@ -100,12 +175,14 @@ CREATE OR REPLACE TEMP MACRO dynamic_table(col1_value, col2_value) AS TABLE
 
 Pass an argument as a list:
 
+<!-- test:setup CREATE TABLE users (uid INTEGER, name VARCHAR); -->
+
 ```sql
 CREATE MACRO get_users(i) AS TABLE
     SELECT * FROM users WHERE uid IN (SELECT unnest(i));
 ```
 
-An example for how to use the `get_users` table macro is the following:
+An example of how to use the `get_users` table macro is the following:
 
 ```sql
 CREATE TABLE users AS
@@ -114,7 +191,7 @@ CREATE TABLE users AS
 SELECT * FROM get_users([1, 5]);
 ```
 
-To define macros on arbitrary tables, use the [`query_table` function]({% link docs/current/guides/sql_features/query_and_query_table_functions.md %}). For example, the following macro computes a column-wise checksum on a table:
+To define macros on arbitrary tables, use the [`query_table` function]({% link docs/2.0/guides/sql_features/query_and_query_table_functions.md %}). For example, the following macro computes a column-wise checksum on a table:
 
 ```sql
 CREATE MACRO checksum(tbl) AS TABLE
@@ -123,6 +200,25 @@ CREATE MACRO checksum(tbl) AS TABLE
 
 CREATE TABLE tbl AS SELECT unnest([42, 43]) AS x, 100 AS y;
 SELECT * FROM checksum('tbl');
+```
+
+A table macro's expression is bound when the macro is created, so file names written directly into the expression are resolved at creation time. For example, the following fails at creation time when the file is not present:
+
+```sql
+CREATE MACRO read_pipe() AS TABLE FROM read_csv('/dev/stdin');
+```
+
+```console
+IO Error:
+No files found that match the pattern "/dev/stdin"
+```
+
+To resolve the file name at call time instead, pass it as a parameter. Supplying a default value keeps the macro callable without arguments:
+
+```sql
+CREATE OR REPLACE TEMPORARY MACRO read_pipe(pipe := '/dev/stdin') AS TABLE
+    FROM read_csv(pipe);
+FROM read_pipe();
 ```
 
 ## Overloading
@@ -144,8 +240,8 @@ SELECT
 ```
 
 | two_args | three_args |
-|----------|------------|
-|    63    |     84     |
+| -------- | ---------- |
+| 63       | 84         |
 
 
 ```sql
@@ -160,10 +256,24 @@ SELECT
     is_maximal(127) AS regular;
 ```
 
-|   tiny   |  regular   |
-|----------|------------|
-|   true   |    false   |
+| tiny | regular |
+| ---- | ------- |
+| true | false   |
 
+Table macros can be overloaded in the same way. When an implementation is defined using a `SELECT` statement, wrap that statement in parentheses:
+
+```sql
+CREATE MACRO tbl_range
+    (n) AS TABLE (SELECT * FROM range(n)),
+    (start, stop) AS TABLE (SELECT * FROM range(start, stop));
+```
+
+```sql
+SELECT count(*) AS one_arg FROM tbl_range(3);
+SELECT count(*) AS two_args FROM tbl_range(3, 8);
+```
+
+The first call returns `3`, the second returns `5`.
 
 ## Syntax
 
@@ -192,9 +302,9 @@ Usage example:
 SELECT add(1, 2) AS x;
 ```
 
-| x |
-|--:|
-| 3 |
+|    x |
+| ---: |
+|    3 |
 
 However, this fails:
 
@@ -234,9 +344,9 @@ CREATE MACRO triple_add(a, b := 5, c := 10) AS a + b + c;
 SELECT triple_add(40, c := 1, b := 1) AS x;
 ```
 
-| x  |
-|---:|
-| 42 |
+|    x |
+| ---: |
+|   42 |
 
 When macros are used, they are expanded (i.e., replaced with the original expression), and the parameters within the expanded expression are replaced with the supplied arguments. Step by step:
 
@@ -247,6 +357,8 @@ SELECT add(40, 2) AS x;
 ```
 
 Internally, `add` is replaced with its definition of `a + b`:
+
+<!-- test:skip illustrative macro expansion, `a` and `b` are unbound here -->
 
 ```sql
 SELECT a + b AS x;
@@ -292,28 +404,6 @@ SELECT fibo(3);
 ```console
 Binder Error:
 Max expression depth limit of 1000 exceeded. Use "SET max_expression_depth TO x" to increase the maximum expression depth.
-```
-
-### Function Chaining on the First Function Does Not Work
-
-Macros do not support the dot operator for function chaining on the first function.
-To illustrate this, see an example with the `lower` function, which works:
-
-```sql
-CREATE OR REPLACE MACRO low(s) AS lower(s);
-SELECT low('AA');
-```
-
-However, rewriting `lower(s)` to use function chaining does not work:
-
-```sql
-CREATE OR REPLACE MACRO low(s) AS s.lower();
-SELECT low('AA');
-```
-
-```console
-Binder Error:
-Referenced column "s" not found in FROM clause!
 ```
 
 ### Viewing the List of Macros and Table Macros

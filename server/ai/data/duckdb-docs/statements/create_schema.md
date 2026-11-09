@@ -2,9 +2,12 @@
 layout: docu
 railroad: statements/createschema.js
 redirect_from:
-- /docs/preview/sql/statements/create_schema
 - /docs/sql/statements/create_schema
 - /docs/stable/sql/statements/create_schema
+- /docs/current/sql/statements/create_schema
+- /docs/lts/sql/statements/create_schema
+- /docs/preview/sql/statements/create_schema
+tested: true
 title: CREATE SCHEMA Statement
 ---
 
@@ -43,6 +46,18 @@ Compute a join between tables from two schemas:
 SELECT *
 FROM s1.t s1t, s2.t s2t
 WHERE s1t.other_id = s2t.id;
+```
+
+## Nested Schemas
+
+> New Support for nested schemas was introduced in DuckDB 2.0.
+
+Schemas can be nested within other schemas. Objects in a nested schema are referenced using their fully qualified, dot-separated path:
+
+```sql
+CREATE SCHEMA finance;
+CREATE SCHEMA finance.reports;
+CREATE TABLE finance.reports.q3 (revenue DECIMAL);
 ```
 
 ## Syntax

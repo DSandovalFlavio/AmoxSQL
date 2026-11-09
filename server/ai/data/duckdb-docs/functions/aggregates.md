@@ -2,10 +2,12 @@
 layout: docu
 railroad: expressions/aggregate.js
 redirect_from:
-- /docs/preview/sql/functions/aggregates
 - /docs/sql/aggregates
 - /docs/sql/functions/aggregates
 - /docs/stable/sql/functions/aggregates
+- /docs/current/sql/functions/aggregates
+- /docs/lts/sql/functions/aggregates
+- /docs/preview/sql/functions/aggregates
 title: Aggregate Functions
 ---
 
@@ -44,7 +46,7 @@ SELECT count(DISTINCT region)
 FROM sales;
 ```
 
-Return two values, the total sum of `amount` and the sum of `amount` minus columns where the region is `north` using the [`FILTER` clause]({% link docs/current/sql/query_syntax/filter.md %}):
+Return two values, the total sum of `amount` and the sum of `amount` minus columns where the region is `north` using the [`FILTER` clause]({% link docs/2.0/sql/query_syntax/filter.md %}):
 
 ```sql
 SELECT sum(amount), sum(amount) FILTER (region != 'north')
@@ -65,16 +67,37 @@ SELECT first(amount ORDER BY date ASC)
 FROM sales;
 ```
 
+Downsample a series of 100 points to 5 points that preserve its visual shape using the [`lttb()` aggregate function](#lttbx-y-n):
+
+```sql
+SELECT unnest(lttb(x, sin(x), 5 ORDER BY x)) AS point
+FROM range(0, 100) t(x);
+```
+
+```text
+┌───────────────────────────────────────┐
+│                 point                 │
+│      struct(x double, y double)       │
+├───────────────────────────────────────┤
+│ {'x': 0.0, 'y': 0.0}                  │
+│ {'x': 30.0, 'y': -0.9880316240928618} │
+│ {'x': 33.0, 'y': 0.9999118601072672}  │
+│ {'x': 96.0, 'y': 0.9835877454343449}  │
+│ {'x': 99.0, 'y': -0.9992068341863537} │
+└───────────────────────────────────────┘
+```
+
 ## Syntax
 
 <div id="rrdiagram"></div>
 
-Aggregates are functions that *combine* multiple rows into a single value. Aggregates are different from scalar functions and window functions because they change the cardinality of the result. As such, aggregates can only be used in the `SELECT` and `HAVING` clauses of a SQL query.
+Aggregates are functions that *combine* multiple rows into a single value. Aggregates are different from scalar functions and window functions because they change the cardinality of the result. Aggregate functions can be used in the `SELECT`, `HAVING`, and `ORDER BY` clauses of a SQL query.
 
 ### `DISTINCT` Clause in Aggregate Functions
 
 When the `DISTINCT` clause is provided, only distinct values are considered in the computation of the aggregate. This is typically used in combination with the `count` aggregate to get the number of distinct elements; but it can be used together with any aggregate function in the system.
 There are some aggregates that are insensitive to duplicate values (e.g., `min` and `max`) and for them this clause is parsed and ignored.
+If the aggregate also has an `ORDER BY` clause, all ordering expressions must appear in the aggregate's argument list; see the [`ORDER BY` clause](#order-by-clause-in-aggregate-functions) section for details.
 
 ### `ORDER BY` Clause in Aggregate Functions
 
@@ -86,8 +109,18 @@ SELECT ⟨aggregate_function⟩(⟨arg⟩, ⟨sep⟩ ORDER BY ⟨ordering_criter
 
 This clause ensures that the values being aggregated are sorted before applying the function.
 Most aggregate functions are order-insensitive, and for them this clause is parsed and discarded.
-However, there are some order-sensitive aggregates that can have non-deterministic results without ordering, e.g., `first`, `last`, `list` and `string_agg` / `group_concat` / `listagg`.
+However, there are some order-sensitive aggregates that can have non-deterministic results without ordering, e.g., `first`, `last`, `list`, and `string_agg` / `group_concat` / `listagg`.
 These can be made deterministic by ordering the arguments.
+
+When `DISTINCT` is used, every expression in the aggregate-local `ORDER BY` clause must also appear in the aggregate's argument list. For example, the first query below is valid, while the second fails because `y` is not an aggregate argument.
+
+```sql
+SELECT list(DISTINCT x ORDER BY x DESC) FROM (VALUES (1), (2), (2), (3)) t(x);
+-- [3, 2, 1]
+
+SELECT list(DISTINCT x ORDER BY y DESC) FROM (VALUES (1, 10), (1, 20), (2, 5)) t(x, y);
+-- Binder Error: In a DISTINCT aggregate, ORDER BY expressions must appear in the argument list
+```
 
 For example:
 
@@ -105,8 +138,8 @@ FROM tbl;
 
 ### Handling `NULL` Values
 
-All general aggregate functions ignore `NULL`s, except for [`list`](#listarg) ([`array_agg`](#listarg)), [`first`](#firstarg) ([`arbitrary`](#firstarg)) and [`last`](#lastarg).
-To exclude `NULL`s from `list`, you can use a [`FILTER` clause]({% link docs/current/sql/query_syntax/filter.md %}).
+All general aggregate functions ignore `NULL`s, except for [`list`](#listarg) ([`array_agg`](#listarg)), [`first`](#firstarg) ([`arbitrary`](#firstarg)), and [`last`](#lastarg).
+To exclude `NULL`s from `list`, use a [`FILTER` clause]({% link docs/2.0/sql/query_syntax/filter.md %}) that excludes rows with null input, such as `list(x) FILTER (WHERE x IS NOT NULL)`. A filter on another column may still leave `NULL` values in the list.
 To ignore `NULL`s from `first`, you can use the [`any_value` aggregate](#any_valuearg).
 
 All general aggregate functions except [`count`](#countarg) return `NULL` on empty groups.
@@ -122,9 +155,11 @@ The table below shows the available general aggregate functions.
 | [`arg_max(arg, val)`](#arg_maxarg-val) | Finds the row with the maximum `val` and calculates the `arg` expression at that row. Rows where the value of the `arg` or `val` expression is `NULL` are ignored. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`arg_max(arg, val, n)`](#arg_maxarg-val-n) | The generalized case of [`arg_max`](#arg_maxarg-val) for `n` values: returns a `LIST` containing the `arg` expressions for the top `n` rows ordered by `val` descending. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`arg_max_null(arg, val)`](#arg_max_nullarg-val) | Finds the row with the maximum `val` and calculates the `arg` expression at that row. Rows where the `val` expression evaluates to `NULL` are ignored. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
+| [`arg_max_nulls_last(arg, val[, n])`](#arg_max_nulls_lastarg-val-n) | Finds the row with the maximum `val` and calculates the `arg` expression at that row. Unlike [`arg_max`](#arg_maxarg-val), `NULL` values of `arg` are not ignored and rows where `val` is `NULL` are sorted last, i.e., they are only selected if there are no other rows. If `n` is specified, returns a `LIST` containing the `arg` expressions for the top `n` rows ordered by `val` descending, with `NULL` values of `val` last. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`arg_min(arg, val)`](#arg_minarg-val) | Finds the row with the minimum `val` and calculates the `arg` expression at that row. Rows where the value of the `arg` or `val` expression is `NULL` are ignored. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
-| [`arg_min(arg, val, n)`](#arg_minarg-val-n) | Returns a `LIST` containing the `arg` expressions for the "bottom" `n` rows ordered by `val` ascending. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
+| [`arg_min(arg, val, n)`](#arg_minarg-val-n) | Returns a `LIST` containing the `arg` expressions for the “bottom” `n` rows ordered by `val` ascending. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`arg_min_null(arg, val)`](#arg_min_nullarg-val) | Finds the row with the minimum `val` and calculates the `arg` expression at that row. Rows where the `val` expression evaluates to `NULL` are ignored. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
+| [`arg_min_nulls_last(arg, val[, n])`](#arg_min_nulls_lastarg-val-n) | Finds the row with the minimum `val` and calculates the `arg` expression at that row. Unlike [`arg_min`](#arg_minarg-val), `NULL` values of `arg` are not ignored and rows where `val` is `NULL` are sorted last, i.e., they are only selected if there are no other rows. If `n` is specified, returns a `LIST` containing the `arg` expressions for the top `n` rows ordered by `val` ascending, with `NULL` values of `val` last. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`avg(arg)`](#avgarg) | Calculates the average of all non-null values in `arg`. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`bit_and(arg)`](#bit_andarg) | Returns the bitwise AND of all bits in a given expression. |
 | [`bit_or(arg)`](#bit_orarg) | Returns the bitwise OR of all bits in a given expression. |
@@ -135,20 +170,22 @@ The table below shows the available general aggregate functions.
 | [`count()`](#count) | Returns the number of rows. |
 | [`count(arg)`](#countarg) | Returns the number of rows where `arg` is not `NULL`. |
 | [`countif(arg)`](#countifarg) | Returns the number of rows where `arg` is `true`. |
+| [`decimal_average(arg)`](#decimal_averagearg) | Computes the average of a `DECIMAL` column using exact integer arithmetic with banker's rounding, returning a `DECIMAL` with the same width and scale as the input. |
 | [`favg(arg)`](#favgarg) | Calculates the average using a more accurate floating point summation (Kahan Sum). This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`first(arg)`](#firstarg) | Returns the first value (null or non-null) from `arg`. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`fsum(arg)`](#fsumarg) | Calculates the sum using a more accurate floating point summation (Kahan Sum). This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`geometric_mean(arg)`](#geometric_meanarg) | Calculates the geometric mean of all non-null values in `arg`. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`histogram(arg)`](#histogramarg) | Returns a `MAP` of key-value pairs representing buckets and counts. |
-| [`histogram(arg, boundaries)`](#histogramarg-boundaries) | Returns a `MAP` of key-value pairs representing the provided upper `boundaries` and counts of elements in the corresponding bins (left-open and right-closed partitions) of the datatype. A boundary at the largest value of the datatype is automatically added when elements larger than all provided `boundaries` appear, see [`is_histogram_other_bin`]({% link docs/current/sql/functions/utility.md %}#is_histogram_other_binarg). Boundaries may be provided, e.g., via [`equi_width_bins`]({% link docs/current/sql/functions/utility.md %}#equi_width_binsminmaxbincountnice). |
-| [`histogram_exact(arg, elements)`](#histogram_exactarg-elements) | Returns a `MAP` of key-value pairs representing the requested elements and their counts. A catch-all element specific to the data-type is automatically added to count other elements when they appear, see [`is_histogram_other_bin`]({% link docs/current/sql/functions/utility.md %}#is_histogram_other_binarg). |
-| [`histogram_values(source, boundaries)`](#histogram_valuessource-col_name-technique-bin_count) | Returns the upper boundaries of the bins and their counts. |
+| [`histogram(arg, boundaries)`](#histogramarg-boundaries) | Returns a `MAP` of key-value pairs representing the provided upper `boundaries` and counts of elements in the corresponding bins (left-open and right-closed partitions) of the datatype. A boundary at the largest value of the datatype is automatically added when elements larger than all provided `boundaries` appear, see [`is_histogram_other_bin`]({% link docs/2.0/sql/functions/utility.md %}#is_histogram_other_binarg). Boundaries may be provided, e.g., via [`equi_width_bins`]({% link docs/2.0/sql/functions/utility.md %}#equi_width_binsminmaxbincountnice). |
+| [`histogram_exact(arg, elements)`](#histogram_exactarg-elements) | Returns a `MAP` of key-value pairs representing the requested elements and their counts. A catch-all element specific to the data-type is automatically added to count other elements when they appear, see [`is_histogram_other_bin`]({% link docs/2.0/sql/functions/utility.md %}#is_histogram_other_binarg). |
+| [`histogram_values(source, col_name[, bin_count[, technique]])`](#histogram_valuessource-col_name-bin_count-technique) | A table macro (not an aggregate function) returning the upper boundary of each bin and its count for a column; see the detailed entry for the available `technique` values. |
 | [`last(arg)`](#lastarg) | Returns the last value of a column. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`list(arg)`](#listarg) | Returns a `LIST` containing all the values of a column. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
+| [`lttb(x, y, n)`](#lttbx-y-n) | Downsamples the series of `(x, y)` points to at most `n` representative points using the Largest-Triangle-Three-Buckets (LTTB) algorithm. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`max(arg)`](#maxarg) | Returns the maximum value present in `arg`. This function is [unaffected by distinctness](#distinct-clause-in-aggregate-functions). |
-| [`max(arg, n)`](#maxarg-n) | Returns a `LIST` containing the `arg` values for the "top" `n` rows ordered by `arg` descending. |
+| [`max(arg, n)`](#maxarg-n) | Returns a `LIST` containing the `arg` values for the “top” `n` rows ordered by `arg` descending. |
 | [`min(arg)`](#minarg) | Returns the minimum value present in `arg`. This function is [unaffected by distinctness](#distinct-clause-in-aggregate-functions). |
-| [`min(arg, n)`](#minarg-n) | Returns a `LIST` containing the `arg` values for the "bottom" `n` rows ordered by `arg` ascending. |
+| [`min(arg, n)`](#minarg-n) | Returns a `LIST` containing the `arg` values for the “bottom” `n` rows ordered by `arg` ascending. |
 | [`product(arg)`](#productarg) | Calculates the product of all non-null values in `arg`. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`string_agg(arg)`](#string_aggarg-sep) | Concatenates the column string values with a comma separator (`,`). This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`string_agg(arg, sep)`](#string_aggarg-sep) | Concatenates the column string values with a separator. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
@@ -185,6 +222,13 @@ The table below shows the available general aggregate functions.
 | **Description** | Finds the row with the maximum `val` and calculates the `arg` expression at that row. Rows where the `val` expression evaluates to `NULL` are ignored. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | **Example** | `arg_max_null(A, B)` |
 
+#### `arg_max_nulls_last(arg, val[, n])`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Finds the row with the maximum `val` and calculates the `arg` expression at that row. Unlike [`arg_max`](#arg_maxarg-val), `NULL` values of `arg` are not ignored and rows where `val` is `NULL` are sorted last, i.e., they are only selected if there are no other rows. If `n` is specified, returns a `LIST` containing the `arg` expressions for the top `n` rows ordered by `val` descending, with `NULL` values of `val` last. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
+| **Example** | `arg_max_nulls_last(A, B)` |
+
 #### `arg_min(arg, val)`
 
 <div class="nostroke_table"></div>
@@ -207,6 +251,13 @@ The table below shows the available general aggregate functions.
 
 | **Description** | Finds the row with the minimum `val` and calculates the `arg` expression at that row. Rows where the `val` expression evaluates to `NULL` are ignored. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | **Example** | `arg_min_null(A, B)` |
+
+#### `arg_min_nulls_last(arg, val[, n])`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Finds the row with the minimum `val` and calculates the `arg` expression at that row. Unlike [`arg_min`](#arg_minarg-val), `NULL` values of `arg` are not ignored and rows where `val` is `NULL` are sorted last, i.e., they are only selected if there are no other rows. If `n` is specified, returns a `LIST` containing the `arg` expressions for the top `n` rows ordered by `val` ascending, with `NULL` values of `val` last. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
+| **Example** | `arg_min_nulls_last(A, B)` |
 
 #### `avg(arg)`
 
@@ -280,6 +331,15 @@ The table below shows the available general aggregate functions.
 | **Description** | Returns the number of rows where `arg` is `true`. |
 | **Example** | `countif(A)` |
 
+#### `decimal_average(arg)`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Computes the average of a `DECIMAL` column using exact integer arithmetic with [banker's rounding](https://en.wikipedia.org/wiki/Rounding#Rounding_half_to_even), returning a `DECIMAL` with the same width and scale as the input. `NULL` values are ignored. |
+| **Example** | `decimal_average(A)` |
+
+> New The `decimal_average` function was added in DuckDB 2.0.
+
 #### `favg(arg)`
 
 <div class="nostroke_table"></div>
@@ -322,22 +382,22 @@ The table below shows the available general aggregate functions.
 
 <div class="nostroke_table"></div>
 
-| **Description** | Returns a `MAP` of key-value pairs representing the provided upper `boundaries` and counts of elements in the corresponding bins (left-open and right-closed partitions) of the datatype. A boundary at the largest value of the datatype is automatically added when elements larger than all provided `boundaries` appear, see [`is_histogram_other_bin`]({% link docs/current/sql/functions/utility.md %}#is_histogram_other_binarg). Boundaries may be provided, e.g., via [`equi_width_bins`]({% link docs/current/sql/functions/utility.md %}#equi_width_binsminmaxbincountnice). |
+| **Description** | Returns a `MAP` of key-value pairs representing the provided upper `boundaries` and counts of elements in the corresponding bins (left-open and right-closed partitions) of the datatype. A boundary at the largest value of the datatype is automatically added when elements larger than all provided `boundaries` appear, see [`is_histogram_other_bin`]({% link docs/2.0/sql/functions/utility.md %}#is_histogram_other_binarg). Boundaries may be provided, e.g., via [`equi_width_bins`]({% link docs/2.0/sql/functions/utility.md %}#equi_width_binsminmaxbincountnice). |
 | **Example** | `histogram(A, [0, 1, 10])` |
 
 #### `histogram_exact(arg, elements)`
 
 <div class="nostroke_table"></div>
 
-| **Description** | Returns a `MAP` of key-value pairs representing the requested elements and their counts. A catch-all element specific to the data-type is automatically added to count other elements when they appear, see [`is_histogram_other_bin`]({% link docs/current/sql/functions/utility.md %}#is_histogram_other_binarg). |
+| **Description** | Returns a `MAP` of key-value pairs representing the requested elements and their counts. A catch-all element specific to the data-type is automatically added to count other elements when they appear, see [`is_histogram_other_bin`]({% link docs/2.0/sql/functions/utility.md %}#is_histogram_other_binarg). |
 | **Example** | `histogram_exact(A, ['a', 'b', 'c'])` |
 
-#### `histogram_values(source, col_name, technique, bin_count)`
+#### `histogram_values(source, col_name[, bin_count[, technique]])`
 
 <div class="nostroke_table"></div>
 
-| **Description** | Returns the upper boundaries of the bins and their counts. |
-| **Example** | `histogram_values(integers, i, bin_count := 2)` |
+| **Description** | A table macro (not an aggregate function) that computes a histogram over column `col_name` of table `source`, returning the upper boundary of each bin and its count. The optional third argument, `bin_count`, sets the number of bins. The optional fourth argument, `technique`, selects the binning method and is one of `auto`, `sample`, `equi-height`, `equi-width`, or `equi-width-nice`. |
+| **Example** | `histogram_values(integers, i, 2, 'equi-width')` |
 
 #### `last(arg)`
 
@@ -354,6 +414,15 @@ The table below shows the available general aggregate functions.
 | **Example** | `list(A)` |
 | **Alias(es)** | `array_agg` |
 
+#### `lttb(x, y, n)`
+
+> New This feature was introduced in DuckDB 2.0.
+
+<div class="nostroke_table"></div>
+
+| **Description** | Downsamples the series of `(x, y)` points to at most `n` representative points using the Largest-Triangle-Three-Buckets (LTTB) algorithm, which preserves the visual shape of the series. Returns a `LIST` of `STRUCT`s with fields `x` and `y`, always including the first and the last point. `x` and `y` each accept `FLOAT`, `DOUBLE`, or any `TIMESTAMP` type, while the triangle computations are performed using `DOUBLE` arithmetic. `n` has to be a constant with `n >= 2`. Points where `x` or `y` is `NULL` are ignored and empty groups return `NULL`. The points have to be sorted on `x`, so `ORDER BY x` is required in practice. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
+| **Example** | `lttb(x, y, 5 ORDER BY x)` |
+
 #### `max(arg)`
 
 <div class="nostroke_table"></div>
@@ -365,7 +434,7 @@ The table below shows the available general aggregate functions.
 
 <div class="nostroke_table"></div>
 
-| **Description** |  Returns a `LIST` containing the `arg` values for the "top" `n` rows ordered by `arg` descending. |
+| **Description** |  Returns a `LIST` containing the `arg` values for the “top” `n` rows ordered by `arg` descending. |
 | **Example** | `max(A, 2)` |
 
 #### `min(arg)`
@@ -379,7 +448,7 @@ The table below shows the available general aggregate functions.
 
 <div class="nostroke_table"></div>
 
-| **Description** | Returns a `LIST` containing the `arg` values for the "bottom" `n` rows ordered by `arg` ascending. |
+| **Description** | Returns a `LIST` containing the `arg` values for the “bottom” `n` rows ordered by `arg` ascending. |
 | **Example** | `min(A, 2)` |
 
 #### `product(arg)`
@@ -448,7 +517,8 @@ They all ignore `NULL` values (in the case of a single input column `x`), or pai
 | [`median(x)`](#medianx) | The middle value of the set. For even value counts, quantitative values are averaged and ordinal values return the lower value. |
 | [`mode(x)`](#modex)| The most frequent value. This function is [affected by ordering](#order-by-clause-in-aggregate-functions). |
 | [`quantile_cont(x, pos)`](#quantile_contx-pos) | The interpolated `pos`-quantile of `x` for `-1 <= pos <= 1`. Returns the `pos * (n_nonnull_values - 1)`th (zero-indexed, in the specified order) value of `x` or an interpolation between the adjacent values if the index is not an integer. Values of `pos` between `-1` and `0` correspond to counting backwards from `1`. More precisely, `quantile_cont(x, -y) = quantile_cont(x, 1 - y)`. Intuitively, arranges the values of `x` as equispaced *points* on a line, starting at 0 and ending at 1, and returns the (interpolated) value at `pos`. This is Type 7 in Hyndman & Fan (1996). If `pos` is a `LIST` of `FLOAT`s, then the result is a `LIST` of the corresponding interpolated quantiles. |
-| [`quantile_disc(x, pos)`](#quantile_discx-pos) | The discrete `pos`-quantile of `x` for `0 <= pos <= 1`. Returns  the `greatest(ceil(pos * n_nonnull_values) - 1, 0)`th (zero-indexed, in the specified order) value of `x`. Intuitively, assigns to each value of `x` an equisized *sub-interval* (left-open and right-closed except for the initial interval) of the interval `[0, 1]`, and picks the value of the sub-interval that contains `pos`. This is Type 1 in Hyndman & Fan (1996). If `pos` is a `LIST` of `FLOAT`s, then the result is a `LIST` of the corresponding discrete quantiles. |
+| [`quantile(x, pos)`](#quantilex-pos) | Alias for [`quantile_disc`](#quantile_discx-pos). |
+| [`quantile_disc(x, pos)`](#quantile_discx-pos) | The discrete `pos`-quantile of `x` for `-1 <= pos <= 1`. Positive positions select in ascending order, while negative positions select in descending order. For `p = abs(pos)`, returns the `greatest(ceil(p * n_nonnull_values) - 1, 0)`th (zero-indexed, in the specified order) value of `x`. Intuitively, assigns to each value of `x` an equisized *sub-interval* (left-open and right-closed except for the initial interval) of the interval `[0, 1]`, and picks the value of the sub-interval that contains `p`. This is Type 1 in Hyndman & Fan (1996). If `pos` is a `LIST` of `FLOAT`s, then the result is a `LIST` of the corresponding discrete quantiles. The list cannot contain both positive and negative positions. |
 | [`regr_avgx(y, x)`](#regr_avgxy-x) | The average of the independent variable for non-`NULL` pairs, where x is the independent variable and y is the dependent variable. |
 | [`regr_avgy(y, x)`](#regr_avgyy-x) | The average of the dependent variable for non-`NULL` pairs, where x is the independent variable and y is the dependent variable. |
 | [`regr_count(y, x)`](#regr_county-x) | The number of non-`NULL` pairs. |
@@ -533,14 +603,20 @@ They all ignore `NULL` values (in the case of a single input column `x`), or pai
 
 <div class="nostroke_table"></div>
 
-| **Description** | The interpolated `pos`-quantile of `x` for `0 <= pos <= 1`. Returns the `pos * (n_nonnull_values - 1)`th (zero-indexed, in the specified order) value of `x` or an interpolation between the adjacent values if the index is not an integer. Intuitively, arranges the values of `x` as equispaced *points* on a line, starting at 0 and ending at 1, and returns the (interpolated) value at `pos`. This is Type 7 in Hyndman & Fan (1996). If `pos` is a `LIST` of `FLOAT`s, then the result is a `LIST` of the corresponding interpolated quantiles. |
+| **Description** | The interpolated `pos`-quantile of `x` for `-1 <= pos <= 1`. Returns the `pos * (n_nonnull_values - 1)`th (zero-indexed, in the specified order) value of `x` or an interpolation between the adjacent values if the index is not an integer. Values of `pos` between `-1` and `0` correspond to counting backwards from `1`. More precisely, `quantile_cont(x, -y) = quantile_cont(x, 1 - y)`. Intuitively, arranges the values of `x` as equispaced *points* on a line, starting at 0 and ending at 1, and returns the (interpolated) value at `pos`. This is Type 7 in Hyndman & Fan (1996). If `pos` is a `LIST` of `FLOAT`s, then the result is a `LIST` of the corresponding interpolated quantiles. |
 | **Formula** | - |
+
+#### `quantile(x, pos)`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Alias for [`quantile_disc`](#quantile_discx-pos). |
 
 #### `quantile_disc(x, pos)`
 
 <div class="nostroke_table"></div>
 
-| **Description** | The discrete `pos`-quantile of `x` for `0 <= pos <= 1`. Returns  the `greatest(ceil(pos * n_nonnull_values) - 1, 0)`th (zero-indexed, in the specified order) value of `x`. Intuitively, assigns to each value of `x` an equisized *sub-interval* (left-open and right-closed except for the initial interval) of the interval `[0, 1]`, and picks the value of the sub-interval that contains `pos`. This is Type 1 in Hyndman & Fan (1996). If `pos` is a `LIST` of `FLOAT`s, then the result is a `LIST` of the corresponding discrete quantiles.  |
+| **Description** | The discrete `pos`-quantile of `x` for `-1 <= pos <= 1`. Positive positions select in ascending order, while negative positions select in descending order. For `p = abs(pos)`, returns the `greatest(ceil(p * n_nonnull_values) - 1, 0)`th (zero-indexed, in the specified order) value of `x`. Intuitively, assigns to each value of `x` an equisized *sub-interval* (left-open and right-closed except for the initial interval) of the interval `[0, 1]`, and picks the value of the sub-interval that contains `p`. This is Type 1 in Hyndman & Fan (1996). If `pos` is a `LIST` of `FLOAT`s, then the result is a `LIST` of the corresponding discrete quantiles. The list cannot contain both positive and negative positions. |
 | **Formula** | - |
 | **Alias(es)** | `quantile` |
 
@@ -672,4 +748,4 @@ as the first argument.
 
 | Function | Description | Alias |
 |:--|:---|:--|
-| `grouping()` | For queries with `GROUP BY` and either [`ROLLUP` or `GROUPING SETS`]({% link docs/current/sql/query_syntax/grouping_sets.md %}#identifying-grouping-sets-with-grouping_id): Returns an integer identifying which of the argument expressions were used to group on to create the current super-aggregate row. | `grouping_id()` |
+| `grouping()` | For queries with `GROUP BY` and either [`ROLLUP` or `GROUPING SETS`]({% link docs/2.0/sql/query_syntax/grouping_sets.md %}#identifying-grouping-sets-with-grouping_id): Returns an integer identifying which of the argument expressions were used to group on to create the current super-aggregate row. | `grouping_id()` |

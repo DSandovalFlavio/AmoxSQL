@@ -2,9 +2,12 @@
 layout: docu
 railroad: query_syntax/with.js
 redirect_from:
-- /docs/preview/sql/query_syntax/with
 - /docs/sql/query_syntax/with
 - /docs/stable/sql/query_syntax/with
+- /docs/current/sql/query_syntax/with
+- /docs/lts/sql/query_syntax/with
+- /docs/preview/sql/query_syntax/with
+tested: true
 title: WITH Clause
 ---
 
@@ -104,6 +107,37 @@ FROM
 
 Generally, it is not recommended to use explicit materialization hints, as DuckDB's query optimizer is capable of deciding when to materialize or inline a CTE based on the query structure and the heuristics mentioned above. However, in some cases, it may be beneficial to use `MATERIALIZED` or `NOT MATERIALIZED` to control the behavior explicitly.
 
+## Data-Modifying CTEs
+
+> New Support for data-modifying statements in CTEs was introduced in DuckDB 2.0.
+
+A CTE body can be a data-modifying statement: [`INSERT`]({% link docs/2.0/sql/statements/insert.md %}), [`UPDATE`]({% link docs/2.0/sql/statements/update.md %}), [`DELETE`]({% link docs/2.0/sql/statements/delete.md %}), or [`COPY`]({% link docs/2.0/sql/statements/copy.md %}#copy--to). This lets you chain modifications into a single pipeline. A data-modifying CTE that is followed by other statements should use a [`RETURNING` clause]({% link docs/2.0/sql/statements/insert.md %}#returning-clause) so that its result can be referenced.
+
+Move rows from one table to another in a single statement by combining a `DELETE` and an `INSERT`:
+
+```sql
+WITH moved AS MATERIALIZED (
+    DELETE FROM staging
+    RETURNING *
+)
+INSERT INTO archive
+SELECT * FROM moved;
+```
+
+Count the rows affected by an `UPDATE`:
+
+```sql
+WITH updated AS (
+    UPDATE orders
+    SET status = 'shipped'
+    WHERE status = 'ready'
+    RETURNING *
+)
+SELECT count(*) AS shipped FROM updated;
+```
+
+> Bestpractice Mark a data-modifying CTE as [`MATERIALIZED`](#cte-materialization) when later parts of the query depend on the modification having already run, so that it is not inlined or executed more than once.
+
 ## Recursive CTEs
 
 `WITH RECURSIVE` allows the definition of CTEs which can refer to themselves. Note that the query must be formulated in a way that ensures termination, otherwise, it may run into an infinite loop.
@@ -197,7 +231,7 @@ WHERE source = 'Oasis';
 ### Graph Traversal
 
 The `WITH RECURSIVE` clause can be used to express graph traversal on arbitrary graphs. However, if the graph has cycles, the query must perform cycle detection to prevent infinite loops.
-One way to achieve this is to store the path of a traversal in a [list]({% link docs/current/sql/data_types/list.md %}) and, before extending the path with a new edge, check whether its endpoint has been visited before (see the example later).
+One way to achieve this is to store the path of a traversal in a [list]({% link docs/2.0/sql/data_types/list.md %}) and, before extending the path with a new edge, check whether its endpoint has been visited before (see the example later).
 
 Take the following directed graph from the [LDBC Graphalytics benchmark](https://arxiv.org/pdf/2011.15028.pdf):
 
@@ -212,7 +246,7 @@ INSERT INTO edge VALUES
     (6, 3), (6, 4), (7, 4), (8, 1), (9, 4);
 ```
 
-Note that the graph contains directed cycles, e.g., between nodes 1, 5 and 8.
+Note that the graph contains directed cycles, e.g., between nodes 1, 5, and 8.
 
 #### Enumerate All Paths from a Node
 
@@ -302,7 +336,7 @@ ORDER BY length(path), path;
 
 #### Enumerate Unweighted Shortest Paths between Two Nodes
 
-`WITH RECURSIVE` can also be used to find **all (unweighted) shortest paths between two nodes**. To ensure that the recursive query is stopped as soon as we reach the end node, we use a [window function]({% link docs/current/sql/functions/window_functions.md %}) which checks whether the end node is among the newly added nodes.
+`WITH RECURSIVE` can also be used to find **all (unweighted) shortest paths between two nodes**. To ensure that the recursive query is stopped as soon as we reach the end node, we use a [window function]({% link docs/2.0/sql/functions/window_functions.md %}) which checks whether the end node is among the newly added nodes.
 
 The following query returns all unweighted shortest paths between nodes 1 (start node) and 8 (end node):
 
@@ -370,32 +404,7 @@ Here, `recurring.counter` gives access to all rows accumulated across all previo
 
 ## Recursive CTEs with `USING KEY`
 
-> Deprecated DuckDB 1.5.0 deprecated the use of recursive `UNION`s for
-> `USING KEY` CTEs in favor of recursive `UNION ALL`s.
-> 
-> The recursive `UNION`s imply that not all rows that are produced in one
-> iteration are passed to the next, as would be the case for regular recursive
-> CTEs. Since the opposite is true, i.e., all rows are passed from one iteration
-> to the next, going forward DuckDB's `USING KEY` CTEs will require recursive
-> `UNION ALL`s instead.
->
-> DuckDB 1.5.0 also introduces a new setting to configure the `USING KEY` syntax.
->
-> ```sql
-> SET deprecated_using_key_syntax = 'DEFAULT';
-> SET deprecated_using_key_syntax = 'UNION_AS_UNION_ALL';
-> ```
->
-> Currently, `DEFAULT` enables both syntax styles, i.e., allows both recursive
-> `UNION`s and recursive `UNION ALL`s in `USING KEY` CTEs.
->
-> DuckDB 1.5.0 will be the last release supporting the `UNION` syntax without
-> explicitly enabling it.
->
-> DuckDB 2.0.0 disables the `UNION` syntax by default.
->
-> DuckDB 2.1.0 removes the `deprecated_using_key_syntax` flag and fully
-> deprecates the `UNION` syntax.
+> Update DuckDB 1.5.0 deprecated recursive `UNION`s in `USING KEY` CTEs because they behaved identically to `UNION ALL`. DuckDB 2.0.0 gives the two keywords distinct meanings and supports both: `UNION ALL` forwards every candidate row to the next iteration, while `UNION` only forwards new or changed keys. See [`UNION` vs. `UNION ALL` in `USING KEY` CTEs](#union-vs-union-all-in-using-key-ctes). The `deprecated_using_key_syntax` setting was removed.
 
 `USING KEY` alters the behavior of a regular recursive CTE.
 
@@ -431,6 +440,81 @@ FROM tbl;
 | 1 | 3 |
 | 2 | 3 |
 | 3 | 3 |
+
+### Aggregate Payloads in `USING KEY`
+
+By default, each payload column (i.e., each column not listed in `USING KEY`) uses `last` semantics: a new row for an existing key overwrites the previous payload value. You can also specify an aggregate function for a payload column in the `USING KEY` clause. In this case, all rows produced for a key are combined using the aggregate function. Payload columns without an aggregate keep the default `last` semantics.
+
+For example, the following query computes the average of all values produced for key `1`:
+
+```sql
+WITH RECURSIVE tbl(a, b) USING KEY (a, avg(b)) AS (
+    SELECT 1, 5
+        UNION ALL
+    SELECT a, b - 1
+    FROM tbl
+    WHERE b > 0
+)
+TABLE tbl;
+```
+
+| a |  b  |
+|--:|----:|
+| 1 | 2.5 |
+
+The following query maintains the maximum of `b`, while `c` uses the default `last` semantics:
+
+```sql
+WITH RECURSIVE tbl(a, b, c) USING KEY (a, max(b)) AS (
+    SELECT 1, 5, 'x'
+        UNION ALL
+    SELECT a, b - 1, 'y'
+    FROM tbl
+    WHERE b > 0
+)
+TABLE tbl;
+```
+
+| a | b | c |
+|--:|--:|---|
+| 1 | 5 | y |
+
+### `UNION` vs. `UNION ALL` in `USING KEY` CTEs
+
+Both `UNION` and `UNION ALL` update the union table in the same way: all rows produced by an iteration (the candidates) are applied to the union table, i.e., they insert new keys, overwrite payloads, or are combined by the payload aggregates. The two forms differ in which rows are passed to the next iteration:
+
+* With `UNION ALL`, every candidate row produced by the recursive term is forwarded to the next iteration, even if it did not change the union table.
+* With `UNION`, only rows for keys that are new or whose (finalized) payload changed are forwarded to the next iteration. Therefore, the recursion stops once the union table stops changing.
+
+For example, the following query computes single-source shortest paths in a weighted graph that contains a cycle. Using `min(dist)` as the payload aggregate, the union table keeps the shortest distance found so far for each node. With `UNION`, the recursion terminates once no shorter distances are found. With `UNION ALL`, the query would not terminate, as candidates would continue to be forwarded around the cycle.
+
+```sql
+CREATE TABLE weighted_edges (src INTEGER, dst INTEGER, weight INTEGER);
+INSERT INTO weighted_edges VALUES
+    (1, 2, 4), (1, 3, 1), (3, 2, 1), (2, 4, 1), (3, 4, 5), (4, 1, 1);
+```
+
+```sql
+WITH RECURSIVE shortest_paths(node, dist) USING KEY (node, min(dist)) AS (
+    SELECT 1, 0
+        UNION
+    SELECT e.dst, sp.dist + e.weight
+    FROM shortest_paths AS sp
+    JOIN weighted_edges AS e ON e.src = sp.node
+)
+SELECT *
+FROM shortest_paths
+ORDER BY node;
+```
+
+| node | dist |
+|-----:|-----:|
+| 1    | 0    |
+| 2    | 2    |
+| 3    | 1    |
+| 4    | 3    |
+
+For more details on the semantics and the implementation, see the [“How DuckDB Runs Recursive CTEs Faster” blog post]({% post_url 2026-08-25-how-duckdb-runs-recursive-ctes-faster %}).
 
 ## Using `VALUES`
 
@@ -471,7 +555,7 @@ WITH RECURSIVE connected_components(id, comp) USING KEY (id) AS (
     FROM nodes AS n
         UNION ALL (
     SELECT DISTINCT ON (previous_iter.id) previous_iter.id, initial_iter.comp
-    FROM 
+    FROM
         recurring.connected_components AS previous_iter,
         connected_components AS initial_iter,
         edges AS e

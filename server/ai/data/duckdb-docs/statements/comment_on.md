@@ -2,9 +2,11 @@
 layout: docu
 railroad: statements/comment.js
 redirect_from:
-- /docs/preview/sql/statements/comment_on
 - /docs/sql/statements/comment_on
 - /docs/stable/sql/statements/comment_on
+- /docs/current/sql/statements/comment_on
+- /docs/lts/sql/statements/comment_on
+- /docs/preview/sql/statements/comment_on
 title: COMMENT ON Statement
 ---
 
@@ -69,7 +71,7 @@ COMMENT ON TABLE test_table IS NULL;
 
 ## Reading Comments
 
-Comments can be read by querying the `comment` column of the respective [metadata functions]({% link docs/current/sql/meta/duckdb_table_functions.md %}):
+Comments can be read by querying the `comment` column of the respective [metadata functions]({% link docs/2.0/sql/meta/duckdb_table_functions.md %}):
 
 List comments on `TABLE`s:
 
@@ -124,7 +126,6 @@ SELECT comment FROM duckdb_functions();
 The `COMMENT ON` statement currently has the following limitations:
 
 * It is not possible to comment on schemas or databases.
-* It is not possible to comment on things that have a dependency (e.g., a table with an index).
 
 ## Syntax
 

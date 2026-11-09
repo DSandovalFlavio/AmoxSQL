@@ -4,9 +4,11 @@ blurb: The FROM clause can contain a single table, a combination of multiple tab
 layout: docu
 railroad: query_syntax/from.js
 redirect_from:
-- /docs/preview/sql/query_syntax/from
 - /docs/sql/query_syntax/from
 - /docs/stable/sql/query_syntax/from
+- /docs/current/sql/query_syntax/from
+- /docs/lts/sql/query_syntax/from
+- /docs/preview/sql/query_syntax/from
 title: FROM and JOIN Clauses
 ---
 
@@ -125,8 +127,8 @@ WHERE i % 2 = 0;
 
 ### Table Functions
 
-Some functions in DuckDB return entire tables rather than individual values. These functions are accordingly called _table functions_ and can be used with a `FROM` clause like regular table references. 
-Examples include [`read_csv`]({% link docs/current/data/csv/overview.md %}#csv-functions), [`read_parquet`]({% link docs/current/data/parquet/overview.md %}#read_parquet-function), [`range`]({% link docs/current/sql/functions/list.md %}#rangestart-stop-step), [`generate_series`]({% link docs/current/sql/functions/list.md %}#generate_seriesstart-stop-step), [`repeat`]({% link docs/current/sql/functions/utility.md %}#repeat_rowvarargs-num_rows), [`unnest`]({% link docs/current/sql/query_syntax/unnest.md %}), and [`glob`]({% link docs/current/sql/functions/utility.md %}#globsearch_path) (note that some of the examples here can be used as both scalar and table functions). 
+Some functions in DuckDB return entire tables rather than individual values. These functions are accordingly called _table functions_ and can be used with a `FROM` clause like regular table references.
+Examples include [`read_csv`]({% link docs/2.0/data/csv/overview.md %}#csv-functions), [`read_parquet`]({% link docs/2.0/data/parquet/overview.md %}#read_parquet-function), [`range`]({% link docs/2.0/sql/functions/list.md %}#rangestart-stop-step), [`generate_series`]({% link docs/2.0/sql/functions/list.md %}#generate_seriesstart-stop-step), [`repeat`]({% link docs/2.0/sql/functions/utility.md %}#repeat_rowvarargs-num_rows), [`unnest`]({% link docs/2.0/sql/query_syntax/unnest.md %}), and [`glob`]({% link docs/2.0/sql/functions/utility.md %}#globsearch_path) (note that some of the examples here can be used as both scalar and table functions).
 
 For example,
 
@@ -146,11 +148,11 @@ FROM read_csv('test.csv');
 All table functions support a `WITH ORDINALITY` suffix, which extends the returned table by an integer column `ordinality` that enumerates the generated rows starting at `1`.
 
 ```sql
-SELECT * 
+SELECT *
 FROM read_csv('test.csv') WITH ORDINALITY;
 ```
 
-Note that the same result could be achieved using the [`row_number` window function]({% link docs/current/sql/functions/window_functions.md %}#row_numberorder-by-ordering).
+Note that the same result could be achieved using the [`row_number` window function]({% link docs/2.0/sql/functions/window_functions.md %}#row_numberorder-by-ordering).
 In the presence of [joins](#joins), however, `WITH ORDINALITY` allows enumerating one side of the join instead of the final result set, without having to resort to sub-queries.
 
 ## Joins
@@ -268,7 +270,7 @@ WHERE s1.time > s2.time
 
 Natural joins join two tables based on attributes that share the same name.
 
-For example, take the following example with cities, airport codes and airport names. Note that both tables are intentionally incomplete, i.e., they do not have a matching pair in the other table.
+For example, take the following example with cities, airport codes, and airport names. Note that both tables are intentionally incomplete, i.e., they do not have a matching pair in the other table.
 
 ```sql
 CREATE TABLE city_airport (city_name VARCHAR, iata VARCHAR);
@@ -315,7 +317,7 @@ USING (iata);
 Semi joins return rows from the left table that have at least one match in the right table.
 Anti joins return rows from the left table that have _no_ matches in the right table.
 When using a semi or anti join the result will never have more rows than the left hand side table.
-Semi joins provide the same logic as the [`IN` operator]({% link docs/current/sql/expressions/in.md %}) statement.
+Semi joins provide the same logic as the [`IN` operator]({% link docs/2.0/sql/expressions/in.md %}) statement.
 Anti joins provide the same logic as the `NOT IN` operator, except anti joins ignore `NULL` values from the right table.
 
 #### Semi Join Example
@@ -439,8 +441,8 @@ for (i = 0; i < n; i++) {
 ```
 
 It is difficult to express this in standard SQL because
-relational tables are not ordered, but imported tables such as [data frames]({% link docs/current/clients/python/data_ingestion.md %}#pandas-dataframes-–-object-columns)
-or disk files (like [CSVs]({% link docs/current/data/csv/overview.md %}) or [Parquet files]({% link docs/current/data/parquet/overview.md %})) do have a natural ordering.
+relational tables are not ordered, but imported tables such as [data frames]({% link docs/2.0/clients/python/data_ingestion.md %}#pandas-dataframes--object-columns)
+or disk files (like [CSVs]({% link docs/2.0/data/csv/overview.md %}) or [Parquet files]({% link docs/2.0/data/parquet/overview.md %})) do have a natural ordering.
 
 Connecting them using this ordering is called a _positional join:_
 
@@ -466,7 +468,7 @@ POSITIONAL JOIN t2;
 
 Positional joins are always `FULL OUTER` joins, i.e., the resulting table has the length of the longer input table and the missing entries are filled with `NULL` values.
 
-### As-Of Joins
+### As-of Joins
 
 A common operation when working with temporal or similarly-ordered data
 is to find the nearest (first) event in a reference table (such as prices).
@@ -481,7 +483,7 @@ ASOF JOIN prices p
        ON t.symbol = p.symbol AND t.when >= p.when;
 ```
 
-The `ASOF` join requires at least one inequality condition on the ordering field.
+The [`ASOF` join]({% link docs/2.0/guides/sql_features/asof_join.md %}) requires at least one inequality condition on the ordering field.
 The inequality can be any inequality condition (`>=`, `>`, `<=`, `<`)
 on any data type, but the most common form is `>=` on a temporal type.
 Any other conditions must be equalities (or `NOT DISTINCT`).
@@ -524,6 +526,30 @@ FROM trades t
 ASOF LEFT JOIN prices p USING (symbol, "when");
 ```
 
+### Nearest Joins
+
+> New Support for nearest joins was introduced in DuckDB 2.0.
+
+A nearest join matches each left side row with the top-k right side rows according to a similarity or distance measure. This turns top-k similarity search into a join clause, which is handy for vector and embedding workloads.
+
+The join is written as `NEAREST ⟨k⟩ BY SIMILARITY ⟨expression⟩` (higher is closer) or `NEAREST ⟨k⟩ BY DISTANCE ⟨expression⟩` (lower is closer). Prefixing it with `APPROX` performs an approximate search, which can be faster for large inputs:
+
+```sql
+SELECT q.user_id, t.product_id
+FROM users q
+    INNER JOIN products t APPROX NEAREST 2
+    BY SIMILARITY array_cosine_similarity(q.embedding, t.embedding);
+```
+
+Nearest joins can be combined with the regular join types, for example `LEFT JOIN`:
+
+```sql
+SELECT q.user_id, t.product_id
+FROM users q
+    LEFT JOIN products t NEAREST 1
+    BY DISTANCE array_distance(q.embedding, t.embedding);
+```
+
 ### Self-Joins
 
 DuckDB allows self-joins for all types of joins.
@@ -536,7 +562,7 @@ SELECT * FROM t JOIN t USING(x);
 
 ```console
 Binder Error:
-Duplicate alias "t" in query!
+Ambiguous reference to table "memory.main.t" (duplicate alias "memory.main.t", explicitly alias one of the tables using "AS my_alias")
 ```
 
 Adding the aliases allows the query to parse successfully:
@@ -571,6 +597,54 @@ SELECT * FROM t1 NATURAL JOIN (VALUES (2), (4)) _(x);
 |--:|
 | 2 |
 | 4 |
+
+### Specifying the Join Type Explicitly
+
+> New This feature was introduced in DuckDB 2.0.
+
+The `JOIN BY (TYPE ⟨join_type⟩)`{:.language-sql .highlight} syntax allows you to explicitly select the join type, including DuckDB's internal join types that have no syntax in standard SQL:
+
+```sql
+SELECT ...
+FROM ⟨left_table⟩
+JOIN BY (TYPE ⟨join_type⟩) ⟨right_table⟩ ON ⟨condition⟩;
+```
+
+The join type name is case-insensitive and it can optionally have a `_join` suffix, e.g., `mark` and `MARK_JOIN` are equivalent. The supported join types are the following:
+
+| Join type    | Description |
+|--------------|-------------|
+| `inner`      | Inner join. |
+| `left`       | Left outer join. |
+| `right`      | Right outer join. |
+| `full`       | Full outer join. |
+| `semi`       | [Semi join](#semi-and-anti-joins): returns the rows of the left side that have a match. |
+| `anti`       | [Anti join](#semi-and-anti-joins): returns the rows of the left side that have no match. |
+| `right_semi` | Returns the rows of the right side that have a match. |
+| `right_anti` | Returns the rows of the right side that have no match. |
+| `mark`       | Returns all rows of the left side along with a `BOOLEAN` column `__mark_join_marker`, which has the same three-valued result as an [`IN` expression]({% link docs/2.0/sql/expressions/in.md %}). |
+| `single`     | Returns all rows of the left side paired with their matching row from the right side (or `NULL` if there is no match). Similarly to scalar subqueries, it throws an error if a left row has more than one match (see the [`scalar_subquery_error_on_multiple_rows` setting]({% link docs/2.0/configuration/overview.md %})). |
+
+For example, to run a mark join:
+
+```sql
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (NULL);
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (2), (3), (NULL);
+
+SELECT a, __mark_join_marker
+FROM t1
+JOIN BY (TYPE mark) t2 ON (a = b)
+ORDER BY a NULLS LAST;
+```
+
+| a    | __mark_join_marker |
+|-----:|--------------------|
+| 1    | NULL               |
+| 2    | true               |
+| 3    | true               |
+| NULL | NULL               |
 
 ## `FROM`-First Syntax
 

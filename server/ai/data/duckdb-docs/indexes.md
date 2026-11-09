@@ -2,19 +2,21 @@
 layout: docu
 railroad: statements/indexes.js
 redirect_from:
-- /docs/preview/sql/indexes
 - /docs/sql/indexes
 - /docs/stable/sql/indexes
+- /docs/current/sql/indexes
+- /docs/lts/sql/indexes
+- /docs/preview/sql/indexes
 title: Indexes
 ---
 
 ## Index Types
 
-DuckDB has two built-in index types. Indexes can also be defined via [extensions]({% link docs/current/extensions/overview.md %}).
+DuckDB has two built-in index types. Indexes can also be defined via [extensions]({% link docs/2.0/extensions/overview.md %}).
 
 ### Min-Max Index (Zonemap)
 
-A [min-max index](https://en.wikipedia.org/wiki/Block_Range_Index) (also known as zonemap or block range index) is _automatically created_ for columns of all [general-purpose data types]({% link docs/current/sql/data_types/overview.md %}).
+A [min-max index](https://en.wikipedia.org/wiki/Block_Range_Index) (also known as zonemap or block range index) is _automatically created_ for columns of all [general-purpose data types]({% link docs/2.0/sql/data_types/overview.md %}).
 
 ### Adaptive Radix Tree (ART)
 
@@ -24,7 +26,7 @@ An [Adaptive Radix Tree (ART)](https://db.in.tum.de/~leis/papers/ART.pdf) is mai
 
 ### Indexes Defined by Extensions
 
-DuckDB supports [R-trees for spatial indexing]({% link docs/current/core_extensions/spatial/r-tree_indexes.md %}) via the `spatial` extension.
+DuckDB supports [R-trees for spatial indexing]({% link docs/2.0/core_extensions/spatial/r-tree_indexes.md %}) via the `spatial` extension.
 
 ## Persistence
 
@@ -32,8 +34,8 @@ Both min-max indexes and ART indexes are persisted on disk.
 
 ## `CREATE INDEX` and `DROP INDEX` Statements
 
-To create an [ART index](#adaptive-radix-tree-art), use the [`CREATE INDEX` statement]({% link docs/current/sql/statements/create_index.md %}#create-index).
-To drop an [ART index](#adaptive-radix-tree-art), use the [`DROP INDEX` statement]({% link docs/current/sql/statements/create_index.md %}#drop-index).
+To create an [ART index](#adaptive-radix-tree-art), use the [`CREATE INDEX` statement]({% link docs/2.0/sql/statements/create_index.md %}#create-index).
+To drop an [ART index](#adaptive-radix-tree-art), use the [`DROP INDEX` statement]({% link docs/2.0/sql/statements/create_index.md %}#drop-index).
 
 ## Limitations of ART Indexes
 
@@ -41,7 +43,7 @@ ART indexes create a secondary copy of the data in a second location.
 Maintaining that second copy complicates processing.
 Thus, certain limitations currently apply when it comes to modifying data that is also stored in secondary indexes.
 
-> As expected, indexes have a strong effect on performance, slowing down loading and updates, but speeding up certain queries. Please consult the [Performance Guide]({% link docs/current/guides/performance/indexing.md %}) for details.
+> As expected, indexes have a strong effect on performance, slowing down loading and updates, but speeding up certain queries. Please consult the [Performance Guide]({% link docs/2.0/guides/performance/indexing.md %}) for details.
 
 ### Constraint Checking in `UPDATE` Statements
 

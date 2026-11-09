@@ -2,9 +2,12 @@
 layout: docu
 railroad: expressions/in.js
 redirect_from:
-- /docs/preview/sql/expressions/in
 - /docs/sql/expressions/in
 - /docs/stable/sql/expressions/in
+- /docs/current/sql/expressions/in
+- /docs/lts/sql/expressions/in
+- /docs/preview/sql/expressions/in
+tested: true
 title: IN Operator
 ---
 
@@ -72,7 +75,7 @@ false
 
 ## `IN` Map
 
-The `IN` operator works on [maps]({% link docs/current/sql/data_types/map.md %}) according to the semantics used in Python, i.e., it checks for the presence of keys (not values):
+The `IN` operator works on [maps]({% link docs/2.0/sql/data_types/map.md %}) according to the semantics used in Python, i.e., it checks for the presence of keys (not values):
 
 ```sql
 SELECT 'key1' IN MAP {'key1': 50, 'key2': 75};
@@ -92,7 +95,7 @@ false
 
 ## `IN` Subquery
 
-The `IN` operator works with [subqueries]({% link docs/current/sql/expressions/subqueries.md %}) that return a single column.
+The `IN` operator works with [subqueries]({% link docs/2.0/sql/expressions/subqueries.md %}) that return a single column.
 For example:
 
 ```sql
@@ -116,7 +119,7 @@ Subquery returns 2 columns - expected 1
 
 ## `IN` String
 
-The `IN` operator can be used as a shorthand for the [`contains` string function]({% link docs/current/sql/functions/text.md %}#containsstring-search_string).
+The `IN` operator can be used as a shorthand for the [`contains` string function]({% link docs/2.0/sql/functions/text.md %}#containsstring-search_string).
 For example:
 
 ```sql

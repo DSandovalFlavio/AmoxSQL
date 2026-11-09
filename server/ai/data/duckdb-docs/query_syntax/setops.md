@@ -2,13 +2,16 @@
 layout: docu
 railroad: query_syntax/setops.js
 redirect_from:
-- /docs/preview/sql/query_syntax/setops
 - /docs/sql/query_syntax/setops
 - /docs/stable/sql/query_syntax/setops
+- /docs/current/sql/query_syntax/setops
+- /docs/lts/sql/query_syntax/setops
+- /docs/preview/sql/query_syntax/setops
+tested: true
 title: Set Operations
 ---
 
-Set operations allow queries to be combined according to [set operation semantics](https://en.wikipedia.org/wiki/Set_(mathematics)#Basic_operations). Set operations refer to the [`UNION [ALL]`](#union), [`INTERSECT [ALL]`](#intersect) and [`EXCEPT [ALL]`](#except) clauses. The vanilla variants use set semantics, i.e., they eliminate duplicates, while the variants with `ALL` use bag semantics.
+Set operations allow queries to be combined according to [set operation semantics](https://en.wikipedia.org/wiki/Set_(mathematics)#Basic_operations). Set operations refer to the [`UNION [ALL]`](#union), [`INTERSECT [ALL]`](#intersect), and [`EXCEPT [ALL]`](#except) clauses. The vanilla variants use set semantics, i.e., they eliminate duplicates, while the variants with `ALL` use bag semantics.
 
 Traditional set operations unify queries **by column position**, and require the to-be-combined queries to have the same number of input columns. If the columns are not of the same type, casts may be added. The result will use the column names from the first query.
 
@@ -16,7 +19,7 @@ DuckDB also supports [`UNION [ALL] BY NAME`](#union-all-by-name), which joins co
 
 ## `UNION`
 
-The `UNION` clause can be used to combine rows from multiple queries. The queries are required to return the same number of columns. [Implicit casting]({% link docs/current/sql/data_types/typecasting.md %}#implicit-casting) to one of the returned types is performed to combine columns of different types where necessary. If this is not possible, the `UNION` clause throws an error.
+The `UNION` clause can be used to combine rows from multiple queries. The queries are required to return the same number of columns. [Implicit casting]({% link docs/2.0/sql/data_types/typecasting.md %}#implicit-casting) to one of the returned types is performed to combine columns of different types where necessary. If this is not possible, the `UNION` clause throws an error.
 
 ### Vanilla `UNION` (Set Semantics)
 

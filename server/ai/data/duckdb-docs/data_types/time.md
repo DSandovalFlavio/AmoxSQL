@@ -2,9 +2,11 @@
 blurb: A time instance represents the time of a day (hour, minute, second, microsecond).
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/time
 - /docs/sql/data_types/time
 - /docs/stable/sql/data_types/time
+- /docs/current/sql/data_types/time
+- /docs/lts/sql/data_types/time
+- /docs/preview/sql/data_types/time
 title: Time Types
 ---
 
@@ -61,4 +63,4 @@ SELECT '15:30:00.123456789'::TIME_NS;
 `TIME_NS` values can also be read from Parquet when the type is [`TIME` with unit `NANOS`](https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#time).
 
 > Warning The `TIME` type should only be used in rare cases, where the date part of the timestamp can be disregarded.
-> Most applications should use the [`TIMESTAMP` types]({% link docs/current/sql/data_types/timestamp.md %}) to represent their timestamps.
+> Most applications should use the [`TIMESTAMP` types]({% link docs/2.0/sql/data_types/timestamp.md %}) to represent their timestamps.

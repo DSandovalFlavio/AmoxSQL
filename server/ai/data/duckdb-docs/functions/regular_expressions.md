@@ -2,18 +2,21 @@
 layout: docu
 railroad: expressions/like.js
 redirect_from:
-- /docs/preview/sql/functions/regular_expressions
 - /docs/sql/functions/regular_expressions
 - /docs/stable/sql/functions/regular_expressions
+- /docs/current/sql/functions/regular_expressions
+- /docs/lts/sql/functions/regular_expressions
+- /docs/preview/sql/functions/regular_expressions
+tested: true
 title: Regular Expressions
 ---
 
 <!-- markdownlint-disable MD001 -->
 
-DuckDB offers [pattern matching operators]({% link docs/current/sql/functions/pattern_matching.md %})
-([`LIKE`]({% link docs/current/sql/functions/pattern_matching.md %}#like),
-[`SIMILAR TO`]({% link docs/current/sql/functions/pattern_matching.md %}#similar-to),
-[`GLOB`]({% link docs/current/sql/functions/pattern_matching.md %}#glob)),
+DuckDB offers [pattern matching operators]({% link docs/2.0/sql/functions/pattern_matching.md %})
+([`LIKE`]({% link docs/2.0/sql/functions/pattern_matching.md %}#like),
+[`SIMILAR TO`]({% link docs/2.0/sql/functions/pattern_matching.md %}#similar-to),
+[`GLOB`]({% link docs/2.0/sql/functions/pattern_matching.md %}#glob)),
 as well as support for regular expressions via functions.
 
 ## Regular Expression Syntax
@@ -183,6 +186,14 @@ SELECT regexp_extract('abc', '([a-z])(b)', 1); -- a
 SELECT regexp_extract('abc', '([a-z])(b)', 2); -- b
 ```
 
+> New The following feature was introduced in DuckDB 2.0.
+
+There is also an overload that takes regex options as the third argument, with no group required:
+
+```sql
+SELECT regexp_extract('ABC', 'abc', 'i'); -- ABC
+```
+
 The `regexp_extract` function also supports a `name_list` argument, which is a `LIST` of strings. Using `name_list`, the `regexp_extract` will return the corresponding capture groups as fields of a `STRUCT`:
 
 ```sql
@@ -207,7 +218,7 @@ SELECT regexp_extract('duckdb_0_7_1', '^(\w+)_(\d+)_(\d+)', ['tool', 'major', 'm
 
 ```console
 Binder Error:
-Not enough group names in regexp_extract
+Not enough capturing groups (3) for provided names (4)
 ```
 
 If the number of column names is less than the number of capture groups, then only the first groups are returned.

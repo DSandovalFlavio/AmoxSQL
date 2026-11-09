@@ -1,13 +1,16 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/literal_types
 - /docs/sql/data_types/literal_types
 - /docs/stable/sql/data_types/literal_types
+- /docs/current/sql/data_types/literal_types
+- /docs/lts/sql/data_types/literal_types
+- /docs/preview/sql/data_types/literal_types
+tested: true
 title: Literal Types
 ---
 
-DuckDB has special literal types for representing `NULL`, integer and string literals in queries. These have their own binding and conversion rules.
+DuckDB has special literal types for representing `NULL`, integer, and string literals in queries. These have their own binding and conversion rules.
 
 > Prior to DuckDB version 0.10.0, integer and string literals behaved identically to the `INTEGER` and `VARCHAR` types.
 
@@ -17,9 +20,9 @@ The `NULL` literal is denoted with the keyword `NULL`. The `NULL` literal can be
 
 ## Integer Literals
 
-Integer literals are denoted as a sequence of one or more decimal digits. At runtime, these result in values of the `INTEGER_LITERAL` type. `INTEGER_LITERAL` types can be implicitly converted to any [integer type]({% link docs/current/sql/data_types/numeric.md %}#integer-types) in which the value fits. For example, the integer literal `42` can be implicitly converted to a `TINYINT`, but the integer literal `1000` cannot be.
+Integer literals are denoted as a sequence of one or more decimal digits. At runtime, these result in values of the `INTEGER_LITERAL` type. `INTEGER_LITERAL` types can be implicitly converted to any [integer type]({% link docs/2.0/sql/data_types/numeric.md %}#integer-types) in which the value fits. For example, the integer literal `42` can be implicitly converted to a `TINYINT`, but the integer literal `1000` cannot be.
 
-> DuckDB does not support hexadecimal or binary literals directly. However, strings or string literals in hexadecimal or binary notation with `0x` or `0b` prefixes respectively, can be cast to integer types, e.g., `'0xFF'::INT = 255` or `0b101::INT = 5`.
+> DuckDB does not support hexadecimal or binary literals directly. However, strings or string literals in hexadecimal or binary notation with `0x` or `0b` prefixes respectively, can be cast to integer types, e.g., `'0xFF'::INT = 255` or `'0b101'::INT = 5`.
 
 ## Other Numeric Literals
 
@@ -45,7 +48,7 @@ SELECT 1e-10;         -- 1 ångström
 
 DuckDB's SQL dialect allows using the underscore character `_` in numeric literals as an optional separator. The rules for using underscores are as follows:
 
-* Underscores are allowed in integer, decimal, hexadecimal and binary notation.
+* Underscores are allowed in integer, decimal, hexadecimal, and binary notation. Hexadecimal notation uses the `0x` prefix and binary notation uses the `0b` prefix, as described in the [Integer Literals section](#integer-literals); for example, `'0xFF'::INTEGER` and `'0b101'::INTEGER`.
 * Underscores cannot be the first or last character in a literal.
 * Underscores have to have an integer/numeric part on either side of them, i.e., there cannot be multiple underscores in a row and underscores cannot appear immediately before or after a decimal or exponent.
 
@@ -61,7 +64,7 @@ SELECT '0b0_1_0_1'::INTEGER; -- 5
 ## String Literals
 
 String literals are delimited using single quotes (`'`, apostrophe) and result in `STRING_LITERAL` values.
-Note that double quotes (`"`) cannot be used as string delimiter character: instead, double quotes are used to delimit [quoted identifiers]({% link docs/current/sql/dialect/keywords_and_identifiers.md %}#identifiers).
+Note that double quotes (`"`) cannot be used as string delimiter character: instead, double quotes are used to delimit [quoted identifiers]({% link docs/2.0/sql/dialect/keywords_and_identifiers.md %}#identifiers).
 
 ### Implicit String Literal Concatenation
 
@@ -136,6 +139,8 @@ To escape a single quote (apostrophe) character in a string literal, use `''`. F
 
 To enable some common escape sequences, such as `\n` for the newline character, prefix a string literal with `e` (or `E`).
 
+<!-- test:run-only the value contains a newline, which a line-based .test file cannot express -->
+
 ```sql
 SELECT e'Hello\nworld' AS msg;
 ```
@@ -165,6 +170,8 @@ The following backslash escape sequences are supported:
 
 DuckDB supports dollar-quoted string literals, which are surrounded by double-dollar symbols (`$$`):
 
+<!-- test:run-only the value contains a newline, which a line-based .test file cannot express -->
+
 ```sql
 SELECT $$Hello
 world$$ AS msg;
@@ -191,6 +198,8 @@ SELECT $$The price is $9.95$$ AS msg;
 
 Even more, you can insert alphanumeric tags in the double-dollar symbols to allow for the use of regular double-dollar symbols *within* the string literal:
 
+<!-- test:run-only the value contains a newline, which a line-based .test file cannot express -->
+
 ```sql
 SELECT $tag$ this string can contain newlines,
 'single quotes',
@@ -210,3 +219,24 @@ and $$dollar quotes$$ $tag$ AS msg;
 ```
 
 [Implicit concatenation](#implicit-string-literal-concatenation) only works for single-quoted string literals, not with dollar-quoted ones.
+
+## Bit String and Hex String Literals
+
+> New Starting with DuckDB 2.0, bit string and hex string literals are supported. In earlier versions, `B'0101'` and `X'CAFE'` were parsed as the `VARCHAR` strings `'b0101'` and `'xCAFE'`, respectively.
+
+A string literal prefixed with `B` is a bit string literal, which produces a [`BITSTRING`]({% link docs/2.0/sql/data_types/bitstring.md %}) value. It may only contain the characters `0` and `1`.
+
+A string literal prefixed with `X` is a hex string literal, which produces a [`BLOB`]({% link docs/2.0/sql/data_types/blob.md %}) value. It must contain an even number of hexadecimal digits.
+
+```sql
+SELECT B'0101' AS b, X'CAFE' AS x;
+```
+
+```text
+┌──────┬──────────┐
+│  b   │    x     │
+│ bit  │   blob   │
+├──────┼──────────┤
+│ 0101 │ \xCA\xFE │
+└──────┴──────────┘
+```

@@ -2,17 +2,19 @@
 layout: docu
 railroad: expressions/window.js
 redirect_from:
-- /docs/preview/sql/functions/window_functions
 - /docs/sql/functions/window_functions
 - /docs/sql/window_functions
 - /docs/stable/sql/functions/window_functions
+- /docs/current/sql/functions/window_functions
+- /docs/lts/sql/functions/window_functions
+- /docs/preview/sql/functions/window_functions
 title: Window Functions
 ---
 
 <!-- markdownlint-disable MD001 -->
 
 DuckDB supports [window functions](https://en.wikipedia.org/wiki/Window_function_(SQL)), which can use multiple rows to calculate a value for each row.
-Window functions are [blocking operators]({% link docs/current/guides/performance/how_to_tune_workloads.md %}#blocking-operators), i.e., they require their entire input to be buffered, making them one of the most memory-intensive operators in SQL.
+Window functions are [blocking operators]({% link docs/2.0/guides/performance/how_to_tune_workloads.md %}#blocking-operators), i.e., they require their entire input to be buffered, making them one of the most memory-intensive operators in SQL.
 
 Window functions are available in SQL since [SQL:2003](https://en.wikipedia.org/wiki/SQL:2003) and are supported by major SQL database systems.
 
@@ -25,7 +27,7 @@ SELECT row_number() OVER ()
 FROM sales;
 ```
 
-> Tip If you only need a number for each row in a table, you can use the [`rowid` pseudocolumn]({% link docs/current/sql/statements/select.md %}#row-ids).
+> Tip If you only need a number for each row in a table, you can use the [`rowid` pseudocolumn]({% link docs/2.0/sql/statements/select.md %}#row-ids).
 
 Generate a `row_number` column to enumerate rows, ordered by `time`:
 
@@ -59,7 +61,7 @@ FROM sales;
 
 <div id="rrdiagram"></div>
 
-Window functions can only be used in the `SELECT` clause. To share `OVER` specifications between functions, use the statement's [`WINDOW` clause]({% link docs/current/sql/query_syntax/window.md %}) and use the `OVER ⟨window_name⟩`{:.language-sql .highlight} syntax.
+Window functions can be used in the `SELECT`, `ORDER BY`, and `QUALIFY` clauses. To share `OVER` specifications between functions, use the statement's [`WINDOW` clause]({% link docs/2.0/sql/query_syntax/window.md %}) and use the `OVER ⟨window_name⟩`{:.language-sql .highlight} syntax.
 
 ## General-Purpose Window Functions
 
@@ -125,7 +127,7 @@ The table below shows the available general window functions.
 
 <div class="nostroke_table"></div>
 
-| **Description** | Returns `expr` evaluated at the row that is the last row (among rows with a non-null value of `expr` if `IGNORE NULLS` is set) of the window frame. If omitted, `offset` defaults to `1` and default to `NULL`. If an `ORDER BY` clause is specified, the last row is determined within the frame using the provided ordering instead of the frame ordering. |
+| **Description** | Returns `expr` evaluated at the row that is the last row (among rows with a non-null value of `expr` if `IGNORE NULLS` is set) of the window frame. If an `ORDER BY` clause is specified, the last row is determined within the frame using the provided ordering instead of the frame ordering. |
 | **Return type** | Same type as `expr` |
 | **Example** | `last_value(column)` |
 
@@ -157,9 +159,18 @@ The table below shows the available general window functions.
 
 <div class="nostroke_table"></div>
 
-| **Description** | The relative rank of the current row: `(rank() - 1) / (total partition rows - 1)`. If an `ORDER BY` clause is specified, the relative rank is computed within the frame using the provided ordering instead of the frame ordering. |
+| **Description** | The relative rank of the current row: `(rank() - 1) / (total partition rows - 1)`. If an `ORDER BY` clause is specified, the relative rank is computed within the frame using the provided ordering instead of the frame ordering. For a partition with a single row, `percent_rank` returns `0`. |
 | **Return type** | `DOUBLE` |
 | **Example** | `percent_rank()` |
+
+```sql
+SELECT percent_rank() OVER (ORDER BY x) AS percent_rank
+FROM (VALUES (42)) AS t(x);
+```
+
+```text
+0.0
+```
 
 #### `rank([ORDER BY ordering])`
 
@@ -179,7 +190,7 @@ The table below shows the available general window functions.
 
 ## Aggregate Window Functions
 
-All [aggregate functions]({% link docs/current/sql/functions/aggregates.md %}) can be used in a windowing context, including the optional [`FILTER` clause]({% link docs/current/sql/query_syntax/filter.md %}).
+All [aggregate functions]({% link docs/2.0/sql/functions/aggregates.md %}) can be used in a windowing context, including the optional [`FILTER` clause]({% link docs/2.0/sql/query_syntax/filter.md %}).
 The `first` and `last` aggregate functions are shadowed by the respective general-purpose window functions, with the minor consequence that the `FILTER` clause is not available for these but `IGNORE NULLS` is.
 
 ## DISTINCT Arguments
@@ -202,7 +213,7 @@ SELECT list(DISTINCT name) OVER (ORDER BY time) FROM sales;
 All aggregate window functions support using an `ORDER BY` argument clause that is *different* from the window ordering.
 When the `ORDER BY` argument clause is provided, the values being aggregated are sorted before applying the function.
 Usually this is not important, but there are some order-sensitive aggregates that can have indeterminate results (e.g.,
-`mode`, `list` and `string_agg`). These can be made deterministic by ordering the arguments. For order-insensitive
+`mode`, `list`, and `string_agg`). These can be made deterministic by ordering the arguments. For order-insensitive
 aggregates, this clause is parsed and ignored.
 
 ```sql
@@ -216,12 +227,16 @@ ordering applies to.
 
 ```sql
 -- Compare each athlete's time in an event with the best time to date
-SELECT event, date, athlete, time
-    first_value(time ORDER BY time DESC) OVER w AS record_time,
-    first_value(athlete ORDER BY time DESC) OVER w AS record_athlete,
+SELECT
+    event,
+    date,
+    athlete,
+    time,
+    first_value(time ORDER BY time ASC) OVER w AS record_time,
+    first_value(athlete ORDER BY time ASC) OVER w AS record_athlete,
 FROM meet_results
 WINDOW w AS (PARTITION BY event ORDER BY datetime)
-ORDER BY ALL
+ORDER BY ALL;
 ```
 
 Note that there is no comma separating the arguments from the `ORDER BY` clause.
@@ -230,7 +245,7 @@ Note that there is no comma separating the arguments from the `ORDER BY` clause.
 
 All [general-purpose window functions](#general-purpose-window-functions) that accept `IGNORE NULLS` respect nulls by default. This default behavior can optionally be made explicit via `RESPECT NULLS`.
 
-In contrast, all [aggregate window functions](#aggregate-window-functions) (except for `list` and its aliases, which can be made to ignore nulls via a `FILTER`) ignore nulls and do not accept `RESPECT NULLS`. For example, `sum(column) OVER (ORDER BY time) AS cumulativeColumn` computes a cumulative sum where rows with a `NULL` value of `column` have the same value of `cumulativeColumn` as the row that precedes them.
+In contrast, all [aggregate window functions](#aggregate-window-functions) (except for `list` and its aliases, which retain `NULL` values unless a `FILTER` condition excludes those rows, e.g., `list(x) FILTER (WHERE x IS NOT NULL)`) ignore nulls and do not accept `RESPECT NULLS`. For example, `sum(column) OVER (ORDER BY time) AS cumulativeColumn` computes a cumulative sum where rows with a `NULL` value of `column` have the same value of `cumulativeColumn` as the row that precedes them.
 
 ## Evaluation
 
@@ -256,7 +271,7 @@ Partitioning breaks the relation up into independent, unrelated pieces.
 Partitioning is optional, and if none is specified then the entire relation is treated as a single partition.
 Window functions cannot access values outside of the partition containing the row they are being evaluated at.
 
-Ordering is also optional, but without it the results of [general-purpose window functions](#general-purpose-window-functions) and [order-sensitive aggregate functions]({% link docs/current/sql/functions/aggregates.md %}#order-by-clause-in-aggregate-functions), and the order of [framing](#framing) are not well-defined.
+Ordering is also optional, but without it the results of [general-purpose window functions](#general-purpose-window-functions) and [order-sensitive aggregate functions]({% link docs/2.0/sql/functions/aggregates.md %}#order-by-clause-in-aggregate-functions), and the order of [framing](#framing) are not well-defined.
 Each partition is ordered using the same ordering clause.
 
 Here is a table of power generation data, available as a CSV file ([`power-plant-generation-history.csv`]({% link data/power-plant-generation-history.csv %})). To load the data, run:
@@ -460,7 +475,7 @@ There are four options for `EXCLUDE` that specify how to treat the current row:
 * `TIES` – exclude all peer rows, but _not_ the current row (this makes a hole on either side)
 * `NO OTHERS` – don't exclude anything (the default)
 
-Exclusion is implemented for both windowed aggregates as well as for the `first`, `last` and `nth_value` functions.
+Exclusion is implemented for both windowed aggregates as well as for the `first`, `last`, and `nth_value` functions.
 
 ### `WINDOW` Clauses
 
@@ -511,12 +526,12 @@ ORDER BY 1, 2;
 
 The queries above do not use a number of clauses commonly found in select statements, like
 `WHERE`, `GROUP BY`, etc. For more complex queries you can find where `WINDOW` clauses fall in
-the canonical order of the [`SELECT statement`]({% link docs/current/sql/statements/select.md %}).
+the canonical order of the [`SELECT statement`]({% link docs/2.0/sql/statements/select.md %}).
 
 ### Filtering the Results of Window Functions Using `QUALIFY`
 
-Window functions are executed after the [`WHERE`]({% link docs/current/sql/query_syntax/where.md %}) and [`HAVING`]({% link docs/current/sql/query_syntax/having.md %}) clauses have been already evaluated, so it's not possible to use these clauses to filter the results of window functions
-The [`QUALIFY` clause]({% link docs/current/sql/query_syntax/qualify.md %}) avoids the need for a subquery or [`WITH` clause]({% link docs/current/sql/query_syntax/with.md %}) to perform this filtering.
+Window functions are executed after the [`WHERE`]({% link docs/2.0/sql/query_syntax/where.md %}) and [`HAVING`]({% link docs/2.0/sql/query_syntax/having.md %}) clauses have been already evaluated, so it's not possible to use these clauses to filter the results of window functions
+The [`QUALIFY` clause]({% link docs/2.0/sql/query_syntax/qualify.md %}) avoids the need for a subquery or [`WITH` clause]({% link docs/2.0/sql/query_syntax/with.md %}) to perform this filtering.
 
 ### Box and Whisker Queries
 

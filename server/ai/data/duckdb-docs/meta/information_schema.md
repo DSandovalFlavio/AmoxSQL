@@ -1,10 +1,12 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/meta/information_schema
 - /docs/sql/information_schema
 - /docs/sql/meta/information_schema
 - /docs/stable/sql/meta/information_schema
+- /docs/current/sql/meta/information_schema
+- /docs/lts/sql/meta/information_schema
+- /docs/preview/sql/meta/information_schema
 title: Information Schema
 ---
 
@@ -45,6 +47,10 @@ The view that describes the catalog information for columns is `information_sche
 | `numeric_precision` | If `data_type` identifies a numeric type, this column contains the (declared or implicit) precision of the type for this column. The precision indicates the number of significant digits. For all other data types, this column is `NULL`. |`INTEGER`| `18` |
 | `numeric_scale` | If `data_type` identifies a numeric type, this column contains the (declared or implicit) scale of the type for this column. The scale indicates the number of digits after the decimal point. For all other data types, this column is `NULL`. |`INTEGER`| `2` |
 | `datetime_precision` | If `data_type` identifies a date, time, timestamp, or interval type, this column contains the (declared or implicit) fractional seconds precision of the type for this column, that is, the number of decimal digits maintained following the decimal point in the seconds value. No fractional seconds are currently supported in DuckDB. For all other data types, this column is `NULL`. |`INTEGER`| `0` |
+| `is_generated` | `ALWAYS` if the column is a [generated column]({% link docs/2.0/sql/statements/create_table.md %}#generated-columns), `NEVER` otherwise. Available as of DuckDB 2.0. |`VARCHAR`| `'NEVER'` |
+| `generation_expression` | If the column is a generated column, the expression used to compute it; `NULL` otherwise. Available as of DuckDB 2.0. |`VARCHAR`| `NULL` |
+
+> New The `is_generated` and `generation_expression` columns were introduced in DuckDB 2.0.
 
 ### `constraint_column_usage`: Constraint Column Usage
 
@@ -88,7 +94,7 @@ This view describes all columns in the current database that are used by some co
 | `update_rule` | Update rule of the foreign key constraint. Always `NO ACTION`. | `VARCHAR` | `NO ACTION` |
 | `delete_rule` | Delete rule of the foreign key constraint. Always `NO ACTION`. | `VARCHAR` | `NO ACTION` |
 
-### `schemata`: Database, Catalog and Schema
+### `schemata`: Database, Catalog, and Schema
 
 The top level catalog view is `information_schema.schemata`. It lists the catalogs and the schemas present in the database and has the following layout:
 
@@ -145,4 +151,4 @@ Several functions are also provided to see details about the catalogs and schema
 |:--|:---|:--|:--|
 | `current_catalog()` | Return the name of the currently active catalog. Default is memory. | `current_catalog()` | `'memory'` |
 | `current_schema()` | Return the name of the currently active schema. Default is main. | `current_schema()` | `'main'` |
-| `current_schemas(boolean)` | Return list of schemas. Pass a parameter of `true` to include implicit schemas. | `current_schemas(true)` | `['temp', 'main', 'pg_catalog']` |
+| `current_schemas(boolean)` | Return list of schemas. Pass a parameter of `true` to include implicit schemas. | `current_schemas(true)` | `['main', 'main', 'main', 'pg_catalog']` |

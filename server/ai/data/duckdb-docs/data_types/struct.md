@@ -1,9 +1,12 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/struct
 - /docs/sql/data_types/struct
 - /docs/stable/sql/data_types/struct
+- /docs/current/sql/data_types/struct
+- /docs/lts/sql/data_types/struct
+- /docs/preview/sql/data_types/struct
+tested: true
 title: Struct Data Type
 ---
 
@@ -11,13 +14,13 @@ Conceptually, a `STRUCT` column contains an ordered list of columns called “en
 
 `STRUCT`s are typically used to nest multiple columns into a single column, and the nested column can be of any type, including other `STRUCT`s and `LIST`s.
 
-`STRUCT`s are similar to PostgreSQL's `ROW` type. The key difference is that DuckDB `STRUCT`s require the same keys in each row of a `STRUCT` column. This allows DuckDB to provide significantly improved performance by fully utilizing its vectorized execution engine, and also enforces type consistency for improved correctness. DuckDB includes a `row` function as a special way to produce a `STRUCT`, but does not have a `ROW` data type. See an example below and the [`STRUCT` functions documentation]({% link docs/current/sql/functions/struct.md %}) for details.
+`STRUCT`s are similar to PostgreSQL's `ROW` type. The key difference is that DuckDB `STRUCT`s require the same keys in each row of a `STRUCT` column. This allows DuckDB to provide significantly improved performance by fully utilizing its vectorized execution engine, and also enforces type consistency for improved correctness. Structs with unnamed entries are represented by the [`TUPLE` type](#tuples), which can be created using the `row` function or the `(expr, ...)` notation. See an example below and the [`STRUCT` functions documentation]({% link docs/2.0/sql/functions/struct.md %}) for details.
 
-See the [data types overview]({% link docs/current/sql/data_types/overview.md %}) for a comparison between nested data types.
+See the [data types overview]({% link docs/2.0/sql/data_types/overview.md %}) for a comparison between nested data types.
 
 ## Creating Structs
 
-Structs can be created using the [`struct_pack(name := expr, ...)`]({% link docs/current/sql/functions/struct.md %}) function, the equivalent array notation `{'name': expr, ...}`, using a row variable, or using the `row` function.
+Structs can be created using the [`struct_pack(name := expr, ...)`]({% link docs/2.0/sql/functions/struct.md %}) function, the equivalent array notation `{'name': expr, ...}`, or using a row variable. To create a struct with unnamed entries, use a [tuple](#tuples).
 
 Create a struct using the `struct_pack` function. Note the lack of single quotes around the keys and the use of the `:=` operator:
 
@@ -65,6 +68,12 @@ SELECT {
     } AS s;
 ```
 
+> New As of DuckDB 2.0, `STRUCT` types may be empty. The bare type name `STRUCT` denotes an empty struct, so both `NULL::STRUCT` and `CREATE TABLE t (s STRUCT)` are valid, and `struct_pack()` with no arguments returns `{}` (whereas `row()` with no arguments returns the empty tuple `()`). Note that `STRUCT()` with empty parentheses remains a syntax error, and `unnest` and `struct_extract` raise an error on an empty struct. Persisting an empty struct into a pre-2.0 database format is not supported.
+
+```sql
+SELECT struct_pack() AS s;
+```
+
 ## Adding or Updating Fields of Structs
 
 To add new fields or update existing ones, you can use `struct_update`:
@@ -77,7 +86,7 @@ Alternatively, `struct_insert` also allows adding new fields but not updating ex
 
 ## Retrieving from Structs
 
-Retrieving a value from a struct can be accomplished using dot notation, bracket notation, or through [struct functions]({% link docs/current/sql/functions/struct.md %}) like `struct_extract`.
+Retrieving a value from a struct can be accomplished using dot notation, bracket notation, or through [struct functions]({% link docs/2.0/sql/functions/struct.md %}) like `struct_extract`.
 
 Use dot notation to retrieve the value at a key's location. In the following query, the subquery generates a struct column `a`, which we then query with `a.x`.
 
@@ -117,7 +126,7 @@ FROM (SELECT {'x': 1, 'y': 2, 'z': 3} AS a);
 |--:|--:|--:|
 | 1 | 2 | 3 |
 
-The same can be achieved with the star notation (`*`), which additionally allows [modifications of the returned columns]({% link docs/current/sql/expressions/star.md %}):
+The same can be achieved with the star notation (`*`), which additionally allows [modifications of the returned columns]({% link docs/2.0/sql/expressions/star.md %}):
 
 ```sql
 SELECT a.* EXCLUDE ('y')
@@ -135,6 +144,11 @@ FROM (SELECT {'x': 1, 'y': 2, 'z': 3} AS a);
 Referring to structs with dot notation can be ambiguous with referring to schemas and tables. In general, DuckDB looks for columns first, then for struct keys within columns. DuckDB resolves references in these orders, using the first match to occur:
 
 ### No Dots
+
+<!-- test:setup
+CREATE TABLE tbl (part1 STRUCT(part2 STRUCT(part3 INTEGER)));
+INSERT INTO tbl VALUES ({'part2': {'part3': 42}});
+-->
 
 ```sql
 SELECT part1
@@ -166,12 +180,101 @@ FROM tbl;
 
 Any extra parts (e.g., `.part4.part5`, etc.) are always treated as properties
 
-## Creating Structs with the `row` Function
+## Tuples
 
-The `row` function can be used to automatically convert multiple columns to a single struct column.
-When using `row` the keys will be empty strings allowing for easy insertion into a table with a struct column.
-Columns, however, cannot be initialized with the `row` function, and must be explicitly named.
-For example, inserting values into a struct column using the `row` function:
+> New The `TUPLE` type was introduced in DuckDB 2.0. In earlier versions, unnamed structs were `STRUCT` values with empty keys.
+
+A `TUPLE` is a struct whose entries have no names. Its entries are referenced by their (1-based) position. Tuples are created using the `row` function or, if there are at least two expressions, using parentheses:
+
+```sql
+SELECT row(x, x + 1, y) AS t FROM (SELECT 1 AS x, 'a' AS y) AS s;
+```
+
+```text
+┌──────────────────────────────────┐
+│                t                 │
+│ tuple(integer, integer, varchar) │
+├──────────────────────────────────┤
+│ (1, 2, a)                        │
+└──────────────────────────────────┘
+```
+
+If using multiple expressions, the `row` function is optional. The following query returns the same result as the previous one:
+
+```sql
+SELECT (x, x + 1, y) AS t FROM (SELECT 1 AS x, 'a' AS y);
+```
+
+A single-element tuple can be created with `row(x)` or with a trailing comma, `(x,)`.
+
+The type of a tuple is written as `TUPLE(⟨type_1⟩, ..., ⟨type_n⟩)`:
+
+```sql
+SELECT typeof((1, 'a')) AS type;
+```
+
+```text
+TUPLE(INTEGER, VARCHAR)
+```
+
+### Accessing Tuple Entries
+
+Tuple entries are accessed by position using the bracket notation or the `struct_extract` and `struct_extract_at` functions. Dot notation is not supported, as the entries have no names:
+
+```sql
+SELECT t[1] AS first, struct_extract_at(t, 2) AS second
+FROM (SELECT (42, 'duck') AS t);
+```
+
+```text
+┌───────┬─────────┐
+│ first │ second  │
+│ int32 │ varchar │
+├───────┼─────────┤
+│    42 │ duck    │
+└───────┴─────────┘
+```
+
+### Tuples in Tables
+
+Tuples can be stored in tables, either by declaring a `TUPLE` column or by using `CREATE TABLE ... AS`:
+
+```sql
+CREATE TABLE t2 AS SELECT row('a') AS t;
+SELECT column_name, column_type FROM (DESCRIBE t2);
+```
+
+```text
+┌─────────────┬────────────────┐
+│ column_name │  column_type   │
+│   varchar   │    varchar     │
+├─────────────┼────────────────┤
+│ t           │ TUPLE(VARCHAR) │
+└─────────────┴────────────────┘
+```
+
+When written to file formats without a tuple type, such as Parquet, tuples are stored as structs with the generated keys `element1`, `element2`, etc.
+
+### Casting between Tuples and Structs
+
+Tuples can be cast to structs with the same number of entries, and vice versa. The entries are matched by position:
+
+```sql
+SELECT
+    (1, 'a')::STRUCT(id INTEGER, name VARCHAR) AS s,
+    {'id': 1, 'name': 'a'}::TUPLE(INTEGER, VARCHAR) AS t;
+```
+
+```text
+┌────────────────────────────────────┬─────────────────────────┐
+│                 s                  │            t            │
+│ struct(id integer, "name" varchar) │ tuple(integer, varchar) │
+├────────────────────────────────────┼─────────────────────────┤
+│ {'id': 1, 'name': a}               │ (1, a)                  │
+└────────────────────────────────────┴─────────────────────────┘
+```
+
+This allows inserting tuples into `STRUCT` columns:
 
 ```sql
 CREATE TABLE t1 (s STRUCT(v VARCHAR, i INTEGER));
@@ -181,28 +284,25 @@ SELECT * FROM t1;
 
 The table will contain a single entry:
 
-```sql
+<!-- test:result -->
+
+```text
 {'v': a, 'i': 42}
 ```
 
 The following produces the same result as above:
 
+<!-- test:setup DROP TABLE t1; -->
+
 ```sql
 CREATE TABLE t1 AS (
-    SELECT row('a', 42)::STRUCT(v VARCHAR, i INTEGER)
+    SELECT row('a', 42)::STRUCT(v VARCHAR, i INTEGER) AS s
 );
 ```
 
-Initializing a struct column with the `row` function will fail:
+Casting between a tuple and a struct with a different number of entries fails.
 
-```sql
-CREATE TABLE t2 AS SELECT row('a');
-```
-
-```console
-Invalid Input Error:
-A table cannot be created from an unnamed struct
-```
+## Casting between Structs
 
 When casting between structs, the names of at least one field have to match. Therefore, the following query will fail:
 
@@ -225,34 +325,20 @@ FROM
     (SELECT {'x': 42} AS a);
 ```
 
-The `row` function can be used to return unnamed structs. For example:
-
-```sql
-SELECT row(x, x + 1, y) FROM (SELECT 1 AS x, 'a' AS y) AS s;
-```
-
-This produces `(1, 2, a)`.
-
-If using multiple expressions when creating a struct, the `row` function is optional. The following query returns the same result as the previous one:
-
-```sql
-SELECT (x, x + 1, y) AS s FROM (SELECT 1 AS x, 'a' AS y);
-```
-
 ## Comparison and Ordering
 
-The `STRUCT` type can be compared using all the [comparison operators]({% link docs/current/sql/expressions/comparison_operators.md %}).
-These comparisons can be used in [logical expressions]({% link docs/current/sql/expressions/logical_operators.md %})
-such as `WHERE` and `HAVING` clauses, and return [`BOOLEAN` values]({% link docs/current/sql/data_types/boolean.md %}).
+The `STRUCT` type can be compared using all the [comparison operators]({% link docs/2.0/sql/expressions/comparison_operators.md %}).
+These comparisons can be used in [logical expressions]({% link docs/2.0/sql/expressions/logical_operators.md %})
+such as `WHERE` and `HAVING` clauses, and return [`BOOLEAN` values]({% link docs/2.0/sql/data_types/boolean.md %}).
 
-Comparisons are done in lexicographical order, with individual entries being compared as usual except that `NULL` values are treated as larger than all other values.
+Comparisons are done in lexicographical order over the entries, following PostgreSQL's [`IS NOT DISTINCT FROM` semantics]({% link docs/2.0/sql/expressions/comparison_operators.md %}#comparison-operators): corresponding entries are compared position by position, and two `NULL` entries in the same position are considered equal (not distinct) so the comparison moves on to the next position. For ordering purposes, a `NULL` entry is treated as larger than any non-`NULL` value.
 
 Specifically:
 
-* If all values of `s1` and `s2` compare equal, then `s1` and `s2` compare equal.
-* else, if `s1.value[i] < s2.value[i] OR s2.value[i] is NULL` for the first index `i` where `s1.value[i] != s2.value[i]`, then `s1` is less than `s2`, and vice versa.
+* If every entry of `s1` is not distinct from the corresponding entry of `s2` (treating two `NULL`s as equal), then `s1` and `s2` compare equal.
+* else, for the first index `i` where `s1.value[i]` is distinct from `s2.value[i]`, if `s1.value[i] < s2.value[i] OR s2.value[i] IS NULL`, then `s1` is less than `s2`, and vice versa.
 
-Structs of different types are implicitly cast to a struct type with the union of the involved keys, following the rules for [combination casting]({% link docs/current/sql/data_types/typecasting.md %}#structs).
+Structs of different types are implicitly cast to a struct type with the union of the involved keys, following the rules for [combination casting]({% link docs/2.0/sql/data_types/typecasting.md %}#structs).
 
 The following queries return `true`:
 
@@ -295,7 +381,7 @@ SELECT {'k1': 1} > {'k2': 0};
 ```
 
 ```sql
-SELECT {'k1': 0, 'k2': 0} < {'k3': 0, 'k1': 1};
+SELECT {'k1': 1, 'k2': 0} < {'k3': 0, 'k1': 0};
 ```
 
 ```sql
@@ -304,8 +390,8 @@ SELECT  {'k1': 1, 'k2': 0} > {'k2': 0, 'k3': 0};
 
 ## Updating the Schema
 
-Starting with DuckDB v1.3.0, it's possible to update the sub-schema of structs
-using the [`ALTER TABLE` clause]({% link docs/current/sql/statements/alter_table.md %}).
+Starting with DuckDB 1.3.0, it's possible to update the sub-schema of structs
+using the [`ALTER TABLE` clause]({% link docs/2.0/sql/statements/alter_table.md %}).
 
 To follow the examples, initialize the `test` table as follows:
 
@@ -373,4 +459,4 @@ FROM test;
 
 ## Functions
 
-See [Struct Functions]({% link docs/current/sql/functions/struct.md %}).
+See [Struct Functions]({% link docs/2.0/sql/functions/struct.md %}).

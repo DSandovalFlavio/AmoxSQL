@@ -1,23 +1,26 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/array
 - /docs/sql/data_types/array
 - /docs/stable/sql/data_types/array
+- /docs/current/sql/data_types/array
+- /docs/lts/sql/data_types/array
+- /docs/preview/sql/data_types/array
+tested: true
 title: Array Type
 ---
 
-An `ARRAY` column stores fixed-sized arrays. All fields in the column must have the same length and the same underlying type. Arrays are typically used to store arrays of numbers, but can contain any uniform data type, including `ARRAY`, [`LIST`]({% link docs/current/sql/data_types/list.md %}) and [`STRUCT`]({% link docs/current/sql/data_types/struct.md %}) types.
+An `ARRAY` column stores fixed-sized arrays. All fields in the column must have the same length and the same underlying type. Arrays are typically used to store arrays of numbers, but can contain any uniform data type, including `ARRAY`, [`LIST`]({% link docs/2.0/sql/data_types/list.md %}), and [`STRUCT`]({% link docs/2.0/sql/data_types/struct.md %}) types.
 
 Arrays can be used to store vectors such as [word embeddings](https://en.wikipedia.org/wiki/Word_embedding) or image embeddings.
 
-To store variable-length lists, use the [`LIST` type]({% link docs/current/sql/data_types/list.md %}). See the [data types overview]({% link docs/current/sql/data_types/overview.md %}) for a comparison between nested data types.
+To store variable-length lists, use the [`LIST` type]({% link docs/2.0/sql/data_types/list.md %}). See the [data types overview]({% link docs/2.0/sql/data_types/overview.md %}) for a comparison between nested data types.
 
 > The `ARRAY` type in PostgreSQL allows variable-length fields. DuckDB's `ARRAY` type is fixed-length.
 
 ## Creating Arrays
 
-Arrays can be created using the [`array_value(expr, ...)` function]({% link docs/current/sql/functions/array.md %}#array_valueindex).
+Arrays can be created using the [`array_value(expr, ...)` function]({% link docs/2.0/sql/functions/array.md %}#array_valuearg-).
 
 Construct with the `array_value` function:
 
@@ -60,7 +63,7 @@ INSERT INTO array_table VALUES (10, [1, 2, 3]), (20, [4, 5, 6]);
 
 ## Retrieving Values from Arrays
 
-Retrieving one or more values from an array can be accomplished using brackets and slicing notation, or through [list functions]({% link docs/current/sql/functions/list.md %}#list-functions) like `list_extract` and `array_extract`. Using the example in [Defining an Array Field](#defining-an-array-field).
+Retrieving one or more values from an array can be accomplished using brackets and slicing notation, or through [list functions]({% link docs/2.0/sql/functions/list.md %}#list-functions) like `list_extract` and `array_extract`. Using the example in [Defining an Array Field](#defining-an-array-field).
 
 The following queries for extracting the first element of an array are equivalent:
 
@@ -88,8 +91,8 @@ SELECT id, arr[1:2] AS elements FROM array_table;
 
 ## Functions
 
-All [`LIST` functions]({% link docs/current/sql/functions/list.md %}) work with the `ARRAY` type. Additionally, several `ARRAY`-native functions are also supported.
-See the [`ARRAY` functions]({% link docs/current/sql/functions/array.md %}#array-native-functions).
+All [`LIST` functions]({% link docs/2.0/sql/functions/list.md %}) work with the `ARRAY` type. Additionally, several `ARRAY`-native functions are also supported.
+See the [`ARRAY` functions]({% link docs/2.0/sql/functions/array.md %}#array-native-functions).
 
 ## Examples
 
@@ -124,4 +127,4 @@ The ordering of `ARRAY` instances is defined using a lexicographical order. `NUL
 
 ## See Also
 
-For more functions, see [List Functions]({% link docs/current/sql/functions/list.md %}).
+For more functions, see [List Functions]({% link docs/2.0/sql/functions/list.md %}).

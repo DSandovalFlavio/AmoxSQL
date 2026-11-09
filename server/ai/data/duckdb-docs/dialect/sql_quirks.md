@@ -1,25 +1,27 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/dialect/sql_quirks
 - /docs/sql/dialect/sql_quirks
 - /docs/stable/sql/dialect/sql_quirks
+- /docs/current/sql/dialect/sql_quirks
+- /docs/lts/sql/dialect/sql_quirks
+- /docs/preview/sql/dialect/sql_quirks
 title: SQL Quirks
 ---
 
-Like all programming languages and libraries, DuckDB has its share of idiosyncrasies and inconsistencies.  
-Some are vestiges of our feathered friend's evolution; others are inevitable because we strive to adhere to the [SQL Standard](https://blog.ansi.org/sql-standard-iso-iec-9075-2023-ansi-x3-135/) and specifically to PostgreSQL's dialect (see the [“PostgreSQL Compatibility”]({% link docs/current/sql/dialect/postgresql_compatibility.md %}) page for exceptions).
+Like all programming languages and libraries, DuckDB has its share of idiosyncrasies and inconsistencies.
+Some are vestiges of our feathered friend's evolution; others are inevitable because we strive to adhere to the [SQL Standard](https://blog.ansi.org/sql-standard-iso-iec-9075-2023-ansi-x3-135/) and specifically to PostgreSQL's dialect (see the [“PostgreSQL Compatibility”]({% link docs/2.0/sql/dialect/postgresql_compatibility.md %}) page for exceptions).
 The rest may simply come down to different preferences, or we may even agree on what _should_ be done but just haven’t gotten around to it yet.
 
 Acknowledging these quirks is the best we can do, which is why we have compiled below a list of examples.
 
 ## Aggregating Empty Groups
 
-On empty groups, the aggregate functions `sum`, `list`, and `string_agg` all return `NULL` instead of `0`, `[]` and `''`, respectively. This is dictated by the SQL Standard and obeyed by all SQL implementations we know. This behavior is inherited by the list aggregate [`list_sum`]({% link docs/current/sql/functions/list.md %}#list_-rewrite-functions), but not by the DuckDB original [`list_dot_product`]({% link docs/current/sql/functions/list.md %}#list_dot_productlist1-list2) which returns `0` on empty lists.
+On empty groups, the aggregate functions `sum`, `list`, and `string_agg` all return `NULL` instead of `0`, `[]`, and `''`, respectively. This is dictated by the SQL Standard and obeyed by all SQL implementations we know. This behavior is inherited by the list aggregate [`list_sum`]({% link docs/2.0/sql/functions/list.md %}#list_-rewrite-functions), but not by the DuckDB original [`list_dot_product`]({% link docs/2.0/sql/functions/list.md %}#list_dot_productlist1-list2) which returns `0` on empty lists.
 
 ## 0 vs. 1-Based Indexing
 
-To comply with standard SQL, one-based indexing is used almost everywhere, e.g., array and string indexing and slicing, and window functions (`row_number`, `rank`, `dense_rank`). However, similarly to PostgreSQL, [JSON features use a zero-based indexing]({% link docs/current/data/json/overview.md %}#indexing).
+To comply with standard SQL, one-based indexing is used almost everywhere, e.g., array and string indexing and slicing, and window functions (`row_number`, `rank`, `dense_rank`). However, similarly to PostgreSQL, [JSON features use a zero-based indexing]({% link docs/2.0/data/json/overview.md %}#indexing).
 
 ## Types
 
@@ -31,7 +33,7 @@ To comply with standard SQL, one-based indexing is used almost everywhere, e.g.,
 * `INT8` corresponds to `BIGINT` because it's an _8-byte_ signed integer
 
 Explanation: the `n` in the numeric type `INTn` and `UINTn` denote the width of the number in either bytes or bits.
-`INT1`, `INT2`, `INT4` correspond to the number of bytes, while `INT16`, `INT32` and `INT64` correspond to the number of bits.
+`INT1`, `INT2`, `INT4` correspond to the number of bytes, while `INT16`, `INT32`, and `INT64` correspond to the number of bits.
 The same applies to `UINT` values.
 However, the value `n = 8` is a valid choice for both the number of bits and bytes.
 For unsigned values, `UINT8` corresponds to `UTINYINT` (8 bits).
@@ -45,7 +47,7 @@ For signed values, `INT8` corresponds to `BIGINT` (8 bytes).
 
 | Expression                 | Result  | Note                                                                          |
 |----------------------------|---------|-------------------------------------------------------------------------------|
-| `-2^2`                     | `4.0`   | PostgreSQL compatibility means the unary minus has higher precedence than the exponentiation operator. Use additional parentheses, e.g., `-(2^2)` or the [`pow` function]({% link docs/current/sql/functions/numeric.md %}#powx-y), e.g., `-pow(2, 2)`, to avoid mistakes. |
+| `-2^2`                     | `4.0`   | PostgreSQL compatibility means the unary minus has higher precedence than the exponentiation operator. Use additional parentheses, e.g., `-(2^2)` or the [`pow` function]({% link docs/2.0/sql/functions/numeric.md %}#powx-y), e.g., `-pow(2, 2)`, to avoid mistakes. |
 | `'t' = true`               | `true`  | Compatible with PostgreSQL.                                                   |
 | `1 = '1'`                  | `true`  | Compatible with PostgreSQL.                                                   |
 | `1 = ' 1'`                 | `true`  | Compatible with PostgreSQL.                                                   |
@@ -70,7 +72,7 @@ For signed values, `INT8` corresponds to `BIGINT` (8 bytes).
 
 ### Extract Functions
 
-`list_extract` / `map_extract` return `NULL` on non-existing keys. `struct_extract` throws an error because keys of structs are like columns.
+`list_extract` / `map_extract_value` return `NULL` on non-existing keys (`map_extract` returns an empty list). `struct_extract` throws an error because keys of structs are like columns.
 
 ## Clauses
 
@@ -94,3 +96,19 @@ Due to case-insensitivity, it's not possible to use `SELECT a FROM 'file.parquet
 ### `USING SAMPLE`
 
 The `USING SAMPLE` clause is syntactically placed after the `WHERE` and `GROUP BY` clauses (same as the `LIMIT` clause) but is semantically applied before both (unlike the `LIMIT` clause).
+
+### Implicit Conversion of Identifiers in Table Function Arguments
+
+DuckDB historically allowed a bare, unbound identifier to be used as a table function argument, implicitly converting it to a string literal. For example, `glob(no_such_file.csv)` was treated as `glob('no_such_file.csv')`.
+
+> Deprecated As of DuckDB 2.0, this implicit conversion is deprecated. By default DuckDB still converts the identifier but logs a warning; use an explicit string literal instead, for example `glob('no_such_file.csv')`.
+
+The behavior is controlled by the `table_function_identifier_conversion` setting:
+
+* `DEFAULT`: convert the identifier but log a warning.
+* `ENABLE_IMPLICIT_STRING`: convert silently (the previous behavior).
+* `DISABLE_IMPLICIT_STRING`: raise a binder error instead of converting.
+
+```sql
+SET table_function_identifier_conversion = 'DISABLE_IMPLICIT_STRING';
+```

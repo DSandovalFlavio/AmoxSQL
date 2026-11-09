@@ -2,13 +2,15 @@
 blurb: Timestamps represent points in time.
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/timestamp
 - /docs/sql/data_types/timestamp
 - /docs/stable/sql/data_types/timestamp
+- /docs/current/sql/data_types/timestamp
+- /docs/lts/sql/data_types/timestamp
+- /docs/preview/sql/data_types/timestamp
 title: Timestamp Types
 ---
 
-Timestamps represent points in time. As such, they combine [`DATE`]({% link docs/current/sql/data_types/date.md %}) and [`TIME`]({% link docs/current/sql/data_types/time.md %}) information.
+Timestamps represent points in time. As such, they combine [`DATE`]({% link docs/2.0/sql/data_types/date.md %}) and [`TIME`]({% link docs/2.0/sql/data_types/time.md %}) information.
 They can be created using the type name followed by a string formatted according to the ISO 8601 format, `YYYY-MM-DD hh:mm:ss[.zzzzzzzzz][+-TT[:tt]]`, which is also the format we use in this documentation. Decimal places beyond the supported precision are ignored.
 
 ## Timestamp Types
@@ -20,8 +22,9 @@ They can be created using the type name followed by a string formatted according
 | `TIMESTAMP_MS` |                                           | Naive timestamp with millisecond precision             |
 | `TIMESTAMP_S`  |                                           | Naive timestamp with second precision                  |
 | `TIMESTAMPTZ`  | `TIMESTAMP WITH TIME ZONE`                | Time zone aware timestamp with microsecond precision   |
+| `TIMESTAMPTZ_NS` |                                         | Time zone aware timestamp with nanosecond precision    |
 
-> Warning Since there is not currently a `TIMESTAMP_NS WITH TIME ZONE` data type, external columns with nanosecond precision and `WITH TIME ZONE` semantics, e.g., [Parquet timestamp columns with `isAdjustedToUTC=true`](https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#instant-semantics-timestamps-normalized-to-utc), are converted to `TIMESTAMP WITH TIME ZONE` and thus lose precision when read using DuckDB.
+> New The `TIMESTAMPTZ_NS` type was introduced in DuckDB 2.0. It provides time zone aware timestamps with nanosecond precision. External columns with nanosecond precision and `WITH TIME ZONE` semantics, e.g., [Parquet timestamp columns with `isAdjustedToUTC=true`](https://github.com/apache/parquet-format/blob/master/LogicalTypes.md#instant-semantics-timestamps-normalized-to-utc), are now read as `TIMESTAMPTZ_NS` and retain their full precision. In earlier versions these columns were converted to `TIMESTAMP WITH TIME ZONE` and lost precision.
 
 ```sql
 SELECT TIMESTAMP_NS '1992-09-20 11:30:00.123456789';
@@ -71,11 +74,21 @@ SELECT TIMESTAMPTZ '1992-09-20 12:30:00.123456789+01:00';
 1992-09-20 11:30:00.123456+00
 ```
 
-DuckDB distinguishes timestamps `WITHOUT TIME ZONE` and `WITH TIME ZONE` (of which the only current representative is `TIMESTAMP WITH TIME ZONE`).
+Unlike `TIMESTAMPTZ`, the `TIMESTAMPTZ_NS` type retains nanosecond precision:
 
-Despite the name, a `TIMESTAMP WITH TIME ZONE` does not store time zone information. Instead, it only stores the `INT64` number of non-leap microseconds since the Unix epoch `1970-01-01 00:00:00+00`, and thus unambiguously identifies a point in absolute time, or [*instant*]({% link docs/current/sql/data_types/timestamp.md %}#instants). The reason for the labels *time zone aware* and `WITH TIME ZONE` is that timestamp arithmetic, [*binning*]({% link docs/current/sql/data_types/timestamp.md %}#temporal-binning), and string formatting for this type are performed in a [configured time zone]({% link docs/current/sql/data_types/timestamp.md %}#time-zone-support), which defaults to the system time zone and is just `UTC+00:00` in the examples above.
+```sql
+SELECT TIMESTAMPTZ_NS '1992-09-20 11:30:00.123456789+00';
+```
 
-The corresponding `TIMESTAMP WITHOUT TIME ZONE` stores the same `INT64`, but arithmetic, binning and string formatting follow the straightforward rules of Coordinated Universal Time (UTC) without offsets or time zones. Accordingly, `TIMESTAMP`s could be interpreted as UTC timestamps, but more commonly they are used to represent *local* observations of time recorded in an unspecified time zone, and operations on these types can be interpreted as simply manipulating tuple fields following nominal temporal logic.
+```text
+1992-09-20 11:30:00.123456789+00
+```
+
+DuckDB distinguishes timestamps `WITHOUT TIME ZONE` and `WITH TIME ZONE`. The time zone aware types are `TIMESTAMPTZ` (microsecond precision) and `TIMESTAMPTZ_NS` (nanosecond precision).
+
+Despite the name, a `TIMESTAMP WITH TIME ZONE` does not store time zone information. Instead, it only stores the `INT64` number of non-leap microseconds since the Unix epoch `1970-01-01 00:00:00+00`, and thus unambiguously identifies a point in absolute time, or [*instant*]({% link docs/2.0/sql/data_types/timestamp.md %}#instants). The reason for the labels *time zone aware* and `WITH TIME ZONE` is that timestamp arithmetic, [*binning*]({% link docs/2.0/sql/data_types/timestamp.md %}#temporal-binning), and string formatting for this type are performed in a [configured time zone]({% link docs/2.0/sql/data_types/timestamp.md %}#time-zone-support), which defaults to the system time zone and is just `UTC+00:00` in the examples above.
+
+The corresponding `TIMESTAMP WITHOUT TIME ZONE` stores the same `INT64`, but arithmetic, binning, and string formatting follow the straightforward rules of Coordinated Universal Time (UTC) without offsets or time zones. Accordingly, `TIMESTAMP`s could be interpreted as UTC timestamps, but more commonly they are used to represent *local* observations of time recorded in an unspecified time zone, and operations on these types can be interpreted as simply manipulating tuple fields following nominal temporal logic.
 It is a common data cleaning problem to disambiguate such observations, which may also be stored in raw strings without time zone specification or UTC offsets, into unambiguous `TIMESTAMP WITH TIME ZONE` instants. One possible solution to this is to append UTC offsets to strings, followed by an explicit cast to `TIMESTAMP WITH TIME ZONE`. Alternatively, a `TIMESTAMP WITHOUT TIME ZONE` may be created first and then be combined with a time zone specification to obtain a time zone aware `TIMESTAMP WITH TIME ZONE`.
 
 ## Conversion between Strings and Naïve / Time Zone-Aware Timestamps
@@ -83,9 +96,9 @@ It is a common data cleaning problem to disambiguate such observations, which ma
 The conversion between strings *without* UTC offsets or IANA time zone names and `WITHOUT TIME ZONE` types is unambiguous and straightforward.
 The conversion between strings *with* UTC offsets or time zone names and `WITH TIME ZONE` types is also unambiguous, but requires the `ICU` extension to handle time zone names.
 
-When strings *without* UTC offsets or time zone names are converted to a `WITH TIME ZONE` type, the string is interpreted in the configured time zone. 
+When strings *without* UTC offsets or time zone names are converted to a `WITH TIME ZONE` type, the string is interpreted in the configured time zone.
 When strings with UTC offsets are passed to a `WITHOUT TIME ZONE` type, the offsets or time zone specifications are ignored.
-When strings with time zone names other than `UTC` are passed to a `WITHOUT TIME ZONE` type, an error is thrown. 
+Starting with DuckDB 2.0, time zone names in strings passed to a `WITHOUT TIME ZONE` type are also ignored (in earlier versions, names other than `UTC` raised an error).
 
 Finally, when `WITH TIME ZONE` and `WITHOUT TIME ZONE` types are converted to each other via explicit or implicit casts, the translation uses the configured time zone. To use an alternative time zone, the `timezone` function provided by the `ICU` extension may be used:
 
@@ -127,7 +140,7 @@ SELECT '-infinity'::TIMESTAMP, 'epoch'::TIMESTAMP, 'infinity'::TIMESTAMP;
 
 ## Functions
 
-See [Timestamp Functions]({% link docs/current/sql/functions/timestamp.md %}).
+See [Timestamp Functions]({% link docs/2.0/sql/functions/timestamp.md %}).
 
 ## Time Zones
 
@@ -139,7 +152,7 @@ An instant is a point in absolute time, usually given as a count of some time in
 
 ### Temporal Binning
 
-Binning is a common practice with continuous data: A range of possible values is broken up into contiguous subsets and the binning operation maps actual values to the *bin* they fall into. *Temporal binning* is simply applying this practice to instants; for example, by binning instants into years, months and days.
+Binning is a common practice with continuous data: A range of possible values is broken up into contiguous subsets and the binning operation maps actual values to the *bin* they fall into. *Temporal binning* is simply applying this practice to instants; for example, by binning instants into years, months, and days.
 
 <img src="/images/blog/timezones/tz-instants-light.svg"
      alt="Time Zone Instants at the Epoch"
@@ -169,7 +182,7 @@ For example, here is what binning for the `'America/Los_Angeles'` time zone look
      />
 
 The most common temporal binning problem occurs when daylight saving time changes.
-The example below contains a daylight saving time change where the "hour" bin is two hours long.
+The example below contains a daylight saving time change where the “hour” bin is two hours long.
 To distinguish the two hours, another range of bins containing the offset from UTC is needed:
 
 <img src="/images/blog/timezones/tz-daylight-light.svg"
@@ -186,10 +199,11 @@ To distinguish the two hours, another range of bins containing the offset from U
 ### Time Zone Support
 
 The `TIMESTAMPTZ` type can be binned into calendar and clock bins using a suitable extension.
-The built-in [ICU extension]({% link docs/current/core_extensions/icu.md %}) implements all the binning and arithmetic functions using the
-[International Components for Unicode](https://icu.unicode.org) time zone and calendar functions.
+The built-in [`icu` extension]({% link docs/2.0/core_extensions/icu.md %}) implements all the binning and arithmetic functions using time zone data built from the [IANA Time Zone Database](https://www.iana.org/time-zones) and its own calendar implementation.
 
-To set the time zone to use, first load the ICU extension. The ICU extension comes pre-bundled with several DuckDB clients (including Python, R, JDBC and ODBC), so this step can be skipped in those cases. In other cases you might first need to install and load the ICU extension.
+> Despite its name, the `icu` extension no longer depends on the [International Components for Unicode (ICU)](https://icu.unicode.org) library: starting with DuckDB 2.0, it implements time zones, calendars, and collations natively.
+
+To set the time zone to use, first load the `icu` extension. The `icu` extension comes pre-bundled with several DuckDB clients (including the CLI, Python, R, JDBC, and ODBC) and is autoloaded on first use, so this step can be skipped in those cases. In other cases you might first need to install and load the `icu` extension.
 
 ```sql
 INSTALL icu;
@@ -216,11 +230,11 @@ ORDER BY
     name;
 ```
 
-You can also find a reference table of [available time zones]({% link docs/current/sql/data_types/timezones.md %}).
+You can also find a reference table of [available time zones]({% link docs/2.0/sql/data_types/timezones.md %}).
 
 ## Calendar Support
 
-The [ICU extension]({% link docs/current/core_extensions/icu.md %}) also supports non-Gregorian calendars using the `SET Calendar` command.
+The [ICU extension]({% link docs/2.0/core_extensions/icu.md %}) also supports non-Gregorian calendars using the `SET Calendar` command.
 Note that the `INSTALL` and `LOAD` steps are only required if the DuckDB client does not bundle the ICU extension.
 
 ```sql
@@ -242,8 +256,8 @@ ORDER BY 1;
 
 ## Settings
 
-The current value of the `TimeZone` and `Calendar` settings are determined by ICU when it starts up.
-They can be queried from in the `duckdb_settings()` table function:
+The current values of the `TimeZone` and `Calendar` settings are determined by the `icu` extension when it starts up.
+They can be queried from in the [`duckdb_settings()` table function]({% link docs/2.0/sql/meta/duckdb_table_functions.md %}#duckdb_settings):
 
 ```sql
 SELECT *

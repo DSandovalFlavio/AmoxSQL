@@ -2,25 +2,28 @@
 layout: docu
 railroad: statements/call.js
 redirect_from:
-- /docs/preview/sql/statements/call
 - /docs/sql/statements/call
 - /docs/stable/sql/statements/call
+- /docs/current/sql/statements/call
+- /docs/lts/sql/statements/call
+- /docs/preview/sql/statements/call
+tested: true
 title: CALL Statement
 ---
 
-The `CALL` statement invokes the given [table function]({% link docs/current/sql/query_syntax/from.md %}#table-functions) and returns the results. 
+The `CALL` statement invokes the given [table function]({% link docs/2.0/sql/query_syntax/from.md %}#table-functions) and returns the results.
 
-> Thanks to the [`FROM`-first syntax]({% link docs/current/sql/query_syntax/from.md %}#from-first-syntax) and the fact that procedures in DuckDB are implemented as table functions, you can use `FROM` instead of `CALL`.
+> Thanks to the [`FROM`-first syntax]({% link docs/2.0/sql/query_syntax/from.md %}#from-first-syntax) and the fact that procedures in DuckDB are implemented as table functions, you can use `FROM` instead of `CALL`.
 
 ## Examples
 
-Invoke the 'duckdb_functions' table function:
+Invoke the `duckdb_functions` table function:
 
 ```sql
 CALL duckdb_functions();
 ```
 
-Invoke the 'pragma_table_info' table function:
+Invoke the `pragma_table_info` table function:
 
 ```sql
 CALL pragma_table_info('pg_am');

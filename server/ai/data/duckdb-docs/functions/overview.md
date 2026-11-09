@@ -2,10 +2,12 @@
 layout: docu
 railroad: expressions/function.js
 redirect_from:
-- /docs/preview/sql/functions/overview
 - /docs/sql/functions/overview
 - /docs/stable/sql/functions/overview
 - /docs/test/functions/overview
+- /docs/current/sql/functions/overview
+- /docs/lts/sql/functions/overview
+- /docs/preview/sql/functions/overview
 title: Functions
 ---
 
@@ -15,7 +17,7 @@ title: Functions
 
 ## Function Chaining via the Dot Operator
 
-DuckDB supports the dot syntax for function chaining. This allows the function call `fn(arg1, arg2, arg3, ...)` to be rewritten as `arg1.fn(arg2, arg3, ...)`. For example, take the following use of the [`replace` function]({% link docs/current/sql/functions/text.md %}#replacestring-source-target):
+DuckDB supports the dot syntax for function chaining. This allows the function call `fn(arg1, arg2, arg3, ...)` to be rewritten as `arg1.fn(arg2, arg3, ...)`. For example, take the following use of the [`replace` function]({% link docs/2.0/sql/functions/text.md %}#replacestring-source-target):
 
 ```sql
 SELECT replace(goose_name, 'goose', 'duck') AS duck_name
@@ -31,22 +33,24 @@ FROM unnest(['African goose', 'Faroese goose', 'Hungarian goose', 'Pomeranian go
 
 ### Using with Literals and Arrays
 
-To apply function chaining to literals and following array access operations, you must surround the argument with parentheses, e.g.:
+String literals and array access operations can be used with function chaining directly:
 
 ```sql
-SELECT ('hello world').replace(' ', '_');
+SELECT 'hello world'.replace(' ', '_');
 ```
+
+```sql
+SELECT m[1].map_entries()
+FROM (VALUES ([MAP {'hello': 42}, MAP {'world': 42}])) t(m);
+```
+
+To apply function chaining to numeric literals, you must surround the literal with parentheses, e.g.:
 
 ```sql
 SELECT (2).sqrt();
 ```
 
-```sql
-SELECT (m[1]).map_entries()
-FROM (VALUES ([MAP {'hello': 42}, MAP {'world': 42}])) t(m);
-```
-
-In the absence of these parentheses, DuckDB will return a `Parser Error` for the function call:
+In the absence of these parentheses (e.g., `SELECT 2.sqrt();`), DuckDB returns a `Parser Error` for the function call:
 
 ```console
 Parser Error:
@@ -60,13 +64,6 @@ For example, the following call returns a `Parser Error`:
 
 ```sql
 SELECT * FROM ('my_file.parquet').read_parquet(); -- does not work
-```
-
-Additionally, the functions `coalesce` and `ifnull` cannot be used with function chaining for the time being:
-
-```sql
-SELECT (2).coalesce(0); -- does not work
-SELECT (2).ifnull(0); -- does not work
 ```
 
 ## Query Functions
@@ -96,5 +93,3 @@ ORDER BY function_name;
 | bit_length    | scalar        | BIGINT      | [col0]                 | [VARCHAR]                        | Number of bits in a string                                                                                                               |
 | bit_position  | scalar        | INTEGER     | [substring, bitstring] | [BIT, BIT]                       | Returns first starting index of the specified substring within bits, or zero if it is not present. The first (leftmost) bit is indexed 1 |
 | bitstring     | scalar        | BIT         | [bitstring, length]    | [VARCHAR, INTEGER]               | Pads the bitstring until the specified length                                                                                            |
-
-> Currently, the description and parameter names of functions are not available in the `duckdb_functions()` function.

@@ -2,109 +2,121 @@
 layout: docu
 redirect_from:
 - /docs/guides/sql_features/friendly_sql
-- /docs/preview/sql/dialect/friendly_sql
 - /docs/sql/dialect/friendly_sql
 - /docs/stable/sql/dialect/friendly_sql
+- /docs/current/sql/dialect/friendly_sql
+- /docs/lts/sql/dialect/friendly_sql
+- /docs/preview/sql/dialect/friendly_sql
 title: Friendly SQL
 ---
 
 DuckDB offers several advanced SQL features and syntactic sugar to make SQL queries more concise. We refer to these colloquially as “friendly SQL”.
 
 > Several of these features were first introduced by DuckDB, while some are inspired by other systems.
-> Many of the features originally introduced by DuckDB (e.g., [`GROUP BY ALL`]({% link docs/current/sql/query_syntax/groupby.md %}#group-by-all)) have been since adapted by other systems.
+> Many of the features originally introduced by DuckDB (e.g., [`GROUP BY ALL`]({% link docs/2.0/sql/query_syntax/groupby.md %}#group-by-all)) have been since adapted by other systems.
 
 > Tip We have a [Friendly SQL 2026 Calendar](https://blobs.duckdb.org/merch/duckdb-friendly-sql-calendar-2026.pdf) with a short explanation, an example, and an abstract illustration for 12 friendly SQL features.
 
 ## Clauses
 
 * Creating tables and inserting data:
-    * [`CREATE OR REPLACE TABLE`]({% link docs/current/sql/statements/create_table.md %}#create-or-replace): avoid `DROP TABLE IF EXISTS` statements in scripts.
-    * [`CREATE TABLE ... AS SELECT` (CTAS)]({% link docs/current/sql/statements/create_table.md %}#create-table--as-select-ctas): create a new table from the output of a table without manually defining a schema.
-    * [`INSERT INTO ... BY NAME`]({% link docs/current/sql/statements/insert.md %}#insert-into--by-name): this variant of the `INSERT` statement allows using column names instead of positions.
-    * [`INSERT OR IGNORE INTO ...`]({% link docs/current/sql/statements/insert.md %}#insert-or-ignore-into): insert the rows that do not result in a conflict due to `UNIQUE` or `PRIMARY KEY` constraints.
-    * [`INSERT OR REPLACE INTO ...`]({% link docs/current/sql/statements/insert.md %}#insert-or-replace-into): insert the rows that do not result in a conflict due to `UNIQUE` or `PRIMARY KEY` constraints. For those that result in a conflict, replace the columns of the existing row to the new values of the to-be-inserted row.
+    * [`CREATE OR REPLACE TABLE`]({% link docs/2.0/sql/statements/create_table.md %}#create-or-replace): avoid `DROP TABLE IF EXISTS` statements in scripts.
+    * [`CREATE TABLE ... AS SELECT` (CTAS)]({% link docs/2.0/sql/statements/create_table.md %}#create-table--as-select-ctas): create a new table from the output of a table without manually defining a schema.
+    * [`INSERT INTO ... BY NAME`]({% link docs/2.0/sql/statements/insert.md %}#insert-into--by-name): this variant of the `INSERT` statement allows using column names instead of positions.
+    * [`INSERT OR IGNORE INTO ...`]({% link docs/2.0/sql/statements/insert.md %}#insert-or-ignore-into): insert the rows that do not result in a conflict due to `UNIQUE` or `PRIMARY KEY` constraints.
+    * [`INSERT OR REPLACE INTO ...`]({% link docs/2.0/sql/statements/insert.md %}#insert-or-replace-into): insert the rows that do not result in a conflict due to `UNIQUE` or `PRIMARY KEY` constraints. For those that result in a conflict, replace the columns of the existing row to the new values of the to-be-inserted row.
 * Describing tables and computing statistics:
-    * [`DESCRIBE`]({% link docs/current/guides/meta/describe.md %}): provides a succinct summary of the schema of a table or query.
-    * [`SUMMARIZE`]({% link docs/current/guides/meta/summarize.md %}): returns summary statistics for a table or query.
+    * [`DESCRIBE`]({% link docs/2.0/guides/meta/describe.md %}): provides a succinct summary of the schema of a table or query.
+    * [`SUMMARIZE`]({% link docs/2.0/guides/meta/summarize.md %}): returns summary statistics for a table or query.
 * Making SQL clauses more compact and readable:
-    * [`FROM`-first syntax with an optional `SELECT` clause]({% link docs/current/sql/query_syntax/from.md %}#from-first-syntax): DuckDB allows queries in the form of `FROM tbl` which selects all columns (performing a `SELECT *` statement).
-    * [`GROUP BY ALL`]({% link docs/current/sql/query_syntax/groupby.md %}#group-by-all): omit the group-by columns by inferring them from the list of attributes in the `SELECT` clause.
-    * [`ORDER BY ALL`]({% link docs/current/sql/query_syntax/orderby.md %}#order-by-all): shorthand to order on all columns (e.g., to ensure deterministic results).
-    * [`SELECT * EXCLUDE`]({% link docs/current/sql/expressions/star.md %}#exclude-clause): the `EXCLUDE` option allows excluding specific columns from the `*` expression.
-    * [`SELECT * REPLACE`]({% link docs/current/sql/expressions/star.md %}#replace-clause): the `REPLACE` option allows replacing specific columns with different expressions in a `*` expression.
-    * [`UNION BY NAME`]({% link docs/current/sql/query_syntax/setops.md %}#union-all-by-name): perform the `UNION` operation along the names of columns (instead of relying on positions).
-    * [Prefix aliases in the `SELECT` and `FROM` clauses]({% link docs/current/sql/query_syntax/select.md %}): write `x: 42` instead of `42 AS x` for improved readability.
-    * [Specifying a percentage of the table size for the `LIMIT` clause]({% link docs/current/sql/query_syntax/limit.md %}): write `LIMIT 10%` to return 10% of the query results.
+    * [`FROM`-first syntax with an optional `SELECT` clause]({% link docs/2.0/sql/query_syntax/from.md %}#from-first-syntax): DuckDB allows queries in the form of `FROM tbl` which selects all columns (performing a `SELECT *` statement).
+    * [`GROUP BY ALL`]({% link docs/2.0/sql/query_syntax/groupby.md %}#group-by-all): omit the group-by columns by inferring them from the list of attributes in the `SELECT` clause.
+    * [`ORDER BY ALL`]({% link docs/2.0/sql/query_syntax/orderby.md %}#order-by-all): shorthand to order on all columns (e.g., to ensure deterministic results).
+    * [`SELECT * EXCLUDE`]({% link docs/2.0/sql/expressions/star.md %}#exclude-clause): the `EXCLUDE` option allows excluding specific columns from the `*` expression.
+    * [`SELECT * REPLACE`]({% link docs/2.0/sql/expressions/star.md %}#replace-clause): the `REPLACE` option allows replacing specific columns with different expressions in a `*` expression.
+    * [`UNION BY NAME`]({% link docs/2.0/sql/query_syntax/setops.md %}#union-all-by-name): perform the `UNION` operation along the names of columns (instead of relying on positions).
+    * [Prefix aliases in the `SELECT` and `FROM` clauses]({% link docs/2.0/sql/query_syntax/select.md %}): write `x: 42` instead of `42 AS x` for improved readability.
+    * [Specifying a percentage of the table size for the `LIMIT` clause]({% link docs/2.0/sql/query_syntax/limit.md %}): write `LIMIT 10%` to return 10% of the query results.
+    * [`FETCH FIRST`]({% link docs/2.0/sql/query_syntax/limit.md %}#fetch-first): the SQL-standard alternative to `LIMIT`, e.g., `FETCH FIRST 5 ROWS ONLY`.
+    * [Grouping by `UNNEST`]({% link docs/2.0/sql/query_syntax/groupby.md %}#grouping-by-unnest): use `unnest()` directly in the `GROUP BY` clause to group by the elements of a list.
 * Transforming tables:
-    * [`PIVOT`]({% link docs/current/sql/statements/pivot.md %}) to turn long tables to wide tables.
-    * [`UNPIVOT`]({% link docs/current/sql/statements/unpivot.md %}) to turn wide tables to long tables.
+    * [`PIVOT`]({% link docs/2.0/sql/statements/pivot.md %}) to turn long tables to wide tables.
+    * [`UNPIVOT`]({% link docs/2.0/sql/statements/unpivot.md %}) to turn wide tables to long tables.
 * Defining SQL-level variables:
-    * [`SET VARIABLE`]({% link docs/current/sql/statements/set_variable.md %}#set-variable)
-    * [`RESET VARIABLE`]({% link docs/current/sql/statements/set_variable.md %}#reset-variable)
+    * [`SET VARIABLE`]({% link docs/2.0/sql/statements/set_variable.md %}#set-variable)
+    * [`RESET VARIABLE`]({% link docs/2.0/sql/statements/set_variable.md %}#reset-variable)
+    * [The `$name` shorthand for reading variables]({% link docs/2.0/sql/statements/set_variable.md %}#the-name-shorthand): write `$x` instead of `getvariable('x')`.
+* Organizing the catalog:
+    * [Nested schemas]({% link docs/2.0/sql/statements/create_schema.md %}#nested-schemas): create schemas within schemas, e.g., `CREATE SCHEMA finance.reports`.
+* Managing extensions and settings:
+    * [`INSTALL AND LOAD`]({% link docs/2.0/sql/statements/load_and_install.md %}#install-and-load): install and load an extension in a single statement.
+    * [`SHOW ⟨setting⟩`]({% link docs/2.0/sql/statements/show.md %}#show-statement): print the value of a configuration setting, e.g., `SHOW threads`.
 
 ## Query Features
 
-* [Column aliases in `WHERE`, `GROUP BY`, and `HAVING`]({% post_url 2022-05-04-friendlier-sql %}#column-aliases-in-where--group-by--having). (Note that column aliases cannot be used in the `ON` clause of [`JOIN` clauses]({% link docs/current/sql/query_syntax/from.md %}#joins).)
-* [`COLUMNS()` expression]({% link docs/current/sql/expressions/star.md %}#columns-expression) can be used to execute the same expression on multiple columns:
+* [Column aliases in `WHERE`, `GROUP BY`, and `HAVING`]({% post_url 2022-05-04-friendlier-sql %}#column-aliases-in-where--group-by--having). (Note that column aliases cannot be used in the `ON` clause of [`JOIN` clauses]({% link docs/2.0/sql/query_syntax/from.md %}#joins).)
+* [`COLUMNS()` expression]({% link docs/2.0/sql/expressions/star.md %}#columns-expression) can be used to execute the same expression on multiple columns:
     * [with regular expressions]({% post_url 2023-08-23-even-friendlier-sql %}#columns-with-regular-expressions)
     * [with `EXCLUDE` and `REPLACE`]({% post_url 2023-08-23-even-friendlier-sql %}#columns-with-exclude-and-replace)
     * [with lambda functions]({% post_url 2023-08-23-even-friendlier-sql %}#columns-with-lambda-functions)
 * Reusable column aliases (also known as “lateral column aliases”), e.g.: `SELECT i + 1 AS j, j + 2 AS k FROM range(0, 3) t(i)`
 * Advanced aggregation features for analytical (OLAP) queries:
-    * [`FILTER` clause]({% link docs/current/sql/query_syntax/filter.md %})
-    * [`GROUPING SETS`, `GROUP BY CUBE`, `GROUP BY ROLLUP` clauses]({% link docs/current/sql/query_syntax/grouping_sets.md %})
-* [`count()` shorthand]({% link docs/current/sql/functions/aggregates.md %}) for `count(*)`
-* [`IN` operator for lists and maps]({% link docs/current/sql/expressions/in.md %})
-* [Specifying column names for common table expressions (`WITH`)]({% link docs/current/sql/query_syntax/with.md %}#basic-cte-examples)
-* [Specifying column names in the `JOIN` clause]({% link docs/current/sql/query_syntax/from.md %}#shorthands-in-the-join-clause)
-* [Using `VALUES` in the `JOIN` clause]({% link docs/current/sql/query_syntax/from.md %}#shorthands-in-the-join-clause)
-* [Using `VALUES` in the anchor part of common table expressions]({% link docs/current/sql/query_syntax/with.md %}#using-values)
-* [`SWITCH` statements as syntactic sugar for the `CASE` expression]({% link docs/current/sql/expressions/case.md %}#switch-expression)
+    * [`FILTER` clause]({% link docs/2.0/sql/query_syntax/filter.md %})
+    * [`GROUPING SETS`, `GROUP BY CUBE`, `GROUP BY ROLLUP` clauses]({% link docs/2.0/sql/query_syntax/grouping_sets.md %})
+* [`count()` shorthand]({% link docs/2.0/sql/functions/aggregates.md %}) for `count(*)`
+* [`IN` operator for lists and maps]({% link docs/2.0/sql/expressions/in.md %})
+* [Specifying column names for common table expressions (`WITH`)]({% link docs/2.0/sql/query_syntax/with.md %}#basic-cte-examples)
+* [Data-modifying CTEs]({% link docs/2.0/sql/query_syntax/with.md %}#data-modifying-ctes): use `INSERT`, `UPDATE`, `DELETE`, and `COPY` statements in common table expressions
+* [Specifying column names in the `JOIN` clause]({% link docs/2.0/sql/query_syntax/from.md %}#shorthands-in-the-join-clause)
+* [Using `VALUES` in the `JOIN` clause]({% link docs/2.0/sql/query_syntax/from.md %}#shorthands-in-the-join-clause)
+* [Using `VALUES` in the anchor part of common table expressions]({% link docs/2.0/sql/query_syntax/with.md %}#using-values)
+* [`SWITCH` statements as syntactic sugar for the `CASE` expression]({% link docs/2.0/sql/expressions/case.md %}#switch-expression)
 
 ## Literals and Identifiers
 
-* [Case-insensitivity while maintaining case of entities in the catalog]({% link docs/current/sql/dialect/keywords_and_identifiers.md %}#case-sensitivity-of-identifiers)
-* [Deduplicating identifiers]({% link docs/current/sql/dialect/keywords_and_identifiers.md %}#deduplicating-identifiers)
-* [Underscores as digit separators in numeric literals]({% link docs/current/sql/data_types/literal_types.md %}#underscores-in-numeric-literals)
+* [Case-insensitivity while maintaining case of entities in the catalog]({% link docs/2.0/sql/dialect/keywords_and_identifiers.md %}#case-sensitivity-of-identifiers)
+* [Deduplicating identifiers]({% link docs/2.0/sql/dialect/keywords_and_identifiers.md %}#deduplicating-identifiers)
+* [Underscores as digit separators in numeric literals]({% link docs/2.0/sql/data_types/literal_types.md %}#underscores-in-numeric-literals)
 
 ## Data Types
 
-* [`MAP` data type]({% link docs/current/sql/data_types/map.md %})
-* [`UNION` data type]({% link docs/current/sql/data_types/union.md %})
+* [`MAP` data type]({% link docs/2.0/sql/data_types/map.md %})
+* [`UNION` data type]({% link docs/2.0/sql/data_types/union.md %})
 
 ## Data Import
 
-* [Auto-detecting the headers and schema of CSV files]({% link docs/current/data/csv/auto_detection.md %})
-* Directly querying [CSV files]({% link docs/current/data/csv/overview.md %}) and [Parquet files]({% link docs/current/data/parquet/overview.md %})
-* [Replacement scans]({% link docs/current/guides/glossary.md %}):
+* [Auto-detecting the headers and schema of CSV files]({% link docs/2.0/data/csv/auto_detection.md %})
+* Directly querying [CSV files]({% link docs/2.0/data/csv/overview.md %}) and [Parquet files]({% link docs/2.0/data/parquet/overview.md %})
+* [Replacement scans]({% link docs/2.0/guides/glossary.md %}):
     * You can load from files using the syntax `FROM 'my.csv'`, `FROM 'my.csv.gz'`, `FROM 'my.parquet'`, etc.
-    * In Python, you can [access Pandas data frames using `FROM df`]({% link docs/current/guides/python/export_pandas.md %}).
-* [Filename expansion (globbing)]({% link docs/current/sql/functions/pattern_matching.md %}#globbing), e.g.: `FROM 'my-data/part-*.parquet'`
+    * In Python, you can [access Pandas data frames using `FROM df`]({% link docs/2.0/guides/python/export_pandas.md %}).
+* [Filename expansion (globbing)]({% link docs/2.0/sql/functions/pattern_matching.md %}#globbing), e.g.: `FROM 'my-data/part-*.parquet'`
 
 ## Functions and Expressions
 
-* [Dot operator for function chaining]({% link docs/current/sql/functions/overview.md %}#function-chaining-via-the-dot-operator): `SELECT ('hello').upper()`
+* [Dot operator for function chaining]({% link docs/2.0/sql/functions/overview.md %}#function-chaining-via-the-dot-operator): `SELECT ('hello').upper()`
 * String formatters:
-    the [`format()` function with the `fmt` syntax]({% link docs/current/sql/functions/text.md %}#fmt-syntax) and
-    the [`printf() function`]({% link docs/current/sql/functions/text.md %}#printf-syntax)
+    the [`format()` function with the `fmt` syntax]({% link docs/2.0/sql/functions/text.md %}#fmt-syntax) and
+    the [`printf() function`]({% link docs/2.0/sql/functions/text.md %}#printf-syntax)
 * [List comprehensions]({% post_url 2023-08-23-even-friendlier-sql %}#list-comprehensions)
 * [List slicing]({% post_url 2022-05-04-friendlier-sql %}#string-slicing) and indexing from the back (`[-1]`)
 * [String slicing]({% post_url 2022-05-04-friendlier-sql %}#string-slicing)
 * [`STRUCT.*` notation]({% post_url 2022-05-04-friendlier-sql %}#struct-dot-notation)
-* [Creating `LIST` using square brackets]({% link docs/current/sql/data_types/list.md %}#creating-lists)
+* [Creating `LIST` using square brackets]({% link docs/2.0/sql/data_types/list.md %}#creating-lists)
 * [Simple `LIST` and `STRUCT` creation]({% post_url 2022-05-04-friendlier-sql %}#simple-list-and-struct-creation)
-* [Updating the schema of `STRUCT`s]({% link docs/current/sql/data_types/struct.md %}#updating-the-schema)
+* [Updating the schema of `STRUCT`s]({% link docs/2.0/sql/data_types/struct.md %}#updating-the-schema)
 
 ## Join Types
 
-* [`ASOF` joins]({% link docs/current/sql/query_syntax/from.md %}#as-of-joins)
-* [`LATERAL` joins]({% link docs/current/sql/query_syntax/from.md %}#lateral-joins)
-* [`POSITIONAL` joins]({% link docs/current/sql/query_syntax/from.md %}#positional-joins)
+* [`ASOF` joins]({% link docs/2.0/sql/query_syntax/from.md %}#as-of-joins)
+* [`LATERAL` joins]({% link docs/2.0/sql/query_syntax/from.md %}#lateral-joins)
+* [`POSITIONAL` joins]({% link docs/2.0/sql/query_syntax/from.md %}#positional-joins)
+* [`NEAREST` joins]({% link docs/2.0/sql/query_syntax/from.md %}#nearest-joins) for top-k similarity search, e.g., over embeddings
 
 ## Trailing Commas
 
 DuckDB allows [trailing commas](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Trailing_commas),
-both when listing entities (e.g., column and table names) and when constructing [`LIST` items]({% link docs/current/sql/data_types/list.md %}#creating-lists).
+both when listing entities (e.g., column and table names) and when constructing [`LIST` items]({% link docs/2.0/sql/data_types/list.md %}#creating-lists).
 For example, the following query works:
 
 ```sql
@@ -115,11 +127,11 @@ SELECT
 ;
 ```
 
-## "Top-N in Group" Queries
+## “Top-N in Group” Queries
 
-Computing the "top-N rows in a group" ordered by some criteria is a common task in SQL that unfortunately often requires a complex query involving window functions and/or subqueries.
+Computing the “top-N rows in a group” ordered by some criteria is a common task in SQL that unfortunately often requires a complex query involving window functions and/or subqueries.
 
-To aid in this, DuckDB provides the aggregate functions [`max(arg, n)`]({% link docs/current/sql/functions/aggregates.md %}#maxarg-n), [`min(arg, n)`]({% link docs/current/sql/functions/aggregates.md %}#minarg-n), [`arg_max(arg, val, n)`]({% link docs/current/sql/functions/aggregates.md %}#arg_maxarg-val-n), [`arg_min(arg, val, n)`]({% link docs/current/sql/functions/aggregates.md %}#arg_minarg-val-n), [`max_by(arg, val, n)`]({% link docs/current/sql/functions/aggregates.md %}#max_byarg-val-n) and [`min_by(arg, val, n)`]({% link docs/current/sql/functions/aggregates.md %}#min_byarg-val-n) to efficiently return the "top" `n` rows in a group based on a specific column in either ascending or descending order.
+To aid in this, DuckDB provides the aggregate functions [`max(arg, n)`]({% link docs/2.0/sql/functions/aggregates.md %}#maxarg-n), [`min(arg, n)`]({% link docs/2.0/sql/functions/aggregates.md %}#minarg-n), [`arg_max(arg, val, n)`]({% link docs/2.0/sql/functions/aggregates.md %}#arg_maxarg-val-n), [`arg_min(arg, val, n)`]({% link docs/2.0/sql/functions/aggregates.md %}#arg_minarg-val-n), [`max_by(arg, val, n)`]({% link docs/2.0/sql/functions/aggregates.md %}#arg_maxarg-val-n), and [`min_by(arg, val, n)`]({% link docs/2.0/sql/functions/aggregates.md %}#arg_minarg-val-n) to efficiently return the “top” `n` rows in a group based on a specific column in either ascending or descending order.
 
 For example, let's use the following table:
 

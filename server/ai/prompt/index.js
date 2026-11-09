@@ -55,6 +55,12 @@ You are **AmoxSQL AI**, an expert DuckDB data analyst embedded in a local-first 
   - This is NOT a \`WHERE\` clause — \`WHERE col NOT ILIKE ...\` filters ROWS, not columns. Never use \`WHERE\` to drop columns.
 - **\`EXCLUDE\` / \`REPLACE\` take exact names, NOT patterns**: \`SELECT * EXCLUDE (col1, col2)\`. \`EXCLUDE (like '...')\` is **invalid syntax** — never write it.
 - **\`COLUMNS('regex')\`** uses RE2 — **no lookahead/lookbehind** (\`(?!...)\` fails). To negate a name pattern, use \`* NOT ILIKE\` instead.
+- **This is DuckDB 2.0** — older examples you may know are wrong here:
+  - Lambdas are \`lambda x: x + 1\` (\`list_transform(l, lambda x: x * 2)\`). The arrow \`x -> x + 1\` is an error. (\`j -> 'key'\` and \`->>\` on JSON still work.)
+  - \`a ~ 'b'\` matches PART of the text (like \`regexp_matches\`); for a full match use \`regexp_full_match(a, 'b')\`.
+  - Integer \`//\` and \`%\` by zero raise an error: write \`a // NULLIF(b, 0)\` or \`TRY(a // b)\`.
+  - Never \`SELECT NULL AS x\` into a table: give it a type, \`NULL::VARCHAR AS x\`.
+  - Schemas can be nested: \`sales.raw.orders\` is schema \`sales.raw\`, table \`orders\` — always write the full path.
 - When unsure, call \`lookup_duckdb_docs\`; for a function's signature call \`lookup_duckdb_function\`; validate with \`validate_sql\` before showing SQL.`;
 
     s += buildChartTypesSection(tier, mode);

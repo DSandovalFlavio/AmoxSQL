@@ -2,9 +2,11 @@
 layout: docu
 railroad: statements/delete.js
 redirect_from:
-- /docs/preview/sql/statements/delete
 - /docs/sql/statements/delete
 - /docs/stable/sql/statements/delete
+- /docs/current/sql/statements/delete
+- /docs/lts/sql/statements/delete
+- /docs/preview/sql/statements/delete
 title: DELETE Statement
 ---
 
@@ -58,4 +60,4 @@ TRUNCATE tbl;
 
 ## Limitations on Reclaiming Memory and Disk Space
 
-Running `DELETE` does not mean space is reclaimed. In general, rows are only marked as deleted. DuckDB reclaims space upon [performing a `CHECKPOINT`]({% link docs/current/sql/statements/checkpoint.md %}). [`VACUUM`]({% link docs/current/sql/statements/vacuum.md %}) currently does not reclaim space.
+Running `DELETE` does not mean space is reclaimed. In general, rows are only marked as deleted. DuckDB reclaims space upon [performing a `CHECKPOINT`]({% link docs/2.0/sql/statements/checkpoint.md %}). [`VACUUM`]({% link docs/2.0/sql/statements/vacuum.md %}) currently does not reclaim space.

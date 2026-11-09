@@ -1,23 +1,26 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/list
 - /docs/sql/data_types/list
 - /docs/stable/sql/data_types/list
+- /docs/current/sql/data_types/list
+- /docs/lts/sql/data_types/list
+- /docs/preview/sql/data_types/list
+tested: true
 title: List Type
 ---
 
 A `LIST` column encodes lists of values. Fields in the column can have values with different lengths, but they must all have the same underlying type. `LIST`s are typically used to store arrays of numbers, but can contain any uniform data type, including other `LIST`s and `STRUCT`s.
 
-`LIST`s are similar to PostgreSQL's `ARRAY` type. DuckDB uses the `LIST` terminology, but some [`array_` functions]({% link docs/current/sql/functions/list.md %}) are provided for PostgreSQL compatibility.
+`LIST`s are similar to PostgreSQL's `ARRAY` type. DuckDB uses the `LIST` terminology, but some [`array_` functions]({% link docs/2.0/sql/functions/list.md %}) are provided for PostgreSQL compatibility.
 
-See the [data types overview]({% link docs/current/sql/data_types/overview.md %}) for a comparison between nested data types.
+See the [data types overview]({% link docs/2.0/sql/data_types/overview.md %}) for a comparison between nested data types.
 
-> For storing fixed-length lists, DuckDB uses the [`ARRAY` type]({% link docs/current/sql/data_types/array.md %}).
+> For storing fixed-length lists, DuckDB uses the [`ARRAY` type]({% link docs/2.0/sql/data_types/array.md %}).
 
 ## Creating Lists
 
-Lists can be created using the [`list_value(expr, ...)`]({% link docs/current/sql/functions/list.md %}#list_valueany-) function or the equivalent bracket notation `[expr, ...]`. The expressions can be constants or arbitrary expressions. To create a list from a table column, use the [`list`]({% link docs/current/sql/functions/aggregates.md %}#general-aggregate-functions) aggregate function.
+Lists can be created using the [`list_value(expr, ...)`]({% link docs/2.0/sql/functions/list.md %}#list_valuearg-) function or the equivalent bracket notation `[expr, ...]`. The expressions can be constants or arbitrary expressions. To create a list from a table column, use the [`list`]({% link docs/2.0/sql/functions/aggregates.md %}#general-aggregate-functions) aggregate function.
 
 List of integers:
 
@@ -37,7 +40,7 @@ List of lists with `NULL` values:
 SELECT [['duck', 'goose', 'heron'], NULL, ['frog', 'toad'], []];
 ```
 
-Create a list with the list_value function:
+Create a list with the `list_value` function:
 
 ```sql
 SELECT list_value(1, 2, 3);
@@ -51,7 +54,7 @@ CREATE TABLE list_table (int_list INTEGER[], varchar_list VARCHAR[]);
 
 ## Retrieving from Lists
 
-Retrieving one or more values from a list can be accomplished using brackets and slicing notation, or through [list functions]({% link docs/current/sql/functions/list.md %}) like `list_extract`. Multiple equivalent functions are provided as aliases for compatibility with systems that refer to lists as arrays. For example, the function `array_slice`.
+Retrieving one or more values from a list can be accomplished using brackets and slicing notation, or through [list functions]({% link docs/2.0/sql/functions/list.md %}) like `list_extract`. Multiple equivalent functions are provided as aliases for compatibility with systems that refer to lists as arrays. For example, the function `array_slice`.
 
 <div class="monospace_table"></div>
 
@@ -72,18 +75,18 @@ Retrieving one or more values from a list can be accomplished using brackets and
 
 ## Comparison and Ordering
 
-The `LIST` type can be compared using all the [comparison operators]({% link docs/current/sql/expressions/comparison_operators.md %}).
-These comparisons can be used in [logical expressions]({% link docs/current/sql/expressions/logical_operators.md %})
-such as `WHERE` and `HAVING` clauses, and return [`BOOLEAN` values]({% link docs/current/sql/data_types/boolean.md %}).
+The `LIST` type can be compared using all the [comparison operators]({% link docs/2.0/sql/expressions/comparison_operators.md %}).
+These comparisons can be used in [logical expressions]({% link docs/2.0/sql/expressions/logical_operators.md %})
+such as `WHERE` and `HAVING` clauses, and return [`BOOLEAN` values]({% link docs/2.0/sql/data_types/boolean.md %}).
 
 The `LIST` ordering is defined positionally using the following rules, where `min_len = min(len(l1), len(l2))`.
 
-* **Equality.** `l1` and `l2` are equal, if for each `i` in `[1, min_len]`: `l1[i] = l2[i]`.
+* **Equality.** `l1` and `l2` are equal, if `len(l1) = len(l2)` and for each `i` in `[1, min_len]`: `l1[i] = l2[i]`.
 * **Less Than**. For the first index `i` in `[1, min_len]` where `l1[i] != l2[i]`:
-  If `l1[i] < l2[i]`, `l1` is less than `l2`.
+  If `l1[i] < l2[i]`, `l1` is less than `l2`. If all values are equal, then the longer list sorts last.
 
-`NULL` values are compared following PostgreSQL's semantics.
-Lower nesting levels are used for tie-breaking.
+`NULL` values are compared following PostgreSQL's semantics: At the top level, comparisons to `NULL`  yield `NULL`;
+At lower nesting levels `NULL`s are greater than other values.
 
 Here are some queries returning `true` for the comparison.
 
@@ -99,6 +102,10 @@ SELECT [[1], [2, 4, 5]] < [[2]] AS result;
 SELECT [ ] < [1] AS result;
 ```
 
+```sql
+SELECT [1, 2] < [1, NULL, 4] AS result;
+```
+
 These queries return `false`.
 
 ```sql
@@ -112,9 +119,9 @@ SELECT [1, 2] < [1] AS result;
 These queries return `NULL`.
 
 ```sql
-SELECT [1, 2] < [1, NULL, 4] AS result;
+SELECT NULL = [1] AS result;
 ```
 
 ## Functions
 
-See [List Functions]({% link docs/current/sql/functions/list.md %}).
+See [List Functions]({% link docs/2.0/sql/functions/list.md %}).

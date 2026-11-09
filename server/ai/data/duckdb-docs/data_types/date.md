@@ -2,9 +2,11 @@
 blurb: A date specifies a combination of year, month and day.
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/date
 - /docs/sql/data_types/date
 - /docs/stable/sql/data_types/date
+- /docs/current/sql/data_types/date
+- /docs/lts/sql/data_types/date
+- /docs/preview/sql/data_types/date
 title: Date Types
 ---
 
@@ -12,7 +14,7 @@ title: Date Types
 |:-------|:--------|:--------------------------------|
 | `DATE` |         | Calendar date (year, month, day) |
 
-A date specifies a combination of year, month and day. DuckDB follows the SQL standard's lead by counting dates exclusively in the Gregorian calendar, even for years before that calendar was in use. Dates can be created using the `DATE` keyword, where the data must be formatted according to the ISO 8601 format (`YYYY-MM-DD`).
+A date specifies a combination of year, month, and day. DuckDB follows the SQL standard's lead by counting dates exclusively in the Gregorian calendar, even for years before that calendar was in use. Dates can be created using the `DATE` keyword, where the data must be formatted according to the ISO 8601 format (`YYYY-MM-DD`).
 
 ```sql
 SELECT DATE '1992-09-20';
@@ -44,4 +46,4 @@ SELECT
 
 ## Functions
 
-See [Date Functions]({% link docs/current/sql/functions/date.md %}).
+See [Date Functions]({% link docs/2.0/sql/functions/date.md %}).

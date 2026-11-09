@@ -1,16 +1,18 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/functions/date
 - /docs/sql/functions/date
 - /docs/stable/sql/functions/date
 - /docs/test/functions/date
+- /docs/current/sql/functions/date
+- /docs/lts/sql/functions/date
+- /docs/preview/sql/functions/date
 title: Date Functions
 ---
 
 <!-- markdownlint-disable MD001 -->
 
-This section describes functions and operators for examining and manipulating [`DATE`]({% link docs/current/sql/data_types/date.md %}) values.
+This section describes functions and operators for examining and manipulating [`DATE`]({% link docs/2.0/sql/data_types/date.md %}) values.
 
 ## Date Operators
 
@@ -25,23 +27,23 @@ The table below shows the available mathematical operators for `DATE` types.
 | `-`      | subtraction of an `INTERVAL`         | `DATE '1992-03-27' - INTERVAL 5 DAY`{:.language-sql .highlight}                                               | `1992-03-22 00:00:00`                           |
 | `-`      | subtraction of a variable `INTERVAL` | `SELECT DATE '1992-03-27' - INTERVAL (d.days) DAY FROM (VALUES (5), (11)) d(days)`{:.language-sql .highlight} | `1992-03-22 00:00:00` and `1992-03-16 00:00:00` |
 
-Adding to or subtracting from [infinite values]({% link docs/current/sql/data_types/date.md %}#special-values) produces the same infinite value.
+Adding to or subtracting from [infinite values]({% link docs/2.0/sql/data_types/date.md %}#special-values) produces the same infinite value.
 
 ## Date Functions
 
 The table below shows the available functions for `DATE` types.
-Dates can also be manipulated with the [timestamp functions]({% link docs/current/sql/functions/timestamp.md %}) through type promotion.
+Dates can also be manipulated with the [timestamp functions]({% link docs/2.0/sql/functions/timestamp.md %}) through type promotion.
 
 | Name                                                                                | Description                                                                                                                                                                                                                                                 |
 | :---------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [`date_add(date, interval)`](#date_adddate-interval)                                | Add the interval to the date and return a `DATETIME` value.                                                                                                                                                                                                 |
-| [`date_diff(part, startdate, enddate)`](#date_diffpart-startdate-enddate)           | The number of [`part`]({% link docs/current/sql/functions/datepart.md %}) boundaries between `startdate` and `enddate`, inclusive of the larger date and exclusive of the smaller date.                                                                     |
-| [`date_part(part, date)`](#date_partpart-date)                                      | Get [subfield]({% link docs/current/sql/functions/datepart.md %}) (equivalent to `extract`).                                                                                                                                                                |
-| [`date_sub(part, startdate, enddate)`](#date_subpart-startdate-enddate)             | The signed length of the interval between `startdate` and `enddate`, truncated to whole multiples of [`part`]({% link docs/current/sql/functions/datepart.md %}).                                                                                           |
-| [`date_trunc(part, date)`](#date_truncpart-date)                                    | Truncate to specified [precision]({% link docs/current/sql/functions/datepart.md %}).                                                                                                                                                                       |
+| [`date_diff(part, startdate, enddate)`](#date_diffpart-startdate-enddate)           | The number of [`part`]({% link docs/2.0/sql/functions/datepart.md %}) boundaries between `startdate` and `enddate`, inclusive of the larger date and exclusive of the smaller date.                                                                     |
+| [`date_part(part, date)`](#date_partpart-date)                                      | Get [subfield]({% link docs/2.0/sql/functions/datepart.md %}) (equivalent to `extract`).                                                                                                                                                                |
+| [`date_sub(part, startdate, enddate)`](#date_subpart-startdate-enddate)             | The signed length of the interval between `startdate` and `enddate`, truncated to whole multiples of [`part`]({% link docs/2.0/sql/functions/datepart.md %}).                                                                                           |
+| [`date_trunc(part, date)`](#date_truncpart-date)                                    | Truncate to specified [precision]({% link docs/2.0/sql/functions/datepart.md %}).                                                                                                                                                                       |
 | [`dayname(date)`](#daynamedate)                                                     | The (English) name of the weekday.                                                                                                                                                                                                                          |
 | [`days_in_month(date)`](#days_in_monthdate)                                         | The number of days in the month of the given date.                                                                                                                                                                                                          |
-| [`extract(part from date)`](#extractpart-from-date)                                 | Get [subfield]({% link docs/current/sql/functions/datepart.md %}) from a date.                                                                                                                                                                              |
+| [`extract(part from date)`](#extractpart-from-date)                                 | Get [subfield]({% link docs/2.0/sql/functions/datepart.md %}) from a date.                                                                                                                                                                              |
 | [`greatest(date, date)`](#greatestdate-date)                                        | The later of two dates.                                                                                                                                                                                                                                     |
 | [`isfinite(date)`](#isfinitedate)                                                   | Returns true if the date is finite, false otherwise.                                                                                                                                                                                                        |
 | [`isinf(date)`](#isinfdate)                                                         | Returns true if the date is infinite, false otherwise.                                                                                                                                                                                                      |
@@ -50,9 +52,9 @@ Dates can also be manipulated with the [timestamp functions]({% link docs/curren
 | [`least(date, date)`](#leastdate-date)                                              | The earlier of two dates.                                                                                                                                                                                                                                   |
 | [`make_date(year, month, day)`](#make_dateyear-month-day)                           | The date for the given parts.                                                                                                                                                                                                                               |
 | [`monthname(date)`](#monthnamedate)                                                 | The (English) name of the month.                                                                                                                                                                                                                            |
-| [`strftime(date, format)`](#strftimedate-format)                                    | Converts a date to a string according to the [format string]({% link docs/current/sql/functions/dateformat.md %}).                                                                                                                                          |
+| [`strftime(date, format)`](#strftimedate-format)                                    | Converts a date to a string according to the [format string]({% link docs/2.0/sql/functions/dateformat.md %}).                                                                                                                                          |
 | [`time_bucket(bucket_width, date[, offset])`](#time_bucketbucket_width-date-offset) | Truncate `date` to a grid of width `bucket_width`. The grid is anchored at `2000-01-01[ + offset]` when `bucket_width` is a number of months or coarser units, else `2000-01-03[ + offset]`. Note that `2000-01-03` is a Monday.                            |
-| [`time_bucket(bucket_width, date[, origin])`](#time_bucketbucket_width-date-origin) | Truncate `timestamptz` to a grid of width `bucket_width`. The grid is anchored at the `origin` timestamp, which defaults to `2000-01-01` when `bucket_width` is a number of months or coarser units, else `2000-01-03`. Note that `2000-01-03` is a Monday. |
+| [`time_bucket(bucket_width, date[, origin])`](#time_bucketbucket_width-date-origin) | Truncate `date` to a grid of width `bucket_width`. The grid is anchored at the `origin` timestamp, which defaults to `2000-01-01` when `bucket_width` is a number of months or coarser units, else `2000-01-03`. Note that `2000-01-03` is a Monday. |
 | [`today()`](#today)                                                                 | Current date (start of current transaction) in the local time zone.                                                                                                                                                                                         |
 
 #### `date_add(date, interval)`
@@ -67,7 +69,7 @@ Dates can also be manipulated with the [timestamp functions]({% link docs/curren
 
 <div class="nostroke_table"></div>
 
-| **Description** | The number of [`part`]({% link docs/current/sql/functions/datepart.md %}) boundaries between `startdate` and `enddate`, inclusive of the larger date and exclusive of the smaller date. |
+| **Description** | The number of [`part`]({% link docs/2.0/sql/functions/datepart.md %}) boundaries between `startdate` and `enddate`, inclusive of the larger date and exclusive of the smaller date. |
 | **Example** | `date_diff('month', DATE '1992-09-15', DATE '1992-11-14')` |
 | **Result** | `2` |
 | **Alias** | `datediff` |
@@ -76,7 +78,7 @@ Dates can also be manipulated with the [timestamp functions]({% link docs/curren
 
 <div class="nostroke_table"></div>
 
-| **Description** | Get the [subfield]({% link docs/current/sql/functions/datepart.md %}) (equivalent to `extract`). |
+| **Description** | Get the [subfield]({% link docs/2.0/sql/functions/datepart.md %}) (equivalent to `extract`). |
 | **Example** | `date_part('year', DATE '1992-09-20')` |
 | **Result** | `1992` |
 | **Alias** | `datepart` |
@@ -85,7 +87,7 @@ Dates can also be manipulated with the [timestamp functions]({% link docs/curren
 
 <div class="nostroke_table"></div>
 
-| **Description** | The signed length of the interval between `startdate` and `enddate`, truncated to whole multiples of [`part`]({% link docs/current/sql/functions/datepart.md %}). |
+| **Description** | The signed length of the interval between `startdate` and `enddate`, truncated to whole multiples of [`part`]({% link docs/2.0/sql/functions/datepart.md %}). |
 | **Example** | `date_sub('month', DATE '1992-09-15', DATE '1992-11-14')` |
 | **Result** | `1` |
 | **Alias** | `datesub` |
@@ -94,7 +96,7 @@ Dates can also be manipulated with the [timestamp functions]({% link docs/curren
 
 <div class="nostroke_table"></div>
 
-| **Description** | Truncate to specified [precision]({% link docs/current/sql/functions/datepart.md %}). Always returns a `TIMESTAMP`, even when the input is a `DATE`. |
+| **Description** | Truncate to specified [precision]({% link docs/2.0/sql/functions/datepart.md %}). Always returns a `TIMESTAMP`, even when the input is a `DATE`. |
 | **Example** | `date_trunc('month', DATE '1992-03-07')` |
 | **Result** | `1992-03-01 00:00:00` |
 | **Alias** | `datetrunc` |
@@ -119,7 +121,7 @@ Dates can also be manipulated with the [timestamp functions]({% link docs/curren
 
 <div class="nostroke_table"></div>
 
-| **Description** | Get [subfield]({% link docs/current/sql/functions/datepart.md %}) from a date. |
+| **Description** | Get [subfield]({% link docs/2.0/sql/functions/datepart.md %}) from a date. |
 | **Example** | `extract('year' FROM DATE '1992-09-20')` |
 | **Result** | `1992` |
 
@@ -191,7 +193,7 @@ Dates can also be manipulated with the [timestamp functions]({% link docs/curren
 
 <div class="nostroke_table"></div>
 
-| **Description** | Converts a date to a string according to the [format string]({% link docs/current/sql/functions/dateformat.md %}). |
+| **Description** | Converts a date to a string according to the [format string]({% link docs/2.0/sql/functions/dateformat.md %}). |
 | **Example** | `strftime(DATE '1992-01-01', '%a, %-d %B %Y')` |
 | **Result** | `Wed, 1 January 1992` |
 
@@ -207,7 +209,7 @@ Dates can also be manipulated with the [timestamp functions]({% link docs/curren
 
 <div class="nostroke_table"></div>
 
-| **Description** | Truncate `timestamptz` to a grid of width `bucket_width`. The grid is anchored at the `origin` timestamp, which defaults to `2000-01-01` when `bucket_width` is a number of months or coarser units, else `2000-01-03`. Note that `2000-01-03` is a Monday. |
+| **Description** | Truncate `date` to a grid of width `bucket_width`. The grid is anchored at the `origin` timestamp, which defaults to `2000-01-01` when `bucket_width` is a number of months or coarser units, else `2000-01-03`. Note that `2000-01-03` is a Monday. |
 | **Example** | `time_bucket(INTERVAL '2 weeks', DATE '1992-04-20', DATE '1992-04-01')` |
 | **Result** | `1992-04-15` |
 
@@ -222,7 +224,7 @@ Dates can also be manipulated with the [timestamp functions]({% link docs/curren
 
 ## Date Part Extraction Functions
 
-There are also dedicated extraction functions to get the [subfields]({% link docs/current/sql/functions/datepart.md %}#part-functions).
+There are also dedicated extraction functions to get the [subfields]({% link docs/2.0/sql/functions/datepart.md %}#part-functions).
 A few examples include extracting the day from a date, or the day of the week from a date.
 
 Functions applied to infinite dates will either return the same infinite dates

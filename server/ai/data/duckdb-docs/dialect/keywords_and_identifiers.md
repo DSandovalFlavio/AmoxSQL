@@ -1,12 +1,14 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/dialect/keywords_and_identifiers
 - /docs/sql/case_sensitivity
 - /docs/sql/dialect/keywords-and-identifiers
 - /docs/sql/dialect/keywords_and_identifiers
 - /docs/sql/keywords-and-identifiers
 - /docs/stable/sql/dialect/keywords_and_identifiers
+- /docs/current/sql/dialect/keywords_and_identifiers
+- /docs/lts/sql/dialect/keywords_and_identifiers
+- /docs/preview/sql/dialect/keywords_and_identifiers
 title: Keywords and Identifiers
 ---
 
@@ -15,11 +17,13 @@ title: Keywords and Identifiers
 Similarly to other SQL dialects and programming languages, identifiers in DuckDB's SQL are subject to several rules.
 
 * Unquoted identifiers need to conform to a number of rules:
-    * They must not be a reserved keyword (see [`duckdb_keywords()`]({% link docs/current/sql/meta/duckdb_table_functions.md %}#duckdb_keywords)), e.g., `SELECT 123 AS SELECT` will fail.
+    * They must not be a reserved keyword (see [`duckdb_keywords()`]({% link docs/2.0/sql/meta/duckdb_table_functions.md %}#duckdb_keywords)), e.g., `CREATE TABLE select (i INTEGER)` will fail.
     * They must not start with a number or special character, e.g., `SELECT 123 AS 1col` is invalid.
     * They cannot contain whitespaces (including tabs and newline characters).
-* Identifiers can be quoted using double-quote characters (`"`). Quoted identifiers can use any keyword, whitespace or special character, e.g., `"SELECT"` and `" § 🦆 ¶ "` are valid identifiers.
+* Identifiers can be quoted using double-quote characters (`"`). Quoted identifiers can use any keyword, whitespace, or special character, e.g., `"SELECT"` and `" § 🦆 ¶ "` are valid identifiers.
 * Double quotes can be escaped by repeating the quote character, e.g., to create an identifier named `IDENTIFIER "X"`, use `"IDENTIFIER ""X"""`.
+
+> New As of DuckDB 2.0, identifiers can also be quoted using backtick characters (`` ` ``), following exactly the same rules as double-quoted identifiers. A backtick is escaped by doubling it, e.g., `` `a``b` `` denotes the identifier `` a`b ``. Backtick-quoted identifiers are never case-folded and work everywhere double-quoted identifiers do. Note that stored and round-tripped DDL (for example in [`duckdb_views()`]({% link docs/2.0/sql/meta/duckdb_table_functions.md %}#duckdb_views)) still uses double quotes.
 
 ### Deduplicating Identifiers
 
@@ -40,11 +44,19 @@ FROM (SELECT unnest({'a': 42, 'b': {'a': 88, 'b': 99}}, recursive := true));
 |---:|----:|---:|
 | 42 | 88  | 99 |
 
+## Identifier Resolution
+
+Identifiers can be *qualified* to remove ambiguity. A fully qualified column reference has the form `⟨database⟩.⟨schema⟩.⟨table⟩.⟨column⟩`, and any leading part can be omitted when the remaining name is unambiguous. Table names can likewise be qualified as `⟨database⟩.⟨schema⟩.⟨table⟩`.
+
+When a name is not fully qualified, DuckDB resolves it using the catalog search path. The search path is controlled by the `schema` and `search_path` [configuration options]({% link docs/2.0/configuration/overview.md %}#local-configuration-options): `schema` sets a single default `⟨catalog⟩.⟨schema⟩` entry, while `search_path` sets a comma-separated list of such entries that are searched in order. Both options write to the same catalog search path, and each entry may be a bare schema or a `⟨catalog⟩.⟨schema⟩` pair.
+
+For a detailed description of how database and schema names are resolved, including the default database and schema and how to change the search path, see [Name Qualification]({% link docs/2.0/sql/statements/attach.md %}#name-qualification) on the `ATTACH` page.
+
 ## Database Names
 
 Database names are subject to the rules for [identifiers](#identifiers).
 
-Additionally, it is best practice to avoid DuckDB's two internal [database schema names]({% link docs/current/sql/meta/duckdb_table_functions.md %}#duckdb_databases), `system` and `temp`.
+Additionally, it is best practice to avoid DuckDB's two internal [database schema names]({% link docs/2.0/sql/meta/duckdb_table_functions.md %}#duckdb_databases), `system` and `temp`.
 By default, persistent databases are named after their filename without the extension.
 Therefore, the filenames `system.db` and `temp.db` (as well as `system.duckdb` and `temp.duckdb`) result in the database names `system` and `temp`, respectively.
 If you need to attach to a database that has one of these names, use an alias, e.g.:
@@ -99,7 +111,7 @@ SELECT cosineofpi FROM tbl;
 |-----------:|
 | -1.0       |
 
-To change this behavior, set the `preserve_identifier_case` [configuration option]({% link docs/current/configuration/overview.md %}#configuration-reference) to `false`.
+To change this behavior, use the `preserve_identifier_case` [configuration option]({% link docs/2.0/configuration/overview.md %}#configuration-reference), see [below](#disabling-preserving-cases).
 
 ### Case-Sensitivity of Keys in Nested Data Structures
 
@@ -149,10 +161,20 @@ SELECT * FROM t1 NATURAL JOIN t2;
 
 #### Disabling Preserving Cases
 
-With the `preserve_identifier_case` [configuration option]({% link docs/current/configuration/overview.md %}#configuration-reference) set to `false`, all identifiers are turned into lowercase:
+> New In DuckDB 2.0, `preserve_identifier_case` is a `VARCHAR` option. Previously, it was a `BOOLEAN` option.
+
+The `preserve_identifier_case` [configuration option]({% link docs/2.0/configuration/overview.md %}#configuration-reference) controls how non-quoted identifiers are folded. It accepts the following values:
+
+* `'preserve_case'` (default): keep the case as written.
+* `'lowercase'`: turn non-quoted identifiers into lowercase.
+* `'uppercase'`: turn non-quoted identifiers into uppercase.
+
+For backward compatibility, the Boolean values `true` and `false` are also accepted and map to `'preserve_case'` and `'lowercase'`, respectively.
+
+For example, with `preserve_identifier_case` set to `'lowercase'`, all non-quoted identifiers are turned into lowercase:
 
 ```sql
-SET preserve_identifier_case = false;
+SET preserve_identifier_case = 'lowercase';
 CREATE TABLE tbl AS SELECT cos(pi()) AS CosineOfPi;
 SELECT CosineOfPi FROM tbl;
 ```
@@ -160,3 +182,7 @@ SELECT CosineOfPi FROM tbl;
 | cosineofpi |
 |-----------:|
 | -1.0       |
+
+With `preserve_identifier_case` set to `'uppercase'`, they are turned into uppercase, so the table above would be named `TBL` and its column `COSINEOFPI`.
+
+> The setting is applied when a statement is parsed. Therefore, it only takes effect for statements parsed after the `SET` statement has been executed, e.g., in a subsequent query string.

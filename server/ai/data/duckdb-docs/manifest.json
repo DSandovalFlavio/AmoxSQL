@@ -1,9 +1,9 @@
 {
   "source": "duckdb/duckdb-web",
   "ref": "main",
-  "basePath": "docs/current/sql",
-  "extractedAt": "2026-07-22T22:06:07.918Z",
-  "count": 126,
+  "basePath": "docs/2.0/sql",
+  "extractedAt": "2026-11-09T22:26:41.406Z",
+  "count": 131,
   "files": [
     {
       "path": "constraints.md",
@@ -83,7 +83,7 @@
         "Shredding and Compression",
         "Geometry Statistics",
         "Coordinate Reference Systems",
-        "How are Coordinate Reference Systems Stored in DuckDB?",
+        "How Are Coordinate Reference Systems Stored in DuckDB?",
         "Handling Unknown Coordinate Reference Systems",
         "Working with Geometries in Different Coordinate Reference Systems",
         "Functions"
@@ -93,7 +93,7 @@
       "path": "data_types/interval.md",
       "title": "Interval Type",
       "headings": [
-        "Arithmetic with Timestamps, Dates and Intervals",
+        "Arithmetic with Timestamps, Dates, and Intervals",
         "Equality and Comparison",
         "Functions"
       ]
@@ -120,7 +120,8 @@
         "Implicit String Literal Concatenation",
         "Implicit String Conversion",
         "Escape String Literals",
-        "Dollar-Quoted String Literals"
+        "Dollar-Quoted String Literals",
+        "Bit String and Hex String Literals"
       ]
     },
     {
@@ -150,6 +151,8 @@
         "Fixed-Width Integer Types",
         "Variable-Length Integers",
         "Fixed-Point Decimals",
+        "Specifying the WIDTH and the SCALE",
+        "Arithmetic and Internal Representation",
         "Floating-Point Types",
         "Universally Unique Identifiers (UUIDs)",
         "UUIDv4",
@@ -182,7 +185,11 @@
         "No Dots",
         "One Dot",
         "Two (or More) Dots",
-        "Creating Structs with the row Function",
+        "Tuples",
+        "Accessing Tuple Entries",
+        "Tuples in Tables",
+        "Casting between Tuples and Structs",
+        "Casting between Structs",
         "Comparison and Ordering",
         "Updating the Schema",
         "Adding a Field",
@@ -266,9 +273,11 @@
         "Storing Different Types in the Same Column",
         "Checking the Type of a Value",
         "Extracting Fields from Nested Variants",
+        "Storage",
         "Parquet Support",
         "Writing VARIANT to Parquet",
-        "Reading Snowflake VARIANT from Parquet"
+        "Reading Snowflake VARIANT from Parquet",
+        "Functions"
       ]
     },
     {
@@ -283,7 +292,7 @@
         "Functions and Expressions",
         "Join Types",
         "Trailing Commas",
-        "\"Top-N in Group\" Queries",
+        "“Top-N in Group” Queries",
         "Related Blog Posts"
       ]
     },
@@ -300,6 +309,7 @@
       "headings": [
         "Identifiers",
         "Deduplicating Identifiers",
+        "Identifier Resolution",
         "Database Names",
         "Rules for Case-Sensitivity",
         "Keywords and Function Names",
@@ -337,6 +347,7 @@
         "regexp_extract Function",
         "to_date Function",
         "date_part Function",
+        "pg_size_pretty Function",
         "Resolution of Type Names in the Schema",
         "Exploiting Functional Dependencies for GROUP BY",
         "Behavior of Regular Expression Match Operators"
@@ -358,7 +369,8 @@
         "Clauses",
         "Automatic Column Deduplication in SELECT",
         "Case Insensitivity for SELECTing Columns",
-        "USING SAMPLE"
+        "USING SAMPLE",
+        "Implicit Conversion of Identifiers in Table Function Arguments"
       ]
     },
     {
@@ -449,7 +461,7 @@
         "Scalar Subquery",
         "Grades",
         "ARRAY Subqueries",
-        "Subquery Comparisons: ALL, ANY and SOME",
+        "Subquery Comparisons: ALL, ANY, and SOME",
         "ALL",
         "ANY",
         "EXISTS",
@@ -465,7 +477,7 @@
       "headings": [
         "Examples",
         "Casting",
-        "Logarithm on Zero",
+        "Integer Division by Zero",
         "Casting Multiple Rows",
         "Limitations"
       ]
@@ -545,7 +557,13 @@
       "title": "Geometry Functions",
       "headings": [
         "Geometry Operators",
-        "Built-in Geometry Functions"
+        "Built-in Geometry Functions",
+        "ST_GeomFromWKB Function",
+        "ST_AsWKB Function",
+        "ST_AsWKT Function",
+        "ST_Intersects_Extent Function",
+        "ST_CRS Function",
+        "ST_SetCRS Function"
       ]
     },
     {
@@ -568,7 +586,8 @@
         "list_transform Examples",
         "list_filter Examples",
         "list_reduce Examples",
-        "Limitations"
+        "Limitations",
+        "Deprecated Syntax"
       ]
     },
     {
@@ -657,6 +676,7 @@
       "title": "Text Functions",
       "headings": [
         "Text Functions and Operators",
+        "overlay",
         "Text Similarity Functions",
         "Formatters",
         "fmt Syntax",
@@ -689,7 +709,7 @@
         "ICU Timestamp with Time Zone Operators",
         "ICU Timestamp with Time Zone Functions",
         "ICU Timestamp Table Functions",
-        "ICU Timestamp Without Time Zone Functions",
+        "ICU Timestamp without Time Zone Functions",
         "At Time Zone",
         "Infinities",
         "Calendars",
@@ -707,6 +727,13 @@
       "headings": [
         "Scalar Utility Functions",
         "Utility Table Functions"
+      ]
+    },
+    {
+      "path": "functions/variant.md",
+      "title": "Variant Functions",
+      "headings": [
+        "Example"
       ]
     },
     {
@@ -761,13 +788,17 @@
       "path": "meta/duckdb_table_functions.md",
       "title": "DuckDB_% Metadata Functions",
       "headings": [
+        "duckdb_available_metrics",
         "duckdb_columns",
+        "duckdb_connection_count",
         "duckdb_constraints",
         "duckdb_coordinate_systems",
         "duckdb_databases",
         "duckdb_dependencies",
+        "duckdb_extension_repositories",
         "duckdb_extensions",
         "duckdb_functions",
+        "duckdb_grammar_extensions",
         "duckdb_indexes",
         "duckdb_keywords",
         "duckdb_log_contexts",
@@ -778,11 +809,13 @@
         "duckdb_profiling_settings",
         "duckdb_schemas",
         "duckdb_secret_types",
+        "duckdb_secret_type_parameters",
         "duckdb_secrets",
         "duckdb_sequences",
         "duckdb_settings",
         "duckdb_tables",
         "duckdb_temporary_files",
+        "duckdb_triggers",
         "duckdb_types",
         "duckdb_variables",
         "duckdb_views"
@@ -798,7 +831,7 @@
         "constraint_column_usage: Constraint Column Usage",
         "key_column_usage: Key Column Usage",
         "referential_constraints: Referential Constraints",
-        "schemata: Database, Catalog and Schema",
+        "schemata: Database, Catalog, and Schema",
         "tables: Tables and Views",
         "table_constraints: Table Constraints",
         "Catalog Functions"
@@ -807,13 +840,21 @@
     {
       "path": "peg_parser.md",
       "title": "PEG Parser",
-      "headings": []
+      "headings": [
+        "Suggestions",
+        "Extensible Grammar",
+        "Performance",
+        "Checking a Query",
+        "Legacy Parser",
+        "Further Reading"
+      ]
     },
     {
       "path": "query_syntax/filter.md",
       "title": "FILTER Clause",
       "headings": [
         "Examples",
+        "Filtering NULL Values from Lists",
         "Aggregate Function Syntax (Including FILTER Clause)"
       ]
     },
@@ -831,9 +872,11 @@
         "Semi and Anti Joins",
         "Lateral Joins",
         "Positional Joins",
-        "As-Of Joins",
+        "As-of Joins",
+        "Nearest Joins",
         "Self-Joins",
         "Shorthands in the JOIN Clause",
+        "Specifying the Join Type Explicitly",
         "FROM-First Syntax",
         "FROM-First Syntax with a SELECT Clause",
         "FROM-First Syntax without a SELECT Clause",
@@ -846,6 +889,7 @@
       "headings": [
         "GROUP BY ALL",
         "Multiple Dimensions",
+        "Grouping by UNNEST",
         "Examples",
         "GROUP BY ALL Examples",
         "Syntax"
@@ -874,6 +918,7 @@
       "title": "LIMIT and OFFSET Clauses",
       "headings": [
         "Examples",
+        "FETCH FIRST",
         "Syntax"
       ]
     },
@@ -898,6 +943,7 @@
         "Auto-Incremented Parameters: ?",
         "Positional Parameters: $1",
         "Named Parameters: $parameter",
+        "Session Variables as Default Values",
         "Dropping Prepared Statements: DEALLOCATE"
       ]
     },
@@ -914,7 +960,22 @@
       "title": "SAMPLE Clause",
       "headings": [
         "Examples",
-        "Syntax"
+        "Syntax",
+        "Placement in a Query"
+      ]
+    },
+    {
+      "path": "query_syntax/samples.md",
+      "title": "Samples",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "Reproducible Samples",
+        "Sampling Methods",
+        "reservoir",
+        "bernoulli",
+        "system",
+        "Table Samples"
       ]
     },
     {
@@ -953,13 +1014,10 @@
       "path": "query_syntax/unnest.md",
       "title": "Unnesting",
       "headings": [
-        "Examples",
-        "Unnesting Lists",
-        "Unnesting Structs",
-        "Recursive Unnest",
-        "Setting the Maximum Depth of Unnesting",
-        "Keeping Track of List Entry Positions",
-        "Keep Column Names When Recursively Unnesting"
+        "Calling unnest()",
+        "Unnesting LIST-Typed Values",
+        "Recursive Unnesting",
+        "Examples"
       ]
     },
     {
@@ -991,6 +1049,7 @@
       "headings": [
         "Basic CTE Examples",
         "CTE Materialization",
+        "Data-Modifying CTEs",
         "Recursive CTEs",
         "Example: Fibonacci Sequence",
         "Example: Tree Traversal",
@@ -998,6 +1057,8 @@
         "Accessing the Union Table with recurring",
         "Recursive CTEs with USING KEY",
         "Example: USING KEY",
+        "Aggregate Payloads in USING KEY",
+        "UNION vs. UNION ALL in USING KEY CTEs",
         "Using VALUES",
         "Example: USING KEY References Union Table",
         "Limitations",
@@ -1005,16 +1066,11 @@
       ]
     },
     {
-      "path": "samples.md",
-      "title": "Samples",
+      "path": "statements/alter_database.md",
+      "title": "ALTER DATABASE Statement",
       "headings": [
-        "Examples",
         "Syntax",
-        "Sampling Methods",
-        "reservoir",
-        "bernoulli",
-        "system",
-        "Table Samples"
+        "RENAME DATABASE"
       ]
     },
     {
@@ -1030,7 +1086,7 @@
         "[SET [DATA]] TYPE",
         "Handling Structs",
         "SET / DROP DEFAULT",
-        "ADD PRIMARY KEY",
+        "ADD PRIMARY KEY / ADD UNIQUE",
         "SET / RESET (Table Options)",
         "ADD / DROP CONSTRAINT",
         "Limitations"
@@ -1059,7 +1115,10 @@
         "ATTACH Syntax",
         "Explicit Storage Versions",
         "Database Encryption",
+        "Expressions in Paths and Options",
         "Options",
+        "Database Type",
+        "Attaching Data Files Directly",
         "DETACH",
         "DETACH Syntax",
         "Name Qualification",
@@ -1097,6 +1156,15 @@
         "Reading Comments",
         "Limitations",
         "Syntax"
+      ]
+    },
+    {
+      "path": "statements/connect.md",
+      "title": "CONNECT and DISCONNECT Statements",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "Supported Databases"
       ]
     },
     {
@@ -1139,6 +1207,11 @@
       "path": "statements/create_macro.md",
       "title": "CREATE MACRO Statement",
       "headings": [
+        "Types of Macros",
+        "Declaring Parameters",
+        "Overloading",
+        "Calling Macros",
+        "Passing Parameters",
         "Examples",
         "Scalar Macros",
         "Table Macros",
@@ -1148,7 +1221,6 @@
         "Using Subquery Macros",
         "Overloads",
         "Recursive Functions",
-        "Function Chaining on the First Function Does Not Work",
         "Viewing the List of Macros and Table Macros"
       ]
     },
@@ -1157,6 +1229,7 @@
       "title": "CREATE SCHEMA Statement",
       "headings": [
         "Examples",
+        "Nested Schemas",
         "Syntax"
       ]
     },
@@ -1177,6 +1250,7 @@
         "Using Sequences for Primary Keys",
         "Selecting the Next Value",
         "Selecting the Current Value",
+        "Setting the Sequence Value",
         "Syntax",
         "Parameters",
         "Limitations"
@@ -1197,6 +1271,23 @@
         "Limitations",
         "Generated Columns",
         "Syntax"
+      ]
+    },
+    {
+      "path": "statements/create_trigger.md",
+      "title": "CREATE TRIGGER Statement",
+      "headings": [
+        "Examples",
+        "Syntax",
+        "Timing",
+        "Granularity",
+        "Transition Tables",
+        "OR REPLACE and IF NOT EXISTS",
+        "Multiple Triggers",
+        "Returning Rows",
+        "Inspecting Triggers",
+        "Dropping Triggers",
+        "Limitations"
       ]
     },
     {
@@ -1285,7 +1376,9 @@
         "Syntax",
         "LOAD",
         "Examples",
-        "Syntax"
+        "Syntax",
+        "INSTALL AND LOAD",
+        "Examples"
       ]
     },
     {
@@ -1293,6 +1386,7 @@
       "title": "MERGE INTO Statement",
       "headings": [
         "Examples",
+        "Multiple Matching Source Rows",
         "Syntax"
       ]
     },
@@ -1317,7 +1411,19 @@
         "SQL Standard PIVOT Syntax",
         "Examples",
         "SQL Standard PIVOT Full Syntax Diagram",
-        "Limitations"
+        "Expressions in the USING Clause"
+      ]
+    },
+    {
+      "path": "statements/prepare.md",
+      "title": "PREPARE, EXECUTE, and DEALLOCATE Statements",
+      "headings": [
+        "PREPARE",
+        "Syntax",
+        "EXECUTE",
+        "Syntax",
+        "DEALLOCATE",
+        "Syntax"
       ]
     },
     {
@@ -1325,6 +1431,7 @@
       "title": "Profiling Queries",
       "headings": [
         "EXPLAIN",
+        "EXPLAIN (SQL)",
         "EXPLAIN ANALYZE"
       ]
     },
@@ -1341,7 +1448,7 @@
         "GROUP BY and HAVING Clauses",
         "WINDOW Clause",
         "QUALIFY Clause",
-        "ORDER BY, LIMIT and OFFSET Clauses",
+        "ORDER BY, LIMIT, and OFFSET Clauses",
         "VALUES List",
         "Row IDs",
         "Common Table Expressions",
@@ -1354,6 +1461,7 @@
       "headings": [
         "Variable Scopes",
         "SET VARIABLE",
+        "The $name Shorthand",
         "Syntax",
         "RESET VARIABLE",
         "Syntax"
@@ -1435,7 +1543,9 @@
       "headings": [
         "Examples",
         "Syntax",
+        "RETURNING Clause",
         "Update from Other Table",
+        "Multiple Matching Source Rows",
         "Update from Same Table",
         "Update Using Joins",
         "Upsert (Insert or Update)"

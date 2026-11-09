@@ -2,9 +2,12 @@
 blurb: The bitstring type is a string of 1s and 0s.
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/bitstring
 - /docs/sql/data_types/bitstring
 - /docs/stable/sql/data_types/bitstring
+- /docs/current/sql/data_types/bitstring
+- /docs/lts/sql/data_types/bitstring
+- /docs/preview/sql/data_types/bitstring
+tested: true
 title: Bitstring Type
 ---
 
@@ -31,6 +34,20 @@ SELECT '101010'::BITSTRING AS b;
 |--------|
 | 101010 |
 
+A bitstring can also be created using a bit string literal, which is a string of 1s and 0s prefixed with `B`:
+
+```sql
+SELECT B'101010' AS b;
+```
+
+<div class="monospace_table"></div>
+
+|   b    |
+|--------|
+| 101010 |
+
+> New Starting with DuckDB 2.0, `B'…'` literals are `BITSTRING` values. In earlier versions, `B'0101'` was parsed as the `VARCHAR` string `'b0101'`.
+
 Creating a `BITSTRING` with a predefined length is possible with the `bitstring` function. The resulting bitstring will be left-padded with zeroes.
 
 ```sql
@@ -55,4 +72,4 @@ SELECT 123::BITSTRING AS b;
 
 ## Functions
 
-See [Bitstring Functions]({% link docs/current/sql/functions/bitstring.md %}).
+See [Bitstring Functions]({% link docs/2.0/sql/functions/bitstring.md %}).

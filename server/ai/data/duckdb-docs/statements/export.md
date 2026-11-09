@@ -2,9 +2,11 @@
 layout: docu
 railroad: statements/export.js
 redirect_from:
-- /docs/preview/sql/statements/export
 - /docs/sql/statements/export
 - /docs/stable/sql/statements/export
+- /docs/current/sql/statements/export
+- /docs/lts/sql/statements/export
+- /docs/preview/sql/statements/export
 title: EXPORT and IMPORT DATABASE Statements
 ---
 
@@ -12,25 +14,25 @@ The `EXPORT DATABASE` command allows you to export the contents of the database 
 
 ## Examples
 
-Export the database to the target directory 'target_directory' as CSV files:
+Export the database to the target directory `target_directory` as CSV files:
 
 ```sql
 EXPORT DATABASE 'target_directory';
 ```
 
-Export to directory 'target_directory', using the given options for the CSV serialization:
+Export to directory `target_directory`, using the given options for the CSV serialization:
 
 ```sql
 EXPORT DATABASE 'target_directory' (FORMAT csv, DELIMITER '|');
 ```
 
-Export to directory 'target_directory', tables serialized as Parquet:
+Export to directory `target_directory`, tables serialized as Parquet:
 
 ```sql
 EXPORT DATABASE 'target_directory' (FORMAT parquet);
 ```
 
-Export to directory 'target_directory', tables serialized as Parquet, compressed with Zstd, with a row_group_size of 100,000:
+Export to directory `target_directory`, tables serialized as Parquet, compressed with Zstd, with a `ROW_GROUP_SIZE` of 100,000:
 
 ```sql
 EXPORT DATABASE 'target_directory' (
@@ -52,11 +54,11 @@ Alternatively, use a `PRAGMA`:
 PRAGMA import_database('source_directory');
 ```
 
-For details regarding the writing of Parquet files, see the [Parquet Files page in the Data Import section]({% link docs/current/data/parquet/overview.md %}#writing-to-parquet-files) and the [`COPY` Statement page]({% link docs/current/sql/statements/copy.md %}).
+For details regarding the writing of Parquet files, see the [Parquet Files page in the Data Import section]({% link docs/2.0/data/parquet/overview.md %}#writing-to-parquet-files) and the [`COPY` Statement page]({% link docs/2.0/sql/statements/copy.md %}).
 
 ## `EXPORT DATABASE`
 
-The `EXPORT DATABASE` command exports the full contents of the database – including schema information, tables, views and sequences – to a specific directory that can then be loaded again. The created directory will be structured as follows:
+The `EXPORT DATABASE` command exports the full contents of the database – including schema information, tables, views, and sequences – to a specific directory that can then be loaded again. The created directory will be structured as follows:
 
 ```text
 target_directory/schema.sql
@@ -66,7 +68,9 @@ target_directory/t_1.csv
 target_directory/t_n.csv
 ```
 
-The `schema.sql` file contains the schema statements that are found in the database. It contains any `CREATE SCHEMA`, `CREATE TABLE`, `CREATE VIEW` and `CREATE SEQUENCE` commands that are necessary to re-construct the database.
+The `schema.sql` file contains the schema statements that are found in the database. It contains any `CREATE SCHEMA`, `CREATE TABLE`, `CREATE VIEW`, and `CREATE SEQUENCE` commands that are necessary to re-construct the database.
+
+> Warning In DuckDB 2.0.0, [triggers]({% link docs/2.0/sql/statements/create_trigger.md %}) are not included in the export, and `COPY FROM DATABASE` does not copy them either. Recreate triggers manually after importing or copying a database.
 
 The `load.sql` file contains a set of `COPY` statements that can be used to read the data from the CSV files again. The file contains a single `COPY` statement for every table found in the schema.
 
@@ -78,7 +82,7 @@ The `load.sql` file contains a set of `COPY` statements that can be used to read
 
 The database can be reloaded by using the `IMPORT DATABASE` command again, or manually by running `schema.sql` followed by `load.sql` to re-load the data.
 
-> `IMPORT DATABASE` expects to import into a fresh database. `schema.sql` uses plain `CREATE` statements (without `OR REPLACE` or `IF NOT EXISTS`), so importing into a database that already contains any of the exported objects – for example a user-defined type – fails with a "already exists" error. Import into an empty database.
+> `IMPORT DATABASE` expects to import into a fresh database. `schema.sql` uses plain `CREATE` statements (without `OR REPLACE` or `IF NOT EXISTS`), so importing into a database that already contains any of the exported objects – for example a user-defined type – fails with a “already exists” error. Import into an empty database.
 
 ### Syntax
 

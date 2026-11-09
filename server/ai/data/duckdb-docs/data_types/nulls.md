@@ -2,9 +2,12 @@
 blurb: The NULL value represents a missing value.
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/nulls
 - /docs/sql/data_types/nulls
 - /docs/stable/sql/data_types/nulls
+- /docs/current/sql/data_types/nulls
+- /docs/lts/sql/data_types/nulls
+- /docs/preview/sql/data_types/nulls
+tested: true
 title: NULL Values
 ---
 
@@ -106,18 +109,20 @@ SELECT ifnull(1, 'default_string');
 ## `NULL` and `AND` / `OR`
 
 `NULL` values have special behavior when used with `AND` and `OR`.
-For details, see the [Boolean Type documentation]({% link docs/current/sql/data_types/boolean.md %}).
+For details, see the [Boolean Type documentation]({% link docs/2.0/sql/data_types/boolean.md %}).
 
 ## `NULL` and `IN` / `NOT IN`
 
 The behavior of `... IN ⟨something with a NULL⟩`{:.language-sql .highlight} is different from `... IN ⟨something with no NULLs⟩`{:.language-sql .highlight}.
-For details, see the [`IN` documentation]({% link docs/current/sql/expressions/in.md %}).
+For details, see the [`IN` documentation]({% link docs/2.0/sql/expressions/in.md %}).
 
 ## `NULL` and Aggregate Functions
 
 `NULL` values are ignored in most aggregate functions.
 
-Aggregate functions that do not ignore `NULL` values include: `first`, `last`, `list` and `array_agg`. To exclude `NULL` values from those aggregate functions, the [`FILTER` clause]({% link docs/current/sql/query_syntax/filter.md %}) can be used.
+Aggregate functions that do not ignore `NULL` values include: `first`, `last`, `list`, and `array_agg`. To exclude `NULL` values from these results, use a [`FILTER` clause]({% link docs/2.0/sql/query_syntax/filter.md %}) with a predicate that excludes the relevant null rows, such as `list(x) FILTER (WHERE x IS NOT NULL)`. A different filter predicate does not remove `NULL` values from rows that pass it.
+
+<!-- test:setup DROP TABLE IF EXISTS integers; -->
 
 ```sql
 CREATE TABLE integers (i INTEGER);

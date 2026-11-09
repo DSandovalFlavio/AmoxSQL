@@ -2,9 +2,11 @@
 layout: docu
 railroad: statements/use.js
 redirect_from:
-- /docs/preview/sql/statements/use
 - /docs/sql/statements/use
 - /docs/stable/sql/statements/use
+- /docs/current/sql/statements/use
+- /docs/lts/sql/statements/use
+- /docs/preview/sql/statements/use
 title: USE Statement
 ---
 
@@ -26,6 +28,6 @@ USE main;
 
 <div id="rrdiagram1"></div>
 
-The `USE` statement sets a default database, schema or database/schema combination to use for
+The `USE` statement sets a default database, schema, or database/schema combination to use for
 future operations. For instance, tables created without providing a fully qualified
 table name will be created in the default database.

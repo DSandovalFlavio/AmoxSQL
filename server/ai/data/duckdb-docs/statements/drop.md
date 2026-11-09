@@ -2,9 +2,11 @@
 layout: docu
 railroad: statements/drop.js
 redirect_from:
-- /docs/preview/sql/statements/drop
 - /docs/sql/statements/drop
 - /docs/stable/sql/statements/drop
+- /docs/current/sql/statements/drop
+- /docs/lts/sql/statements/drop
+- /docs/preview/sql/statements/drop
 title: DROP Statement
 ---
 
@@ -142,4 +144,4 @@ To check this, use the following `PRAGMA` and check the number of `free_blocks` 
 PRAGMA database_size;
 ```
 
-For instructions on reclaiming space after dropping a table, refer to the [“Reclaiming space” page]({% link docs/current/operations_manual/footprint_of_duckdb/reclaiming_space.md %}).
+For instructions on reclaiming space after dropping a table, refer to the [“Reclaiming space” page]({% link docs/2.0/operations_manual/footprint_of_duckdb/reclaiming_space.md %}).

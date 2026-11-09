@@ -1,15 +1,17 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/functions/time
 - /docs/sql/functions/time
 - /docs/stable/sql/functions/time
+- /docs/current/sql/functions/time
+- /docs/lts/sql/functions/time
+- /docs/preview/sql/functions/time
 title: Time Functions
 ---
 
 <!-- markdownlint-disable MD001 -->
 
-This section describes functions and operators for examining and manipulating [`TIME` values]({% link docs/current/sql/data_types/time.md %}).
+This section describes functions and operators for examining and manipulating [`TIME` values]({% link docs/2.0/sql/data_types/time.md %}).
 
 ## Time Operators
 
@@ -26,20 +28,30 @@ The table below shows the available scalar functions for `TIME` types.
 
 | Name | Description |
 |:--|:-------|
-| [`date_diff(part, starttime, endtime)`](#date_diffpart-starttime-endtime) | The number of [`part`]({% link docs/current/sql/functions/datepart.md %}) boundaries between `starttime` and `endtime`, inclusive of the larger time and exclusive of the smaller time. |
-| [`date_part(part, time)`](#date_partpart-time) | Get [subfield]({% link docs/current/sql/functions/datepart.md %}) (equivalent to `extract`). |
-| [`date_sub(part, starttime, endtime)`](#date_subpart-starttime-endtime) | The signed length of the interval between `starttime` and `endtime`, truncated to whole multiples of [`part`]({% link docs/current/sql/functions/datepart.md %}). |
+| [`current_localtime()`](#current_localtime) | Current time (start of current transaction) in the local time zone, as a `TIME` value without a time zone. |
+| [`date_diff(part, starttime, endtime)`](#date_diffpart-starttime-endtime) | The number of [`part`]({% link docs/2.0/sql/functions/datepart.md %}) boundaries between `starttime` and `endtime`, inclusive of the larger time and exclusive of the smaller time. |
+| [`date_part(part, time)`](#date_partpart-time) | Get [subfield]({% link docs/2.0/sql/functions/datepart.md %}) (equivalent to `extract`). |
+| [`date_sub(part, starttime, endtime)`](#date_subpart-starttime-endtime) | The signed length of the interval between `starttime` and `endtime`, truncated to whole multiples of [`part`]({% link docs/2.0/sql/functions/datepart.md %}). |
 | [`extract(part FROM time)`](#extractpart-from-time) | Get subfield from a time. |
 | [`get_current_time()`](#get_current_time) | Current time (start of current transaction). |
 | [`make_time(bigint, bigint, double)`](#make_timebigint-bigint-double) | The time for the given parts. |
 
-The only [date parts]({% link docs/current/sql/functions/datepart.md %}) that are defined for times are `epoch`, `hours`, `minutes`, `seconds`, `milliseconds` and `microseconds`.
+The only [date parts]({% link docs/2.0/sql/functions/datepart.md %}) that are defined for times are `epoch`, `hours`, `minutes`, `seconds`, `milliseconds`, and `microseconds`.
+
+#### `current_localtime()`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Current time (start of current transaction) in the local time zone, as a `TIME` value without a time zone. |
+| **Example** | `current_localtime()` |
+| **Result** | `06:09:59.988` |
+| **Alias** | `localtime` (no parentheses necessary) |
 
 #### `date_diff(part, starttime, endtime)`
 
 <div class="nostroke_table"></div>
 
-| **Description** | The number of [`part`]({% link docs/current/sql/functions/datepart.md %}) boundaries between `starttime` and `endtime`, inclusive of the larger time and exclusive of the smaller time. |
+| **Description** | The number of [`part`]({% link docs/2.0/sql/functions/datepart.md %}) boundaries between `starttime` and `endtime`, inclusive of the larger time and exclusive of the smaller time. |
 | **Example** | `date_diff('hour', TIME '01:02:03', TIME '06:01:03')` |
 | **Result** | `5` |
 | **Alias** | `datediff` |
@@ -48,7 +60,7 @@ The only [date parts]({% link docs/current/sql/functions/datepart.md %}) that ar
 
 <div class="nostroke_table"></div>
 
-| **Description** | Get [subfield]({% link docs/current/sql/functions/datepart.md %}) (equivalent to `extract`). |
+| **Description** | Get [subfield]({% link docs/2.0/sql/functions/datepart.md %}) (equivalent to `extract`). |
 | **Example** | `date_part('minute', TIME '14:21:13')` |
 | **Result** | `21` |
 | **Alias** | `datepart` |
@@ -57,7 +69,7 @@ The only [date parts]({% link docs/current/sql/functions/datepart.md %}) that ar
 
 <div class="nostroke_table"></div>
 
-| **Description** | The signed length of the interval between `starttime` and `endtime`, truncated to whole multiples of [`part`]({% link docs/current/sql/functions/datepart.md %}). |
+| **Description** | The signed length of the interval between `starttime` and `endtime`, truncated to whole multiples of [`part`]({% link docs/2.0/sql/functions/datepart.md %}). |
 | **Example** | `date_sub('hour', TIME '01:02:03', TIME '06:01:03')` |
 | **Result** | `4` |
 | **Alias** | `datesub` |

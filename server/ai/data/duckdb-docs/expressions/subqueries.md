@@ -2,13 +2,16 @@
 layout: docu
 railroad: expressions/subqueries.js
 redirect_from:
-- /docs/preview/sql/expressions/subqueries
 - /docs/sql/expressions/subqueries
 - /docs/stable/sql/expressions/subqueries
+- /docs/current/sql/expressions/subqueries
+- /docs/lts/sql/expressions/subqueries
+- /docs/preview/sql/expressions/subqueries
+tested: true
 title: Subqueries
 ---
 
-Subqueries are parenthesized query expressions that appear as part of a larger, outer query. Subqueries are usually based on `SELECT ... FROM`, but in DuckDB other query constructs such as [`PIVOT`]({% link docs/current/sql/statements/pivot.md %}) can also appear as a subquery.
+Subqueries are parenthesized query expressions that appear as part of a larger, outer query. Subqueries are usually based on `SELECT ... FROM`, but in DuckDB other query constructs such as [`PIVOT`]({% link docs/2.0/sql/statements/pivot.md %}) can also appear as a subquery.
 
 ## Scalar Subquery
 
@@ -65,12 +68,12 @@ SELECT ARRAY(SELECT grade FROM grades) AS all_grades;
 
 
 
-## Subquery Comparisons: `ALL`, `ANY` and `SOME`
+## Subquery Comparisons: `ALL`, `ANY`, and `SOME`
 
-In the section on [scalar subqueries](#scalar-subquery), a scalar expression was compared directly to a subquery using the equality [comparison operator]({% link docs/current/sql/expressions/comparison_operators.md %}#comparison-operators) (`=`).
+In the section on [scalar subqueries](#scalar-subquery), a scalar expression was compared directly to a subquery using the equality [comparison operator]({% link docs/2.0/sql/expressions/comparison_operators.md %}#comparison-operators) (`=`).
 Such direct comparisons only make sense with scalar subqueries.
 
-Scalar expressions can still be compared to single-column subqueries returning multiple rows by specifying a quantifier. Available quantifiers are `ALL`, `ANY` and `SOME`. The quantifiers `ANY` and `SOME` are equivalent.
+Scalar expressions can still be compared to single-column subqueries returning multiple rows by specifying a quantifier. Available quantifiers are `ALL`, `ANY`, and `SOME`. The quantifiers `ANY` and `SOME` are equivalent.
 
 ### `ALL`
 
@@ -86,7 +89,7 @@ returns:
 |----------|
 | true     |
 
-because 6 is less than or equal to each of the subquery results 7, 8 and 9.
+because 6 is less than or equal to each of the subquery results 7, 8, and 9.
 
 However, the following query
 
@@ -145,7 +148,7 @@ SELECT EXISTS (FROM grades WHERE course = 'History') AS history_grades_present;
 |-----------------------:|
 | false                  |
 
-> The subqueries in the examples above make use of the fact that you can omit the `SELECT *` in DuckDB thanks to the [`FROM`-first syntax]({% link docs/current/sql/query_syntax/from.md %}). The `SELECT` clause is required in subqueries by other SQL systems but cannot fulfill any purpose in `EXISTS` and `NOT EXISTS` subqueries.
+> The subqueries in the examples above make use of the fact that you can omit the `SELECT *` in DuckDB thanks to the [`FROM`-first syntax]({% link docs/2.0/sql/query_syntax/from.md %}). The `SELECT` clause is required in subqueries by other SQL systems but cannot fulfill any purpose in `EXISTS` and `NOT EXISTS` subqueries.
 
 ### `NOT EXISTS`
 
@@ -208,6 +211,8 @@ WHERE grade =
 | 8     | CS     |
 
 The subquery uses a column from the parent query (`grades_parent.course`). Conceptually, we can see the subquery as a function where the correlated column is a parameter to that function:
+
+<!-- test:skip illustrative pseudo-query; the `?` parameter is never bound -->
 
 ```sql
 SELECT min(grade)

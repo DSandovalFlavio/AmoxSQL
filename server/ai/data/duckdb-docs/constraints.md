@@ -2,15 +2,18 @@
 layout: docu
 railroad: statements/constraints.js
 redirect_from:
-- /docs/preview/sql/constraints
 - /docs/sql/constraints
 - /docs/stable/sql/constraints
+- /docs/current/sql/constraints
+- /docs/lts/sql/constraints
+- /docs/preview/sql/constraints
+tested: true
 title: Constraints
 ---
 
-In SQL, constraints can be specified for tables. Constraints enforce certain properties over data that is inserted into a table. Constraints can be specified along with the schema of the table as part of the [`CREATE TABLE` statement]({% link docs/current/sql/statements/create_table.md %}). In certain cases, constraints can also be added to a table using the [`ALTER TABLE` statement]({% link docs/current/sql/statements/alter_table.md %}), but this is not currently supported for all constraints.
+In SQL, constraints can be specified for tables. Constraints enforce certain properties over data that is inserted into a table. Constraints can be specified along with the schema of the table as part of the [`CREATE TABLE` statement]({% link docs/2.0/sql/statements/create_table.md %}). In certain cases, constraints can also be added to a table using the [`ALTER TABLE` statement]({% link docs/2.0/sql/statements/alter_table.md %}), but this is not currently supported for all constraints.
 
-> Warning Constraints have a strong impact on performance: they slow down loading and updates but speed up certain queries. Please consult the [Performance Guide]({% link docs/current/guides/performance/schema.md %}#constraints) for details.
+> Warning Constraints have a strong impact on performance: they slow down loading and updates but speed up certain queries. Please consult the [Performance Guide]({% link docs/2.0/guides/performance/schema.md %}#constraints) for details.
 
 ## Syntax
 
@@ -71,7 +74,7 @@ Constraint Error:
 Duplicate key "id: 1, name: Student 1" violates primary key constraint
 ```
 
-To enforce this property efficiently, an [ART index is automatically created]({% link docs/current/sql/indexes.md %}) for every primary key or unique constraint that is defined in the table.
+To enforce this property efficiently, an [ART index is automatically created]({% link docs/2.0/sql/indexes.md %}) for every primary key or unique constraint that is defined in the table.
 
 Primary key constraints and unique constraints are identical except for two points:
 
@@ -99,7 +102,7 @@ Constraint Error:
 NOT NULL constraint failed: students.id
 ```
 
-> Warning Indexes have certain limitations that might result in constraints being evaluated too eagerly, leading to constraint errors such as `violates primary key constraint` and `violates unique constraint`. See the [Indexes page]({% link docs/current/sql/indexes.md %}#limitations-of-art-indexes) for more details.
+> Warning Indexes have certain limitations that might result in constraints being evaluated too eagerly, leading to constraint errors such as `violates primary key constraint` and `violates unique constraint`. See the [Indexes page]({% link docs/2.0/sql/indexes.md %}#limitations-of-art-indexes) for more details.
 
 You can also define a uniqueness constraint on multiple columns:
 
@@ -139,6 +142,6 @@ Constraint Error:
 Violates foreign key constraint because key "id: 2" does not exist in the referenced table
 ```
 
-To enforce this property efficiently, an [ART index is automatically created]({% link docs/current/sql/indexes.md %}) for every foreign key constraint that is defined in the table.
+To enforce this property efficiently, an [ART index is automatically created]({% link docs/2.0/sql/indexes.md %}) for every foreign key constraint that is defined in the table.
 
-> Warning Indexes have certain limitations that might result in constraints being evaluated too eagerly, leading to constraint errors such as `violates primary key constraint` and `violates unique constraint`. See the [indexes section for more details]({% link docs/current/sql/indexes.md %}#index-limitations).
+> Warning Indexes have certain limitations that might result in constraints being evaluated too eagerly, leading to constraint errors such as `violates primary key constraint` and `violates unique constraint`. See the [indexes section for more details]({% link docs/2.0/sql/indexes.md %}#index-limitations).

@@ -1,15 +1,17 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/functions/datepart
 - /docs/sql/functions/datepart
 - /docs/stable/sql/functions/datepart
+- /docs/current/sql/functions/datepart
+- /docs/lts/sql/functions/datepart
+- /docs/preview/sql/functions/datepart
 title: Date Part Functions
 ---
 
 <!-- markdownlint-disable MD001 -->
 
-The `date_part`, `date_trunc` and `date_diff` functions can be used to extract or manipulate parts of temporal types such as [`TIMESTAMP`]({% link docs/current/sql/data_types/timestamp.md %}), [`TIMESTAMPTZ`]({% link docs/current/sql/data_types/timestamp.md %}), [`DATE`]({% link docs/current/sql/data_types/date.md %}) and [`INTERVAL`]({% link docs/current/sql/data_types/interval.md %}).
+The `date_part`, `date_trunc`, and `date_diff` functions can be used to extract or manipulate parts of temporal types such as [`TIMESTAMP`]({% link docs/2.0/sql/data_types/timestamp.md %}), [`TIMESTAMPTZ`]({% link docs/2.0/sql/data_types/timestamp.md %}), [`DATE`]({% link docs/2.0/sql/data_types/date.md %}), and [`INTERVAL`]({% link docs/2.0/sql/data_types/interval.md %}).
 
 The parts to be extracted or manipulated are specified by one of the strings in the tables below.
 The example column provides the corresponding parts of the timestamp `2021-08-03 11:59:44.123456`.
@@ -26,7 +28,7 @@ Only the entries of the first table can be extracted from `INTERVAL`s or used to
 | `decade` | Gregorian decade | `dec`, `decades`, `decs` | `202` |
 | `hour` | Hours | `hr`, `hours`, `hrs`, `h` | `11` |
 | `microseconds` | Sub-minute microseconds | `microsecond`, `us`, `usec`, `usecs`, `usecond`, `useconds` | `44123456` |
-| `millennium` | Gregorian millennium | `mil`, `millenniums`, `millenia`, `mils`, `millenium` | `3` |
+| `millennium` | Gregorian millennium | `mil`, `millenniums`, `millennia`, `mils`, `millenium` | `3` |
 | `milliseconds` | Sub-minute milliseconds | `millisecond`, `ms`, `msec`, `msecs`, `msecond`, `mseconds` | `44123` |
 | `minute` | Minutes | `min`, `minutes`, `mins`, `m` | `59` |
 | `month` | Gregorian month | `mon`, `months`, `mons` | `8` |
@@ -40,7 +42,7 @@ Only the entries of the first table can be extracted from `INTERVAL`s or used to
 |:--|:--|:---|--:|
 | `dayofweek` | Day of the week (Sunday = 0, Saturday = 6) | `weekday`, `dow` | `2` |
 | `dayofyear` | Day of the year (1-365/366) | `doy` | `215` |
-| `epoch` | Seconds since 1970-01-01 | | `1760465850.6698709` |
+| `epoch` | Seconds since 1970-01-01 | | `1627991984.123456` |
 | `era` | Gregorian era (CE/AD, BCE/BC) | | `1` |
 | `isodow` | ISO day of the week (Monday = 1, Sunday = 7) | | `2` |
 | `isoyear` | ISO Year number (Starts on Monday of week containing Jan 4th) | | `2021` |
@@ -51,7 +53,7 @@ Only the entries of the first table can be extracted from `INTERVAL`s or used to
 | `week` | Week number | `weeks`, `w` | `31` |
 | `yearweek` | ISO year and week number in `YYYYWW` format | | `202131` |
 
-Note that the time zone parts are all zero unless a time zone extension such as [ICU]({% link docs/current/core_extensions/icu.md %})
+Note that the time zone parts are all zero unless a time zone extension such as [ICU]({% link docs/2.0/core_extensions/icu.md %})
 has been installed to support `TIMESTAMP WITH TIME ZONE`.
 
 ## Part Functions
@@ -142,7 +144,7 @@ There are dedicated extraction functions to get certain subfields:
 
 | **Description** | Seconds since 1970-01-01. |
 | **Example** | `epoch(DATE '1992-02-15')` |
-| **Result** | `698112000` |
+| **Result** | `698112000.0` |
 
 #### `era(date)`
 
@@ -242,29 +244,29 @@ There are dedicated extraction functions to get certain subfields:
 | **Example** | `second(timestamp '2021-08-03 11:59:44.123456')` |
 | **Result** | `44` |
 
-#### `timezone_hour(date)`
+#### `timezone_hour(timestamptz)`
 
 <div class="nostroke_table"></div>
 
-| **Description** | Time zone offset hour portion. |
-| **Example** | `timezone_hour(DATE '1992-02-15')` |
-| **Result** | `0` |
+| **Description** | Time zone offset hour portion. Only meaningful for `TIMESTAMP WITH TIME ZONE` values, where the offset is computed for the current `TimeZone` setting. Not supported for `DATE` values. |
+| **Example** | `timezone_hour(TIMESTAMPTZ '1992-02-15 01:00:00+00')` |
+| **Result** | `-5` (with `TimeZone` set to `America/New_York`) |
 
-#### `timezone_minute(date)`
-
-<div class="nostroke_table"></div>
-
-| **Description** | Time zone offset minutes portion. |
-| **Example** | `timezone_minute(DATE '1992-02-15')` |
-| **Result** | `0` |
-
-#### `timezone(date)`
+#### `timezone_minute(timestamptz)`
 
 <div class="nostroke_table"></div>
 
-| **Description** | Time zone offset in minutes. |
-| **Example** | `timezone(DATE '1992-02-15')` |
-| **Result** | `0` |
+| **Description** | Time zone offset minutes portion. Only meaningful for `TIMESTAMP WITH TIME ZONE` values, where the offset is computed for the current `TimeZone` setting. Not supported for `DATE` values. |
+| **Example** | `timezone_minute(TIMESTAMPTZ '1992-02-15 01:00:00+00')` |
+| **Result** | `30` (with `TimeZone` set to `Asia/Kolkata`) |
+
+#### `timezone(timestamptz)`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Time zone offset in seconds. Only meaningful for `TIMESTAMP WITH TIME ZONE` values, where the offset is computed for the current `TimeZone` setting. Not supported for `DATE` values. |
+| **Example** | `timezone(TIMESTAMPTZ '1992-02-15 01:00:00+00')` |
+| **Result** | `-18000` (with `TimeZone` set to `America/New_York`) |
 
 #### `week(date)`
 
