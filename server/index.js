@@ -677,6 +677,13 @@ app.get('/api/files/list', (req, res) => {
 app.post('/api/db/connect', async (req, res) => {
     const { path: dbPath, readOnly } = req.body;
     try {
+        // 6.0: un lago de la 5.x se lee igual, pero la primera escritura lo deja sólo para
+        // la 6. La cabecera se lee ANTES de adjuntarlo: abierto para escribir, el motor
+        // tiene el archivo bloqueado (Windows).
+        let aviso = null;
+        if (!readOnly && typeof dbPath === 'string' && /\.ducklake$/i.test(dbPath)) {
+            try { aviso = require('./lago').avisoDeFormato(path.isAbsolute(dbPath) ? dbPath : path.join(ROOT_DIR, dbPath)); } catch { /* sin aviso */ }
+        }
         await dbManager.connect(dbPath, ROOT_DIR, { readOnly: !!readOnly });
 
         // Initialize AI persistence schema for this project's database.
@@ -697,7 +704,7 @@ app.post('/api/db/connect', async (req, res) => {
             // dejó en la del proyecto se sigue leyendo, sin tocarlo.
         }
 
-        res.json({ success: true, path: dbManager.getCurrentPath() });
+        res.json({ success: true, path: dbManager.getCurrentPath(), ...(aviso ? { aviso } : {}) });
 
         // Las extensiones se calientan DESPUES de responder: el usuario ya esta
         // entrando al IDE mientras se cargan. Aqui es el unico punto donde de

@@ -430,7 +430,17 @@ class DatabaseManager {
             console.log(`[DB Manager] Attaching: ${attachSql}`);
 
             // Execute SQL ATTACH — instance-wide, visible to every lane
-            await this.query(attachSql);
+            try {
+                await this.query(attachSql);
+            } catch (e) {
+                // Un lago que viajó con su carpeta (otro proyecto, otra máquina, una
+                // carpeta sincronizada con otra letra): el catálogo guarda la ruta de
+                // los datos de donde se creó. Si `<lago>.files` está al lado, son esos
+                // datos: se abre con ellos. OVERRIDE_DATA_PATH no escribe en el catálogo.
+                if (!isDuckLake || !/does not match existing data path/i.test(e?.message || '') || !fs.existsSync(`${fullPath}.files`)) throw e;
+                console.warn('[DB Manager] The lake moved: opening it with the data folder next to it.');
+                await this.query(attachSql.replace(/\)$/, ', OVERRIDE_DATA_PATH true)'));
+            }
             if (!isDuckLake) await this._ajustarAlias(fullPath, options);
 
             this.attachedPath = fullPath;

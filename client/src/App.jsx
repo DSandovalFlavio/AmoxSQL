@@ -855,6 +855,8 @@ function App() {
           const d = await response.json();
           setCurrentDb(d.path);
           setDbReadOnly(!!readOnly);
+          // 6.0: un lago de la 5.x — leerlo no lo cambia; la primera escritura sí.
+          if (d.aviso) toast.warning(d.aviso);
         } else {
           toast.warning("Connect failed. Starting in memory.");
           setCurrentDb(':memory:');
