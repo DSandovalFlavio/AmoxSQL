@@ -31,12 +31,13 @@
  * dice lo que es y no se abre. Verlos de verdad es otra tarea; enseñar ruido no
  * es una versión aproximada de eso, es peor que no hacer nada.
  */
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
 import { atajosGlobalesEnMonaco } from '../utils/atajosEnMonaco.js';
 import { LuFileText, LuFileLock2 } from 'react-icons/lu';
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import { tipoDeArchivo } from '../utils/tiposDeArchivo.js';
+import { conectarAsistente } from './ai/revision/conectarAsistente.jsx';
 import './TextEditor.css';
 
 /** Cómo se llama cada idioma cuando se lo enseñas a una persona. */
@@ -52,6 +53,20 @@ const TextEditor = ({ tab, onChange, editorSettings = {} }) => {
     const info = useMemo(() => tipoDeArchivo(tab.path || tab.name), [tab.path, tab.name]);
 
     const alMontar = useCallback((monaco) => { registerMonaco(monaco); }, []);
+
+    // El Assistant en el editor (plan del Assistant, E2): foco, barra sobre la
+    // selección y propuestas revisadas aquí, como en el de SQL pero sin ejecutar.
+    const pestanaRef = useRef(tab);
+    pestanaRef.current = tab;
+    const quitarAsistente = useRef(null);
+    useEffect(() => () => quitarAsistente.current?.(), []);
+    const alListo = useCallback((editor, monaco) => {
+        atajosGlobalesEnMonaco(editor, monaco);
+        quitarAsistente.current?.();
+        quitarAsistente.current = conectarAsistente(editor, monaco, () => ({
+            tabId: pestanaRef.current.id, ruta: pestanaRef.current.path || null, tipo: 'texto',
+        }));
+    }, []);
 
     const opciones = useMemo(() => ({
         minimap: { enabled: editorSettings.minimap ?? false },
@@ -96,7 +111,7 @@ const TextEditor = ({ tab, onChange, editorSettings = {} }) => {
                     language={info.idioma || 'plaintext'}
                     theme={MONACO_THEME_NAME}
                     beforeMount={alMontar}
-                    onMount={(editor, monaco) => atajosGlobalesEnMonaco(editor, monaco)}
+                    onMount={alListo}
                     onChange={(val) => onChange(val ?? '')}
                     options={opciones}
                 />

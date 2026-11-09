@@ -412,6 +412,8 @@ class AiManager {
             conversationId = null,
             memoriasRetenidas = false,
             archivo = null,
+            enfoque = null,
+            dbt = null,
         } = politica.sanearOpciones(options, options.providerOverride || this.provider);
 
         const provider = providerOverride || this.provider;
@@ -437,7 +439,7 @@ class AiManager {
             currentQuery, currentResult, currentChartConfig, currentView,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
-            filePath, fileType, archivo, tableRoster, thinkTokenPrefix,
+            filePath, fileType, archivo, enfoque, dbt, tableRoster, thinkTokenPrefix,
         });
 
         // Create tool context (mode-aware for tool filtering)
@@ -547,6 +549,8 @@ class AiManager {
             conversationId = null,
             memoriasRetenidas = false,
             archivo = null,
+            enfoque = null,
+            dbt = null,
         } = politica.sanearOpciones(options, options.providerOverride || this.provider);
 
         const provider = providerOverride || this.provider;
@@ -571,7 +575,7 @@ class AiManager {
             currentQuery, currentResult, currentChartConfig, currentView,
             referencedArtifacts,
             activeSkill, modelProfile: profile,
-            filePath, fileType, archivo, tableRoster, thinkTokenPrefix,
+            filePath, fileType, archivo, enfoque, dbt, tableRoster, thinkTokenPrefix,
         });
 
         const queryResults = new Map();

@@ -26,7 +26,8 @@ import { leerAmoxvis, textoAmoxvis } from './DataVisualizer/vega/figura';
 import { leerBorrador } from '../utils/borradorGrafico';
 import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
 import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
-import { olvidarPestanas, editorDe } from '../utils/memoriaDePestana';
+import { olvidarPestanas, editorDe, focoDe } from '../utils/memoriaDePestana';
+import { aplicarRango, describirRango } from './ai/archivos/rango.js';
 
 /**
  * Un .sql se abre con el gráfico que tenía la última vez (Dec-79): la vista
@@ -1724,6 +1725,50 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             toast.info('Assist changed the file. Review it before saving (Ctrl+Z undoes it).');
         },
 
+        // ─── AI Integration: an accepted propose_change (plan del Assistant, E2) ───
+        // Only the lines it changes, wherever they are now (`ubicarRango`): the user
+        // may have typed above them since. One edit through Monaco, so the cursor
+        // stays where it was and Ctrl+Z undoes it. Returns { ok } or { error }.
+        aplicarPropuesta: (resultado) => {
+            const tab = getActiveTab();
+            if (!tab) return { error: 'No file is open.' };
+            const ed = editorDe(tab.id);
+            const modelo = ed?.getModel();
+            const texto = modelo ? modelo.getValue() : (tab.content || '');
+            const r = aplicarRango(texto, resultado);
+            if (r.error) return { error: r.error };
+            if (!modelo) {
+                updateTab(activePane, tab.id, { content: r.texto, dirty: true });
+            } else {
+                const { desde, hasta } = r.donde;
+                const n = modelo.getLineCount();
+                const fin = (l) => modelo.getLineMaxColumn(l);
+                const nuevo = String(resultado.contenido ?? '').replace(/\r/g, '');
+                let range, text;
+                if (hasta >= desde && nuevo !== '') {
+                    range = { startLineNumber: desde, startColumn: 1, endLineNumber: hasta, endColumn: fin(hasta) };
+                    text = nuevo;
+                } else if (hasta >= desde) {
+                    // Borrar las líneas enteras, con su salto.
+                    range = hasta < n
+                        ? { startLineNumber: desde, startColumn: 1, endLineNumber: hasta + 1, endColumn: 1 }
+                        : { startLineNumber: Math.max(1, desde - 1), startColumn: desde > 1 ? fin(desde - 1) : 1, endLineNumber: hasta, endColumn: fin(hasta) };
+                    text = '';
+                } else if (desde <= n) {
+                    range = { startLineNumber: desde, startColumn: 1, endLineNumber: desde, endColumn: 1 };
+                    text = `${nuevo}\n`;
+                } else {
+                    range = { startLineNumber: n, startColumn: fin(n), endLineNumber: n, endColumn: fin(n) };
+                    text = `\n${nuevo}`;
+                }
+                ed.pushUndoStop();
+                ed.executeEdits('assist', [{ range, text, forceMoveMarkers: true }]);
+                ed.pushUndoStop();
+            }
+            toast.info(`Applied to ${describirRango(resultado, r.donde)}. Ctrl+Z undoes it.`);
+            return { ok: true };
+        },
+
         // ─── AI Integration: insert SQL from the chat (plan del Assistant, A2) ───
         // At the cursor, or over the selected text; never the whole file (that
         // was «Apply to editor»: it replaced everything else with no warning).
@@ -1782,6 +1827,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             const tab = getActiveTab();
             if (!tab) return null;
             return {
+                id: tab.id,
                 path: tab.path,
                 name: tab.name,
                 type: tab.type,
@@ -1791,6 +1837,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 chartConfig: tab.chartConfig || tab.initialChartConfig || null,
                 activeView: tab.viewMode || null,
                 dirty: tab.dirty,
+                // E2: what failed (S1) and where the user is (selection / statement).
+                resultsError: tab.resultsError || null,
+                foco: focoDe(tab.id),
             };
         },
 

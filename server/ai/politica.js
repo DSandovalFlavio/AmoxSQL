@@ -184,7 +184,13 @@ function sanearOpciones(opciones, proveedor) {
             datos, local: esLocal(proveedor),
         });
         o.currentQuery = o.archivo.tipo === 'sql' ? o.archivo.contenido : '';
+        // Dónde está el usuario y qué falló (E2), con la misma política: la
+        // selección solo si el archivo sale, el error sin los valores que cite.
+        const { prepararFoco } = require('./archivoActivo');
+        o.enfoque = prepararFoco({ archivo: o.archivo, foco: o.foco, error: o.resultsError, datos });
     }
+    delete o.foco;
+    delete o.resultsError;
     if (datos === 'filas') return o;
     if (o.currentResult) o.currentResult = filtrarValor(o.currentResult, datos);
     if (Array.isArray(o.referencedArtifacts)) o.referencedArtifacts = o.referencedArtifacts.map(r => filtrarValor(r, datos));

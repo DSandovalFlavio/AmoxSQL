@@ -7,6 +7,7 @@ import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import { splitSqlStatements } from '../utils/sqlSplitter';
 import { atajosGlobalesEnMonaco } from '../utils/atajosEnMonaco.js';
 import { modeloDe } from '../utils/memoriaDePestana.js';
+import { conectarAsistente } from './ai/revision/conectarAsistente.jsx';
 import * as dbtCompletado from '../utils/dbtCompletado.js';
 
 // 5.12 (I12, Dec-35): el catálogo de dbt del proyecto abierto, compartido por todos
@@ -371,6 +372,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     const marcarDbtRef = React.useRef(null);
     const idiomaRef = React.useRef(props.language);
     idiomaRef.current = props.language;
+    const rutaArchivoRef = React.useRef(props.rutaArchivo);
+    rutaArchivoRef.current = props.rutaArchivo;
 
     React.useEffect(() => {
         onDebugCteRef.current = props.onDebugCte;
@@ -393,6 +396,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 inicial?.dispose();
             }
             if (modelo.getValue() !== (value ?? '')) setValueSilently(editor, value);
+        }
+
+        // El Assistant en el editor (plan del Assistant, E2): el foco, la barra
+        // sobre la selección y las propuestas revisadas aquí. Solo en el editor
+        // de las pestañas (un modelo por pestaña), no en celdas ni tarjetas.
+        if (props.modeloPorPestana) {
+            const quitar = conectarAsistente(editor, monaco, () => ({
+                tabId: activeTabIdRef.current,
+                ruta: rutaArchivoRef.current || null,
+                tipo: (idiomaRef.current || 'sql') === 'sql' ? 'sql' : 'texto',
+            }));
+            disposablesRef.current.push({ dispose: quitar });
         }
 
         // Monaco measures glyph widths at init; if the editor font finishes

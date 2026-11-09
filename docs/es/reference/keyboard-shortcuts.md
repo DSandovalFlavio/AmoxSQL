@@ -61,7 +61,7 @@ AmoxSQL está pensado para operarse con el teclado. Esta página lista todos los
 | Atajo | Acción |
 |---|---|
 | Ctrl + B | Mostrar u ocultar la barra lateral |
-| Ctrl + L | Mostrar u ocultar Assist |
+| Ctrl + L | Mostrar u ocultar Assist; con texto seleccionado, preguntar por él |
 | Ctrl + Shift + E | Ir al explorador de archivos |
 | Ctrl + Shift + D | Ir al esquema de la base de datos |
 

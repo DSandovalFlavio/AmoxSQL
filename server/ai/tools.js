@@ -1112,7 +1112,70 @@ function createTools(context) {
         // estructurados (gráfico, Data Flow, Canvas, diagrama) reescribir el
         // fuente a mano lo rompe o no se ve, y si el modelo no ve el archivo
         // entero (recortado o con partes retenidas) perdería lo que no ve.
-        if (!archivo || archivo.puedeProponer) {
+        // propose_change (E2): en los archivos que se cambian por líneas (.sql,
+        // texto), un RANGO en lugar del archivo entero. El modelo ve las líneas
+        // numeradas; aquí se comprueba que el rango exista y, si manda el texto que
+        // cree reemplazar, que coincida (o se busca dónde está). La respuesta lleva
+        // `original` y las líneas vecinas: el cliente ubica el cambio aunque el
+        // archivo se haya movido, y lo da por caducado si esa parte cambió.
+        if (archivo && archivo.porLineas && archivo.puedeProponer) {
+            allTools.propose_change = tool({
+                description: "Propose replacing a range of lines of the ACTIVE file. The user reviews it as a diff in their editor and accepts or rejects it; nothing is saved to disk. Use the line numbers shown in 'Current editor state'. Change only the lines the request needs. To insert without replacing anything, set end_line = start_line - 1 (the text goes before start_line); to add at the end, start_line = last line + 1.",
+                inputSchema: z.object({
+                    target: z.discriminatedUnion('kind', [
+                        z.object({
+                            kind: z.literal('lines'),
+                            start_line: z.number().int().min(1).describe('First line replaced (1-based).'),
+                            end_line: z.number().int().min(0).describe('Last line replaced, inclusive. start_line - 1 to insert without replacing.'),
+                            current_text: z.string().optional().describe('The exact current text of those lines (without line-number prefixes), to make sure the change lands in the right place.'),
+                        }),
+                    ]),
+                    new_text: z.string().describe('The new text for those lines, without line-number prefixes. Empty string deletes them.'),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ target, new_text: nuevo, summary = '' }) => {
+                    const lineas = String(archivo.contenido || '').split(/\r?\n/);
+                    const n = lineas.length;
+                    let desde = target.start_line;
+                    let hasta = target.end_line;
+                    if (desde > n + 1 || hasta < desde - 1 || hasta > n) {
+                        return { error: `The file has ${n} lines: start_line must be 1–${n + 1} and end_line between start_line - 1 and ${n}.` };
+                    }
+                    const sinPrefijo = (t) => String(t || '').replace(/\r/g, '').split('\n').map(l => l.replace(/^\s*\d+\s\|\s?/, ''));
+                    const igual = (a, b) => a.length === b.length && a.every((l, i) => l.trimEnd() === b[i].trimEnd());
+                    if (target.current_text !== undefined && target.current_text.trim()) {
+                        const buscado = sinPrefijo(target.current_text);
+                        if (!igual(lineas.slice(desde - 1, hasta), buscado)) {
+                            // El texto existe en otro sitio (números corridos): se corrige el rango si es único.
+                            const hallados = [];
+                            for (let i = 0; i + buscado.length <= n; i++) {
+                                if (igual(lineas.slice(i, i + buscado.length), buscado)) hallados.push(i);
+                            }
+                            if (hallados.length !== 1) {
+                                return { error: `Lines ${desde}–${hasta} are:\n${lineas.slice(desde - 1, hasta).join('\n') || '(nothing: it is an insertion point)'}\nThey don't match current_text${hallados.length > 1 ? ', which appears more than once' : ''}. Check the line numbers and call again.` };
+                            }
+                            desde = hallados[0] + 1;
+                            hasta = hallados[0] + buscado.length;
+                        }
+                    }
+                    const original = lineas.slice(desde - 1, hasta).join('\n');
+                    const contenido = sinPrefijo(nuevo).join('\n');
+                    if (contenido === original) return { error: 'new_text is the same as the current lines: there is nothing to change.' };
+                    return {
+                        success: true,
+                        action: 'propose_change',
+                        objetivo: { tipo: 'rango', desde, hasta },
+                        contenido,
+                        original,
+                        // Las líneas vecinas: con ellas se ubica una inserción (que no tiene `original`).
+                        ancla: { antes: desde > 1 ? lineas[desde - 2] : null, despues: hasta < n ? lineas[hasta] : null },
+                        resumen: summary,
+                    };
+                },
+            });
+        }
+
+        if (!archivo || (archivo.puedeProponer && !archivo.porLineas)) {
             allTools.write_file = tool({
                 description: "Propose a new version of the ACTIVE file. The user reviews it in the chat and clicks Accept or Reject; accepting puts it in the editor without saving to disk. Send the COMPLETE file content, keeping every part you were not asked to change exactly as it is.",
                 inputSchema: z.object({

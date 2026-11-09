@@ -512,7 +512,7 @@ function extractCitations(toolCalls) {
  * User messages render as right-aligned bubbles, assistant messages as
  * left-aligned cards with avatar and grouped content sections.
  */
-const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, thinkingMs, onRunSql, onInsertar, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, acceptEdit, rejectEdit, onProponerDeNuevo, currentFileContent, activityOnly = false }) => {
+const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStreaming, thinkingMs, onRunSql, onInsertar, onApplyChart, onFollowUp, onExportNotebook, onExportAmoxvis, onOpenFile, acceptEdit, rejectEdit, onProponerDeNuevo, onRevisar, currentFileContent, activityOnly = false }) => {
     const isUser = role === 'user';
     const isAssistant = role === 'assistant';
 
@@ -624,6 +624,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         onAccept={acceptEdit}
                         onReject={rejectEdit}
                         onProponerDeNuevo={onProponerDeNuevo}
+                        onRevisar={onRevisar}
                     />
                 ))}
 

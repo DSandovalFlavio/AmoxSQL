@@ -101,6 +101,55 @@ function sinValoresDeVega(nodo) {
     return out;
 }
 
+/**
+ * Los archivos del proyecto que AmoxSQL entiende en otro sitio (T3): el modelo
+ * tiene que saber qué es un `metrics.yml` para tocarlo bien.
+ */
+function conocido(filePath) {
+    const r = String(filePath || '').replace(/\\/g, '/').toLowerCase();
+    const base = r.split('/').pop();
+    if (/(^|\/)context\/metrics\.ya?ml$/.test(r)) return 'The project\'s measures (metrics.yml): each metric becomes a SQL function named after it, with its columns as arguments, usable in any query of this project.';
+    if (/(^|\/)context\/joins\.ya?ml$/.test(r)) return 'How the tables of this project join (joins.yml): AmoxSQL\'s AI reads it to write joins.';
+    if (base === 'dbt_project.yml') return 'The dbt project configuration.';
+    if (/(^|\/)(models|snapshots|seeds|macros)\/.*\.ya?ml$/.test(r)) return 'A dbt properties file: descriptions and tests of models and their columns.';
+    if (/(^|\/)\.amoxsql\/project\.json$/.test(r)) return 'AmoxSQL\'s project manifest: keep every key you were not asked to change.';
+    if (/(^|\/)fuentes\/[^/]+\.json$/.test(r)) return 'A named source of AmoxSQL (where a file or folder is read from and how).';
+    return null;
+}
+
+/** Quita los valores entre comillas de un mensaje de error (pueden ser datos de una fila). */
+function sinLiterales(texto) {
+    return String(texto || '').replace(/'(?:[^'\n]|'')*'/g, "'…'").replace(/"(?:[^"\n]){40,}"/g, '"…"');
+}
+
+/**
+ * Dónde está el usuario y qué falló (E2): la selección o la sentencia bajo el
+ * cursor, y el error de la última ejecución. Con la política, el error sale sin
+ * los valores que cita; si el archivo no sale, tampoco su selección.
+ *
+ * @param {object|null} foco - `{ seleccion: { texto, desde, hasta } | null, sentencia: { desde, hasta } | null }`
+ */
+function prepararFoco({ archivo, foco = null, error = null, datos = 'filas' }) {
+    const out = {};
+    if (archivo && !archivo.retenido && foco && typeof foco === 'object') {
+        const lineas = String(archivo.contenido || '').split(/\r?\n/);
+        const rango = (r) => (r && Number.isInteger(r.desde) && Number.isInteger(r.hasta) && r.desde >= 1 && r.hasta >= r.desde && r.desde <= lineas.length
+            ? { desde: r.desde, hasta: Math.min(r.hasta, lineas.length) } : null);
+        const sel = rango(foco.seleccion);
+        if (sel && String(foco.seleccion.texto || '').trim()) {
+            out.seleccion = { ...sel, texto: String(foco.seleccion.texto).slice(0, 4000) };
+        } else {
+            const s = rango(foco.sentencia);
+            if (s) out.sentencia = { ...s, texto: lineas.slice(s.desde - 1, s.hasta).join('\n').slice(0, 4000) };
+        }
+    }
+    if (error && String(error).trim()) {
+        const e = String(error).slice(0, 1500);
+        out.error = datos === 'filas' ? e : sinLiterales(e);
+    }
+    return out;
+}
+
 /** Recorta al tope por líneas enteras y dice cuánto quedó fuera. */
 function recortar(texto, tope = TOPE) {
     if (texto.length <= tope) return { texto, recortado: false };
@@ -191,7 +240,12 @@ function prepararArchivo({ filePath = null, fileType = null, contenido = '', dat
     return {
         tipo, nombre: def.nombre, ruta: filePath, idioma, contenido: r.texto, notas,
         puedeProponer: def.propone && !retenido && !r.recortado, retenido,
+        // Qué es, si es un archivo del proyecto que AmoxSQL entiende (T3).
+        descripcion: conocido(filePath),
+        // Los tipos que se cambian por líneas (E2): el prompt numera sus líneas
+        // y el modelo propone un rango con `propose_change`.
+        porLineas: tipo === 'sql' || tipo === 'texto',
     };
 }
 
-module.exports = { prepararArchivo, tipoDe, esCredencial, TIPOS, TOPE };
+module.exports = { prepararArchivo, prepararFoco, sinLiterales, conocido, tipoDe, esCredencial, TIPOS, TOPE };

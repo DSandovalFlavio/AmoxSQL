@@ -53,7 +53,7 @@ export const ATAJOS = [
     A('duplicar', 'Ctrl+Shift+\\', 'Tabs', 'Duplicate the tab to the other pane', 'Duplicar la pestaña al otro panel'),
 
     A('lateral', 'Ctrl+B', 'Panels', 'Show or hide the sidebar', 'Mostrar u ocultar la barra lateral'),
-    A('assist', 'Ctrl+L', 'Panels', 'Show or hide Assist', 'Mostrar u ocultar Assist'),
+    A('assist', 'Ctrl+L', 'Panels', 'Show or hide Assist; with text selected, ask about it', 'Mostrar u ocultar Assist; con texto seleccionado, preguntar por él'),
     A('archivos', 'Ctrl+Shift+E', 'Panels', 'Go to the file explorer', 'Ir al explorador de archivos'),
     A('esquema', 'Ctrl+Shift+D', 'Panels', 'Go to the database schema', 'Ir al esquema de la base de datos'),
 

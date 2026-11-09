@@ -469,6 +469,8 @@
 .cdn-btn--corre { background: var(--accent-primary); color: var(--surface-base); border-color: transparent; }
 .cdn-btn--corre:hover { background: color-mix(in oklch, var(--accent-primary) 85%, black); color: var(--surface-base); }
 .cdn-btn:disabled { opacity: .45; cursor: default; }
+/* Assist abierto: el mismo botón, marcado (antes decía «Close Assist»). */
+.cdn-btn--activo { color: var(--accent-primary); border-color: var(--accent-primary); }
 
 /* ── el cuerpo: editor | resultado ──────────────────────────────────────── */
 /* DOS variables y no una. Con `var(--reparto) 7px minmax(0,1fr)`, un reparto de

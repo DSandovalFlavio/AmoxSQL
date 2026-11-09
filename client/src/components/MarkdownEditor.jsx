@@ -2,8 +2,7 @@ import { API_BASE } from '../api.js';
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import Editor from '@monaco-editor/react';
 import {
-    LuSave, LuBot, LuX, LuPencilLine, LuEye, LuColumns2, LuPanelLeft,
-} from 'react-icons/lu';
+    LuSave, LuX, LuPencilLine, LuEye, LuColumns2, LuPanelLeft, LuSparkles } from 'react-icons/lu';
 import './MarkdownEditor.css';
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import MarkdownPreview from './markdown/MarkdownPreview';
@@ -1193,10 +1192,11 @@ ${snippet}` : snippet);
                                     <button
                                         className={`mde-top-ghost${showAiSidebar ? ' acento' : ''}`}
                                         onClick={onToggleAi}
-                                        title="Abrir o cerrar el asistente"
+                                        title="Assist (Ctrl+L)"
+                                        aria-pressed={!!showAiSidebar}
                                     >
-                                        {showAiSidebar ? <LuX size={13} /> : <LuBot size={13} />}
-                                        <span>{showAiSidebar ? 'Close' : 'Assist'}</span>
+                                        <LuSparkles size={13} />
+                                        <span>Assist</span>
                                     </button>
                                 )}
                             </>

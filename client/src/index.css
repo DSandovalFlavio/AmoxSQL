@@ -4338,7 +4338,18 @@ tr:hover .rt-td--pinned {
   color: var(--feedback-error);
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
 }
+.ep-error-texto { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+/* E2: «Fix with Assist» junto al error. */
+.ep-error-asistir {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 6px; border: 1px solid var(--accent-primary);
+  background: transparent; color: var(--accent-primary); font: inherit; font-size: var(--text-xs); font-weight: 600; cursor: pointer;
+}
+.ep-error-asistir:hover { background: var(--hover-bg); }
 
 .ep-no-results {
   padding: var(--space-3);
@@ -5568,6 +5579,44 @@ tr:hover .rt-td--pinned {
 .ai-propuesta__titulo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ai-propuesta__error { margin-top: 4px; padding: 5px 10px; font-size: 11.5px; color: var(--color-error-text); background: var(--color-error-bg); border-radius: 4px; }
 .ai-propuesta__mas { color: var(--text-tertiary); padding: 4px 8px; }
+.ai-propuesta__cuenta { display: inline-flex; gap: 6px; font-size: 11px; margin-left: auto; padding-left: 8px; }
+.ai-propuesta__suma { color: var(--color-success-text); }
+.ai-propuesta__resta { color: var(--color-error-text); }
+.ai-propuesta__plegadas { color: var(--text-tertiary); padding: 2px 8px; font-style: italic; }
+.ai-propuesta__acciones--pie { padding: 6px 8px; border-top: 1px solid var(--border-subtle); }
+.ai-edit-proposal__line--removed { background: var(--color-error-bg); }
+.ai-edit-proposal__line--removed .ai-edit-proposal__line-marker { color: var(--color-error-text); }
+.ai-edit-proposal__line--removed .ai-edit-proposal__line-content { text-decoration: line-through; text-decoration-color: var(--color-error-text); color: var(--text-secondary); }
+.ai-quick-action--aviso { border-color: var(--color-error); color: var(--color-error-text); }
+
+/* ── La propuesta dentro del editor y la barra sobre la selección (plan del Assistant, E2) ── */
+.amx-rev-sale { background: var(--color-error-bg); }
+.amx-rev-sale-margen { background: var(--color-error); width: 3px !important; margin-left: 3px; }
+.amx-rev-entra { background: var(--color-success-bg); border-left: 3px solid var(--color-success); color: var(--text-primary); white-space: pre; overflow: hidden; padding-left: 6px; box-sizing: border-box; }
+.amx-rev-entra-linea { white-space: pre; }
+.amx-rev-widget { z-index: 5; }
+.amx-rev-barra, .amx-sel-barra {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 8px;
+  background: var(--surface-overlay); border: 1px solid var(--border-default); border-radius: 7px;
+  box-shadow: var(--shadow-md); font-family: var(--font-sans, inherit); font-size: 12px; color: var(--text-secondary);
+  white-space: nowrap; user-select: none;
+}
+.amx-rev-barra-icono, .amx-sel-icono { color: var(--accent-primary); flex: none; }
+.amx-rev-barra-titulo { color: var(--text-primary); font-weight: 600; }
+.amx-rev-barra-desc { max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.amx-rev-barra-nota { display: inline-flex; align-items: center; gap: 4px; color: var(--text-tertiary); font-size: 11px; padding: 0 4px; }
+.amx-rev-btn, .amx-sel-btn {
+  display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 5px; border: 1px solid var(--border-subtle);
+  background: var(--surface-raised); color: var(--text-primary); font: inherit; font-weight: 600; cursor: pointer;
+}
+.amx-rev-btn:hover, .amx-sel-btn:hover { background: var(--hover-bg); }
+.amx-rev-btn--ok { background: var(--accent-primary); color: var(--button-text-color); border-color: transparent; }
+.amx-rev-btn--ok:hover { background: var(--accent-primary); opacity: 0.88; }
+.amx-rev-btn--fant { background: transparent; border-color: transparent; color: var(--text-secondary); font-weight: 500; }
+.amx-sel-btn { border-color: transparent; background: transparent; }
+.amx-sel-btn--prim { color: var(--accent-primary); }
+.amx-sel-btn kbd { font-family: var(--font-mono, monospace); font-size: 10px; color: var(--text-tertiary); border: 1px solid var(--border-subtle); border-radius: 3px; padding: 0 3px; }
+.amx-sel-widget { z-index: 6; padding-top: 4px; }
 
 /* ── AI Conversation List — Linear: grouped sidebar panel ── */
 

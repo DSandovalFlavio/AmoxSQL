@@ -61,7 +61,7 @@ AmoxSQL is built to be driven from the keyboard. This page lists every available
 | Shortcut | Action |
 |---|---|
 | Ctrl + B | Show or hide the sidebar |
-| Ctrl + L | Show or hide Assist |
+| Ctrl + L | Show or hide Assist; with text selected, ask about it |
 | Ctrl + Shift + E | Go to the file explorer |
 | Ctrl + Shift + D | Go to the database schema |
 

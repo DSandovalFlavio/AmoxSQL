@@ -605,6 +605,10 @@ export default function useAiChat({
             if (filePath) requestBody.filePath = filePath;
             if (fileType) requestBody.fileType = fileType;
             if (ctxContent) requestBody.currentQuery = ctxContent;
+            // E2: where the user is (selection / statement under the cursor) and what
+            // failed on the last run. The server passes both through the AI policy.
+            if (liveCtx?.foco) requestBody.foco = liveCtx.foco;
+            if (liveCtx?.resultsError) requestBody.resultsError = String(liveCtx.resultsError).slice(0, 2000);
             // Rendering context: let the agent choose chart palettes that harmonize
             // with the user's active theme and read on the current light/dark mode.
             try {
@@ -1272,7 +1276,11 @@ export default function useAiChat({
             setRevisionPropuestas(n => n + 1);
             return { error: 'The file changed since this was proposed.' };
         }
-        if (onEditFile) onEditFile(tc.result);
+        const r = onEditFile ? onEditFile(tc.result) : null;
+        if (r?.error) {
+            setRevisionPropuestas(n => n + 1);
+            return { error: r.error };
+        }
         guardarDecision(tc.toolCallId, 'aplicada');
         return { ok: true };
     }, [guardarDecision, onEditFile, onOpenFile, getFileContext]);

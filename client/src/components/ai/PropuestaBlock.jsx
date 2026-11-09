@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { LuCheck, LuX, LuFilePlus2, LuFilePen, LuHistory, LuRefreshCw, LuChevronDown, LuChevronRight, LuLoader } from 'react-icons/lu';
 import EditProposalBlock from './EditProposalBlock';
 import { estadoDe, esArchivoNuevo } from './propuestas';
+import { esDeRango, ubicarRango } from './archivos/rango.js';
+import { describirPropuesta } from './archivos/index.js';
 
 /**
  * **Una propuesta del Assistant, como lo que es** (plan del Assistant, E1/A1).
@@ -20,7 +22,7 @@ import { estadoDe, esArchivoNuevo } from './propuestas';
  * Mientras el modelo escribe (`enCurso`), solo se anuncia: decidir sobre algo
  * que aún no terminó de llegar no tiene sentido.
  */
-const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReject, onProponerDeNuevo }) => {
+const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReject, onProponerDeNuevo, onRevisar }) => {
     const [ocupada, setOcupada] = useState(false);
     const [error, setError] = useState(null);
     const [verContenido, setVerContenido] = useState(false);
@@ -31,7 +33,7 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
         return (
             <div className="ai-propuesta ai-propuesta--compacta">
                 {nuevo ? <LuFilePlus2 size={13} /> : <LuFilePen size={13} />}
-                <span>{nuevo ? <>Proposing <code>{r.path}</code></> : 'Proposing a change to this file'}</span>
+                <span>{nuevo ? <>Proposing <code>{r.path}</code></> : esDeRango(r) ? `Proposing a change to ${describirPropuesta(r).replace(/^(Change to|Insert) /, '')}` : 'Proposing a change to this file'}</span>
             </div>
         );
     }
@@ -55,7 +57,7 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
                     {aplicada
                         ? (nuevo ? <>Created <code>{r.path}</code></> : 'Applied to the editor')
                         : (nuevo ? <>Did not create <code>{r.path}</code></> : 'Rejected')}
-                    {r.description && !nuevo ? <span className="ai-propuesta__desc"> — {r.description}</span> : null}
+                    {(r.description || r.resumen) && !nuevo ? <span className="ai-propuesta__desc"> — {r.description || r.resumen}</span> : null}
                 </span>
             </div>
         );
@@ -68,7 +70,9 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
                     <LuHistory size={13} />
                     <span>
                         {estado === 'caducada'
-                            ? 'The file changed since this was proposed, so applying it would undo your edits.'
+                            ? (esDeRango(r)
+                                ? 'Those lines changed since this was proposed, so it no longer fits.'
+                                : 'The file changed since this was proposed, so applying it would undo your edits.')
                             : nuevo
                                 ? <>Proposed <code>{r.path}</code> in an earlier session.</>
                                 : 'A change proposed in an earlier session. It may not match the file anymore.'}
@@ -87,6 +91,26 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
                     )}
                 </div>
             </div>
+        );
+    }
+
+    // E2: some lines of the file. The diff is just those lines; Review shows it in
+    // the editor, drawn on the file itself.
+    if (esDeRango(r)) {
+        const donde = contenidoActual != null ? ubicarRango(contenidoActual, r) : null;
+        return (
+            <>
+                <EditProposalBlock
+                    titulo={describirPropuesta(r, donde)}
+                    currentContent={r.objetivo.hasta >= r.objetivo.desde ? r.original : []}
+                    proposedContent={r.contenido === '' ? [] : r.contenido}
+                    description={r.resumen}
+                    onRevisar={onRevisar ? () => onRevisar(tc.toolCallId) : undefined}
+                    onAccept={aceptar}
+                    onReject={() => onReject && onReject(tc)}
+                />
+                {error && <div className="ai-propuesta__error">{error}</div>}
+            </>
         );
     }
 

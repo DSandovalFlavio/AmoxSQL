@@ -1,6 +1,7 @@
 /**
- * El Assistant de los archivos (plan `docs/dev/plan_ux_assistant.md`), fase E1:
- * que no rompa ni filtre.
+ * El Assistant de los archivos (plan `docs/dev/plan_ux_assistant.md`): E1 (que no
+ * rompa ni filtre) y E2 (por líneas: el diff, la ubicación de una propuesta, el
+ * foco, el error, el prompt numerado y `propose_change`).
  *
  *     node scripts/probarAssist.mjs
  *
@@ -140,10 +141,10 @@ console.log('\nlas herramientas');
 {
     const con = (tipo) => createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant',
         archivo: prepararArchivo({ filePath: `x.${tipo}`, fileType: tipo, contenido: 'x' }) });
-    bien('write_file en .sql, notebook y deck', ['sql', 'sqlnb', 'amoxdeck'].every(t => !!con(t).write_file));
+    bien('write_file en notebook y deck (el .sql usa propose_change desde E2)', ['sqlnb', 'amoxdeck'].every(t => !!con(t).write_file) && !con('sql').write_file);
     bien('sin write_file en gráfico, Data Flow, Canvas y diagrama', ['amoxvis', 'sqlchain', 'amoxcanvas', 'amoxdiagram'].every(t => !con(t).write_file));
     bien('propose_file en todos', ['sql', 'amoxcanvas'].every(t => !!con(t).propose_file));
-    const t = con('sql');
+    const t = con('sqlnb');
     const w = await t.write_file.execute({ content: 'SELECT 2', mode: 'create', file_path: 'queries/pisado.sql' }, {});
     bien('write_file solo propone, aunque le pidan «create»', w.action === 'edit_file' && !fs.existsSync(path.join(P, 'queries/pisado.sql')));
     const n = await t.propose_file.execute({ file_path: 'queries/nuevo.sql', content: 'SELECT 3' }, {});
@@ -173,6 +174,138 @@ console.log('\nel estado de una propuesta');
     bien('aplicada y rechazada se ven como tales', prop.estadoDe({ ...c, estado: 'aplicada' }, 'x') === 'aplicada' && prop.estadoDe({ ...c, estado: 'rechazada' }, 'x') === 'rechazada');
     const msgs = prop.conEstado([{ id: 'm', toolCalls: [c, nv] }, { id: 'n' }], 'w1', 'aplicada');
     bien('conEstado cambia solo esa llamada', msgs[0].toolCalls[0].estado === 'aplicada' && msgs[0].toolCalls[1].estado === 'propuesta' && msgs[1].id === 'n');
+}
+
+// ── E2. Por líneas: el diff, la ubicación, el foco, el prompt y propose_change ──
+console.log('\nE2 · el diff por líneas');
+{
+    const { diffLineas } = await import(pathToFileURL(path.join(RAIZ, 'client/src/utils/diffLineas.js')).href);
+    const d1 = diffLineas('a\nb\nc', 'a\nB\nc');
+    bien('una línea cambia: sale una, entra una, un bloque', d1.quitadas === 1 && d1.agregadas === 1 && d1.bloques.length === 1 && d1.bloques[0].desdeA === 1 && d1.bloques[0].sale[0] === 'b' && d1.bloques[0].entra[0] === 'B');
+    const d2 = diffLineas('a\nb', 'a\nb\nc');
+    bien('una línea entra al final', d2.quitadas === 0 && d2.agregadas === 1 && d2.bloques[0].desdeA === 2);
+    const d3 = diffLineas('x\na\nb\ny', 'x\ny');
+    bien('dos líneas salen', d3.quitadas === 2 && d3.agregadas === 0);
+    const d4 = diffLineas('a\nb\nc\nd', 'b\nc\nd\na');
+    bien('una línea movida: sale de su sitio y entra en el otro (no «todo cambió»)', d4.quitadas === 1 && d4.agregadas === 1);
+    const d5 = diffLineas('x\nx\ny', 'x\ny');
+    bien('una línea repetida: sale solo una', d5.quitadas === 1 && d5.agregadas === 0);
+    bien('igual: sin bloques', diffLineas('a\nb', 'a\nb').bloques.length === 0);
+    bien('desde nada (inserción): todo entra', diffLineas([], 'a\nb').agregadas === 2 && diffLineas([], 'a\nb').quitadas === 0);
+}
+
+console.log('\nE2 · ubicar una propuesta por líneas');
+{
+    const { ubicarRango, aplicarRango, describirRango } = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/rango.js')).href);
+    const texto = 'SELECT 1;\n\nSELECT a,\n       b\nFROM t;\n';
+    const p = { action: 'propose_change', objetivo: { tipo: 'rango', desde: 3, hasta: 4 }, original: 'SELECT a,\n       b', contenido: 'SELECT a, b, c', ancla: { antes: '', despues: 'FROM t;' } };
+    bien('donde dice', JSON.stringify(ubicarRango(texto, p)) === '{"desde":3,"hasta":4}');
+    const corrido = '-- nota\n-- otra\n' + texto;
+    bien('las líneas se corrieron (escribió arriba): la encuentra', JSON.stringify(ubicarRango(corrido, p)) === '{"desde":5,"hasta":6}');
+    bien('esa parte cambió: caducada', ubicarRango(texto.replace('       b', '       bb'), p) === null);
+    bien('el texto está dos veces: no adivina', ubicarRango(texto + 'SELECT a,\n       b\n', { ...p, objetivo: { tipo: 'rango', desde: 99, hasta: 100 } }) === null);
+    const a = aplicarRango(corrido, p);
+    bien('aplicar: solo esas líneas, el resto igual', a.texto === '-- nota\n-- otra\nSELECT 1;\n\nSELECT a, b, c\nFROM t;\n');
+    const ins = { action: 'propose_change', objetivo: { tipo: 'rango', desde: 5, hasta: 4 }, original: '', contenido: 'WHERE x > 0', ancla: { antes: '       b', despues: 'FROM t;' } };
+    bien('inserción: se ubica entre sus vecinas', JSON.stringify(ubicarRango(texto, ins)) === '{"desde":5,"hasta":4}');
+    bien('inserción aplicada antes de su línea', aplicarRango(texto, ins).texto.includes('       b\nWHERE x > 0\nFROM t;'));
+    const borra = { action: 'propose_change', objetivo: { tipo: 'rango', desde: 1, hasta: 2 }, original: 'SELECT 1;\n', contenido: '', ancla: { antes: null, despues: 'SELECT a,' } };
+    bien('borrar líneas: contenido vacío', aplicarRango(texto, borra).texto === 'SELECT a,\n       b\nFROM t;\n');
+    bien('describir', describirRango(p) === 'lines 3–4' && describirRango(ins) === 'before line 5');
+    const c = { toolCallId: 'r1', toolName: 'propose_change', result: p, estado: 'propuesta' };
+    bien('estado: sigue pendiente aunque se escribiera arriba', prop.estadoDe(c, corrido) === 'propuesta');
+    bien('estado: caducada si cambió esa parte', prop.estadoDe(c, texto.replace('       b', '       z')) === 'caducada');
+    bien('al recibirla, sin huella del archivo entero', !prop.marcarPropuestas([{ ...c, estado: undefined }], texto)[0].base);
+}
+
+console.log('\nE2 · el foco y el inicio');
+{
+    const arch = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/index.js')).href);
+    const sql = '-- panorama\nSELECT 1;\n\nSELECT a\nFROM t\nWHERE x;\n';
+    bien('la sentencia bajo el cursor (línea 5)', JSON.stringify(arch.sentenciaEn(sql, 5)) === '{"desde":4,"hasta":6}');
+    const f = arch.focoDeEditor({ texto: sql, tipo: 'sql', seleccion: { texto: '  ', desde: 2, hasta: 2 }, lineaCursor: 2 });
+    bien('una selección de espacios no cuenta; queda la sentencia', f.seleccion === null && f.sentencia?.desde >= 1);
+    bien('en texto no hay sentencia', arch.focoDeEditor({ texto: 'a: 1', tipo: 'texto', lineaCursor: 1 }).sentencia === null);
+    bien('la barra: más de una palabra', arch.seleccionConBarra('venta_mes') === false && arch.seleccionConBarra('SELECT a') === true);
+    const conError = arch.inicioDe({ type: 'sql', path: 'a.sql', content: 'SELECT x FROM t', resultsError: 'Binder Error' });
+    bien('con error, lo primero es arreglarlo', conError[0]?.etiqueta === 'Fix the error' && conError[0].aviso);
+    const conResultado = arch.inicioDe({ type: 'sql', path: 'a.sql', content: 'SELECT 1', results: { data: [{ a: 1 }] } });
+    bien('con resultado: qué destaca y graficarlo', conResultado.some(o => o.etiqueta === 'Chart the result'));
+    bien('vacío: escribir una consulta', arch.inicioDe({ type: 'sql', path: 'a.sql', content: '' })[0].etiqueta === 'Write a query…');
+    bien('metrics.yml: añadir una medida', arch.inicioDe({ type: 'texto', path: 'context/metrics.yml', content: 'metrics: []' })[0].etiqueta === 'Add a measure');
+    bien('un deck tiene el suyo', arch.inicioDe({ type: 'amoxdeck', path: 'x.amoxdeck', content: '---' }).length > 0);
+}
+
+console.log('\nE2 · el foco y el error en el servidor');
+{
+    const { prepararFoco, conocido, sinLiterales } = require(path.join(RAIZ, 'server/ai/archivoActivo.js'));
+    const archivo = prepararArchivo({ filePath: 'a.sql', fileType: 'sql', contenido: 'SELECT 1;\nSELECT a\nFROM t;' });
+    const e1 = prepararFoco({ archivo, foco: { seleccion: { texto: 'SELECT a', desde: 2, hasta: 2 }, sentencia: { desde: 2, hasta: 3 } } });
+    bien('con selección, la selección', e1.seleccion?.texto === 'SELECT a' && !e1.sentencia);
+    const e2 = prepararFoco({ archivo, foco: { seleccion: null, sentencia: { desde: 2, hasta: 3 } } });
+    bien('sin selección, la sentencia con su texto', e2.sentencia?.texto === 'SELECT a\nFROM t;');
+    bien('un rango que no existe se ignora', !prepararFoco({ archivo, foco: { sentencia: { desde: 40, hasta: 41 } } }).sentencia);
+    const err = prepararFoco({ archivo, error: "Conversion Error: Could not convert string 'Ana López' to INT32", datos: 'esquema' });
+    bien('el error, sin los valores que cita (política)', err.error.includes("'…'") && !err.error.includes('Ana'));
+    bien('con «filas», el error entero', prepararFoco({ archivo, error: "x 'Ana'" }).error.includes('Ana'));
+    const cred = prepararArchivo({ filePath: '.env', fileType: 'texto', contenido: 'KEY=1', local: false });
+    bien('un archivo que no sale: tampoco su selección', !prepararFoco({ archivo: cred, foco: { seleccion: { texto: 'KEY=1', desde: 1, hasta: 1 } } }).seleccion);
+    bien('archivos conocidos', /measures/.test(conocido('context/metrics.yml')) && /dbt properties/.test(conocido('models/staging/schema.yml')) && conocido('notas.txt') === null);
+    bien('sinLiterales', sinLiterales("near 'abc'") === "near '…'");
+    politica.fijar({ proveedores: 'nube', datos: 'esquema' });
+    const o = politica.sanearOpciones({ mode: 'assistant', filePath: 'a.sql', fileType: 'sql', currentQuery: 'SELECT a FROM t', resultsError: "value 'Ana'", foco: { seleccion: { texto: 'SELECT a', desde: 1, hasta: 1 } } }, 'gemini');
+    bien('sanearOpciones: el foco y el error pasan por la política', o.enfoque?.seleccion?.texto === 'SELECT a' && !o.enfoque.error.includes('Ana') && o.foco === undefined && o.resultsError === undefined);
+    politica.fijar({ proveedores: 'nube', datos: 'filas' });
+}
+
+console.log('\nE2 · el prompt');
+{
+    const prompt = (extra) => {
+        const o = politica.sanearOpciones({ mode: 'assistant', filePath: 'queries/a.sql', fileType: 'sql', currentQuery: 'SELECT 1;\nSELECT a\nFROM t;', ...extra }, 'ollama');
+        return buildSystemPrompt({ ...o, modelProfile: { tier: 'high' } });
+    };
+    const p = prompt({ foco: { seleccion: null, sentencia: { desde: 2, hasta: 3 } }, resultsError: 'Binder Error: column "a" not found' });
+    bien('las líneas van numeradas', p.includes('1 | SELECT 1;') && p.includes('3 | FROM t;'));
+    bien('dónde está el usuario: la sentencia', p.includes('the statement at lines 2–3'));
+    bien('el error de la última ejecución', p.includes('The last run failed') && p.includes('Binder Error'));
+    bien('en un .sql se ofrece propose_change, no write_file', p.includes('**propose_change**: proposes replacing a range') && !p.includes('**write_file**: proposes'));
+    const ps = prompt({ foco: { seleccion: { texto: 'SELECT a', desde: 2, hasta: 2 } } });
+    bien('con selección: «this» es la selección', ps.includes('they selected line 2') && ps.includes('"This" means this selection'));
+    const dbt = buildSystemPrompt({ ...politica.sanearOpciones({ mode: 'assistant', filePath: 'models/stg_x.sql', fileType: 'sql', currentQuery: "select * from {{ ref('raw') }}" }, 'ollama'),
+        dbt: { nombre: 'stg_x', materializado: 'view', columnas: [{ nombre: 'id', descripcion: 'the key' }], compilado: 'select * from "tienda"."main"."raw"', fresco: false }, modelProfile: { tier: 'high' } });
+    bien('dbt: se escribe en Jinja, con sus columnas y el compilado', dbt.includes('dbt model: `stg_x`') && dbt.includes("ref('…')") && dbt.includes('id (the key)') && dbt.includes('Compiled SQL of this dbt model') && dbt.includes('may be behind'));
+    const md = buildSystemPrompt({ ...politica.sanearOpciones({ mode: 'assistant', filePath: 'a.md', fileType: 'md', currentQuery: '# Hola' }, 'ollama'), modelProfile: { tier: 'high' } });
+    bien('Markdown sigue con write_file hasta E3, sin numerar', md.includes('**write_file**: proposes') && !md.includes('1 | # Hola'));
+    const yml = buildSystemPrompt({ ...politica.sanearOpciones({ mode: 'assistant', filePath: 'context/metrics.yml', fileType: 'texto', currentQuery: 'metrics: []' }, 'ollama'), modelProfile: { tier: 'high' } });
+    bien('texto: numerado, en su idioma y con lo que es', yml.includes('```yaml\n1 | metrics: []') && yml.includes('The project\'s measures'));
+}
+
+console.log('\nE2 · propose_change');
+{
+    const contenido = 'SELECT 1;\n\nSELECT a,\n       b\nFROM t;';
+    const conArchivo = (filePath, fileType, texto = contenido) => createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant',
+        archivo: prepararArchivo({ filePath, fileType, contenido: texto }) });
+    const t = conArchivo('a.sql', 'sql');
+    bien('.sql: propose_change sí, write_file no', !!t.propose_change && !t.write_file);
+    bien('texto: propose_change', !!conArchivo('c.yml', 'texto').propose_change);
+    bien('Markdown: write_file (hasta E3)', !conArchivo('a.md', 'md').propose_change && !!conArchivo('a.md', 'md').write_file);
+    const pc = (args) => t.propose_change.execute({ summary: '', ...args }, {});
+    const r = await pc({ target: { kind: 'lines', start_line: 3, end_line: 4 }, new_text: 'SELECT a, b' });
+    bien('un rango: trae lo que reemplaza y sus vecinas', r.action === 'propose_change' && r.original === 'SELECT a,\n       b' && r.ancla.antes === '' && r.ancla.despues === 'FROM t;' && r.objetivo.desde === 3);
+    const fuera = await pc({ target: { kind: 'lines', start_line: 9, end_line: 9 }, new_text: 'x' });
+    bien('fuera del archivo: error que dice cuántas líneas tiene', /has 5 lines/.test(fuera.error || ''));
+    const corrido = await pc({ target: { kind: 'lines', start_line: 1, end_line: 1, current_text: 'FROM t;' }, new_text: 'FROM t2;' });
+    bien('números equivocados pero el texto existe: se corrige el rango', corrido.objetivo?.desde === 5 && corrido.original === 'FROM t;');
+    const noEsta = await pc({ target: { kind: 'lines', start_line: 1, end_line: 1, current_text: 'SELECT 99;' }, new_text: 'x' });
+    bien('el texto no está: error con lo que hay en esas líneas', /don't match current_text/.test(noEsta.error || '') && noEsta.error.includes('SELECT 1;'));
+    const igual = await pc({ target: { kind: 'lines', start_line: 1, end_line: 1 }, new_text: 'SELECT 1;' });
+    bien('sin cambios: error', /nothing to change/.test(igual.error || ''));
+    const ins = await pc({ target: { kind: 'lines', start_line: 5, end_line: 4 }, new_text: 'WHERE b > 0' });
+    bien('inserción: original vacío, entre sus vecinas', ins.original === '' && ins.ancla.antes === '       b' && ins.ancla.despues === 'FROM t;');
+    const pref = await pc({ target: { kind: 'lines', start_line: 1, end_line: 1 }, new_text: '1 | SELECT 2;' });
+    bien('si el modelo copia el número de línea, se quita', pref.contenido === 'SELECT 2;');
+    const { aplicarRango } = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/rango.js')).href);
+    bien('lo que propone el servidor lo aplica el cliente', aplicarRango(contenido, r).texto === 'SELECT 1;\n\nSELECT a, b\nFROM t;');
 }
 
 // ── 6. El servidor ──────────────────────────────────────────────────────────

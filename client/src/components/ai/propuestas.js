@@ -1,8 +1,11 @@
+import { ubicarRango, esDeRango } from './archivos/rango.js';
+
 /**
  * **Las propuestas del Assistant y su estado** (plan del Assistant, E1/A1).
  *
  * Una propuesta es una llamada a `write_file` (una versión nueva del archivo
- * activo) o a `propose_file` (un archivo nuevo). Ninguna escribe nada: esperan a
+ * activo), a `propose_change` (unas líneas del archivo activo, E2) o a
+ * `propose_file` (un archivo nuevo). Ninguna escribe nada: esperan a
  * que el usuario decida. Su estado viaja en la propia llamada, que se guarda con
  * el mensaje:
  *
@@ -11,19 +14,20 @@
  *   rechazada  — el usuario la descartó.
  *   caducada   — (derivado) el archivo cambió desde que se propuso: aceptarla
  *                borraría lo escrito después, así que se ofrece pedirla de nuevo.
+ *                Una propuesta por líneas solo caduca si cambió ESA parte.
  *   anterior   — (derivado) de una conversación de antes de que se guardara el
  *                estado: no se sabe qué pasó, y no se pinta como hecha.
  *
  * Puro: lo usan `useAiChat` (al recibirla y al decidir) y `ChatMessage` (al pintarla).
  */
 
-export const HERRAMIENTAS_DE_PROPUESTA = new Set(['write_file', 'propose_file', 'edit_file']);
+export const HERRAMIENTAS_DE_PROPUESTA = new Set(['write_file', 'propose_change', 'propose_file', 'edit_file']);
 
 /** ¿Es esta llamada una propuesta (y no un error)? */
 export function esPropuesta(tc) {
     if (!tc || !HERRAMIENTAS_DE_PROPUESTA.has(tc.toolName)) return false;
     const r = tc.result;
-    return !!r && !r.error && (r.action === 'edit_file' || r.action === 'propose_file');
+    return !!r && !r.error && (r.action === 'edit_file' || r.action === 'propose_file' || r.action === 'propose_change');
 }
 
 /** ¿Propone un archivo nuevo (y no un cambio del activo)? */
@@ -53,6 +57,9 @@ export function estadoDe(tc, contenidoActual = null) {
     if (!esPropuesta(tc)) return null;
     if (tc.estado === 'aplicada' || tc.estado === 'rechazada') return tc.estado;
     if (tc.estado !== 'propuesta') return 'anterior';
+    if (esDeRango(tc.result)) {
+        return contenidoActual != null && !ubicarRango(contenidoActual, tc.result) ? 'caducada' : 'propuesta';
+    }
     if (!esArchivoNuevo(tc) && tc.base && contenidoActual != null && huella(contenidoActual) !== tc.base) {
         return 'caducada';
     }
@@ -67,6 +74,8 @@ export function marcarPropuestas(llamadas, contenidoEnviado) {
     const base = contenidoEnviado == null ? null : huella(contenidoEnviado);
     return llamadas.map(tc => {
         if (!esPropuesta(tc) || tc.estado) return tc;
+        // Por líneas no hace falta la huella: la propuesta trae el texto que reemplaza.
+        if (esDeRango(tc.result)) return { ...tc, estado: 'propuesta' };
         return esArchivoNuevo(tc) ? { ...tc, estado: 'propuesta' } : { ...tc, estado: 'propuesta', base };
     });
 }

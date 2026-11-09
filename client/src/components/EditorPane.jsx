@@ -1,6 +1,6 @@
 import { API_BASE } from '../api.js';
 import React, { useState, useRef, useEffect, useCallback, lazy, Suspense, memo } from 'react';
-import { LuPlay, LuHourglass, LuExternalLink, LuActivity, LuSave, LuChevronDown, LuBot, LuX, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2, LuLayoutDashboard } from "react-icons/lu";
+import { LuPlay, LuHourglass, LuExternalLink, LuActivity, LuSave, LuChevronDown, LuCode, LuFilePlus, LuFolder, LuSquare, LuHistory, LuFileDown, LuGitBranch, LuPresentation, LuShare2, LuLayoutDashboard, LuSparkles, LuWrench } from "react-icons/lu";
 import DebugResultModal from './DebugResultModal';
 import SqlEditor from './SqlEditor';
 import ResultsTable from './ResultsTable';
@@ -459,6 +459,10 @@ const EditorPane = ({
     const recordarGrafico = !!(activeTab && activeTab.type === 'sql' && activeTab.path
         && /\.sql$/i.test(activeTab.path) && !activeTab.procedencia);
 
+    // The doors to Assist from the error and the results (plan del Assistant, E2).
+    // App opens the panel; the panel turns the action into the question.
+    const asistir = (accion) => window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId: activeTab.id } }));
+
     // Results panel content (shared between both layouts)
     const resultsContent = (
         <>
@@ -470,7 +474,17 @@ const EditorPane = ({
                 </div>
             )}
 
-            {activeTab.resultsError && <div className="ep-error">Error: {activeTab.resultsError}</div>}
+            {activeTab.resultsError && (
+                <div className="ep-error">
+                    <span className="ep-error-texto">Error: {activeTab.resultsError}</span>
+                    {/* E2: the error is a door to Assist — it already knows the error and the query. */}
+                    {activeTab.type === 'sql' && activeTab.path && (
+                        <button type="button" className="ep-error-asistir" onClick={() => asistir('arreglar_error')}>
+                            <LuWrench size={12} /> Fix with Assist
+                        </button>
+                    )}
+                </div>
+            )}
 
             {activeTab.scriptRun && <ScriptRunSummary scriptRun={activeTab.scriptRun} compact={!!activeTab.results} />}
 
@@ -505,6 +519,7 @@ const EditorPane = ({
                             }}
                             recordadoCon={recordarGrafico ? activeTab.name : null}
                             onAbrirArchivo={onOpenFile}
+                            onAsistir={activeTab.type === 'sql' && activeTab.path ? asistir : undefined}
                             splitEnabled={splitEnabled}
                             onGetOtherPaneResults={handleGetOtherPaneResults}
                         />
@@ -881,10 +896,11 @@ const EditorPane = ({
                                         <button
                                             className={`ep-action-ai${showAiSidebar ? ' active' : ''}`}
                                             onClick={onToggleAi}
-                                            title="Toggle Assist"
+                                            title="Assist (Ctrl+L)"
+                                            aria-pressed={!!showAiSidebar}
                                         >
-                                            {showAiSidebar ? <LuX size={13} /> : <LuBot size={13} />}
-                                            <span>{showAiSidebar ? 'Close Assist' : 'Assist'}</span>
+                                            <LuSparkles size={13} />
+                                            <span>Assist</span>
                                         </button>
                                     )}
                                 </div>

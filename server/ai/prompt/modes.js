@@ -5,7 +5,7 @@
  */
 
 function buildAssistantModeSection(options) {
-    const { filePath, fileType, archivo = null } = options;
+    const { filePath, fileType, archivo = null, dbt = null } = options;
     const tipo = archivo?.tipo || 'sql';
     const esSql = tipo === 'sql';
 
@@ -26,7 +26,12 @@ Talk like an analyst thinking out loud with a colleague, NOT a report generator.
     const ruta = archivo?.ruta || filePath;
     if (ruta || archivo) {
         section += `\n\n### Active file: \`${ruta || 'untitled'}\`
-This is a **${archivo?.nombre || fileType || 'SQL file'}**. Its current content, with unsaved changes, is in "Current editor state" at the end.`;
+This is a **${archivo?.nombre || fileType || 'SQL file'}**. Its current content, with unsaved changes, is in "Current editor state" at the end.${archivo?.descripcion ? `\n${archivo.descripcion}` : ''}`;
+    }
+    // Un modelo dbt (S3): se escribe en Jinja; el compilado es solo para leer.
+    if (dbt) {
+        section += `\n\n### This file is a dbt model: \`${dbt.nombre}\`${dbt.materializado ? ` (materialized as ${dbt.materializado})` : ''}
+Write it in dbt's Jinja: keep \`{{ ref('…') }}\` and \`{{ source('…', '…') }}\`, never paste table names from the compiled SQL into the model.${dbt.descripcion ? `\nIts description: ${dbt.descripcion}` : ''}${dbt.columnas?.length ? `\nColumns declared in its YAML: ${dbt.columnas.map(c => c.descripcion ? `${c.nombre} (${c.descripcion})` : c.nombre).join(', ')}.` : ''}${dbt.compilado ? `\nThe compiled SQL is in "Current editor state"${dbt.fresco ? '' : ' (compiled before the last edit: it may be behind the file)'}; use it to know which tables it reads and to run parts of it with execute_sql.` : '\nThere is no compiled SQL yet (dbt has not compiled it): to run it, the user compiles it from the bar above the editor.'}`;
     }
 
     // Qué puede cambiar. En los archivos estructurados, o cuando no ve el archivo
@@ -36,7 +41,11 @@ This is a **${archivo?.nombre || fileType || 'SQL file'}**. Its current content,
     const preserva = tipo === 'cuaderno' ? ' (cell markers, cell names, the parameters in the front matter)'
         : tipo === 'deck' ? ' (the front matter, layout directives and chart paths)' : '';
     section += `\n\n### Capabilities`;
-    if (propone) {
+    // Los archivos que se cambian por líneas (E2): un rango, revisado en el editor.
+    const porLineas = propone && !!archivo?.porLineas;
+    if (porLineas) {
+        section += `\n- **propose_change**: proposes replacing a range of lines of the active file. The user sees it as a diff in the editor and clicks Accept or Reject; nothing is saved to disk. Change ONLY the lines the request needs — not the whole file — using the line numbers shown in "Current editor state" (the \`12 |\` prefixes are not part of the file: never put them in new_text). To insert without replacing, use end_line = start_line - 1. Pass current_text (the exact lines you replace) so the change lands in the right place.`;
+    } else if (propone) {
         section += `\n- **write_file**: proposes a new version of the WHOLE active file. Nothing changes until the user reviews it and clicks Accept; accepting puts it in the editor without saving to disk. Always send the complete file: every part you were not asked to change must stay exactly as it is${preserva}.`;
     } else {
         const porque = estructurado
@@ -53,7 +62,13 @@ This is a **${archivo?.nombre || fileType || 'SQL file'}**. Its current content,
     }
 
     section += `\n\n### Workflow & honesty rules`;
-    if (propone && esSql) {
+    if (porLineas && esSql) {
+        section += `\n- **When you propose SQL the user should put in their file, DELIVER IT with \`propose_change\`, not just as a code block in prose.** \`propose_change\` shows the user the change in their editor with Accept/Reject; a plain \`\`\`sql block can only be inserted at their cursor by hand. Briefly explain the change in chat, then call \`propose_change\` with just the lines that change. (Exception: tiny inline snippets purely for illustration can stay in prose.)
+- **"This", "it", "the query"** mean the user's selection if there is one, otherwise the statement under their cursor (see "Where the user is"). Work on that part, not the whole file.
+- **When the last run failed**, the error is in "Current editor state": read it before answering, and fix the cause, not just the line it points at.`;
+    } else if (porLineas) {
+        section += `\n- When you change this file, deliver the change with \`propose_change\` (only the lines that change) and say in one sentence what changed. "This" means the user's selection if there is one.`;
+    } else if (propone && esSql) {
         section += `\n- **When you propose SQL the user should put in their file, DELIVER IT with \`write_file\`, not just as a code block in prose.** \`write_file\` gives the user Accept/Reject; a plain \`\`\`sql block can only be inserted at their cursor by hand. Briefly explain the change in chat, then call \`write_file\` with the full new file. (Exception: tiny inline snippets purely for illustration can stay in prose.)`;
     } else if (propone) {
         section += `\n- When you change this file, deliver the change with \`write_file\` (the whole file) and say in one or two sentences what changed.`;
@@ -171,7 +186,14 @@ Every finding you report MUST end with "— this matters because ___". A number 
  * doesn't bust the KV/prefix cache for the stable schema + instructions above:
  * when the user edits their query, only these trailing tokens change.
  */
-function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView, archivo = null } = {}) {
+/** Las líneas numeradas, para que el modelo proponga un rango (E2). */
+function numerar(texto) {
+    const lineas = String(texto || '').split(/\r?\n/);
+    const ancho = String(lineas.length).length;
+    return lineas.map((l, i) => `${String(i + 1).padStart(ancho, ' ')} | ${l}`).join('\n');
+}
+
+function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig, currentView, archivo = null, enfoque = null, dbt = null } = {}) {
     let s = '';
     let opened = false;
     const open = () => {
@@ -185,16 +207,36 @@ function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig,
             : 'the TABLE (results grid) view';
         s += `\n**Active view:** the user is currently looking at ${v}.`;
     }
+    // Numeradas cuando el modelo puede proponer un rango de líneas (E2).
+    const numeradas = !!(archivo?.porLineas && archivo.puedeProponer);
+    const cuerpo = (t) => (numeradas ? numerar(t) : t);
     if (archivo && archivo.tipo !== 'sql') {
         // Cualquier otro archivo va con su nombre y en su idioma: llamarle
         // «query» a un deck o a un YAML hacía que el modelo lo tratara como SQL.
         open();
         s += archivo.contenido
-            ? `\n**Active file content (${archivo.ruta || 'untitled'}):**\n\`\`\`${archivo.idioma}\n${archivo.contenido}\n\`\`\``
+            ? `\n**Active file content (${archivo.ruta || 'untitled'})${numeradas ? ', with line numbers' : ''}:**\n\`\`\`${archivo.idioma}\n${cuerpo(archivo.contenido)}\n\`\`\``
             : `\n**Active file content (${archivo.ruta || 'untitled'}):** not shown.`;
     } else if (currentQuery) {
         open();
-        s += `\n**Current query (editor):**\n\`\`\`sql\n${currentQuery}\n\`\`\``;
+        s += `\n**Current query (editor)${numeradas ? ', with line numbers' : ''}:**\n\`\`\`sql\n${cuerpo(currentQuery)}\n\`\`\``;
+    }
+    if (dbt?.compilado) {
+        open();
+        s += `\n**Compiled SQL of this dbt model** (read-only, for reference):\n\`\`\`sql\n${dbt.compilado}\n\`\`\``;
+    }
+    // Dónde está el usuario y qué falló (E2).
+    if (enfoque?.seleccion) {
+        open();
+        const e = enfoque.seleccion;
+        s += `\n**Where the user is:** they selected ${e.desde === e.hasta ? `line ${e.desde}` : `lines ${e.desde}–${e.hasta}`}:\n\`\`\`${archivo?.idioma || 'sql'}\n${e.texto}\n\`\`\`\n_"This" means this selection._`;
+    } else if (enfoque?.sentencia) {
+        open();
+        s += `\n**Where the user is:** the cursor is in the statement at lines ${enfoque.sentencia.desde}–${enfoque.sentencia.hasta}. _"This query" means that statement._`;
+    }
+    if (enfoque?.error) {
+        open();
+        s += `\n**The last run failed** with this error:\n\`\`\`\n${enfoque.error}\n\`\`\``;
     }
     if (archivo?.notas?.length) {
         open();

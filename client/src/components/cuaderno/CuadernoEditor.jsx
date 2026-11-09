@@ -34,9 +34,8 @@
  */
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    LuPlus, LuFileText, LuSave, LuBot, LuX, LuRefreshCw, LuFileType2, LuPresentation, LuLoaderCircle,
-    LuBookOpen, LuPencil,
-} from 'react-icons/lu';
+    LuPlus, LuFileText, LuSave, LuRefreshCw, LuFileType2, LuPresentation, LuLoaderCircle,
+    LuBookOpen, LuPencil, LuSparkles } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { leerCuaderno, escribirCuaderno, indiceDe, tituloDe } from '../../utils/cuadernoFile.js';
 import { analizarCelda } from '../../utils/celdaSql.js';
@@ -954,9 +953,9 @@ const CuadernoEditor = ({
                             </button>
                         </div>
                         {onToggleAi && (
-                            <button type="button" className="cdn-btn" onClick={onToggleAi}>
-                                {showAiSidebar ? <LuX size={12} /> : <LuBot size={12} />}
-                                {showAiSidebar ? 'Close Assist' : 'Assist'}
+                            <button type="button" className={`cdn-btn${showAiSidebar ? ' cdn-btn--activo' : ''}`} onClick={onToggleAi} title="Assist (Ctrl+L)" aria-pressed={!!showAiSidebar}>
+                                <LuSparkles size={12} />
+                                Assist
                             </button>
                         )}
                     </div>

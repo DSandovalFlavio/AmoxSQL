@@ -1,7 +1,7 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
 import { leerResultados, recordarResultados } from '../utils/memoriaDePestana';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuColumns3, LuChevronLeft, LuChevronRight, LuTriangleAlert, LuPin, LuPinOff, LuX } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuColumns3, LuChevronLeft, LuChevronRight, LuTriangleAlert, LuPin, LuPinOff, LuX, LuSparkles, LuChartColumn } from "react-icons/lu";
 
 const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
@@ -25,7 +25,7 @@ const ROWNUM_WIDTH = 54;
 // match the `columnWidths[col] || 150` default used when resizing.
 const DEFAULT_COL_WIDTH = 150;
 
-const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null, onCreateNew = null, lazyPanels = false, lectura = false, recordadoCon = null, onAbrirArchivo = null, clavePestana = null }) => {
+const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, currentEditorQuery, onDbChange, isReportMode = false, initialChartConfig = null, onConfigChange = null, onViewModeChange = null, initialViewMode = null, editorSettings = {}, onPopout = null, truncated = false, rowLimit = null, splitEnabled = false, onGetOtherPaneResults = null, onCreateNew = null, lazyPanels = false, lectura = false, recordadoCon = null, onAbrirArchivo = null, clavePestana = null, onAsistir = null }) => {
     // Lo que tenía esta pestaña la última vez, si son los mismos datos (Dec-82).
     const [memoria] = useState(() => (clavePestana ? leerResultados(clavePestana, data) : null));
     const toast = useToast();
@@ -664,6 +664,17 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
 
                         {/* Right Actions */}
                         <div className="rt-toolbar-right">
+                            {/* E2: the result as a door to Assist (only a .sql's results). */}
+                            {onAsistir && (
+                                <>
+                                    <button className="rt-action-btn" onClick={() => onAsistir('explicar_resultado')} title="Ask Assist what stands out in this result">
+                                        <LuSparkles size={12} /> Explain
+                                    </button>
+                                    <button className="rt-action-btn" onClick={() => onAsistir('graficar')} title="Ask Assist for a chart of this result">
+                                        <LuChartColumn size={12} /> Chart it
+                                    </button>
+                                </>
+                            )}
                             {/* Global Search */}
                             {viewMode === 'table' && (
                                 <div className="rt-search">

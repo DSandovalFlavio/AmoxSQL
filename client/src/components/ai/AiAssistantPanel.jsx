@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp, LuCircleHelp, LuChartColumn, LuListChecks, LuLightbulb, LuAtSign } from 'react-icons/lu';
+import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp, LuCircleHelp, LuChartColumn, LuListChecks, LuLightbulb, LuAtSign, LuTextSelect } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
 import ChatMessage from './ChatMessage';
@@ -10,6 +10,9 @@ import PoliticaIAChip from '../workspaces/PoliticaIAChip';
 import AlertDialog from '../AlertDialog';
 import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
+import { inicioDe, tipoDePestana } from './archivos/index.js';
+import { esDeRango } from './archivos/rango.js';
+import { publicarPropuestas, pedirRevision } from './propuestasEnEditor.js';
 
 import { API_BASE as API } from '../../api.js';
 
@@ -106,6 +109,77 @@ const AiAssistantPanel = ({
             ? `Propose the file ${r.path} again.`
             : 'The file changed after your last proposal. Propose that change again on the current version of the file.');
     }, [rejectEdit, handleSend]);
+
+    // ─── E2: proposals reviewed in the editor ───
+    // The pending line proposals of this file go to its editor, which draws them
+    // as a diff with Accept / Reject. The actions go through a ref so the editor
+    // always calls the current ones.
+    const accionesRef = useRef({ aceptar: acceptEdit, rechazar: rejectEdit });
+    accionesRef.current = { aceptar: acceptEdit, rechazar: rejectEdit };
+    const accionesEstables = useRef({
+        aceptar: (tc) => accionesRef.current.aceptar(tc),
+        rechazar: (tc) => accionesRef.current.rechazar(tc),
+    }).current;
+    const rutaPublicada = useRef(null);
+    useEffect(() => {
+        if (rutaPublicada.current && rutaPublicada.current !== activeFilePath) {
+            publicarPropuestas(rutaPublicada.current, [], null);
+        }
+        rutaPublicada.current = activeFilePath;
+        if (!activeFilePath) return;
+        const pendientes = [];
+        for (const m of messages) {
+            for (const tc of m.toolCalls || []) {
+                if (tc.estado === 'propuesta' && esDeRango(tc.result)) pendientes.push(tc);
+            }
+        }
+        publicarPropuestas(activeFilePath, pendientes, accionesEstables);
+    }, [messages, activeFilePath, accionesEstables]);
+
+    // ─── E2: the doors in the editor (selection bar, error, results) ───
+    // They open the panel (App) and arrive here as a question, sent at once; «Ask…»
+    // only focuses the box, with the selection shown as its reference.
+    useEffect(() => {
+        const PREGUNTAS = {
+            explicar: (t) => (t === 'sql' ? 'Explain the selected SQL.' : 'Explain the selected text.'),
+            arreglar: () => 'Fix the selected SQL.',
+            optimizar: () => 'Optimize the selected SQL without changing its result.',
+            mejorar: () => 'Improve the selected text.',
+            arreglar_error: () => 'Fix the error of the last run.',
+            explicar_resultado: () => 'Explain this result: what stands out?',
+            graficar: () => 'Chart this result.',
+        };
+        const alAsistir = (e) => {
+            const { accion } = e.detail || {};
+            if (accion === 'preguntar') {
+                setTimeout(() => inputRef.current?.focus(), 80);
+                return;
+            }
+            const info = getActiveTabInfo ? getActiveTabInfo() : null;
+            const pregunta = PREGUNTAS[accion]?.(tipoDePestana(info?.type, info?.path));
+            if (!pregunta) return;
+            if (isGenerating) { setInputText(pregunta); return; }
+            handleSend(pregunta);
+        };
+        window.addEventListener('amox_asistir', alAsistir);
+        return () => window.removeEventListener('amox_asistir', alAsistir);
+    }, [getActiveTabInfo, handleSend, isGenerating, setInputText, inputRef]);
+
+    // The selection the next question is about, shown in the box (E2).
+    const [seleccion, setSeleccion] = useState(null);
+    useEffect(() => {
+        const leer = () => {
+            const info = getActiveTabInfo ? getActiveTabInfo() : null;
+            setSeleccion(info?.foco?.seleccion ? { desde: info.foco.seleccion.desde, hasta: info.foco.seleccion.hasta } : null);
+        };
+        leer();
+        const alFoco = (e) => {
+            const info = getActiveTabInfo ? getActiveTabInfo() : null;
+            if (info && e.detail?.tabId === info.id) setSeleccion(e.detail.seleccion);
+        };
+        window.addEventListener('amox_foco', alFoco);
+        return () => window.removeEventListener('amox_foco', alFoco);
+    }, [getActiveTabInfo, activeFilePath]);
 
     // ─── View Mode: 'chat' or 'history' ───
     const [viewMode, setViewMode] = useState('chat');
@@ -461,18 +535,15 @@ const AiAssistantPanel = ({
                                 </div>
                                 <h2 className="ai-empty-state-title">Assist</h2>
                                 <div className="ai-empty-state-hint">
-                                    Your copilot in the editor — ask about the current query, fix or explain SQL, or build a chart for the active file.
+                                    Ask about this file, or select part of it in the editor and ask about just that.
                                 </div>
+                                {/* A6: what makes sense for THIS file, in the state it is in. */}
                                 <div className="ai-quick-actions">
-                                    <button className="ai-quick-action" onClick={() => handleSend('Show me all tables')}>
-                                        Show all tables
-                                    </button>
-                                    <button className="ai-quick-action" onClick={() => handleSend('Describe the schema')}>
-                                        Describe schema
-                                    </button>
-                                    <button className="ai-quick-action" onClick={() => handleSend('Show sample data')}>
-                                        Sample data
-                                    </button>
+                                    {inicioDe(getActiveTabInfo ? getActiveTabInfo() : null).map(op => (
+                                        <button key={op.etiqueta} className={`ai-quick-action${op.aviso ? ' ai-quick-action--aviso' : ''}`} onClick={() => handleSend(op.pregunta)}>
+                                            {op.etiqueta}
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         )}
@@ -494,6 +565,7 @@ const AiAssistantPanel = ({
                                 acceptEdit={acceptEdit}
                                 rejectEdit={rejectEdit}
                                 onProponerDeNuevo={proponerDeNuevo}
+                                onRevisar={pedirRevision}
                                 currentFileContent={currentFileContent}
                             />
                         ))}
@@ -589,6 +661,16 @@ const AiAssistantPanel = ({
                                         </button>
                                     </div>
                                 ))}
+                            </div>
+                        )}
+
+                        {/* The selection in the editor: what "this" means in the next question (E2). */}
+                        {seleccion && (
+                            <div className="ai-composer-ctx">
+                                <div className="ai-composer-chip ai-composer-chip--ref" title="Assist works on the text selected in the editor">
+                                    <LuTextSelect size={10} />
+                                    <span>Selection · {seleccion.desde === seleccion.hasta ? `line ${seleccion.desde}` : `lines ${seleccion.desde}–${seleccion.hasta}`}</span>
+                                </div>
                             </div>
                         )}
 

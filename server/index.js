@@ -2592,6 +2592,24 @@ async function buildFileContext(contextFiles) {
  * Returns { tables, files, roster } in the prompt's context shapes.
  */
 const { resolveQueryObjects } = require('./ai/queryObjects');
+/**
+ * Lo que el Assistant necesita saber de un modelo dbt (S3), o null si el archivo
+ * no lo es. Lee el manifiesto que ya existe: nunca lanza dbt.
+ */
+function dbtDelArchivo(filePath, fileType) {
+    if (!filePath || require('./ai/archivoActivo').tipoDe(filePath, fileType) !== 'sql') return null;
+    try {
+        const i = dbtModelo.info(ROOT_DIR, archivoDelProyecto(filePath));
+        if (!i?.esDbt || i.tipo !== 'modelo') return null;
+        return {
+            nombre: i.nombre, materializado: i.materializado, descripcion: i.descripcion,
+            columnas: (i.columnas || []).slice(0, 80),
+            compilado: i.compilado ? String(i.compilado).slice(0, 8000) : null,
+            fresco: !!i.fresco,
+        };
+    } catch { return null; }
+}
+
 async function buildAssistantQueryContext(currentQuery, filePath = null, fileType = null) {
     const allNames = await listAllTableNames();
     let objs = [];
@@ -2768,7 +2786,7 @@ async function expandReferencedArtifacts(refs) {
 }
 
 app.post('/api/ai/chat/stream', async (req, res) => {
-    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, currentView, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts, uiTheme } = req.body;
+    const { messages, provider, model, mode, contextFiles, contextTables, currentQuery, currentResult, currentChartConfig, currentView, activeSkillId, filePath, fileType, conversationId, planStepOverrides, continueMode, continueBudget, referencedArtifacts, uiTheme, foco, resultsError } = req.body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return res.status(400).json({ error: "Messages array is required" });
@@ -2802,9 +2820,13 @@ app.post('/api/ai/chat/stream', async (req, res) => {
         // live query, so an edited query with a new object shows up next turn.
         let tableRoster = null;
         let tables, files, expandedReferences;
+        // Un modelo dbt (S3): su nombre, su YAML y el SQL compilado que dejó dbt
+        // en el manifiesto —sin lanzar dbt—. Con el compilado se resuelven las
+        // tablas que lee, que en Jinja (`ref('x')`) no se ven.
+        const dbt = (mode || 'diving') === 'assistant' ? dbtDelArchivo(filePath, fileType) : null;
         if ((mode || 'diving') === 'assistant' && !hasExplicitContext) {
             const [ctx, refs] = await Promise.all([
-                buildAssistantQueryContext(currentQuery, filePath, fileType),
+                buildAssistantQueryContext(dbt?.compilado || currentQuery, filePath, fileType),
                 expandReferencedArtifacts(referencedArtifacts),
                 // Make what the user is looking at chartable by its own id.
                 registerLiveResultCache(currentResult, conversationId),
@@ -2837,6 +2859,9 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             activeSkillId,
             filePath,
             fileType,
+            foco: foco || null,
+            resultsError: resultsError || null,
+            dbt,
             tableRoster,
             memoryExtraction: aiManager.getConfig().memoryExtraction || 'cloud-only',
             uiTheme: uiTheme || null,

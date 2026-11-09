@@ -43,6 +43,26 @@ export function modeloDe(monaco, tabId, texto, idioma) {
     return modelo;
 }
 
+/**
+ * **Dónde está el usuario en la pestaña** (plan del Assistant, E2): la selección y
+ * la sentencia bajo el cursor. Vive aquí, fuera de React: cambia a cada movimiento
+ * del cursor y nada debe repintarse por eso. El Assistant lo lee al enviar.
+ *
+ * Solo avisa (`amox_foco`) cuando cambia lo que se ve en el chat: si hay selección
+ * y qué líneas abarca.
+ */
+const focos = new Map();
+export function fijarFoco(tabId, foco) {
+    if (!tabId) return;
+    const antes = focos.get(tabId);
+    focos.set(tabId, foco);
+    const clave = (f) => (f?.seleccion ? `${f.seleccion.desde}-${f.seleccion.hasta}` : '');
+    if (clave(antes) !== clave(foco)) {
+        window.dispatchEvent(new CustomEvent('amox_foco', { detail: { tabId, seleccion: foco?.seleccion ? { desde: foco.seleccion.desde, hasta: foco.seleccion.hasta } : null } }));
+    }
+}
+export const focoDe = (tabId) => focos.get(tabId) || null;
+
 export const recordarResultados = (tabId, estado) => { resultados.set(tabId, estado); };
 
 /** El estado guardado, solo si es de estos mismos datos. */
@@ -76,5 +96,8 @@ export function olvidarPestanas(vivas) {
     }
     for (const id of datosDeGrafico.keys()) {
         if (!vivas.has(id)) datosDeGrafico.delete(id);
+    }
+    for (const id of focos.keys()) {
+        if (!vivas.has(id)) focos.delete(id);
     }
 }

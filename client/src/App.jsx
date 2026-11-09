@@ -63,6 +63,7 @@ import './index.css';
 // Pop-out Results Page (standalone view for child window)
 import PopoutResultsPage from './components/PopoutResultsPage';
 import { escribirAmoxvis } from './components/DataVisualizer/vega/figura';
+import { focoDe } from './utils/memoriaDePestana';
 
 // App Phases
 const PHASE = {
@@ -501,7 +502,18 @@ function App() {
       fijar: () => layoutRef.current?.alternarFijada(),
       atras: () => layoutRef.current?.navegarHistorial(true),
       adelante: () => layoutRef.current?.navegarHistorial(false),
-      assist: () => setShowAiSidebar(v => !v),
+      // Ctrl+L con texto seleccionado = «Ask…» sobre esa selección (E2, decisión 1):
+      // abre (no alterna) y deja la caja lista. Sin selección, abre o cierra.
+      assist: () => {
+        const info = layoutRef.current?.getActiveTabInfo?.();
+        const conSeleccion = info?.id && focoDe(info.id)?.seleccion;
+        if (conSeleccion) {
+          setShowAiSidebar(true);
+          window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion: 'preguntar', tabId: info.id } }));
+        } else {
+          setShowAiSidebar(v => !v);
+        }
+      },
       dividir: () => layoutRef.current?.toggleSplit(),
       duplicar: () => layoutRef.current?.duplicateActiveTabToOtherPane(),
       // NOT Ctrl+Shift+Enter: el cuaderno ya la usa para ejecutar todas las celdas.
@@ -601,7 +613,12 @@ function App() {
   useEffect(() => {
     const handler = () => setShowAiSidebar(true);
     window.addEventListener('amox_ai_prompt', handler);
-    return () => window.removeEventListener('amox_ai_prompt', handler);
+    // E2: the doors in the editor (selection bar, «Fix with Assist», Explain / Chart it).
+    window.addEventListener('amox_asistir', handler);
+    return () => {
+      window.removeEventListener('amox_ai_prompt', handler);
+      window.removeEventListener('amox_asistir', handler);
+    };
   }, []);
 
   // settingsInitialTab controls which tab opens in SettingsModal
@@ -1871,7 +1888,7 @@ function App() {
                   activeFilePath={activeTabInfo?.path || null}
                   activeFileType={activeTabInfo?.type || null}
                   getActiveTabInfo={getActiveEditorInfo}
-                  onEditFile={(result) => layoutRef.current?.updateActiveContent(result.content || result)}
+                  onEditFile={(result) => (result?.action === 'propose_change' ? layoutRef.current?.aplicarPropuesta(result) : layoutRef.current?.updateActiveContent(result.content || result))}
                     onUpdateChartConfig={(result) => layoutRef.current?.updateActiveChartConfig(result.changes || result)}
                     onInsertarEnEditor={(sql) => layoutRef.current?.insertarEnEditor(sql)}
                     onOpenFile={handleFileOpen}

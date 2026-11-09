@@ -30,9 +30,8 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import {
-    LuPencilLine, LuPresentation, LuRefreshCw, LuSave, LuChevronDown, LuBot, LuX,
-    LuMonitorPlay, LuLoaderCircle, LuLayoutTemplate, LuCode, LuPlay,
-} from 'react-icons/lu';
+    LuPencilLine, LuPresentation, LuRefreshCw, LuSave, LuChevronDown,
+    LuMonitorPlay, LuLoaderCircle, LuLayoutTemplate, LuCode, LuPlay, LuSparkles } from 'react-icons/lu';
 import { registerMonaco, MONACO_THEME_NAME } from '../../monacoTheme.js';
 import { parseDeck, serializeDeck, setFrontMatterKeys } from '../../utils/deckParser';
 import { buildSlideSnippet, buildSlideRaw, splitSlideContent } from '../../utils/deckTemplates';
@@ -532,10 +531,11 @@ const DeckEditor = ({
                             <button
                                 className={`ep-action-ai${showAiSidebar ? ' active' : ''}`}
                                 onClick={onToggleAi}
-                                title="Toggle Assist"
+                                title="Assist (Ctrl+L)"
+                                aria-pressed={!!showAiSidebar}
                             >
-                                {showAiSidebar ? <LuX size={13} /> : <LuBot size={13} />}
-                                <span>{showAiSidebar ? 'Close Assist' : 'Assist'}</span>
+                                <LuSparkles size={13} />
+                                <span>Assist</span>
                             </button>
                         )}
                     </div>
