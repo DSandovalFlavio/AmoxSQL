@@ -209,6 +209,12 @@ async function avisoDeVersion(raiz, comando, { condaEnv, condaPath, python = nul
     if (Number(v.split('.')[0]) > Number(amox.split('.')[0])) {
         return `dbt runs DuckDB ${v} and AmoxSQL ${amox}. Databases that already exist keep working; one that dbt creates from scratch${lago ? ', and the DuckLake lake,' : ''} will not open in AmoxSQL: use DuckDB ${amox} in dbt's environment, or update AmoxSQL.`;
     }
+    // 6.0: al revés, un dbt con DuckDB 1.x frente a AmoxSQL 2 (un entorno de antes,
+    // o dbt 2.0 con su DuckDB incluido, que es 1.5): lo que AmoxSQL creó, y un lago
+    // en el que escribió, ya no lo abre ese dbt (comprobado en la fase 0 de la 6.0).
+    if (Number(v.split('.')[0]) < Number(amox.split('.')[0])) {
+        return `dbt runs DuckDB ${v} and AmoxSQL ${amox}. A database that AmoxSQL created${lago ? ', or a DuckLake lake it wrote to,' : ''} will not open in dbt: use DuckDB ${amox} in dbt's environment (Set up dbt… does).`;
+    }
     if (!lago) return null;
     if (menor(v, amox)) {
         return `dbt runs DuckDB ${v} and AmoxSQL ${amox}. A DuckLake lake written by the newer one may not open in the older one: update the DuckDB package of dbt's environment.`;

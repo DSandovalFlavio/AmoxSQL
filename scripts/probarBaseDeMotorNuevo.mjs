@@ -1,12 +1,15 @@
 /**
- * Una base escrita por DuckDB 2 (formato 69) frente al motor 1.5 de AmoxSQL.
+ * El motor de AmoxSQL y el de dbt, cada uno de su versión.
  *
  *     node scripts/probarBaseDeMotorNuevo.mjs
  *
- * 1. Abrir una base que DuckDB 2 creó desde cero: lo dice en palabras, en vez
- *    del «version number 69» del motor, y la sesión queda usable.
- * 2. dbt con DuckDB 2: avisa aunque el perfil no tenga lago (una base que dbt
- *    cree desde cero no abrirá en AmoxSQL); con la misma versión, nada.
+ * Hasta la 5.x AmoxSQL corría DuckDB 1.5 y lo que había que explicar era una base
+ * de DuckDB 2 (formato 69) que no abría. En la 6.0 AmoxSQL ES DuckDB 2:
+ * 1. Una base que DuckDB 2 creó desde cero se abre y se lee.
+ * 2. dbt con DuckDB 1.x (un entorno de antes, o dbt 2.0 con su DuckDB incluido,
+ *    que es 1.5): avisa aunque el perfil no tenga lago, porque lo que cree AmoxSQL
+ *    no lo abrirá ese dbt. dbt con un motor más nuevo que AmoxSQL: el aviso de
+ *    siempre. Con la misma versión, nada.
  *
  * La base de fixtures/motor la creó DuckDB 2.0.0 (`create table t as select 42 x`).
  */
@@ -44,15 +47,16 @@ try {
     for (let i = 0; i < 100 && !baseCentral.estaAbierta(); i++) await new Promise(r => setTimeout(r, 100));
 
     console.log('\nabrir una base de DuckDB 2');
+    const { version } = require('@duckdb/node-api');
+    const AMOX = version();
+    comprobar('el motor de AmoxSQL es DuckDB 2', /^v2\./.test(AMOX), AMOX);
     let error = null;
     try { await dbManager.connect('de_dbt.duckdb', PROYECTO); } catch (e) { error = e; }
-    comprobar('no la abre', !!error);
-    comprobar('lo dice en palabras', /de_dbt\.duckdb was created by a newer version of the engine/.test(error?.message || ''), error?.message);
-    comprobar('sin el mensaje del motor', !/version number/.test(error?.message || ''), error?.message);
-    const r = await dbManager.systemQuery('SELECT 1 AS n', { lane: 'meta' }).catch(e => ({ e }));
-    comprobar('la sesión sigue usable', r?.[0]?.n === 1, JSON.stringify(r));
+    comprobar('la abre', !error, error?.message);
+    const r = await dbManager.query('SELECT x FROM t').catch(e => ({ e: e.message }));
+    comprobar('y se lee', r?.[0]?.x === 42, JSON.stringify(r));
     await dbManager.connect('propia.duckdb', PROYECTO);
-    comprobar('y abre después una base de su versión', /propia\.duckdb$/.test(dbManager.attachedPath || ''), dbManager.attachedPath);
+    comprobar('y abre después una base nueva', /propia\.duckdb$/.test(dbManager.attachedPath || ''), dbManager.attachedPath);
 
     console.log('\ndbt con DuckDB 2');
     const sinLago = 'p:\n  target: dev\n  outputs:\n    dev:\n      type: duckdb\n      path: tienda.duckdb\n';
@@ -69,17 +73,20 @@ try {
         fs.writeFileSync(path.join(raiz, 'profiles.yml'), perfil);
         const antes = process.env.PATH;
         process.env.PATH = bin + path.delimiter + antes;
-        try { return await dbtConvivir.avisoDeVersion(raiz, 'dbt run', { condaEnv: 'none', condaPath: `fuera-${version}-${path.basename(raiz)}`, versionAmox: 'v1.5.6' }); }
+        try { return await dbtConvivir.avisoDeVersion(raiz, 'dbt run', { condaEnv: 'none', condaPath: `fuera-${version}-${path.basename(raiz)}`, versionAmox: AMOX }); }
         finally { process.env.PATH = antes; }
     };
-    const a1 = await avisoSinConda('2.0.0', sinLago);
-    comprobar('sin lago, avisa', /dbt runs DuckDB 2\.0\.0 and AmoxSQL 1\.5\.6/.test(a1 || ''), a1);
-    comprobar('  …de las bases que dbt cree desde cero', /one that dbt creates from scratch will not open/.test(a1 || ''), a1);
-    const a2 = await avisoSinConda('2.0.0', conLago);
-    comprobar('con lago, también nombra el lago', /and the DuckLake lake/.test(a2 || ''), a2);
-    const a3 = await avisoSinConda('1.5.6', sinLago);
+    const amox = AMOX.replace(/^v/, '');
+    const a1 = await avisoSinConda('1.5.4', sinLago);
+    comprobar('dbt con DuckDB 1.x, sin lago: avisa', new RegExp(`dbt runs DuckDB 1\\.5\\.4 and AmoxSQL ${amox.replace(/\./g, '\\.')}`).test(a1 || ''), a1);
+    comprobar('  …de lo que crea AmoxSQL, y cómo arreglarlo', /A database that AmoxSQL created will not open in dbt/.test(a1 || '') && /Set up dbt/.test(a1 || ''), a1);
+    const a2 = await avisoSinConda('1.5.4', conLago);
+    comprobar('con lago, también nombra el lago', /or a DuckLake lake it wrote to/.test(a2 || ''), a2);
+    const a5 = await avisoSinConda('3.0.0', sinLago);
+    comprobar('dbt con un motor de otra versión mayor más nueva: el aviso de siempre', /one that dbt creates from scratch will not open/.test(a5 || ''), a5);
+    const a3 = await avisoSinConda(amox, sinLago);
     comprobar('con la misma versión, nada', a3 === null, a3);
-    const a4 = await avisoSinConda('1.5.6', conLago);
+    const a4 = await avisoSinConda(amox, conLago);
     comprobar('con la misma versión y lago, nada', a4 === null, a4);
 } catch (e) {
     fallos++;

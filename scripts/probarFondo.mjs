@@ -118,9 +118,10 @@ try {
         const ruta = decodeURIComponent(req.url.split('?')[0]);
         if (ruta === '/inestable.csv') {
             peticiones++;
-            // El motor ya intenta 4 veces (1 + 3): las 6 primeras peticiones fallan,
-            // así que el primer intento de AmoxSQL falla entero y el segundo sale bien.
-            if (peticiones <= 6) { res.writeHead(503); return res.end('busy'); }
+            // DuckDB 2 ya intenta 9 veces en ~3,7 s (motor.js): las 12 primeras
+            // peticiones fallan, así que el primer intento de AmoxSQL falla entero y el
+            // segundo sale bien.
+            if (peticiones <= 12) { res.writeHead(503); return res.end('busy'); }
         } else if (ruta !== "/it's.csv") { res.writeHead(404); return res.end('no'); }
         res.writeHead(200, { 'Content-Type': 'text/csv', 'Content-Length': Buffer.byteLength(CSV) });
         res.end(req.method === 'HEAD' ? undefined : CSV);
