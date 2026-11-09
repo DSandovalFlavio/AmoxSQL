@@ -7,7 +7,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased] — 6.0: el motor nuevo (DuckDB 2.0)
 
-AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_duckdb_2.md`. Fases 0 y 1 hechas; se publicará con DuckDB 2.0.1.
+AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_duckdb_2.md`. Fases 0, 1 y 2 hechas; se publicará con DuckDB 2.0.1.
 
 ### Cambiado
 - **El motor es DuckDB 2.0.** Las bases que crea AmoxSQL quedan en el formato de 2.0: una 5.x ya no las abre. Las bases que ya existían se siguen abriendo y siguen abriendo en la 5.x aunque la 6.0 escriba en ellas. Las zonas horarias son más rápidas (−39 % en el proyecto de ejemplo) y las bases ocupan menos (−10 a −17 %).
@@ -16,6 +16,7 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 - **Set up dbt…** instala dbt con duckdb 2.0 y pide Python 3.11 a 3.13. Un dbt con DuckDB 1.x (un entorno de antes, o dbt 2.0 con su DuckDB incluido) recibe un aviso: no abrirá lo que crea AmoxSQL.
 
 ### Nuevo
+- **Variables del proyecto, con `$nombre`.** Se declaran una vez en **SQL Snippets › Variables** (nombre, tipo —texto, número, fecha, sí/no, lista—, valor y para qué sirve) y se usan en cualquier consulta, celda, tarjeta del Canvas o proceso de Data Flow como `WHERE region = $region`, sin comillas a mano y con su tipo; ningún valor puede cambiar la consulta. Se guardan con el proyecto (`.amoxsql/variables.json`), así que un gráfico o un proceso guardado con `$region` sigue funcionando. La barra Variables del editor muestra la misma lista; al escribir `$` el editor las ofrece con su descripción; el Assistant las conoce. `${x}` sigue pegando texto, como antes.
 - **Esquemas anidados** (`CREATE SCHEMA ventas.crudo`): el explorador, el diagrama ER, la vista de una tabla, el Assistant, Data Flow y la importación los muestran con su ruta (`ventas.crudo`), y dos esquemas «crudo» de padres distintos no se mezclan.
 - **Abrir un lago DuckLake de la 5.x** lo dice: leerlo no lo cambia; la primera escritura lo deja sólo para la 6.
 

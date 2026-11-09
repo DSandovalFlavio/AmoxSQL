@@ -117,6 +117,10 @@ credenciales de S3 en URLs generadas por AmoxSQL. Hay que pasar por el motor nue
 
 **Dec-97 · dbt 2.0, a prueba.** En la fase 0 se prueba el ejecutable de dbt 2.0 con un proyecto real creado por AmoxSQL (seed, modelos por capa, tests, una fuente de AmoxSQL, un lago DuckLake): qué versión de DuckDB escribe, si AmoxSQL abre lo que deja y qué de la integración de la 5.12 deja de funcionar. Con eso se decide si la 6.1 añade el tipo de entorno `dbt2` (sin Python) junto a los que hay. Nada de la 6.0 depende de esa prueba.
 
+**Dec-98 · Las variables son del proyecto (decidido el 2026-11-09; el autor lo dejó a criterio y propuso el panel en SQL Snippets).** Viven en `<proyecto>/.amoxsql/variables.json` con tipo (texto, número, fecha, sí/no, lista) y descripción, viajan con el proyecto (Git, `.amoxproject`) y se escriben `$nombre`. Las variables de DuckDB 2 son de cada conexión, así que AmoxSQL las pone en todos los carriles (`ponerSesion`) al abrir el proyecto y al cambiarlas, y en cada contexto aislado de Data Flow. Por eso lo guardado (un gráfico, una celda, un proceso) puede llevar `$region` y sigue funcionando dentro del proyecto: resuelve la duda de «guardar el valor o la variable». Se declaran y documentan en **SQL Snippets › Variables**; la barra Variables del editor es la misma lista.
+
+**Dec-99 · `${x}` y `{{x}}` siguen pegando texto.** `${x}` (barra del editor, snippets) y `{{x}}` (parámetros de un cuaderno o de un deck, por documento) son plantillas: sirven para nombres de tabla, fragmentos y textos de un informe, cosas que una variable del motor no puede ser. No se traducen a `$x`; lo nuevo para un valor es `$x`. Data Flow ya ponía sus parámetros con tipo con `SET VARIABLE` (5.11): en 2.0 también se leen como `$x`.
+
 ## 4. Lo que AmoxSQL puede ganar (oportunidades)
 
 Ordenadas por valor para el analista que entrega cada semana. Las marcadas **6.0** entran en este plan; el resto queda anotado en `candidatos_v6.md`.
@@ -222,6 +226,13 @@ Queda para después: `union_by_name` / `all_varchar` más lentos (se mide con la
 ### Fase 2 · Parámetros de verdad (O1)
 Variables del editor, parámetros del cuaderno y del Canvas y parámetros de Data Flow sobre `SET VARIABLE` + `$x`. Los archivos de la 5.x abren sin cambios (`${x}` y `{{x}}` se traducen al ejecutar). Pruebas: un texto con comillas, una fecha, un número, una lista; ningún valor puede cambiar la consulta. → **alpha.2**.
 
+#### Resultado de la fase 2 (2026-11-09) — hecha, con el alcance de Dec-98 y Dec-99
+
+- `server/variables.js` (tipos, validación, `SET VARIABLE` / `RESET VARIABLE`, montaje en los carriles y en contextos aislados, el error «$x is not a project variable» en palabras, lo que ve el Assistant); `GET/PUT /api/variables`.
+- Interfaz: **SQL Snippets › Variables** (`VariablesDelProyecto.jsx`), la barra del editor sobre la misma lista (`utils/variablesProyecto.js`), completado y ayuda al pasar el ratón de `$nombre`.
+- `probarVariables` (23): cada tipo, `LIMIT $n`, listas, los tres carriles, el plan, una celda del cuaderno, Data Flow con base del proyecto y en memoria (programado), un texto con `'; DROP …; --` es sólo un texto, cambiar/quitar/volver a abrir, el Assistant. Visto en la app: crear en Snippets, completar `$`, ejecutar, cambiar desde la barra (Snippets y motor al día), la descripción se conserva.
+- Lo que no se hizo, por Dec-99: traducir `${x}` y `{{x}}` a `$x`.
+
 ### Fase 3 · Lo nuevo que se ve (O2, O3, O4, O5, O6)
 El plan con E/S y poda; el menú de subesquemas; «Actualizar el formato de la base»; VARIANT en importar, la tabla y el perfil; el asistente que estima el costo. → **beta.1**.
 
@@ -266,3 +277,4 @@ Respondidas el 2026-11-09: el autor aceptó las cuatro recomendaciones.
 | 2026-11-09 | — | Plan al día con la 5.19.0: §7 respondida, lo de la 5.16–5.19 que hay que volver a mirar, dbt 2.0 (Dec-68 revisada, Dec-97), 2.0.1 el 18 de noviembre |
 | 2026-11-09 | 0 | Motor 2.0.0-r.1 en la rama: carga en Electron 33, suites 70/70 → 67/70 (tres causas, ninguna de fondo), Electron real 106/106, tiempos antes/después, compatibilidad de la base central y de DuckLake, dbt de Python con duckdb 2.0 (bien) y dbt 2.0.11 (trae DuckDB 1.5.4: no abre bases de la 6.0), fixtures del plan |
 | 2026-11-09 | 1 | Plan de ejecución, guarda del SQL generado (4 fallos de Data Flow), esquemas anidados, reintentos HTTP (67 s → 3,7 s), dbt con Python 3.11+ (recorrido real 12/12), lagos de la 5.x y lagos que viajan, el asistente con la documentación 2.0 y **Rewrite the lambda**. Suites 75/75, Electron real 106/106 |
+| 2026-11-09 | 2 | Variables del proyecto con `$nombre` (Dec-98, Dec-99): `server/variables.js`, SQL Snippets › Variables, la barra del editor, completado; `probarVariables` 23/23 |
