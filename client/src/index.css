@@ -22252,3 +22252,13 @@ tr:hover td {
 .fallo-interfaz--compacto > span { flex: 1; min-width: 0; color: var(--text-secondary, #a8a8ad); }
 .fallo-interfaz--compacto code { overflow-wrap: anywhere; font-family: var(--font-mono, monospace); }
 .fallo-interfaz--compacto button { background: transparent; color: var(--text-secondary, #a8a8ad); font-weight: 400; flex-shrink: 0; }
+
+/* ── E5: la propuesta del Assistant sobre el lienzo de Data Flow ───────── */
+.chain-revision { position: absolute; top: 10px; right: 12px; width: min(720px, calc(100% - 220px)); z-index: 6; pointer-events: none; }
+.chain-revision .amx-ayp { margin: 0; pointer-events: auto; box-shadow: var(--shadow-md); }
+.react-flow__node.chain-node--fantasma { opacity: 0.9; pointer-events: none; }
+.react-flow__node.chain-node--fantasma > * { outline: 2px dashed var(--accent-primary); outline-offset: 3px; border-radius: 10px; }
+.react-flow__node.chain-node--propuesta > * { outline: 2px solid var(--accent-primary); outline-offset: 3px; border-radius: 10px; }
+.react-flow__node.chain-node--sale { opacity: 0.4; }
+.react-flow__node.chain-node--sale > * { outline: 2px dashed var(--color-error); outline-offset: 3px; border-radius: 10px; }
+.chain-node-menu-item-asistir svg { color: var(--accent-primary); }

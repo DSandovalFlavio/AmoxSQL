@@ -24,7 +24,12 @@ import {
     LuInbox, LuDatabase, LuStickyNote, LuType, LuFrame, LuRefreshCw, LuSearch, LuEllipsis,
     LuFilter, LuGroup, LuMerge, LuTriangleAlert, LuX, LuEraser, LuChartBar, LuHash, LuCamera,
     LuPresentation, LuBookOpen, LuGitBranch, LuFileCode, LuGitCompareArrows, LuChevronLeft, LuChevronRight,
+    LuSparkles, LuMessageSquare,
 } from 'react-icons/lu';
+import TarjetaFantasma from './TarjetaFantasma.jsx';
+import { fijarProveedorDeFoco, fijarAplicador } from '../../utils/memoriaDePestana';
+import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
+import { estructuraDeLienzo, esDeTarjeta, vigenteEnLienzo, aplicarALienzo, sitioDeNueva, describirTarjeta } from '../ai/archivos/lienzo.js';
 import { buildSlideRaw } from '../../utils/deckTemplates';
 import { serializeDeck } from '../../utils/deckParser';
 import { marcosEnOrden, planDeDeck, aCuaderno, aDataFlow, sqlAutonomo } from './salidas.js';
@@ -55,6 +60,8 @@ import './lienzo.css';
 const TIPOS_DE_NODO = {
     source: TarjetaDatos, query: TarjetaDatos, note: TarjetaNota, text: TarjetaTexto, frame: TarjetaMarco,
     chart: TarjetaGrafico, number: TarjetaCifra, desconocida: TarjetaDesconocida,
+    // E5: lo que propone el Assistant, sobre el lienzo.
+    fantasma: TarjetaFantasma,
 };
 const CONOCIDOS = new Set(['source', 'query', 'note', 'text', 'frame', 'chart', 'number']);
 const VISUALES = new Set(['chart', 'number']);
@@ -111,7 +118,7 @@ function fotoDeVisual(t, r) {
     return { cuando: new Date().toISOString(), filas: datos.length, columnas, puntos: datos.slice(0, PUNTOS_DE_FOTO).map(f => columnas.map(c => limpio(f[c]))) };
 }
 
-function Interior({ content, onChange, theme, editorSettings, isActive, filePath, onCreateNew }) {
+function Interior({ content, onChange, theme, editorSettings, isActive, filePath, onCreateNew, tabId = null }) {
     const dialog = useDialog();
     const toast = useToast();
     const flow = useReactFlow();
@@ -306,6 +313,78 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
     const firmaDatos = tarjetas.filter(t => DEJAN_VISTA.has(t.tipo)).map(t => t.id).join('\u0001');
     const tarjetasDeDatos = useMemo(() => (firmaDatos ? firmaDatos.split('\u0001') : []), [firmaDatos]);
 
+    // ── El Assistant en el Canvas (plan del Assistant, E5) ──────────────────
+    const alDia = useRef({});
+    alDia.current = { lienzo, seleccion, flechas, estados, resultados };
+
+    // El foco: la tarjeta seleccionada, el Canvas sin fotos (C1) y, de la
+    // seleccionada, sus filas como resultado (pasan por la política de IA).
+    useEffect(() => fijarProveedorDeFoco(tabId, () => {
+        const { lienzo: l, seleccion: sel, flechas: fl, estados: es, resultados: res } = alDia.current;
+        if (!l) return {};
+        const errores = Object.fromEntries(Object.entries(res).filter(([, r]) => r?.error).map(([id]) => [id, true]));
+        const t = sel ? l.tarjetas.find(x => x.id === sel) : null;
+        let resultado = null;
+        let error = null;
+        if (t) {
+            const r = res[t.id];
+            if (r?.error) error = r.error;
+            else if (r?.data?.length) resultado = { data: r.data, types: r.types || null, rowCount: r.rowCount ?? r.data.length };
+            else if (t.foto?.muestra?.length) {
+                const cols = t.foto.columnas || [];
+                resultado = { data: t.foto.muestra.map(f => Object.fromEntries(cols.map((c, i) => [c, f[i]]))), rowCount: t.foto.filas };
+            }
+        }
+        return { tarjeta: t ? { id: t.id } : null, lienzo: estructuraDeLienzo(l, { flechas: fl, estados: es, errores }), resultado, error };
+    }), [tabId]);
+
+    const asistir = useCallback(async (accion) => {
+        setMenuAsistir(false);
+        if (accion === 'tarjetas') {
+            const v = await dialog.promptAsync({
+                title: 'Ask a question → cards',
+                message: 'The answer comes as new cards on this canvas, next to the selected one.',
+                placeholder: 'Which cities sell the most in the South?',
+                confirmLabel: 'Ask',
+            });
+            if (!v || !String(v).trim()) return;
+            window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { tabId, pregunta: `Answer this with cards on the canvas (one propose_change per card): ${String(v).trim()}` } }));
+            return;
+        }
+        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+    }, [dialog, tabId]);
+    const [menuAsistir, setMenuAsistir] = useState(false);
+
+    // Las propuestas pendientes de este Canvas, que se dibujan como tarjetas fantasma.
+    const [propuestas, setPropuestas] = useState({ propuestas: [], acciones: null });
+    useEffect(() => (filePath ? suscribirPropuestas(filePath, (p) => setPropuestas({
+        propuestas: (p.propuestas || []).filter(tc => esDeTarjeta(tc.result)),
+        acciones: p.acciones,
+    })) : undefined), [filePath]);
+    const vigentes = useMemo(() => (lienzo ? propuestas.propuestas.filter(tc => vigenteEnLienzo(lienzo, tc.result)) : []), [propuestas.propuestas, lienzo]);
+
+    // Aceptar: sobre el documento de este editor, como un gesto más.
+    useEffect(() => fijarAplicador(tabId, (resultado) => {
+        const actual = lienzoRef.current;
+        if (!actual) return { error: 'Show the canvas to apply this change.' };
+        const r = aplicarALienzo(actual, resultado, { idLibre, tamano: TAMANO });
+        if (r.error) return { error: r.error };
+        actualizar(() => r.lienzo);
+        setSeleccion(r.id);
+        toast.info(`Applied: ${describirTarjeta(resultado)}. Run it to see its data.`);
+        return { ok: true };
+    }), [tabId, actualizar, toast]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+    // «Review» en el chat: el lienzo va a la tarjeta fantasma.
+    useEffect(() => {
+        const alRevisar = (e) => {
+            const id = `propuesta:${e.detail?.toolCallId}`;
+            if (vigentes.some(tc => `propuesta:${tc.toolCallId}` === id)) flow.fitView({ nodes: [{ id }], duration: 350, maxZoom: 1, padding: 0.5 });
+        };
+        window.addEventListener('amox_revisar_propuesta', alRevisar);
+        return () => window.removeEventListener('amox_revisar_propuesta', alRevisar);
+    }, [vigentes, flow]);
+
     // ── Los nodos y las flechas ─────────────────────────────────────────────
     const resaltadas = useMemo(() => (seleccion ? linaje(lienzo, seleccion, flechas) : null), [lienzo, seleccion, flechas]);
 
@@ -353,7 +432,32 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
         return lista;
     }, [tarjetas, seleccion, resaltadas, resultados, estados, corriendo, editando, problemas, versiones, columnasDe, tarjetasDeDatos]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-    const bordes = useMemo(() => flechas.map(e => {
+    // E5: cada propuesta, una tarjeta fantasma: la nueva donde entraría; el cambio, debajo de su tarjeta.
+    const fantasmas = useMemo(() => vigentes.map((tc, i) => {
+        const o = tc.result.objetivo;
+        let pos;
+        if (o.accion === 'cambiar') {
+            const t = tarjetas.find(x => x.id === o.id);
+            const [, h] = TAMANO[t?.tipo] || [260, 160];
+            pos = { x: t?.x ?? 0, y: (t?.y ?? 0) + (t?.h ?? h) + 30 };
+        } else {
+            const s = sitioDeNueva(lienzo, tc.result, TAMANO[o.tarjetaTipo]);
+            pos = { x: s.x, y: s.y + i * 24 };
+        }
+        return {
+            id: `propuesta:${tc.toolCallId}`, type: 'fantasma', position: pos, width: 420,
+            draggable: false, selectable: false, zIndex: 20,
+            data: { tc, acciones: propuestas.acciones },
+        };
+    }), [vigentes, tarjetas, lienzo, propuestas.acciones]);
+    const nodosConFantasmas = useMemo(() => (fantasmas.length ? [...nodos, ...fantasmas] : nodos), [nodos, fantasmas]);
+    const bordesFantasma = useMemo(() => vigentes.map((tc) => {
+        const o = tc.result.objetivo;
+        const desde = o.accion === 'cambiar' ? o.id : o.cerca;
+        return desde ? { id: `propuesta-borde:${tc.toolCallId}`, source: desde, target: `propuesta:${tc.toolCallId}`, className: 'lz-arista lz-arista--fantasma', focusable: false, deletable: false } : null;
+    }).filter(Boolean), [vigentes]);
+
+    const bordesReales = useMemo(() => flechas.map(e => {
         const lit = !!resaltadas && ((e.a === seleccion || resaltadas.abajo.has(e.a)) && (e.de === seleccion || resaltadas.abajo.has(e.de))
             || (e.de === seleccion || resaltadas.arriba.has(e.de)) && (e.a === seleccion || resaltadas.arriba.has(e.a)));
         return {
@@ -364,6 +468,7 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
             focusable: false, deletable: false,
         };
     }), [flechas, resaltadas, seleccion]);
+    const bordes = useMemo(() => (bordesFantasma.length ? [...bordesReales, ...bordesFantasma] : bordesReales), [bordesReales, bordesFantasma]);
 
     // Mover, redimensionar y seleccionar vuelven al documento.
     const alCambiarNodos = useCallback((cambios) => {
@@ -635,14 +740,14 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
     const [menuMas, setMenuMas] = useState(false);
     // Los menús se cierran con un clic fuera de ellos (y con Esc).
     useEffect(() => {
-        if (!menuMas && !menuFuentes && !menuConexion && !menuExportar) return undefined;
+        if (!menuMas && !menuFuentes && !menuConexion && !menuExportar && !menuAsistir) return undefined;
         const fuera = (e) => {
             if (e.target.closest?.('.lz-menu, .lz-herr > button, .lz-mas > button')) return;
-            setMenuMas(false); setMenuFuentes(null); setMenuConexion(null); setMenuExportar(false);
+            setMenuMas(false); setMenuFuentes(null); setMenuConexion(null); setMenuExportar(false); setMenuAsistir(false);
         };
         document.addEventListener('mousedown', fuera);
         return () => document.removeEventListener('mousedown', fuera);
-    }, [menuMas, menuFuentes, menuConexion, menuExportar]);
+    }, [menuMas, menuFuentes, menuConexion, menuExportar, menuAsistir]);
     // El contexto no cambia al ejecutar: las acciones van por referencia.
     const acciones = useRef({});
     acciones.current = { correr, cambiar, renombrar, redimensionar };
@@ -684,6 +789,24 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
                         </span>
                     )}
                     {viejas > 0 && <span className="lz-aviso" title="Cards not up to date in this session">{viejas === 1 ? '1 card to refresh' : `${viejas} cards to refresh`}</span>}
+                    {tabId && (
+                        <div className="lz-mas">
+                            <button type="button" className="lz-btn lz-btn--asistir" onClick={() => setMenuAsistir(m => !m)} title="Ask Assist about this canvas">
+                                <LuSparkles size={13} /> Assist
+                            </button>
+                            {menuAsistir && (
+                                <div className="lz-menu lz-menu--derecha">
+                                    {seleccion && (
+                                        <button type="button" onClick={() => asistir('tarjeta_preguntar')}><LuMessageSquare size={13} /> Ask about this card <small>{seleccion}</small></button>
+                                    )}
+                                    {seleccion && tarjetas.find(t => t.id === seleccion)?.tipo === 'number' && (
+                                        <button type="button" onClick={() => asistir('tarjeta_cifra')}><LuHash size={13} /> Explain this number</button>
+                                    )}
+                                    <button type="button" onClick={() => asistir('tarjetas')}><LuSparkles size={13} /> Ask a question → cards…</button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <button type="button" className="lz-btn" onClick={() => setBuscando(b => !b)} title="Find a card (Ctrl+F)"><LuSearch size={14} /></button>
                     <button type="button" className="lz-btn lz-btn--prim" disabled={!!corriendo || viejas === 0} onClick={() => refrescar(null)} title="Run what is not up to date, in dependency order">
                         <LuRefreshCw size={13} /> Refresh all
@@ -759,7 +882,7 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
 
                 <div className="lz-flujo">
                     <ReactFlow
-                        nodes={nodos}
+                        nodes={nodosConFantasmas}
                         edges={bordes}
                         nodeTypes={TIPOS_DE_NODO}
                         onNodesChange={alCambiarNodos}

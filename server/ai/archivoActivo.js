@@ -216,7 +216,18 @@ function prepararFoco({ archivo, foco = null, error = null, datos = 'filas' }) {
         const rango = (r) => (r && Number.isInteger(r.desde) && Number.isInteger(r.hasta) && r.desde >= 1 && r.hasta >= r.desde && r.desde <= lineas.length
             ? { desde: r.desde, hasta: Math.min(r.hasta, lineas.length) } : null);
         const sel = rango(foco.seleccion);
-        if (archivo.tipo === 'deck') {
+        if (archivo.tipo === 'flujo' && archivo.flujo) {
+            // E5: el paso seleccionado.
+            const n = archivo.flujo.nodes.find(x => x.id === foco.paso?.id);
+            if (n) out.paso = { id: n.id, tipo: n.type, nombre: n.label || null };
+        } else if (archivo.tipo === 'lienzo' && archivo.lienzo) {
+            const t = archivo.lienzo.tarjetas.find(x => x.id === foco.tarjeta?.id);
+            if (t) out.tarjeta = { id: t.id, tipo: t.tipo };
+        } else if (archivo.tipo === 'diagrama' && archivo.diagrama) {
+            const g = archivo.diagrama.grafo;
+            const n = (g.nodos || []).find(x => x.id === foco.nodo?.id);
+            if (n) out.nodo = { id: n.id, texto: String(n.texto || '').slice(0, 200) };
+        } else if (archivo.tipo === 'deck') {
             // E4: la lámina en la que está (por número, el mismo que ve el modelo).
             const l = (archivo.laminas || []).find(x => x.n === foco.lamina?.n);
             if (l) out.lamina = { n: l.n, diseno: l.diseno, titulo: l.titulo || null };
@@ -345,6 +356,36 @@ function prepararArchivo({ filePath = null, fileType = null, contenido = '', dat
         texto = textoDeGrafico(grafico);
     }
 
+    // E5: Data Flow (el servidor lee el propio .sqlchain), Canvas y diagrama (con la
+    // estructura que manda su editor). Los tres se cambian por sus piezas.
+    const E = require('./estructurados');
+    let flujo = null;
+    if (tipo === 'flujo' && texto.trim()) {
+        flujo = E.leerFlujo(texto);
+        if (flujo) texto = E.textoDeFlujo(flujo, { estados: estructura?.estados || {} });
+    }
+    let lienzo = null;
+    if (tipo === 'lienzo' && estructura && Array.isArray(estructura.tarjetas)) {
+        lienzo = {
+            titulo: estructura.titulo || null, parametros: estructura.parametros || {},
+            tarjetas: estructura.tarjetas.slice(0, 300).map(t => ({
+                id: String(t.id), tipo: String(t.tipo || ''), titulo: t.titulo ? String(t.titulo) : null,
+                sql: t.sql ? String(t.sql) : null, texto: t.texto ? String(t.texto) : null, origen: t.origen ? String(t.origen) : null,
+                desde: t.desde ? String(t.desde) : null, marco: t.marco ? String(t.marco) : null,
+                lee: Array.isArray(t.lee) ? t.lee.map(String) : [], estado: t.estado || null,
+            })),
+        };
+        texto = E.textoDeLienzo(lienzo);
+    }
+    let diagrama = null;
+    if (tipo === 'diagrama' && estructura && estructura.grafo && Array.isArray(estructura.grafo.nodos)) {
+        diagrama = {
+            grafo: estructura.grafo, formas: (estructura.formas || []).map(String), estilos: (estructura.estilos || []).map(String),
+            capas: (estructura.capas || []).map(String), mermaid: estructura.mermaid ? String(estructura.mermaid) : '',
+        };
+        texto = E.textoDeDiagrama(diagrama);
+    }
+
     if (tipo === 'grafico' && !grafico && datos !== 'filas' && texto.trim()) {
         try {
             const spec = JSON.parse(texto);
@@ -379,7 +420,7 @@ function prepararArchivo({ filePath = null, fileType = null, contenido = '', dat
     return {
         tipo, nombre: def.nombre, ruta: filePath, idioma, contenido: r.texto, notas,
         // Un gráfico propone cuando llega con sus paneles (E4): se cambian ellos, no el JSON.
-        puedeProponer: (def.propone || !!grafico) && !retenido && !r.recortado, retenido,
+        puedeProponer: (def.propone || !!grafico || !!flujo || !!lienzo || !!diagrama) && !retenido && !r.recortado, retenido,
         // Qué es, si es un archivo del proyecto que AmoxSQL entiende (T3, M3).
         descripcion: conocido(filePath),
         // Los tipos que se cambian por líneas (E2; Markdown desde E3): el prompt
@@ -394,7 +435,14 @@ function prepararArchivo({ filePath = null, fileType = null, contenido = '', dat
         disenos,
         porPaneles: !!grafico,
         grafico,
-        idiomaCuerpo: celdas || laminas || grafico ? 'markdown' : idioma,
+        // E5: Data Flow por pasos, Canvas por tarjetas, diagrama entero (como grafo).
+        porPasos: !!flujo,
+        flujo,
+        porTarjetas: !!lienzo,
+        lienzo,
+        porDiagrama: !!diagrama,
+        diagrama,
+        idiomaCuerpo: celdas || laminas || grafico || flujo || lienzo || diagrama ? 'markdown' : idioma,
     };
 }
 

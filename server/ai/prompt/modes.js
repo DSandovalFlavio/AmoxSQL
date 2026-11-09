@@ -48,7 +48,17 @@ Write it in dbt's Jinja: keep \`{{ ref('…') }}\` and \`{{ source('…', '…')
     // Un deck por láminas y un gráfico por paneles (E4).
     const porLaminas = propone && !!archivo?.porLaminas;
     const porPaneles = propone && !!archivo?.porPaneles;
-    if (porLaminas) {
+    // E5: Data Flow por pasos, Canvas por tarjetas, el diagrama como grafo.
+    const porPasos = propone && !!archivo?.porPasos;
+    const porTarjetas = propone && !!archivo?.porTarjetas;
+    const porDiagrama = propone && !!archivo?.porDiagrama;
+    if (porPasos) {
+        section += `\n- **propose_change**: proposes changes to this Data Flow as operations on its steps (add, change, remove, connect, disconnect), using the step ids in "Current editor state". The user sees new steps as ghosts on the canvas with the list of changes, and clicks Accept or Reject; nothing is saved to disk. Never write the .sqlchain JSON by hand.`;
+    } else if (porTarjetas) {
+        section += `\n- **propose_change**: proposes ONE change to this Canvas: the SQL of a query card or the text of a note/text card, or a new card (a query that reads other cards, a note, a text) next to another. The user sees it as a ghost card and clicks Accept or Reject; nothing is saved to disk. For several cards, call it once per card.`;
+    } else if (porDiagrama) {
+        section += `\n- **propose_change**: proposes this diagram as it should be — all its boxes, arrows and groups — as a graph, never as mermaid text. The user sees Before / Proposal drawn and clicks Accept or Reject; nothing is saved to disk.`;
+    } else if (porLaminas) {
         section += `\n- **propose_change**: proposes ONE slide change of this deck: change a slide (target kind "slide", its number) or add a new slide after one (kind "new_slide", after_slide = its number, 0 for the start). Send the slide's parts — layout, text, charts, notes —; a part you leave out stays as it is. The user sees it on the slide (Before / Proposal) and clicks Accept or Reject; nothing is saved to disk. Never rewrite the whole deck: the other slides and the front matter stay as they are. To change several slides, call it once per slide.`;
     } else if (porPaneles) {
         section += `\n- **propose_change**: proposes a change to this chart through its Story Flow settings (target kind "panels", only the keys that change), or — only in the Code view — a complete Vega-Lite spec (kind "spec"). The user sees Before / Proposal on the figure with the list of what changes, and clicks Accept or Reject; nothing is saved to disk. Never write the .amoxvis JSON by hand.`;
@@ -73,7 +83,23 @@ Write it in dbt's Jinja: keep \`{{ ref('…') }}\` and \`{{ source('…', '…')
     }
 
     section += `\n\n### Workflow & honesty rules`;
-    if (porLaminas) {
+    if (porPasos) {
+        let contrato = '';
+        try { contrato = require('../chainGenerator').NODE_CONTRACT; } catch { /* sin catálogo */ }
+        section += `\n- **When the user asks you to build, extend, fix or change the flow, DELIVER IT with \`propose_change\`, not just as advice in the chat.** Say in one sentence what changes and why, then call it.
+- **How a Data Flow works:** steps run in order; a step reads the output of the steps connected into it (its \`after\`). Transform steps name their output with \`tableName\`; SQL steps (\`sql_inline\`) read upstream tables by name. Parameters are written \${name} in configs.
+- **"This step", "this", "it"** mean the step the user selected (see "Where the user is"). When it failed, its error is in "Current editor state": fix the cause in its config.
+- **Step types and their config:**
+${contrato}`;
+    } else if (porTarjetas) {
+        section += `\n- **When the user asks for an analysis, a number or a note on the canvas, DELIVER IT with \`propose_change\` as cards**, not just as text in the chat. A new query reads the cards it needs with FROM <their name>; place it next to the card it reads.
+- **"This card", "this", "it"** mean the card the user selected (see "Where the user is"). Its data, when it ran, is the on-screen result.
+- Never invent numbers: run a card's SQL with \`execute_sql\` when you need them.`;
+    } else if (porDiagrama) {
+        section += `\n- **When the user asks you to draw, extend or tidy the diagram, DELIVER IT with \`propose_change\`**, the whole diagram as it should be. Keep the ids and texts of the boxes you are not asked to change. Groups have one level (no group inside a group).
+- To draw a diagram from a file (a .sql, a .sqlchain), read it with \`read_file\` first and draw its real steps.
+- **"This box", "this"** mean the box the user selected (see "Where the user is").`;
+    } else if (porLaminas) {
         section += `\n- **When the user asks you to write, tighten or change something on a slide, or to add a slide, DELIVER IT with \`propose_change\`, not just as text in the chat.** \`propose_change\` puts it on the slide with Before / Proposal and Accept/Reject; text in the chat has to be copied by hand. Say in one sentence what changes, then call \`propose_change\`.
 - **How a deck works:** each slide makes ONE point. Its heading is the claim (what the data shows, not a label); the body backs it in a few short lines. A chart is a \`.amoxvis\` file shown on the slide; its query re-runs when the deck refreshes. Layouts: cover/section/closing open and close, finding = claim + text + one chart, chart-full = the chart alone, chart-grid/compare = several charts, summary/metric/table/steps/actions = data blocks, content/statement/two-col/method = text.
 - **"This slide", "this", "it"** mean the slide the user is on (see "Where the user is").
@@ -250,6 +276,11 @@ function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig,
         // E4: el gráfico por sus paneles, no su JSON.
         open();
         s += `\n**Active chart (${archivo.ruta || 'untitled'}):**\n\n${archivo.contenido}\n`;
+    } else if (archivo?.porPasos || archivo?.porTarjetas || archivo?.porDiagrama) {
+        // E5: el flujo paso a paso, el Canvas tarjeta a tarjeta, el diagrama como grafo.
+        open();
+        const que = archivo.porPasos ? 'Data Flow, step by step' : archivo.porTarjetas ? 'Canvas, card by card' : 'diagram';
+        s += `\n**Active ${que} (${archivo.ruta || 'untitled'}):**\n\n${archivo.contenido}\n`;
     } else if (archivo && archivo.tipo !== 'sql') {
         // Cualquier otro archivo va con su nombre y en su idioma: llamarle
         // «query» a un deck o a un YAML hacía que el modelo lo tratara como SQL.
@@ -277,6 +308,17 @@ function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig,
         open();
         const c = enfoque.celda;
         s += `\n**Where the user is:** cell ${c.n} (${c.tipo === 'texto' ? 'text' : `SQL${c.nombre ? ` \`${c.nombre}\`` : ''}`}). _"This cell" means cell ${c.n}._${currentResult ? ' The on-screen result below is the result of this cell.' : ''}`;
+    } else if (enfoque?.paso) {
+        open();
+        const p = enfoque.paso;
+        s += `\n**Where the user is:** step \`${p.id}\` (${p.tipo}${p.nombre ? `, "${p.nombre}"` : ''}). _"This step" means \`${p.id}\`._`;
+    } else if (enfoque?.tarjeta) {
+        open();
+        const t = enfoque.tarjeta;
+        s += `\n**Where the user is:** card \`${t.id}\` (${t.tipo}). _"This card" means \`${t.id}\`._${currentResult ? ' The on-screen result below is its data.' : ''}`;
+    } else if (enfoque?.nodo) {
+        open();
+        s += `\n**Where the user is:** the box \`${enfoque.nodo.id}\` ("${enfoque.nodo.texto}"). _"This box" means it._`;
     } else if (enfoque?.lamina) {
         open();
         const l = enfoque.lamina;

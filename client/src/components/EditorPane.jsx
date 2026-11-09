@@ -647,6 +647,7 @@ const EditorPane = ({
                                 filePath={activeTab.path || null}
                                 onOpenFile={onOpenFile}
                                 onSave={onSave}
+                                tabId={activeTab.id}
                             />
                         </Suspense>
                     </div>
@@ -683,6 +684,7 @@ const EditorPane = ({
                                 isActive={isActive}
                                 filePath={activeTab.path || null}
                                 onCreateNew={onCreateNew}
+                                tabId={activeTab.id}
                             />
                         </Suspense>
                     </div>
@@ -703,6 +705,7 @@ const EditorPane = ({
                             // pestaña es un archivo propio.
                             procedencia={activeTab.procedencia || null}
                             onOpenFile={onOpenFile}
+                            tabId={activeTab.id}
                         />
                         </Suspense>
                     </div>

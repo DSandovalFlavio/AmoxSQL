@@ -1736,7 +1736,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             // the other cells (and their results) as they are.
             // E4: so do a deck (a slide, through the Studio's history) and a chart
             // (its panels, through Story Flow's own state).
-            const propio = { celda: 'notebook', lamina: 'deck', paneles: 'chart', spec: 'chart' }[resultado?.objetivo?.tipo];
+            const propio = { celda: 'notebook', lamina: 'deck', paneles: 'chart', spec: 'chart', pasos: 'Data Flow', tarjeta: 'canvas', diagrama: 'diagram' }[resultado?.objetivo?.tipo];
             if (propio) {
                 const aplicar = aplicadorDe(tab.id);
                 return aplicar ? aplicar(resultado) : { error: `Show the ${propio} to apply this change.` };

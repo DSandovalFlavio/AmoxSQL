@@ -22,7 +22,7 @@ It's reactive and conversational but compact: it opens with the finding, weaves 
 ## How to use it
 
 ### Open the Assistant
-1. Open a file. The **Assist** button is in the SQL editor, the notebook, Markdown, Report Flow and the Story Flow header; **Ctrl+L** opens it on any file.
+1. Open a file. The **Assist** button is in the SQL editor, the notebook, Markdown, Report Flow, the Story Flow header, the Canvas and the diagram, and in Data Flow it is the bottom bar; **Ctrl+L** opens it on any file.
 2. Type your question and send with **Enter**.
 
 The Assistant knows what file it has in front of it (a query, a notebook, a deck, a chart, a Data Flow…) and treats it as such.
@@ -63,6 +63,27 @@ The Assistant knows which Story Flow stage you are in (Type, Data, Format, Style
 - **Auto Story**, in the Story stage, no longer writes over your texts: it proposes the title, subtitle, footnote and takeaway, and you accept or reject them.
 
 It proposes **panel changes** (the type, the axes, the highlight, the texts…), the same ones you would make, never the file's JSON. A panel that the chart type doesn't draw is never proposed. Above the figure, **Before** / **Proposal** shows the chart as it is and as it would be, with the list of what changes (*Type: area → line · Highlight: max*). In the **Code** view it can propose a whole Vega-Lite spec.
+
+### In Data Flow
+The bar at the bottom of the canvas **is this file's Assistant**: what you type there goes to the same conversation as the panel, with the step you have selected. The Assistant sees the steps in order (what each one reads and its config, without positions), the parameters and, for the selected step, its error if it failed.
+
+- In a step's menu (**…** or right-click): **Explain this step**, **Write the SQL for this step** and, if it failed, **Fix with Assist**.
+
+It proposes **operations on the steps**: add, change the config, remove, connect or disconnect. Before you see them, the step types are checked and cycles are rejected. On the canvas, new steps show as dashed **ghosts** next to what they read, changed steps are highlighted, removed ones are faded and new connections are dashed; above, the list of changes (the same as **What changed**) with **Before** / **Proposal**, **Accept** and **Reject**. Accepting doesn't move the steps that stay or overwrite the ones you added afterwards.
+
+### In a Canvas
+The Assistant knows which card you selected and sees the cards with their SQL or text and what each one reads. **It never sees the snapshots**; for the selected card it gets its rows like any result, under the workspace's AI policy.
+
+- **Assist**, in the Canvas bar: **Ask about this card**, **Explain this number** (on a Number card) and **Ask a question → cards…**, whose answer comes as new cards.
+
+It proposes **one card at a time**: change a query's SQL or a note's text, or add a card (a query that reads others, a note, a text) next to another. It shows as a **ghost card** on the canvas: a new one where it would go, a change below its card with what goes out and what comes in.
+
+### In a diagram
+The Assistant sees the diagram as boxes, arrows, groups and layers, and the box you selected.
+
+- **Assist**, in the diagram bar: **Draw with Assist…** (describe what you want, or name a `.sql` or a `.sqlchain` to draw it from), **Expand this step** (with a box selected) and **What is missing?**.
+
+It proposes the whole diagram, but **as a graph**, never as mermaid text: the editor writes it in its own format, so it can always be edited visually, and the layer colours (`classDef`) are kept. **Before** / **Proposal** draws it with the new boxes marked.
 
 ### Fix an error
 When a query fails, **Fix with Assist** appears next to the error message. The Assistant already knows the error and the query: no need to paste anything. When you start a conversation with the query in error, the first suggestion is **Fix the error**.
@@ -117,7 +138,7 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 | Item | Where from |
 |---|---|
 | Current query | The active editor buffer, with numbered lines |
-| Where you are | The selected text, or the statement under the cursor; in Markdown, the section; in a notebook, the cell; in a deck, the slide; in a chart, the Story Flow stage |
+| Where you are | The selected text, or the statement under the cursor; in Markdown, the section; in a notebook, the cell; in a deck, the slide; in a chart, the Story Flow stage; in Data Flow, the step; in a Canvas, the card; in a diagram, the box |
 | The last error | The message of the last run that failed |
 | A dbt model | Its YAML columns and descriptions, and the SQL dbt compiled (without running dbt); changes are proposed in Jinja |
 | Last result | The results table on screen |
@@ -133,7 +154,9 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 | `.sqlnb` notebook | Proposes cell by cell: the change below its cell, or a new cell in its place |
 | `.amoxdeck` Report Flow | Proposes slide by slide: Before / Proposal on the slide, or a new slide where it would go |
 | `.amoxvis` chart | Proposes panel changes (or, in the Code view, a Vega-Lite spec): Before / Proposal on the figure |
-| `.sqlchain` Data Flow, `.amoxcanvas` Canvas, `.amoxdiagram` diagram | Explains what to change and where, so you do it in its editor. It doesn't propose changes yet: rewriting the file by hand would break it |
+| `.sqlchain` Data Flow | Proposes operations on the steps: ghosts on the canvas and the list of changes |
+| `.amoxcanvas` Canvas | Proposes one card at a time: a ghost card next to what it reads, or the change below its card |
+| `.amoxdiagram` diagram | Proposes the diagram as a graph: Before / Proposal drawn |
 | A very long file | Sees the first part and says so; it doesn't propose rewriting it, since it would lose what it can't see |
 
 ### What doesn't leave your computer

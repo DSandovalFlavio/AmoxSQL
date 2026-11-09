@@ -2,7 +2,7 @@
 
 **Sale de:** [auditoria_ux_assistant.md](auditoria_ux_assistant.md) (A1–A13) y
 [auditoria_assistant_por_archivo.md](auditoria_assistant_por_archivo.md) (X1–X10 y los hallazgos por tipo)
-**Estado:** **E1, E2, E3 y E4 hechas** (2026-11-07/09, rama `claude/plan-5-19-interaccion`); E5–E6 sin empezar. Las seis decisiones,
+**Estado:** **E1 a E5 hechas** (2026-11-07/09, rama `claude/plan-5-19-interaccion`); E6 sin empezar. Las seis decisiones,
 tomadas como se proponían. Mockups en el artifact «El Assistant donde está el trabajo».
 
 ## La idea
@@ -426,6 +426,62 @@ con `capacidades` (un panel que ese tipo no admite se rechaza) y el spec compila
 **Tamaño:** grande. **Se prueba:** `flujo.js` (pasos que entran y salen, un ciclo rechazado por `computeLayers`),
 `lienzo.js` ida y vuelta sin perder fotos ni tarjetas de tipo desconocido, `diagrama.js` con mermaid fuera del
 subconjunto rechazado.
+
+**Hecha (2026-11-09).** Lo que quedó (y en qué se aparta de arriba):
+- **El servidor** (`server/ai/estructurados.js`, puro): el texto que lee el modelo de cada tipo (los pasos en orden
+  con lo que leen y su config, sin posiciones; las tarjetas con lo que leen, sin fotos; el diagrama como cajas,
+  flechas, grupos y capas), `aplicarPasos` y `validarDiagrama`. `archivoActivo` gana `porPasos` / `porTarjetas` /
+  `porDiagrama`. Data Flow lo lee el servidor del propio `.sqlchain`; Canvas y diagrama llegan con la estructura de
+  su editor (sin ella, como antes: no proponen). El catálogo de pasos es el de `chainGenerator` (`NODE_CONTRACT`,
+  `NODE_TYPES`, ahora exportados), que va en las reglas del prompt.
+- **Data Flow — la propuesta (F1, F3).** `propose_change` con operaciones (`add` con `after`, `change` de label o
+  config —las claves que se mandan reemplazan esas—, `remove`, `connect`, `disconnect`). El servidor las aplica:
+  tipos de paso que existen, ids nuevos válidos y libres, sin ciclos (Kahn, no `computeLayers`: el ejecutor no se
+  carga en las herramientas). Devuelve `despues` (sin posiciones), `original` (los pasos y conexiones que toca) y
+  `cambios` = `describir(diferencias(...))` de `diffDeProcesos`. El cliente (`ai/archivos/flujo.js`) decide si
+  sigue valiendo, clasifica y **funde**: lo que el usuario añadió después se queda, los pasos que no toca
+  conservan su sitio y su config de hoy, los nuevos se colocan junto a lo que leen sin tapar a nadie.
+- **Data Flow — la revisión.** Sobre el lienzo: fantasmas (nodos con `initialWidth/Height` y `handles`: React Flow
+  no mide un nodo que no está en su estado y lo dejaba oculto, sin conexiones), cambiados resaltados, quitados
+  atenuados, conexiones nuevas discontinuas; la barra Antes / Propuesta arriba a la derecha (sin tapar el
+  minimapa) con la lista de `diffDeProcesos`. Aplicar va por el estado del editor.
+- **Data Flow — las puertas (X8, decisión 4).** La barra de abajo ya es el Assistant de este archivo (manda la
+  pregunta con `amox_asistir { pregunta }`, misma conversación que el panel); el generador viejo
+  (`/api/chains/ai/generate`, que reemplazaba el lienzo tras un diálogo de texto) dejó de usarse desde la UI
+  (la ruta sigue). En el menú de un paso: Explain this step · Write the SQL for this step · Fix with Assist (si
+  falló). El foco: el paso seleccionado, el estado de cada paso y el error del seleccionado.
+- **X3 en Data Flow.** `ChainEditor` recuerda lo último que emitió y relee el contenido que llega distinto.
+- **Canvas.** Foco: la tarjeta seleccionada, el Canvas sin fotos (C1) y las filas de la seleccionada como
+  resultado (por la política). `propose_change` `card` (SQL de una query, texto de una nota/texto) o `new_card`
+  (query con nombre, nota, texto; `near`). Revisión: `TarjetaFantasma` (nodo `fantasma` del lienzo) — la nueva
+  donde entraría, el cambio debajo de su tarjeta con el diff; flecha discontinua. Aplicar: `aplicarALienzo` sobre
+  el documento del editor. Puertas: **Assist** en la barra (Ask about this card · Explain this number · Ask a
+  question → cards…).
+- **Diagrama (D1, D2).** El modelo propone el diagrama entero **como grafo** (no mermaid): `validarDiagrama` en el
+  servidor (formas, estilos, capas que existen, flechas a cajas que existen, un nivel de grupos) y el cliente lo
+  escribe con `escribirDiagrama` conservando `classDef`/`style`/comentarios. D1 queda resuelto por construcción:
+  lo que entra siempre se vuelve a abrir en el editor visual. **Se aparta:** el plan decía «propuesta `diagrama`
+  = mermaid validado con `mermaidFlow`»; el servidor no puede cargar el parser del cliente, y el grafo lo evita.
+  Revisión: Antes / Propuesta dibujado (medido con `medirFlujo`), las cajas nuevas marcadas con la selección.
+  Puertas: **Assist** en la barra (Draw with Assist… con descripción o archivo · Expand this step · What is
+  missing?). Sin «Antes» con las quitadas en gris: van en la lista.
+- **El prompt.** Reglas por tipo («DELIVER IT with propose_change», cómo funciona cada uno) y «Where the user is»
+  (el paso, la tarjeta, la caja).
+- **Pruebas.**
+  - `probarAssist.mjs`: 240/0 (40 nuevas). Una de E1 cambió: Data Flow ya propone; la que comprueba «no puede
+    proponer y lo explica» pasa al Canvas sin estructura.
+  - Siguen verdes `probarGraficos` 177, `probarCuaderno` 45, `probarDeepDive` 46, `probarFlujoGrafico` 22,
+    `probarGraficoIA` 14, `probarCuotaDeepDive` 14, `probarLienzo` 77, `probarMermaidFlow` 219,
+    `probarArchivoDiagrama` 65, `probarOpsDiagrama` 102, `probarPoliticaIA` 18, `probarComparar` 33.
+  - En la app (propuestas sembradas con las herramientas de verdad, `scratchpad/e1/sembrarE5.mjs`): diagrama
+    `arquitectura.amoxdiagram` (Before/Proposal dibujado con la caja nueva, Accept: 8 cajas, sigue editable);
+    Canvas `exploracion_2024` (dos fantasmas; Accept de la query nueva junto a `por_mes`, con su flecha
+    deducida, y del cambio de SQL); Data Flow `cierre_mensual` (fantasma + conexiones + lista de 4 cambios,
+    Accept; la barra de abajo manda la pregunta al Assistant con el flujo, en la misma conversación).
+- **Arreglado en el camino:** el fantasma de Data Flow se colocaba encima del paso que ya estaba a la derecha del
+  que lee; el fantasma quedaba oculto y sin conexiones (arriba); la barra tapaba el minimapa; el menú del
+  diagrama se partía en líneas.
+- **Sin probar:** un modelo real en los tres tipos.
 
 ### E6 — El chat, más corto (todos)
 - **A7** «Run» corre en el chat, con «Open in editor» (decisión 3); hoy abre una pestaña nueva cada vez.

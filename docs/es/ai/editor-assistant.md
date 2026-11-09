@@ -22,7 +22,7 @@ Es reactivo y conversacional pero compacto: abre con el hallazgo, teje los núme
 ## Cómo usarlo
 
 ### Abrir el Asistente
-1. Abre un archivo. El botón **Assist** está en el editor SQL, el notebook, Markdown, Report Flow y la cabecera de Story Flow; **Ctrl+L** lo abre sobre cualquier archivo.
+1. Abre un archivo. El botón **Assist** está en el editor SQL, el notebook, Markdown, Report Flow, la cabecera de Story Flow, el Canvas y el diagrama, y en Data Flow es la barra de abajo; **Ctrl+L** lo abre sobre cualquier archivo.
 2. Escribe tu pregunta y envía con **Enter**.
 
 El Asistente sabe qué archivo tiene delante (una consulta, un notebook, un deck, un gráfico, un Data Flow…) y lo trata como tal.
@@ -63,6 +63,27 @@ El Asistente sabe en qué etapa de Story Flow estás (Type, Data, Format, Style,
 - **Auto Story**, en la etapa Story, ya no escribe encima de tus textos: propone el título, el subtítulo, la nota y el takeaway, y tú los aceptas o los rechazas.
 
 Propone **cambios de paneles** (el tipo, los ejes, el resalte, los textos…), los mismos que tocarías tú, nunca el JSON del archivo. Un panel que ese tipo de gráfico no dibuja no se propone. Encima de la figura, **Before** / **Proposal** te enseña el gráfico como está y como quedaría, con la lista de lo que cambia (*Type: area → line · Highlight: max*). En la vista **Code** puede proponer un Vega-Lite entero.
+
+### En Data Flow
+La barra de abajo del lienzo **es el Asistente de este archivo**: lo que escribes ahí va a la misma conversación del panel, con el paso que tengas seleccionado. El Asistente ve los pasos en orden (qué lee cada uno y su configuración, sin posiciones), los parámetros y, del paso seleccionado, su error si falló.
+
+- En el menú de un paso (**…** o clic derecho): **Explain this step**, **Write the SQL for this step** y, si falló, **Fix with Assist**.
+
+Propone **operaciones sobre los pasos**: añadir, cambiar la configuración, quitar, conectar o desconectar. Antes de enseñártelas se comprueba que los tipos de paso existan y que no haya ciclos. Sobre el lienzo, los pasos nuevos aparecen como **fantasmas** con borde discontinuo junto a lo que leen, los que cambian resaltados, los que se quitan atenuados, y las conexiones nuevas en discontinuo; arriba, la lista de cambios (la misma de **What changed**) con **Before** / **Proposal**, **Accept** y **Reject**. Aceptar no mueve los pasos que se quedan ni pisa los que añadiste después.
+
+### En un Canvas
+El Asistente sabe qué tarjeta tienes seleccionada y ve las tarjetas con su SQL o su texto y lo que lee cada una. **Nunca ve las fotos**; de la tarjeta seleccionada recibe sus filas como cualquier resultado, con la política de IA del workspace.
+
+- **Assist**, en la barra del Canvas: **Ask about this card**, **Explain this number** (en una tarjeta Number) y **Ask a question → cards…**, cuya respuesta llega como tarjetas nuevas.
+
+Propone **una tarjeta a la vez**: cambiar el SQL de una consulta o el texto de una nota, o añadir una tarjeta (una consulta que lee otras, una nota, un texto) junto a otra. Se ve como una **tarjeta fantasma** sobre el lienzo: la nueva donde entraría, el cambio debajo de su tarjeta con lo que sale y lo que entra.
+
+### En un diagrama
+El Asistente ve el diagrama como cajas, flechas, grupos y capas, y la caja que tengas seleccionada.
+
+- **Assist**, en la barra del diagrama: **Draw with Assist…** (describe lo que quieres, o nombra un `.sql` o un `.sqlchain` para dibujarlo), **Expand this step** (con una caja seleccionada) y **What is missing?**.
+
+Propone el diagrama entero, pero **como grafo**, nunca como texto mermaid: el editor lo escribe con su propio formato, así que siempre se puede seguir editando visualmente, y los colores de las capas (`classDef`) se conservan. **Before** / **Proposal** lo dibuja con las cajas nuevas marcadas.
 
 ### Arreglar un error
 Cuando una consulta falla, junto al mensaje de error aparece **Fix with Assist**. El Asistente ya sabe el error y la consulta: no hace falta pegar nada. Al empezar una conversación con la consulta en error, la primera sugerencia es **Fix the error**.
@@ -117,7 +138,7 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 | Elemento | De dónde |
 |---|---|
 | Query actual | El buffer del editor activo, con sus líneas numeradas |
-| Dónde estás | El texto seleccionado, o la sentencia bajo el cursor; en Markdown, la sección; en un notebook, la celda; en un deck, la lámina; en un gráfico, la etapa de Story Flow |
+| Dónde estás | El texto seleccionado, o la sentencia bajo el cursor; en Markdown, la sección; en un notebook, la celda; en un deck, la lámina; en un gráfico, la etapa de Story Flow; en Data Flow, el paso; en un Canvas, la tarjeta; en un diagrama, la caja |
 | El último error | El mensaje de la última ejecución que falló |
 | Un modelo dbt | Sus columnas y descripciones del YAML, y el SQL que dbt compiló (sin lanzar dbt); los cambios se proponen en Jinja |
 | Último resultado | La tabla de resultados en pantalla |
@@ -133,7 +154,9 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 | Notebook `.sqlnb` | Propone celda a celda: el cambio debajo de su celda, o una celda nueva en su sitio |
 | Report Flow `.amoxdeck` | Propone lámina a lámina: Before / Proposal sobre la lámina, o una lámina nueva en su hueco |
 | Gráfico `.amoxvis` | Propone cambios de paneles (o, en la vista Code, un Vega-Lite): Before / Proposal sobre la figura |
-| Data Flow `.sqlchain`, Canvas `.amoxcanvas`, diagrama `.amoxdiagram` | Explica qué cambiar y dónde, para que lo hagas en su editor. Todavía no propone cambios: reescribir el archivo a mano lo rompería |
+| Data Flow `.sqlchain` | Propone operaciones sobre los pasos: fantasmas sobre el lienzo y la lista de cambios |
+| Canvas `.amoxcanvas` | Propone una tarjeta a la vez: una tarjeta fantasma junto a la que lee, o el cambio debajo de su tarjeta |
+| Diagrama `.amoxdiagram` | Propone el diagrama como grafo: Before / Proposal dibujado |
 | Un archivo muy largo | Ve la primera parte y lo dice; no propone reescribirlo, porque perdería lo que no ve |
 
 ### Qué no sale de tu equipo

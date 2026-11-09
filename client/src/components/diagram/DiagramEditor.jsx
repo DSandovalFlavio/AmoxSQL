@@ -13,7 +13,7 @@
  * arriba en cuatro zonas, tres columnas debajo, y el panel de texto plegable
  * bajo el lienzo.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import {
     LuShare2, LuSave, LuCode, LuShieldCheck, LuTriangleAlert, LuChevronDown,
@@ -38,6 +38,13 @@ import { exportarSvg, exportarPng } from './diagramExport';
 import { reemplazarCercado, bloquesCercados } from '../markdown/fencedBlocks';
 import { useHistorial, esAtajoDeHistorial } from '../../hooks/useHistorial';
 import { isLightTheme } from '../../theme.js';
+import { LuSparkles, LuWandSparkles, LuExpand, LuCircleHelp } from 'react-icons/lu';
+import { fijarProveedorDeFoco, fijarAplicador } from '../../utils/memoriaDePestana';
+import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
+import { estructuraDeDiagrama, esDeDiagrama, vigenteEnDiagrama, aplicarDiagrama, cambiosDeDiagrama, describirDiagrama } from '../ai/archivos/diagrama.js';
+import AntesYPropuesta from '../ai/revision/AntesYPropuesta.jsx';
+import { useDialog } from '../dialogs/DialogProvider';
+import { useToast } from '../ToastProvider';
 import './diagram.css';
 
 const AVISO_MOVER = 'amoxsql-diagram-aviso-mover';
@@ -61,7 +68,9 @@ const PALETA_CAPAS = [
     { nombre: 'apoyo', fill: '#332a4d', stroke: '#8f7ad8' },
 ];
 
-const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, filePath, isDirty, procedencia, onOpenFile }) => {
+const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, filePath, isDirty, procedencia, onOpenFile, tabId = null }) => {
+    const dialog = useDialog();
+    const toast = useToast();
     const [verTexto, setVerTexto] = useState(false);
     const [verRepaso, setVerRepaso] = useState(false);
     const [verIzq, setVerIzq] = useState(true);
@@ -325,6 +334,94 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
     const avisos = useMemo(() => (g ? cabosSueltos(g) : []), [g]);
     const porque = useMemo(() => (g || !doc.mermaid ? null : porQueNoSeAbre(doc.mermaid)), [g, doc.mermaid]);
 
+    // ── El Assistant en el diagrama (plan del Assistant, E5) ────────────────
+    const alDia = useRef({});
+    alDia.current = { doc, seleccion, content, historial };
+
+    // El foco: la caja seleccionada y el diagrama como grafo.
+    useEffect(() => fijarProveedorDeFoco(tabId, () => {
+        const { doc: d, seleccion: sel } = alDia.current;
+        const est = estructuraDeDiagrama(d);
+        return est ? { nodo: sel?.tipo === 'nodo' ? { id: sel.id } : null, diagrama: est } : {};
+    }), [tabId]);
+
+    // Aceptar: el diagrama propuesto, escrito por el serializador del editor (Ctrl+Z lo deshace).
+    useEffect(() => fijarAplicador(tabId, (resultado) => {
+        const { content: c, historial: h } = alDia.current;
+        const r = aplicarDiagrama(c, resultado);
+        if (r.error) return { error: r.error };
+        h.escribir(r.texto);
+        setRevision({ id: null, vista: 'antes' });
+        toast.info('Applied the proposed diagram. Ctrl+Z undoes it.');
+        return { ok: true };
+    }), [tabId, toast]);
+
+    const [propuestas, setPropuestas] = useState({ propuestas: [], acciones: null });
+    useEffect(() => (filePath ? suscribirPropuestas(filePath, (p) => setPropuestas({
+        propuestas: (p.propuestas || []).filter(tc => esDeDiagrama(tc.result)),
+        acciones: p.acciones,
+    })) : undefined), [filePath]);
+    const [revision, setRevision] = useState({ id: null, vista: 'antes' });
+    const vigentes = useMemo(() => propuestas.propuestas.filter(tc => vigenteEnDiagrama(content, tc.result)), [propuestas.propuestas, content]);
+    const enRevision = vigentes.find(tc => tc.toolCallId === revision.id) || vigentes[0] || null;
+    const vistaRevision = enRevision && enRevision.toolCallId === revision.id ? revision.vista : 'antes';
+    useEffect(() => {
+        const alRevisar = (e) => {
+            const id = e.detail?.toolCallId;
+            if (propuestas.propuestas.some(tc => tc.toolCallId === id)) setRevision({ id, vista: 'propuesta' });
+        };
+        window.addEventListener('amox_revisar_propuesta', alRevisar);
+        return () => window.removeEventListener('amox_revisar_propuesta', alRevisar);
+    }, [propuestas.propuestas]);
+
+    // La propuesta dibujada: el texto que quedaría, medido como el de verdad, con
+    // las cajas nuevas marcadas.
+    const docPropuesto = useMemo(() => {
+        if (!enRevision || vistaRevision !== 'propuesta') return null;
+        const r = aplicarDiagrama(content, enRevision.result);
+        return r.texto ? leerDiagrama(r.texto) : null;
+    }, [enRevision, vistaRevision, content]);
+    const [medidoP, setMedidoP] = useState({ clave: null, medidas: null });
+    useEffect(() => {
+        if (!docPropuesto?.grafo) return undefined;
+        let vivo = true;
+        const clave = docPropuesto.mermaid;
+        medirFlujo(docPropuesto.mermaid, docPropuesto.grafo, { oscuro }).then((m) => { if (vivo) setMedidoP({ clave, medidas: m }); });
+        return () => { vivo = false; };
+    }, [docPropuesto, oscuro]);
+    const cambiosRevision = useMemo(() => (enRevision && g ? cambiosDeDiagrama(g, enRevision.result) : null), [enRevision, g]);
+    const nodosPropuestos = useMemo(() => {
+        if (!docPropuesto?.grafo || medidoP.clave !== docPropuesto.mermaid) return null;
+        const nuevos = cambiosRevision?.nuevos || [];
+        const sel = nuevos.length ? { tipo: 'varios', ids: nuevos } : null;
+        return nodosDeLienzo(docPropuesto.grafo, medidoP.medidas, sel, { editandoId: null, onEditar: () => {}, onRenombrar: () => {} }, biblioteca);
+    }, [docPropuesto, medidoP, cambiosRevision, biblioteca]);
+    const aristasPropuestas = useMemo(() => (docPropuesto?.grafo ? aristasDeLienzo(docPropuesto.grafo, colores.arista, null) : []), [docPropuesto, colores.arista]);
+
+    /** Una pregunta sobre el diagrama, al panel; «Draw with Assist…» pide antes qué dibujar. */
+    const asistir = useCallback(async (accion) => {
+        setMenuAsistir(false);
+        if (accion === 'dibujar') {
+            const v = await dialog.promptAsync({
+                title: 'Draw with Assist',
+                message: 'What should the diagram show? Describe it, or name a file to draw from (a .sql or a .sqlchain).',
+                placeholder: 'The flow of queries/ventas_mensuales.sql',
+                confirmLabel: 'Draw',
+            });
+            if (!v || !String(v).trim()) return;
+            window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { tabId, pregunta: `Draw this diagram: ${String(v).trim()}` } }));
+            return;
+        }
+        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+    }, [dialog, tabId]);
+    const [menuAsistir, setMenuAsistir] = useState(false);
+    useEffect(() => {
+        if (!menuAsistir) return undefined;
+        const fuera = (e) => { if (!e.target.closest?.('.dgm-asistir')) setMenuAsistir(false); };
+        window.addEventListener('mousedown', fuera);
+        return () => window.removeEventListener('mousedown', fuera);
+    }, [menuAsistir]);
+
     const nombre = doc.titulo || (filePath || '').split(/[\\/]/).pop() || 'Diagram';
     // La procedencia es un objeto —qué archivo, qué posición, cómo estaba— y no
     // sólo una ruta: guardar necesita las tres cosas para saber si el documento
@@ -396,6 +493,31 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                     )}
                 </div>
 
+                {/* E5: Assist — dibujar desde una descripción o un archivo, expandir una caja. */}
+                {tabId && (
+                    <div className="dgm-menu dgm-asistir">
+                        <button type="button" className={`dgm-btn${menuAsistir ? ' dgm-btn--on' : ''}`} onClick={() => setMenuAsistir((v) => !v)}
+                            title="Ask Assist about this diagram">
+                            <LuSparkles size={12} strokeWidth={2.3} /> Assist
+                        </button>
+                        {menuAsistir && (
+                            <div className="dgm-menu-lista">
+                                <button type="button" onClick={() => asistir('dibujar')}>
+                                    <LuWandSparkles size={12} /> Draw with Assist… <span>from a description or a file</span>
+                                </button>
+                                {seleccion?.tipo === 'nodo' && (
+                                    <button type="button" onClick={() => asistir('diagrama_expandir')}>
+                                        <LuExpand size={12} /> Expand this step <span>into the steps it is made of</span>
+                                    </button>
+                                )}
+                                <button type="button" onClick={() => { setMenuAsistir(false); window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { tabId, pregunta: 'What is missing from this diagram?' } })); }}>
+                                    <LuCircleHelp size={12} /> What is missing?
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
                 <div className="dgm-spacer" />
                 <button type="button" className={`dgm-btn dgm-btn--icono${verIzq ? '' : ' dgm-btn--apagado'}`}
                     onClick={() => setVerIzq((v) => !v)} title="Collapse the left column">
@@ -429,8 +551,46 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                 )}
 
                 <div className="dgm-centro">
+                    {enRevision && g && (
+                        <div className="dgm-revision">
+                            <AntesYPropuesta
+                                key={enRevision.toolCallId}
+                                tc={enRevision}
+                                acciones={propuestas.acciones}
+                                titulo={describirDiagrama(enRevision.result, g)}
+                                resumen={enRevision.result.resumen}
+                                cambios={cambiosRevision?.lista || []}
+                                vista={vistaRevision}
+                                onVista={(v) => setRevision({ id: enRevision.toolCallId, vista: v })}
+                                indice={vigentes.indexOf(enRevision)}
+                                total={vigentes.length}
+                                onSiguiente={() => setRevision({ id: vigentes[(vigentes.indexOf(enRevision) + 1) % vigentes.length].toolCallId, vista: 'propuesta' })}
+                            />
+                        </div>
+                    )}
                     <div className="dgm-stage">
-                        {!g ? (
+                        {enRevision && vistaRevision === 'propuesta' && g ? (
+                            nodosPropuestos ? (
+                                <ReactFlowProvider>
+                                    <span className="deck-propuesta-etiqueta">Proposal</span>
+                                    <DiagramCanvas
+                                        key={`propuesta-${enRevision.toolCallId}`}
+                                        nodos={nodosPropuestos}
+                                        aristas={aristasPropuestas}
+                                        colores={colores}
+                                        onElegirNodo={() => {}}
+                                        onElegirGrupo={() => {}}
+                                        onElegirArista={() => {}}
+                                        onLimpiarSeleccion={() => {}}
+                                        onConectar={() => {}}
+                                        onDobleClicLienzo={() => {}}
+                                        onIntentarMover={() => {}}
+                                    />
+                                </ReactFlowProvider>
+                            ) : (
+                                <div className="dgm-vacio"><p>{docPropuesto?.grafo ? 'Measuring the proposal…' : 'The proposal cannot be drawn.'}</p></div>
+                            )
+                        ) : !g ? (
                             <div className="dgm-vacio">
                                 <LuTriangleAlert size={22} strokeWidth={1.9} />
                                 <p><b>This diagram cannot be edited visually.</b></p>

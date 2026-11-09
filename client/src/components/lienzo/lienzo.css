@@ -302,3 +302,16 @@
 /* Y no se encogen: en una cabecera estrecha cede el nombre, no los botones. */
 .lz-raiz .lz-modos, .lz-raiz .lz-modos-uno, .lz-raiz .lz-correr, .lz-raiz .lz-est, .lz-raiz .lz-chip { flex-shrink: 0; }
 .lz-raiz .lz-nombre { min-width: 0; flex-shrink: 1; }
+
+/* ── E5: lo que propone el Assistant, sobre el lienzo ─────────────────── */
+.lz-fantasma {
+    width: 420px; padding: 8px; border: 1.5px dashed var(--accent-primary); border-radius: 10px;
+    background: color-mix(in srgb, var(--surface-raised) 92%, transparent); box-shadow: var(--shadow-md);
+    display: flex; flex-direction: column; gap: 6px; cursor: default;
+}
+.lz-fantasma .ai-edit-proposal { margin: 0; }
+.lz-fantasma .ai-edit-proposal__diff { max-height: 220px; overflow: auto; }
+.lz-fantasma-etq { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--accent-primary); }
+.lz-fantasma-ancla { opacity: 0; pointer-events: none; }
+.lz-arista--fantasma path { stroke: var(--accent-primary) !important; stroke-dasharray: 6 5; }
+.lz-btn--asistir { color: var(--accent-primary); }

@@ -66,7 +66,7 @@ Opening an empty chain shows the gallery of starter templates:
 | **Multi-Source Merge** | Combine several sources into a single table |
 
 ### Generate with AI
-The canvas's AI panel turns a natural-language description into a pipeline. Type what you want ("import sales.csv, filter to 2025, group by region, and export to Parquet") and Data Flow proposes the flow. Before applying it, it shows a **preview** of the nodes so you can confirm. If the canvas already has nodes, the AI **extends/edits** the existing pipeline (replacing the canvas after your confirmation).
+The bar at the bottom of the canvas is this file's [Assistant](../ai/editor-assistant.md#in-data-flow). Type what you want ("import sales.csv, filter to 2025, group by region, and export to Parquet", or "add a dedup before the export") and the Assistant proposes it as steps: new ones show as ghosts on the canvas, next to the list of changes, and you decide with **Accept** or **Reject**. Nothing replaces the whole canvas: the steps that stay don't move.
 
 ## Toolbar reference
 

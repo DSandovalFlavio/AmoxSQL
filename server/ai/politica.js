@@ -184,7 +184,9 @@ function sanearOpciones(opciones, proveedor) {
             datos, local: esLocal(proveedor),
             // E3: el notebook llega con sus celdas (las del editor); E4: un deck con
             // sus láminas y un gráfico con sus paneles.
-            estructura: o.foco?.cuaderno || o.foco?.deck || o.foco?.grafico || null,
+            estructura: o.foco?.cuaderno || o.foco?.deck || o.foco?.grafico
+                // E5: Data Flow (el estado de cada paso), Canvas y diagrama.
+                || o.foco?.flujo || o.foco?.lienzo || o.foco?.diagrama || null,
         });
         o.currentQuery = o.archivo.tipo === 'sql' ? o.archivo.contenido : '';
         // Dónde está el usuario y qué falló (E2), con la misma política: la

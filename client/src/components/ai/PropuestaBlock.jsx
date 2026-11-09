@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LuCheck, LuX, LuFilePlus2, LuFilePen, LuHistory, LuRefreshCw, LuChevronDown, LuChevronRight, LuLoader, LuScanSearch, LuChartColumn } from 'react-icons/lu';
+import { LuCheck, LuX, LuFilePlus2, LuFilePen, LuHistory, LuRefreshCw, LuChevronDown, LuChevronRight, LuLoader, LuScanSearch, LuChartColumn, LuWorkflow, LuShare2 } from 'react-icons/lu';
 import EditProposalBlock from './EditProposalBlock';
 import { estadoDe, esArchivoNuevo } from './propuestas';
 import { esDeRango, ubicarRango } from './archivos/rango.js';
@@ -7,6 +7,10 @@ import { esDeCelda } from './archivos/cuaderno.js';
 import { describirPropuesta } from './archivos/index.js';
 import { esDeLamina, laminaPropuesta } from './archivos/deck.js';
 import { esDeGrafico, describirCambios } from './archivos/grafico.js';
+import { esDePasos } from './archivos/flujo.js';
+import { esDeTarjeta } from './archivos/lienzo.js';
+import { esDeDiagrama, cambiosDeDiagrama } from './archivos/diagrama.js';
+import { leerDiagrama } from '../diagram/diagramFile.js';
 
 /**
  * **Una propuesta del Assistant, como lo que es** (plan del Assistant, E1/A1).
@@ -36,7 +40,7 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
         return (
             <div className="ai-propuesta ai-propuesta--compacta">
                 {nuevo ? <LuFilePlus2 size={13} /> : <LuFilePen size={13} />}
-                <span>{nuevo ? <>Proposing <code>{r.path}</code></> : esDeRango(r) ? `Proposing a change to ${describirPropuesta(r).replace(/^(Change to|Insert) /, '')}` : (esDeCelda(r) || esDeLamina(r) || esDeGrafico(r)) ? `Proposing: ${describirPropuesta(r)}` : 'Proposing a change to this file'}</span>
+                <span>{nuevo ? <>Proposing <code>{r.path}</code></> : esDeRango(r) ? `Proposing a change to ${describirPropuesta(r).replace(/^(Change to|Insert) /, '')}` : (esDeCelda(r) || esDeLamina(r) || esDeGrafico(r) || esDePasos(r) || esDeTarjeta(r) || esDeDiagrama(r)) ? `Proposing: ${describirPropuesta(r)}` : 'Proposing a change to this file'}</span>
             </div>
         );
     }
@@ -77,6 +81,8 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
                                 ? 'Those lines changed since this was proposed, so it no longer fits.'
                                 : esDeLamina(r) ? 'That slide changed since this was proposed, so it no longer fits.'
                                 : esDeGrafico(r) ? 'Those chart settings changed since this was proposed, so it no longer fits.'
+                                : esDePasos(r) ? 'Those steps changed since this was proposed, so it no longer fits.'
+                                : esDeTarjeta(r) ? 'That card changed since this was proposed, so it no longer fits.'
                                 : 'The file changed since this was proposed, so applying it would undo your edits.')
                             : nuevo
                                 ? <>Proposed <code>{r.path}</code> in an earlier session.</>
@@ -162,15 +168,44 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
 
     // E4: a chart's settings. The list of what changes; Review shows Before /
     // Proposal on the figure itself.
-    if (esDeGrafico(r)) {
+    // E5: a Canvas card: its old SQL or text and the new one (a new card, all new).
+    if (esDeTarjeta(r)) {
+        return (
+            <>
+                <EditProposalBlock
+                    titulo={describirPropuesta(r)}
+                    currentContent={r.objetivo.accion === 'nueva' ? [] : r.original}
+                    proposedContent={r.contenido}
+                    description={r.resumen}
+                    onRevisar={onRevisar ? () => onRevisar(tc.toolCallId) : undefined}
+                    onAccept={aceptar}
+                    onReject={() => onReject && onReject(tc)}
+                />
+                {error && <div className="ai-propuesta__error">{error}</div>}
+            </>
+        );
+    }
+
+    // E4/E5: a chart, a Data Flow or a diagram: the list of what changes; Review
+    // shows it on the figure, the canvas or the drawing itself.
+    if (esDeGrafico(r) || esDePasos(r) || esDeDiagrama(r)) {
+        let lista = [];
+        if (esDeGrafico(r)) lista = describirCambios(r);
+        else if (esDePasos(r)) lista = r.cambios || [];
+        else {
+            const actual = contenidoActual != null ? leerDiagrama(contenidoActual).grafo : null;
+            lista = actual ? cambiosDeDiagrama(actual, r).lista : [];
+        }
+        const Icono = esDeGrafico(r) ? LuChartColumn : esDePasos(r) ? LuWorkflow : LuShare2;
         return (
             <div className="ai-edit-proposal">
                 <div className="ai-edit-proposal__header">
-                    <span className="ai-propuesta__titulo"><LuChartColumn size={13} /> <span>{describirPropuesta(r)}</span></span>
+                    <span className="ai-propuesta__titulo"><Icono size={13} /> <span>{describirPropuesta(r)}</span></span>
                 </div>
                 {r.resumen && <div className="ai-propuesta__desc-fila">{r.resumen}</div>}
                 <ul className="ai-propuesta__cambios">
-                    {describirCambios(r).map((c, i) => <li key={i}>{c}</li>)}
+                    {lista.slice(0, 12).map((c, i) => <li key={i}>{c}</li>)}
+                    {lista.length > 12 && <li>… and {lista.length - 12} more</li>}
                 </ul>
                 <div className="ai-propuesta__acciones ai-propuesta__acciones--pie">
                     {onRevisar && (

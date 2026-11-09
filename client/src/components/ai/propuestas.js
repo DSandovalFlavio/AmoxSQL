@@ -5,6 +5,10 @@ import { ubicarLamina, esDeLamina } from './archivos/deck.js';
 import { vigenteEnGrafico, esDeGrafico } from './archivos/grafico.js';
 import { parseDeck } from '../../utils/deckParser.js';
 import { leerAmoxvis } from '../DataVisualizer/vega/figura.js';
+import { esDePasos, vigenteEnFlujo } from './archivos/flujo.js';
+import { esDeTarjeta, vigenteEnLienzo } from './archivos/lienzo.js';
+import { esDeDiagrama, vigenteEnDiagrama } from './archivos/diagrama.js';
+import { leerLienzo } from '../../utils/lienzoFile.js';
 
 /**
  * **Las propuestas del Assistant y su estado** (plan del Assistant, E1/A1).
@@ -78,6 +82,17 @@ export function estadoDe(tc, contenidoActual = null) {
     if (esDeGrafico(tc.result)) {
         return contenidoActual != null && !vigenteEnGrafico(leerAmoxvis(contenidoActual), tc.result) ? 'caducada' : 'propuesta';
     }
+    // E5: Data Flow, Canvas y diagrama, cada uno por su parte.
+    if (esDePasos(tc.result) || esDeTarjeta(tc.result) || esDeDiagrama(tc.result)) {
+        if (contenidoActual == null) return 'propuesta';
+        let vale = true;
+        try {
+            if (esDePasos(tc.result)) vale = vigenteEnFlujo(JSON.parse(contenidoActual), tc.result);
+            else if (esDeTarjeta(tc.result)) vale = vigenteEnLienzo(leerLienzo(contenidoActual), tc.result);
+            else vale = vigenteEnDiagrama(contenidoActual, tc.result);
+        } catch { vale = true; }
+        return vale ? 'propuesta' : 'caducada';
+    }
     if (!esArchivoNuevo(tc) && tc.base && contenidoActual != null && huella(contenidoActual) !== tc.base) {
         return 'caducada';
     }
@@ -93,7 +108,8 @@ export function marcarPropuestas(llamadas, contenidoEnviado) {
     return llamadas.map(tc => {
         if (!esPropuesta(tc) || tc.estado) return tc;
         // Por líneas no hace falta la huella: la propuesta trae el texto que reemplaza.
-        if (esDeRango(tc.result) || esDeCelda(tc.result) || esDeLamina(tc.result) || esDeGrafico(tc.result)) return { ...tc, estado: 'propuesta' };
+        if (esDeRango(tc.result) || esDeCelda(tc.result) || esDeLamina(tc.result) || esDeGrafico(tc.result)
+            || esDePasos(tc.result) || esDeTarjeta(tc.result) || esDeDiagrama(tc.result)) return { ...tc, estado: 'propuesta' };
         return esArchivoNuevo(tc) ? { ...tc, estado: 'propuesta' } : { ...tc, estado: 'propuesta', base };
     });
 }

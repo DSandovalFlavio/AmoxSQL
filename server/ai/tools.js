@@ -1417,7 +1417,117 @@ function createTools(context) {
             });
         }
 
-        if (!archivo || (archivo.puedeProponer && !archivo.porLineas && !archivo.porCeldas && !archivo.porLaminas && !archivo.porPaneles)) {
+        // propose_change por pasos (E5, F1): un Data Flow se cambia con operaciones
+        // sobre sus pasos —añadir, cambiar la configuración, quitar, conectar—, que
+        // se aplican aquí sobre el .sqlchain: tipos de paso que existen, ids que no
+        // chocan, sin ciclos. La respuesta lleva el flujo que quedaría (sin
+        // posiciones: las pone el lienzo) y la lista de diffDeProcesos (F3).
+        if (archivo && archivo.porPasos && archivo.puedeProponer) {
+            const E = require('./estructurados');
+            const paso = z.object({ id: z.string(), type: z.string(), label: z.string().optional(), config: z.record(z.string(), z.any()).optional(), after: z.array(z.string()).optional().describe('The steps it reads from (its inputs).') });
+            const lista = (s) => z.preprocess((v) => (v == null ? [] : Array.isArray(v) ? v : [v]), z.array(s)).optional();
+            allTools.propose_change = tool({
+                description: "Propose a change to the ACTIVE Data Flow through operations on its steps: add steps (with the steps they read from), change a step's label or config (the keys you send replace those keys), remove steps, connect or disconnect two steps. Use the step ids shown in 'Current editor state'. The user sees the new steps as ghosts on the canvas with the list of changes, and accepts or rejects; nothing is saved to disk. Several operations can go in one call.",
+                inputSchema: z.object({
+                    add: lista(paso).describe('New steps. id: short snake_case, not used yet. type: one of the step types. config: as in the step types list.'),
+                    change: lista(z.object({ id: z.string(), label: z.string().optional(), config: z.record(z.string(), z.any()).optional(), disabled: z.boolean().optional() })),
+                    remove: lista(z.string()),
+                    connect: lista(z.object({ from: z.string(), to: z.string() })),
+                    disconnect: lista(z.object({ from: z.string(), to: z.string() })),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ summary = '', ...ops }) => {
+                    const r = E.aplicarPasos(archivo.flujo, ops);
+                    if (r.error) return { error: r.error };
+                    const sinPos = (d) => ({ nodes: d.nodes, edges: d.edges });
+                    return {
+                        success: true, action: 'propose_change', objetivo: { tipo: 'pasos' },
+                        despues: sinPos(r.despues), original: r.original, cambios: r.lineas, resumen: summary,
+                    };
+                },
+            });
+        }
+
+        // propose_change por tarjetas (E5): en el Canvas, cambiar el SQL o el texto
+        // de una tarjeta, o añadir una (una consulta que lee la seleccionada, una
+        // nota, un texto). Nunca las fotos ni las posiciones.
+        if (archivo && archivo.porTarjetas && archivo.puedeProponer) {
+            const E = require('./estructurados');
+            const tarjetas = archivo.lienzo.tarjetas;
+            allTools.propose_change = tool({
+                description: "Propose ONE change to the ACTIVE Canvas: change the SQL of a Query card or the text of a Note/Text card (kind 'card'), or add a new card (kind 'new_card': a 'query' that reads other cards with FROM <their name>, a 'note' or a 'text'), placed next to the card in `near`. The user sees it on the canvas as a ghost card and accepts or rejects it; nothing is saved to disk.",
+                inputSchema: z.object({
+                    target: z.preprocess(tolerante({ porClave: [['card_type', 'new_card'], ['card', 'card']] }), z.discriminatedUnion('kind', [
+                        z.object({ kind: z.literal('card'), card: z.string().describe('The id (name) of the card that changes.') }),
+                        z.object({
+                            kind: z.literal('new_card'),
+                            card_type: z.enum(['query', 'note', 'text']),
+                            name: z.string().optional().describe('For a query: a short snake_case name (it becomes the view other cards read). Must be new.'),
+                            near: z.string().optional().describe('The card it goes next to (usually the one it reads, or the selected one).'),
+                        }),
+                    ])),
+                    content: z.string().describe('The SQL (for a query) or the text (for a note or a text card).'),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ target, content, summary = '' }) => {
+                    const nuevo = String(content || '').replace(/\r/g, '').replace(/^\s*```(?:sql)?\s*\n/, '').replace(/\n\s*```\s*$/, '').trim();
+                    if (!nuevo) return { error: 'content is empty.' };
+                    const ids = tarjetas.map(t => `${t.id} (${t.tipo})`).join(', ');
+                    if (target.kind === 'card') {
+                        const t = tarjetas.find(x => x.id === target.card);
+                        if (!t) return { error: `There is no card "${target.card}". The cards are: ${ids}.` };
+                        const campo = t.tipo === 'query' ? 'sql' : (t.tipo === 'note' || t.tipo === 'text') ? 'texto' : null;
+                        if (!campo) return { error: `A ${t.tipo} card is not changed with text: only queries (SQL), notes and texts.` };
+                        const antes = String(t[campo] || '');
+                        if (antes.trim() === nuevo) return { error: 'That is the card as it already is: there is nothing to change.' };
+                        return { success: true, action: 'propose_change', objetivo: { tipo: 'tarjeta', accion: 'cambiar', id: t.id, tarjetaTipo: t.tipo, campo }, contenido: nuevo, original: antes, resumen: summary };
+                    }
+                    const tipo = target.card_type;
+                    let id = target.name ? String(target.name).trim() : null;
+                    if (id && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(id)) return { error: `"${id}" is not a valid card name: letters, digits and underscores, starting with a letter.` };
+                    if (id && tarjetas.some(t => t.id.toLowerCase() === id.toLowerCase())) return { error: `There is already a card named "${id}". Pick another name.` };
+                    if (tipo === 'query' && !id) return { error: 'A new query needs a name (it becomes the view other cards read).' };
+                    if (target.near && !tarjetas.some(t => t.id === target.near)) return { error: `There is no card "${target.near}" to place it next to. The cards are: ${ids}.` };
+                    return {
+                        success: true, action: 'propose_change',
+                        objetivo: { tipo: 'tarjeta', accion: 'nueva', id, tarjetaTipo: tipo, campo: E.TARJETAS_NUEVAS[tipo], cerca: target.near || null },
+                        contenido: nuevo, original: null, resumen: summary,
+                    };
+                },
+            });
+        }
+
+        // propose_change del diagrama (E5, D1): el diagrama entero —es pequeño y es
+        // la unidad—, pero como grafo (cajas, flechas, grupos), nunca como mermaid:
+        // el editor lo escribe con su propio serializador, así que lo que entra
+        // siempre se puede volver a editar visualmente.
+        if (archivo && archivo.porDiagrama && archivo.puedeProponer) {
+            const E = require('./estructurados');
+            const d = archivo.diagrama;
+            allTools.propose_change = tool({
+                description: `Propose the ACTIVE diagram as it should be: all its boxes, arrows and groups (boxes you leave out are removed). Keep the ids of the boxes that stay. Shapes: ${d.formas.join(', ')}. Arrow styles: ${d.estilos.join(', ')}. The user sees Before / Proposal drawn and accepts or rejects it; nothing is saved to disk.`,
+                inputSchema: z.object({
+                    diagram: z.object({
+                        direction: z.enum(['TB', 'TD', 'BT', 'LR', 'RL']).optional(),
+                        nodes: z.array(z.object({ id: z.string(), text: z.string(), shape: z.string().optional(), layer: z.string().optional() })),
+                        edges: z.array(z.object({ from: z.string(), to: z.string(), label: z.string().optional(), style: z.string().optional() })).optional(),
+                        groups: z.array(z.object({ id: z.string(), title: z.string().optional(), nodes: z.array(z.string()) })).optional(),
+                    }),
+                    summary: z.string().optional().default('').describe('One short line saying what changes.'),
+                }),
+                execute: async ({ diagram, summary = '' }) => {
+                    const v = E.validarDiagrama(diagram, d);
+                    if (v.error) return { error: v.error };
+                    if (E.estable({ ...v.grafo }) === E.estable({ direccion: d.grafo.direccion, nodos: d.grafo.nodos, aristas: d.grafo.aristas, subgrafos: d.grafo.subgrafos || [] })) {
+                        return { error: 'That is the diagram as it already is: there is nothing to change.' };
+                    }
+                    return { success: true, action: 'propose_change', objetivo: { tipo: 'diagrama' }, grafo: v.grafo, original: d.mermaid, resumen: summary };
+                },
+            });
+        }
+
+        if (!archivo || (archivo.puedeProponer && !archivo.porLineas && !archivo.porCeldas && !archivo.porLaminas && !archivo.porPaneles
+            && !archivo.porPasos && !archivo.porTarjetas && !archivo.porDiagrama)) {
             allTools.write_file = tool({
                 description: "Propose a new version of the ACTIVE file. The user reviews it in the chat and clicks Accept or Reject; accepting puts it in the editor without saving to disk. Send the COMPLETE file content, keeping every part you were not asked to change exactly as it is.",
                 inputSchema: z.object({

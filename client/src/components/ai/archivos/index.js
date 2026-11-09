@@ -13,6 +13,9 @@ import { aplicarRango, describirRango, esDeRango } from './rango.js';
 import { esDeCelda, describirCelda } from './cuaderno.js';
 import { esDeLamina, describirLamina } from './deck.js';
 import { esDeGrafico, describirGrafico } from './grafico.js';
+import { esDePasos, describirPasos } from './flujo.js';
+import { esDeTarjeta, describirTarjeta } from './lienzo.js';
+import { esDeDiagrama, describirDiagrama } from './diagrama.js';
 
 /** El tipo del Assistant para el `type` de una pestaña (el mismo que usa el servidor). */
 export function tipoDePestana(type, ruta = '') {
@@ -158,6 +161,26 @@ export function inicioDe(info) {
         out.push(s('Explain this chart', 'Explain what this chart shows.'), s('Is it the right chart?', 'Is this the right chart for this data? What would you change?'));
         return out;
     }
+    // E5: el paso, la tarjeta o la caja en la que está.
+    if (tipo === 'flujo') {
+        const out = [];
+        if (info.resultsError) out.push(s('Fix this step', 'Fix the error in this step.', true));
+        if (info.foco?.paso) out.push(s('Explain this step', 'Explain what this step does.'));
+        out.push(s('Explain this flow', 'Explain what this Data Flow does, step by step.'), s('What could fail?', 'What could fail in this flow, and how would I notice?'));
+        return out;
+    }
+    if (tipo === 'lienzo') {
+        const out = [];
+        if (info.foco?.tarjeta) out.push(s('Ask about this card', 'What does this card show, and what stands out?'));
+        out.push(s('What should I look at next?', 'What should I look at next, given these cards? Propose it as cards.'), s('Explain this canvas', 'Explain what this canvas shows.'));
+        return out;
+    }
+    if (tipo === 'diagrama') {
+        const out = [];
+        if (info.foco?.nodo) out.push(s('Expand this step', 'Expand this box into the steps it is made of.'));
+        out.push(s('Draw with Assist…', 'Draw this diagram for me. Ask me what it should show if it is not clear.'), s('What is missing?', 'What is missing from this diagram?'));
+        return out;
+    }
     const porTipo = {
         markdown: [['Summarize it', 'Summarize this document in three lines.'], ['Tighten the writing', 'How can this document be clearer and shorter?']],
         flujo: [['Explain this flow', 'Explain what this Data Flow does, step by step.'], ['What could fail?', 'What could fail in this flow, and how would I notice?']],
@@ -185,6 +208,9 @@ export function describirPropuesta(resultado, donde = null) {
     if (esDeCelda(resultado)) return describirCelda(resultado, donde);
     if (esDeLamina(resultado)) return describirLamina(resultado, donde);
     if (esDeGrafico(resultado)) return describirGrafico(resultado);
+    if (esDePasos(resultado)) return describirPasos(resultado);
+    if (esDeTarjeta(resultado)) return describirTarjeta(resultado);
+    if (esDeDiagrama(resultado)) return describirDiagrama(resultado);
     if (resultado?.action === 'propose_file') return `New file ${resultado.path}`;
     return 'Change to the file';
 }

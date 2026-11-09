@@ -212,4 +212,4 @@ async function generateChain({ getModel, provider, model, prompt, currentChain, 
     throw new Error('The model did not return a valid chain. Try rephrasing the request or a stronger model.');
 }
 
-module.exports = { generateChain };
+module.exports = { generateChain, NODE_TYPES, NODE_CONTRACT };

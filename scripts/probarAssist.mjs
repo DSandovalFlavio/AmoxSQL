@@ -146,7 +146,10 @@ console.log('\nel prompt');
     const sql = prompt('a.sql', 'sql', 'SELECT 1');
     bien('.sql: sigue siendo «Current query (editor)»', sql.includes('Current query (editor)') && sql.includes('SELECT 1'));
     const flujo = prompt('cierre.sqlchain', 'sqlchain', '{"nodes":[]}');
-    bien('Data Flow: no puede proponer y lo explica', flujo.includes('You cannot propose changes to this file') && flujo.includes('```json'));
+    // E5: Data Flow ya propone por pasos; un Canvas sin la estructura de su editor (un cliente viejo), no.
+    bien('Data Flow: propone por pasos', flujo.includes('operations on its steps') && !flujo.includes('You cannot propose'));
+    const lienzoViejo = prompt('c.amoxcanvas', 'amoxcanvas', '{"tarjetas":[]}');
+    bien('Canvas sin estructura: no puede proponer y lo explica', lienzoViejo.includes('You cannot propose changes to this file') && lienzoViejo.includes('```json'));
     bien('Data Flow: «Apply to chart» no se ofrece', flujo.includes('cannot be applied to this file'));
     bien('nunca «SQL editor or notebook»', !deck.includes('SQL editor or notebook'));
     bien('la parte fija ya no ofrece create/append', !deck.includes("mode='create'") && deck.includes('propose_file'));
@@ -579,6 +582,125 @@ console.log('\nE4 · el gráfico en el servidor');
     bien('gráfico: un objetivo sin kind con claves de Story Flow son cambios de paneles', t.propose_change.inputSchema.parse({ target: { chartType: 'line' } }).target.changes.chartType === 'line');
     const v = gr.validarCambios(CONFIG, c.cambios, COLS);
     bien('lo que propone el servidor lo valida igual el cliente', !v.errores.length && gr.aplicarCambios(CONFIG, v.cambios).highlightConfig.type === 'max');
+}
+
+// ── E5. Data Flow por pasos, Canvas por tarjetas, el diagrama como grafo ───
+console.log('\nE5 · Data Flow por pasos');
+const fl = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/flujo.js')).href);
+{
+    const FLUJO = { name: 'Ventas', nodes: [
+        { id: 'imp', type: 'import_file', label: 'Import', position: { x: 100, y: 80 }, config: { sourcePath: 'v.csv', tableName: 'v' } },
+        { id: 'fil', type: 'filter', label: 'Solo Sur', position: { x: 400, y: 80 }, config: { tableName: 'v_sur', conditions: [{ column: 'region', operator: '=', value: 'Sur' }] } },
+        { id: 'exp', type: 'export_file', label: 'Export', position: { x: 700, y: 80 }, config: { outputPath: 'out.csv', format: 'csv' } },
+    ], edges: [{ id: 'e1', source: 'imp', target: 'fil' }, { id: 'e2', source: 'fil', target: 'exp' }] };
+    const texto = JSON.stringify(FLUJO);
+    const a = prepararArchivo({ filePath: 'flujos/v.sqlchain', fileType: 'sqlchain', contenido: texto, estructura: { estados: { fil: 'failed' } } });
+    bien('el flujo va por pasos, en orden, con lo que lee cada uno y sin posiciones', a.porPasos && a.puedeProponer && a.contenido.indexOf('`imp`') < a.contenido.indexOf('`fil`')
+        && a.contenido.includes('reads: imp · last run FAILED') && !a.contenido.includes('position'), a.contenido.slice(0, 300));
+    const o = politica.sanearOpciones({ mode: 'assistant', filePath: 'flujos/v.sqlchain', fileType: 'sqlchain', currentQuery: texto, foco: { paso: { id: 'fil' }, flujo: { estados: { fil: 'failed' } } }, resultsError: "Binder Error: column 'region' not found" }, 'ollama');
+    const p = buildSystemPrompt({ ...o, modelProfile: { tier: 'high' } });
+    bien('el prompt: el flujo paso a paso, el paso seleccionado, su error y el catálogo de pasos', p.includes('Active Data Flow, step by step') && p.includes('**Where the user is:** step `fil` (filter')
+        && p.includes('The last run failed') && p.includes('group_aggregate') && !p.includes('**write_file**: proposes'));
+    const t = createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant', archivo: a });
+    bien('Data Flow: propose_change sí, write_file no', !!t.propose_change && !t.write_file);
+    const pc = (args) => t.propose_change.execute({ summary: '', ...args }, {});
+    const c = await pc({ add: [{ id: 'dedup', type: 'deduplicate', label: 'Dedup', config: { tableName: 'v_unica', keyColumns: ['id'] }, after: ['fil'] }],
+        connect: [{ from: 'dedup', to: 'exp' }], disconnect: [{ from: 'fil', to: 'exp' }], change: [{ id: 'exp', config: { format: 'parquet' } }] });
+    bien('añadir, conectar, desconectar y cambiar: el flujo que quedaría y la lista de cambios', c.objetivo?.tipo === 'pasos' && c.despues.nodes.length === 4
+        && c.despues.edges.some(e => e.source === 'dedup' && e.target === 'exp') && !c.despues.edges.some(e => e.source === 'fil' && e.target === 'exp')
+        && c.despues.nodes.find(n => n.id === 'exp').config.format === 'parquet' && c.despues.nodes.find(n => n.id === 'exp').config.outputPath === 'out.csv'
+        && c.cambios.some(l => /Added step «Dedup»/.test(l)) && c.cambios.some(l => /Disconnected/.test(l)) && !JSON.stringify(c.despues).includes('position'), JSON.stringify(c).slice(0, 300));
+    bien('un ciclo: error', /cycle/.test((await pc({ connect: [{ from: 'exp', to: 'imp' }] })).error || ''));
+    bien('un tipo de paso que no existe: error con la lista', /not a step type/.test((await pc({ add: [{ id: 'x', type: 'magia' }] })).error || ''));
+    bien('un id que ya existe: error', /already a step "fil"/.test((await pc({ add: [{ id: 'fil', type: 'filter' }] })).error || ''));
+    bien('quitar uno que no existe: error', /no step "nada"/.test((await pc({ remove: ['nada'] })).error || ''));
+    bien('sin cambios: error', /nothing to change/.test((await pc({ change: [{ id: 'exp', config: { format: 'csv' } }] })).error || ''));
+    const q = await pc({ remove: ['fil'], connect: [{ from: 'imp', to: 'exp' }] });
+    bien('quitar un paso se lleva sus conexiones', !q.despues.nodes.some(n => n.id === 'fil') && q.despues.edges.length === 1 && q.original.nodos.fil);
+
+    // El cliente: vigente, clasificar, fundir y colocar.
+    const def = { nodes: FLUJO.nodes.map(({ position, ...n }) => n), edges: FLUJO.edges };
+    bien('vigente sobre el flujo de hoy', fl.vigenteEnFlujo(def, c));
+    const tocado = { ...def, nodes: def.nodes.map(n => (n.id === 'exp' ? { ...n, config: { ...n.config, outputPath: 'otro.csv' } } : n)) };
+    bien('caduca si alguien cambió un paso que toca', !fl.vigenteEnFlujo(tocado, c));
+    bien('sigue vigente si cambió otro paso', fl.vigenteEnFlujo({ ...def, nodes: def.nodes.map(n => (n.id === 'imp' ? { ...n, label: 'Otro' } : n)) }, c));
+    const cl = fl.clasificar(def, c);
+    bien('clasificar: nuevos, cambiados y conexiones', cl.nuevos.has('dedup') && cl.cambiados.has('exp') && !cl.cambiados.has('imp') && cl.aristasNuevas.length === 2 && cl.aristasQuitadas.length === 1);
+    const conOtro = { nodes: [...def.nodes, { id: 'mio', type: 'sample', label: 'Mío', config: {} }], edges: [...def.edges, { id: 'e9', source: 'imp', target: 'mio' }] };
+    const fu = fl.fundirPasos(conOtro, c);
+    bien('fundir: lo que el usuario añadió después se queda', fu.nodes.some(n => n.id === 'mio') && fu.edges.some(e => e.target === 'mio') && fu.nodes.some(n => n.id === 'dedup')
+        && fu.nodes.find(n => n.id === 'exp').config.format === 'parquet');
+    const pos = fl.posicionesNuevas(c, new Map(FLUJO.nodes.map(n => [n.id, n.position])), cl.nuevos);
+    bien('el paso nuevo, a la derecha del que lee y sin tapar al que ya estaba ahí', pos.get('dedup').x === 700 && pos.get('dedup').y === 220, JSON.stringify([...pos]));
+    const tcf = { toolCallId: 'f1', toolName: 'propose_change', estado: 'propuesta', result: c };
+    bien('estado sobre el .sqlchain', prop.estadoDe(tcf, texto) === 'propuesta' && prop.estadoDe(tcf, JSON.stringify(tocado)) === 'caducada');
+}
+
+console.log('\nE5 · el Canvas por tarjetas');
+const lz = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/lienzo.js')).href);
+const { leerLienzo, escribirLienzo } = await import(pathToFileURL(path.join(RAIZ, 'client/src/utils/lienzoFile.js')).href);
+{
+    const LIENZO = { titulo: 'Ventas', tarjetas: [
+        { id: 'ventas_src', tipo: 'source', origen: { tipo: 'tabla', nombre: 'ventas' }, x: 0, y: 0, w: 260, h: 170, foto: { cuando: '2026-11-01', filas: 3, columnas: ['region', 'importe'], muestra: [['Sur', 10]] } },
+        { id: 'por_region', tipo: 'query', sql: 'SELECT region, sum(importe) AS venta FROM ventas_src GROUP BY 1', x: 320, y: 0, w: 380, h: 300 },
+        { id: 'nota_1', tipo: 'note', texto: 'Revisar el Sur', x: 0, y: 400, w: 190, h: 120 },
+    ] };
+    const est = lz.estructuraDeLienzo(LIENZO, { flechas: [{ de: 'ventas_src', a: 'por_region' }] });
+    bien('la estructura: lo que lee cada tarjeta, sin fotos', est.tarjetas[1].lee[0] === 'ventas_src' && !JSON.stringify(est).includes('muestra') && est.tarjetas[0].origen === 'the table ventas');
+    const a = prepararArchivo({ filePath: 'c.amoxcanvas', fileType: 'amoxcanvas', contenido: JSON.stringify(LIENZO), estructura: est });
+    bien('el Canvas va por tarjetas, sin fotos', a.porTarjetas && a.puedeProponer && a.contenido.includes('### Card `por_region` · query (reads: ventas_src)') && !a.contenido.includes('Sur", 10'));
+    const o = politica.sanearOpciones({ mode: 'assistant', filePath: 'c.amoxcanvas', fileType: 'amoxcanvas', currentQuery: JSON.stringify(LIENZO), foco: { tarjeta: { id: 'por_region' }, lienzo: est } }, 'ollama');
+    bien('el foco: la tarjeta seleccionada', buildSystemPrompt({ ...o, modelProfile: { tier: 'high' } }).includes('**Where the user is:** card `por_region` (query)'));
+    const t = createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant', archivo: a });
+    const pc = (args) => t.propose_change.execute({ summary: '', ...args }, {});
+    const c = await pc({ target: { kind: 'card', card: 'por_region' }, content: '```sql\nSELECT region, sum(importe) AS venta FROM ventas_src GROUP BY 1 ORDER BY 2 DESC\n```' });
+    bien('cambiar el SQL de una consulta: sin cercas y con lo que había', c.objetivo?.accion === 'cambiar' && c.objetivo.campo === 'sql' && c.contenido.endsWith('DESC') && c.original.startsWith('SELECT region'));
+    bien('una Source no se cambia con texto', /not changed with text/.test((await pc({ target: { kind: 'card', card: 'ventas_src' }, content: 'x' })).error || ''));
+    bien('una consulta nueva necesita nombre; un nombre repetido, error', /needs a name/.test((await pc({ target: { kind: 'new_card', card_type: 'query' }, content: 'SELECT 1' })).error || '')
+        && /already a card/.test((await pc({ target: { kind: 'new_card', card_type: 'query', name: 'por_region' }, content: 'SELECT 1' })).error || ''));
+    const n = await pc({ target: { kind: 'new_card', card_type: 'query', name: 'top_sur', near: 'por_region' }, content: "SELECT * FROM por_region WHERE region = 'Sur'" });
+    bien('una consulta nueva junto a otra', n.objetivo?.accion === 'nueva' && n.objetivo.id === 'top_sur' && n.objetivo.cerca === 'por_region');
+    const ap = lz.aplicarALienzo(LIENZO, n, { idLibre: (b) => `${b}_9` });
+    const nueva = ap.lienzo.tarjetas.find(x => x.id === 'top_sur');
+    bien('aplicar: la tarjeta nueva a la derecha de la de al lado; las demás, con su foto', nueva && nueva.x === 320 + 380 + 70 && nueva.y === 0 && ap.lienzo.tarjetas[0].foto);
+    const nota = lz.aplicarALienzo(LIENZO, { ...n, objetivo: { tipo: 'tarjeta', accion: 'nueva', id: null, tarjetaTipo: 'note', campo: 'texto', cerca: null }, contenido: 'Ojo' }, { idLibre: (b) => `${b}_9` });
+    bien('una nota nueva toma un nombre libre', nota.id === 'nota_9' && nota.lienzo.tarjetas.at(-1).texto === 'Ojo');
+    const otro = { ...LIENZO, tarjetas: LIENZO.tarjetas.map(x => (x.id === 'por_region' ? { ...x, sql: 'SELECT 1' } : x)) };
+    bien('caduca si la tarjeta cambió; el archivo sigue leyéndose', !lz.vigenteEnLienzo(otro, c) && !!lz.aplicarALienzo(otro, c, {}).error && leerLienzo(escribirLienzo(ap.lienzo)).tarjetas.length === 4);
+    const tcl = { toolCallId: 'l9', toolName: 'propose_change', estado: 'propuesta', result: c };
+    bien('estado sobre el .amoxcanvas', prop.estadoDe(tcl, escribirLienzo(LIENZO)) === 'propuesta' && prop.estadoDe(tcl, escribirLienzo(otro)) === 'caducada');
+}
+
+console.log('\nE5 · el diagrama como grafo');
+const dg = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/diagrama.js')).href);
+const { leerDiagrama } = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/diagram/diagramFile.js')).href);
+{
+    const DIAGRAMA = '---\ntitle: Ventas\n---\n\n```mermaid\nflowchart LR\n  erp[("ERP")] --> lim["Limpiar"]\n  lim --> rep[\\"Reporte"\\]\n  classDef origen fill:#1b3a52,stroke:#4a9fd8\n  class erp origen\n```\n';
+    const doc = leerDiagrama(DIAGRAMA);
+    const est = dg.estructuraDeDiagrama(doc);
+    bien('la estructura: cajas, flechas, formas y capas', est.grafo.nodos.length === 3 && est.capas[0] === 'origen' && est.formas.includes('almacen') && est.estilos.includes('continuo'));
+    const a = prepararArchivo({ filePath: 'd.amoxdiagram', fileType: 'amoxdiagram', contenido: DIAGRAMA, estructura: est });
+    bien('el diagrama va como grafo', a.porDiagrama && a.puedeProponer && a.contenido.includes('- erp: "ERP" (almacen, layer origen)') && a.contenido.includes('- erp → lim'));
+    const t = createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant', archivo: a });
+    const pc = (diagram) => t.propose_change.execute({ summary: '', diagram }, {});
+    const base = { direction: 'LR', nodes: [{ id: 'erp', text: 'ERP', shape: 'almacen', layer: 'origen' }, { id: 'lim', text: 'Limpiar' }, { id: 'dup', text: 'Quitar duplicados' }, { id: 'rep', text: 'Reporte', shape: 'salida' }],
+        edges: [{ from: 'erp', to: 'lim' }, { from: 'lim', to: 'dup' }, { from: 'dup', to: 'rep', style: 'principal' }] };
+    const c = await pc(base);
+    bien('el diagrama propuesto, validado', c.objetivo?.tipo === 'diagrama' && c.grafo.nodos.length === 4 && c.original.includes('flowchart LR'), JSON.stringify(c).slice(0, 200));
+    bien('una forma que no existe: error', /not a shape/.test((await pc({ ...base, nodes: [...base.nodes, { id: 'z', text: 'Z', shape: 'estrella' }] })).error || ''));
+    bien('una flecha a una caja que no existe: error', /does not exist/.test((await pc({ ...base, edges: [{ from: 'erp', to: 'nada' }] })).error || ''));
+    bien('una caja en dos grupos: error', /two groups/.test((await pc({ ...base, groups: [{ id: 'g1', nodes: ['erp'] }, { id: 'g2', nodes: ['erp'] }] })).error || ''));
+    bien('una capa que no existe: error', /no layer "nube"/.test((await pc({ ...base, nodes: [{ id: 'erp', text: 'ERP', layer: 'nube' }] })).error || ''));
+    const ap = dg.aplicarDiagrama(DIAGRAMA, c);
+    const nuevo = leerDiagrama(ap.texto || '');
+    bien('aplicar: el editor lo vuelve a abrir, con la cabecera y el classDef intactos', !!nuevo.grafo && nuevo.grafo.nodos.length === 4 && ap.texto.startsWith('---\ntitle: Ventas') && ap.texto.includes('classDef origen fill:#1b3a52'));
+    const cm = dg.cambiosDeDiagrama(doc.grafo, c);
+    bien('lo que cambia: la caja nueva', cm.nuevos[0] === 'dup' && cm.lista.some(l => /New box “Quitar duplicados”/.test(l)));
+    const tcd = { toolCallId: 'd1', toolName: 'propose_change', estado: 'propuesta', result: c };
+    bien('caduca si el diagrama cambió', prop.estadoDe(tcd, DIAGRAMA) === 'propuesta' && prop.estadoDe(tcd, DIAGRAMA.replace('"Limpiar"', '"Limpiar datos"')) === 'caducada');
+    const arch = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/index.js')).href);
+    bien('el inicio: expandir la caja seleccionada; arreglar el paso que falló', arch.inicioDe({ type: 'amoxdiagram', path: 'd.amoxdiagram', content: DIAGRAMA, foco: { nodo: { id: 'lim' } } })[0]?.etiqueta === 'Expand this step'
+        && arch.inicioDe({ type: 'sqlchain', path: 'f.sqlchain', content: '{}', resultsError: 'x', foco: { paso: { id: 'a' } } })[0]?.etiqueta === 'Fix this step');
 }
 
 // ── 6. El servidor ──────────────────────────────────────────────────────────

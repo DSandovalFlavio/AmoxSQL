@@ -15,6 +15,9 @@ import { esDeRango } from './archivos/rango.js';
 import { esDeCelda } from './archivos/cuaderno.js';
 import { esDeLamina } from './archivos/deck.js';
 import { esDeGrafico } from './archivos/grafico.js';
+import { esDePasos } from './archivos/flujo.js';
+import { esDeTarjeta } from './archivos/lienzo.js';
+import { esDeDiagrama } from './archivos/diagrama.js';
 import { publicarPropuestas, pedirRevision } from './propuestasEnEditor.js';
 
 import { API_BASE as API } from '../../api.js';
@@ -136,7 +139,8 @@ const AiAssistantPanel = ({
         const pendientes = [];
         for (const m of deEsteArchivo ? messages : []) {
             for (const tc of m.toolCalls || []) {
-                if (tc.estado === 'propuesta' && (esDeRango(tc.result) || esDeCelda(tc.result) || esDeLamina(tc.result) || esDeGrafico(tc.result))) pendientes.push(tc);
+                if (tc.estado === 'propuesta' && (esDeRango(tc.result) || esDeCelda(tc.result) || esDeLamina(tc.result) || esDeGrafico(tc.result)
+                    || esDePasos(tc.result) || esDeTarjeta(tc.result) || esDeDiagrama(tc.result))) pendientes.push(tc);
             }
         }
         publicarPropuestas(activeFilePath, pendientes, accionesEstables);
@@ -175,6 +179,13 @@ const AiAssistantPanel = ({
             grafico_story: () => 'Write the title and the takeaway of this chart from what the data shows.',
             grafico_export: () => 'Is this chart ready to share? What would you fix first?',
             grafico_explicar: () => 'Explain what this chart shows.',
+            // E5: a Data Flow step, a Canvas card, a diagram box.
+            paso_explicar: () => 'Explain what this step does.',
+            paso_arreglar: () => 'Fix the error in this step.',
+            paso_sql: () => 'Write the SQL for this step: propose a sql_inline step that does the same, or the query this step needs.',
+            tarjeta_preguntar: () => 'What does this card show, and what stands out?',
+            tarjeta_cifra: () => 'Explain this number: how it is computed and what it means.',
+            diagrama_expandir: () => 'Expand this box into the steps it is made of.',
         };
         const alAsistir = (e) => {
             const { accion } = e.detail || {};
@@ -183,7 +194,8 @@ const AiAssistantPanel = ({
                 return;
             }
             const info = getActiveTabInfo ? getActiveTabInfo() : null;
-            const pregunta = PREGUNTAS[accion]?.(tipoDePestana(info?.type, info?.path));
+            // E5: a door can bring its own words (the Data Flow bar, "Ask a question → cards").
+            const pregunta = e.detail?.pregunta ? String(e.detail.pregunta) : PREGUNTAS[accion]?.(tipoDePestana(info?.type, info?.path));
             if (!pregunta) return;
             if (isGenerating) { setInputText(pregunta); return; }
             handleSend(pregunta);
