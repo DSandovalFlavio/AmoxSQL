@@ -202,6 +202,23 @@ Fase 1: `lago.js` avisa antes de la primera escritura de la 6.0 en un lago de la
 - Las tres suites de la fase 0 al día, `http_retries` en los pasos de red, la prueba del visor del plan, y vigilar la lectura de carpetas con `union_by_name` / `all_varchar`.
 - Salida: todo lo que funcionaba en la 5.15 funciona igual → **6.0.0-alpha.1**.
 
+#### Resultado de la fase 1 (2026-11-09) — hecha
+
+**Suites: 75/75 con DuckDB 2.0** (las 70 de antes más 5 nuevas) y Electron real 106/106. Hecho, en commits de `claude/v6-duckdb-2`:
+
+| Qué | Dónde | Nota |
+|---|---|---|
+| El plan de ejecución lee el JSON de 2.0 (y el de 1.x), sin `profiling_mode` | `server/planDeEjecucion.js`, `probarPlanDeEjecucion` (41) | Trae E/S, grupos de filas y las fases (con el parser). Visto en la app: además, el visor decía «sin filtro» con un `WHERE` empujado al scan; arreglado |
+| La guarda del SQL generado (Dec-66) | `probarSqlGenerado` (66) | Encontró 4 fallos en Data Flow: la muestra estratificada (`ORDER BY random()` en una ventana, **regresión de 2.0**), y Deduplicate con claves y Unpivot de varias columnas, **que fallaban ya en 1.5** |
+| Esquemas anidados | `server/esquemas.js`, `probarEsquemasAnidados` (20) | Las mismas columnas que `information_schema`, con la ruta del esquema por `schema_oid`; dos «crudo» de padres distintos no se mezclan. El completado indexa tablas por nombre: no le afecta |
+| HTTP | `server/motor.js` | **Regresión de 2.0 encontrada aquí:** un 503 se reintenta 9 veces con espera ×4 → **67 s** hasta fallar (1.5: 0,5 s). `http_retry_backoff = 1.5` → 3,7 s |
+| Las tres suites de la fase 0 | `probarFondo`, `probarCatalogoPorArchivo` (base escrita por 1.5.6 como fixture), `probarBaseDeMotorNuevo` (al revés: ahora se avisa del dbt con DuckDB 1.x) | — |
+| dbt (Dec-68) | `server/dbt/entorno.js` | Python 3.11–3.13; mensaje para rutas largas de Windows. Recorrido real: **Set up dbt…** de verdad (p02) y el recorrido de la 5.12 (p03) **12/12** con duckdb 2.0 |
+| Lagos de la 5.x | `lago.formatoDelArchivo` / `avisoDeFormato`, `probarLagoDeLaCinco` (13) | El formato se lee de la cabecera ANTES de adjuntar (abierto, el motor bloquea el archivo). Además: un lago que viajó con su carpeta no abría (**también en 1.5**); ahora abre con `<lago>.files` al lado (`OVERRIDE_DATA_PATH`, no escribe) |
+| El asistente habla 2.0 (Dec-67) | `server/ai/data/duckdb-docs` (131 páginas de `docs/2.0/sql`), `duckdbDocs.js`, prompt; `client/src/utils/lambdas.js` + **Rewrite the lambda** en el error, `probarLambdas` (37) | `duckdb-web` ya no tiene `docs/current`: la versión sigue al motor. Una copia del usuario de otra versión se ignora. Visto en la app: reescribe, corre, Ctrl+Z vuelve |
+
+Queda para después: `union_by_name` / `all_varchar` más lentos (se mide con la 2.0.1); la documentación de usuario (fase 4).
+
 ### Fase 2 · Parámetros de verdad (O1)
 Variables del editor, parámetros del cuaderno y del Canvas y parámetros de Data Flow sobre `SET VARIABLE` + `$x`. Los archivos de la 5.x abren sin cambios (`${x}` y `{{x}}` se traducen al ejecutar). Pruebas: un texto con comillas, una fecha, un número, una lista; ningún valor puede cambiar la consulta. → **alpha.2**.
 
@@ -248,3 +265,4 @@ Respondidas el 2026-11-09: el autor aceptó las cuatro recomendaciones.
 | 2026-10-25 | — | Plan escrito. POC del cliente 2.0 contra `tienda.duckdb`: 13/13 funciones de AmoxSQL iguales; compatibilidad de archivos medida en procesos separados; encontrados el cambio del JSON del perfil, `profiling_mode` que deja el perfilado encendido, `SELECT NULL` en Data Flow y los esquemas anidados. Decisiones Dec-62 a Dec-68; tres preguntas para el autor (§7) |
 | 2026-11-09 | — | Plan al día con la 5.19.0: §7 respondida, lo de la 5.16–5.19 que hay que volver a mirar, dbt 2.0 (Dec-68 revisada, Dec-97), 2.0.1 el 18 de noviembre |
 | 2026-11-09 | 0 | Motor 2.0.0-r.1 en la rama: carga en Electron 33, suites 70/70 → 67/70 (tres causas, ninguna de fondo), Electron real 106/106, tiempos antes/después, compatibilidad de la base central y de DuckLake, dbt de Python con duckdb 2.0 (bien) y dbt 2.0.11 (trae DuckDB 1.5.4: no abre bases de la 6.0), fixtures del plan |
+| 2026-11-09 | 1 | Plan de ejecución, guarda del SQL generado (4 fallos de Data Flow), esquemas anidados, reintentos HTTP (67 s → 3,7 s), dbt con Python 3.11+ (recorrido real 12/12), lagos de la 5.x y lagos que viajan, el asistente con la documentación 2.0 y **Rewrite the lambda**. Suites 75/75, Electron real 106/106 |

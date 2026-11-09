@@ -5,6 +5,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [Unreleased] — 6.0: el motor nuevo (DuckDB 2.0)
+
+AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_duckdb_2.md`. Fases 0 y 1 hechas; se publicará con DuckDB 2.0.1.
+
+### Cambiado
+- **El motor es DuckDB 2.0.** Las bases que crea AmoxSQL quedan en el formato de 2.0: una 5.x ya no las abre. Las bases que ya existían se siguen abriendo y siguen abriendo en la 5.x aunque la 6.0 escriba en ellas. Las zonas horarias son más rápidas (−39 % en el proyecto de ejemplo) y las bases ocupan menos (−10 a −17 %).
+- **Las lambdas se escriben `lambda x: x + 1`.** DuckDB 2 ya no acepta `x -> x + 1`; junto a ese error, el editor ofrece **Rewrite the lambda** (Ctrl+Z lo deshace). El JSON (`j -> 'clave'`, `->>`) no cambia.
+- **El Assistant habla DuckDB 2.0:** su documentación offline es la de 2.0 (lambdas nuevas, VARIANT, triggers, esquemas anidados, NEAREST joins) y sabe lo que cambió (`~` busca coincidencia parcial, `//` entre cero es un error, un `NULL` lleva tipo).
+- **Set up dbt…** instala dbt con duckdb 2.0 y pide Python 3.11 a 3.13. Un dbt con DuckDB 1.x (un entorno de antes, o dbt 2.0 con su DuckDB incluido) recibe un aviso: no abrirá lo que crea AmoxSQL.
+
+### Nuevo
+- **Esquemas anidados** (`CREATE SCHEMA ventas.crudo`): el explorador, el diagrama ER, la vista de una tabla, el Assistant, Data Flow y la importación los muestran con su ruta (`ventas.crudo`), y dos esquemas «crudo» de padres distintos no se mezclan.
+- **Abrir un lago DuckLake de la 5.x** lo dice: leerlo no lo cambia; la primera escritura lo deja sólo para la 6.
+
+### Arreglado
+- **El plan de ejecución** lee el formato de DuckDB 2 (con E/S, grupos de filas y las fases del planificador) y ya no deja el perfilado encendido en la conexión. Ya no dice «sin filtro» cuando el `WHERE` va dentro del scan.
+- **Una descarga contra un servidor caído tardaba 67 s en fallar** con DuckDB 2 (reintentaba nueve veces con espera creciente). Ahora 3,7 s; los reintentos largos de lo programado siguen igual.
+- **Data Flow:** la muestra estratificada fallaba con DuckDB 2; **Deduplicate** con columnas clave no corría (ni en la 5.x) y dejaba una columna `_rn`; **Unpivot** de varias columnas no corría (ni en la 5.x); un paso sin entrada creaba una columna sin tipo.
+- **Un lago que viajó con su carpeta** (otra máquina, una carpeta sincronizada) se abre con los datos que tiene al lado, en vez de fallar porque el catálogo recuerda otra ruta.
+
+### Interno
+- `@duckdb/node-api` fijado a `2.0.0-r.1` (Dec-62). `server/planDeEjecucion.js` (Dec-65), `server/esquemas.js` (esquemas anidados por `schema_oid`), `client/src/utils/lambdas.js`, `motor.js` con `http_retry_backoff`. Guardas nuevas: `probarPlanDeEjecucion`, `probarSqlGenerado` (Dec-66: todo el SQL que escribe AmoxSQL contra el motor), `probarEsquemasAnidados`, `probarLagoDeLaCinco`, `probarLambdas`. Fixtures de los dos motores en `scripts/fixtures/planDeEjecucion/` y bases escritas por 1.5.6 en `scripts/fixtures/motor/`.
+
+---
+
 ## [5.19.0] — 2026-11-09 — Cada pestaña es suya, y el Assistant trabaja donde está el trabajo
 
 Tres entregas en una: cada pestaña recuerda y controla lo suyo (plan en `docs/dev/plan_5_19_interaccion.md`), los archivos grandes no congelan nada, Deep Dive se lee como un informe, y el Assistant propone cambios en cada tipo de archivo y se revisan en el propio editor (plan en `docs/dev/plan_ux_assistant.md`). El instalador de macOS sigue en beta.
