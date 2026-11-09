@@ -13,6 +13,8 @@ import { exportConversationToMarkdown } from './exportConversation';
 import { inicioDe, tipoDePestana } from './archivos/index.js';
 import { esDeRango } from './archivos/rango.js';
 import { esDeCelda } from './archivos/cuaderno.js';
+import { esDeLamina } from './archivos/deck.js';
+import { esDeGrafico } from './archivos/grafico.js';
 import { publicarPropuestas, pedirRevision } from './propuestasEnEditor.js';
 
 import { API_BASE as API } from '../../api.js';
@@ -134,7 +136,7 @@ const AiAssistantPanel = ({
         const pendientes = [];
         for (const m of deEsteArchivo ? messages : []) {
             for (const tc of m.toolCalls || []) {
-                if (tc.estado === 'propuesta' && (esDeRango(tc.result) || esDeCelda(tc.result))) pendientes.push(tc);
+                if (tc.estado === 'propuesta' && (esDeRango(tc.result) || esDeCelda(tc.result) || esDeLamina(tc.result) || esDeGrafico(tc.result))) pendientes.push(tc);
             }
         }
         publicarPropuestas(activeFilePath, pendientes, accionesEstables);
@@ -161,6 +163,18 @@ const AiAssistantPanel = ({
             reescribir: () => 'Rewrite the selected text so it reads better, keeping what it says.',
             acortar: () => 'Make the selected text shorter, keeping what it says.',
             continuar: () => 'Continue the text after the selection, in the same voice.',
+            // E4: a deck's slide and a chart's Story Flow stage.
+            lamina_ajustar: () => 'Tighten the text of this slide: one clear point, fewer words. Keep its layout and charts.',
+            lamina_titular: () => 'Write the headline of this slide from what its chart shows, with the number that carries it.',
+            lamina_notas: () => 'Write speaker notes for this slide: what to say while it is on screen, in three or four short lines.',
+            lamina_despues: () => 'Add a slide after this one that the story is missing. Ask me what it should say if it is not clear.',
+            grafico_type: () => 'Which chart type tells this data best? Propose it.',
+            grafico_data: () => 'Which columns should go on each axis of this chart? Propose them.',
+            grafico_format: () => 'Format this chart so its numbers and labels read at a glance.',
+            grafico_style: () => 'Make this chart readable in a slide: colors, labels and legend.',
+            grafico_story: () => 'Write the title and the takeaway of this chart from what the data shows.',
+            grafico_export: () => 'Is this chart ready to share? What would you fix first?',
+            grafico_explicar: () => 'Explain what this chart shows.',
         };
         const alAsistir = (e) => {
             const { accion } = e.detail || {};

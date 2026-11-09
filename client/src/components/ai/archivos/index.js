@@ -3,15 +3,16 @@
  *
  * Una pieza por tipo responde lo mismo: qué ofrece al empezar (`inicio`), dónde
  * está el usuario (`foco`), cómo se aplica y se describe una propuesta. En E2 lo
- * tienen completo el `.sql` y el texto; los demás tipos solo su inicio, hasta su
- * fase (notebook y Markdown en E3, Report Flow y gráfico en E4, Data Flow,
- * Canvas y diagrama en E5).
+ * tienen completo el `.sql` y el texto; el notebook y Markdown en E3; Report Flow
+ * y el gráfico en E4; Data Flow, Canvas y diagrama, solo su inicio hasta E5.
  *
  * Puro: no toca React ni Monaco.
  */
 import { splitSqlStatements } from '../../../utils/sqlSplitter.js';
 import { aplicarRango, describirRango, esDeRango } from './rango.js';
 import { esDeCelda, describirCelda } from './cuaderno.js';
+import { esDeLamina, describirLamina } from './deck.js';
+import { esDeGrafico, describirGrafico } from './grafico.js';
 
 /** El tipo del Assistant para el `type` de una pestaña (el mismo que usa el servidor). */
 export function tipoDePestana(type, ruta = '') {
@@ -82,6 +83,16 @@ export function seleccionConBarra(texto) {
 
 // ── Lo que se ofrece al empezar (A6) ────────────────────────────────────────
 
+/** La pregunta de cada etapa de Story Flow (E4, V3): etiqueta y lo que se envía. */
+export const PREGUNTA_DE_ETAPA = {
+    type: ['Which chart tells this best?', 'Which chart type tells this data best? Propose it.'],
+    data: ['What goes where?', 'Which columns should go on each axis of this chart? Propose them.'],
+    format: ['Make it readable', 'Format this chart so its numbers and labels read at a glance.'],
+    style: ['Make it readable in a slide', 'Make this chart readable in a slide: colors, labels and legend.'],
+    story: ['Write the takeaway', 'Write the title and the takeaway of this chart from what the data shows.'],
+    export: ['Is it ready to share?', 'Is this chart ready to share? What would you fix first?'],
+};
+
 const ARCHIVOS_CONOCIDOS = [
     [/(^|\/)context\/metrics\.ya?ml$/i, [['Add a measure', 'Add a measure to this file. Ask me which one if it is not clear.'], ['Check the measures', 'Check every measure in this file: does each one run, and is its definition clear?']]],
     [/(^|\/)context\/joins\.ya?ml$/i, [['Check the joins', 'Check the joins in this file against the tables of the database: do the keys exist and are they unique where they should be?']]],
@@ -131,10 +142,24 @@ export function inicioDe(info) {
         out.push(s('Summarize this notebook', 'Summarize what this notebook finds.'), s('What is missing?', 'What would you add to this analysis?'));
         return out;
     }
+    // E4: en un deck, la lámina en la que está; en un gráfico, la etapa de Story Flow.
+    if (tipo === 'deck') {
+        const out = [];
+        if (info.foco?.lamina) {
+            out.push(s('Tighten this slide', 'Tighten the text of this slide: one clear point, fewer words.'));
+            out.push(s('Write the headline from the chart', 'Write the headline of this slide from what its chart shows.'));
+        }
+        out.push(s('Review the story', 'Review this deck: does each slide make one clear point?'), s('Add a slide after this one', 'Add a slide after this one that the story is missing.'));
+        return out;
+    }
+    if (tipo === 'grafico') {
+        const pregunta = PREGUNTA_DE_ETAPA[info.foco?.grafico?.etapa];
+        const out = pregunta ? [s(pregunta[0], pregunta[1])] : [];
+        out.push(s('Explain this chart', 'Explain what this chart shows.'), s('Is it the right chart?', 'Is this the right chart for this data? What would you change?'));
+        return out;
+    }
     const porTipo = {
         markdown: [['Summarize it', 'Summarize this document in three lines.'], ['Tighten the writing', 'How can this document be clearer and shorter?']],
-        deck: [['Review the story', 'Review this deck: does each slide make one clear point?'], ['Suggest a headline', 'Suggest a better headline for each slide.']],
-        grafico: [['Explain this chart', 'Explain what this chart shows.'], ['Is it the right chart?', 'Is this the right chart for this data? What would you change?']],
         flujo: [['Explain this flow', 'Explain what this Data Flow does, step by step.'], ['What could fail?', 'What could fail in this flow, and how would I notice?']],
         lienzo: [['Explain this canvas', 'Explain what this canvas shows.'], ['What should I look at next?', 'What should I look at next, given these cards?']],
         diagrama: [['Explain this diagram', 'Explain this diagram.'], ['What is missing?', 'What is missing from this diagram?']],
@@ -158,6 +183,8 @@ export function describirPropuesta(resultado, donde = null) {
         return d.hasta < d.desde ? `Insert ${describirRango(resultado, donde)}` : `Change to ${describirRango(resultado, donde)}`;
     }
     if (esDeCelda(resultado)) return describirCelda(resultado, donde);
+    if (esDeLamina(resultado)) return describirLamina(resultado, donde);
+    if (esDeGrafico(resultado)) return describirGrafico(resultado);
     if (resultado?.action === 'propose_file') return `New file ${resultado.path}`;
     return 'Change to the file';
 }

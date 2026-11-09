@@ -31,7 +31,8 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import {
     LuPencilLine, LuPresentation, LuRefreshCw, LuSave, LuChevronDown,
-    LuMonitorPlay, LuLoaderCircle, LuLayoutTemplate, LuCode, LuPlay, LuSparkles } from 'react-icons/lu';
+    LuMonitorPlay, LuLoaderCircle, LuLayoutTemplate, LuCode, LuPlay, LuSparkles,
+    LuWandSparkles, LuHeading, LuNotebookPen, LuCopyPlus } from 'react-icons/lu';
 import { registerMonaco, MONACO_THEME_NAME } from '../../monacoTheme.js';
 import { parseDeck, serializeDeck, setFrontMatterKeys } from '../../utils/deckParser';
 import { buildSlideSnippet, buildSlideRaw, splitSlideContent } from '../../utils/deckTemplates';
@@ -42,6 +43,14 @@ import DeckShow from './DeckShow';
 import DeckInspector from './DeckInspector';
 import { useHistorial, esAtajoDeHistorial } from '../../hooks/useHistorial';
 import DeckSlideRaw from './DeckSlideRaw';
+import { fijarProveedorDeFoco, fijarAplicador } from '../../utils/memoriaDePestana';
+import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
+import {
+    estructuraDeDeck, ubicarLamina, aplicarALaminas, laminaPropuesta, cambiosDeLamina, describirLamina, esDeLamina,
+} from '../ai/archivos/deck.js';
+import AntesYPropuesta from '../ai/revision/AntesYPropuesta.jsx';
+import { useToast } from '../ToastProvider';
+import { slideTitle } from '../../utils/deckTemplates';
 import '../MarkdownEditor.css';
 import './deck.css';
 
@@ -63,7 +72,10 @@ const DeckEditor = ({
     showAiSidebar,
     isActive,
     onOpenFile,
+    tabId = null,
+    filePath = null,
 }) => {
+    const toast = useToast();
     const [viewMode, setViewMode] = useState(() => {
         const saved = localStorage.getItem('amoxsql-deck-view-mode');
         return VALID_VIEWS.includes(saved) ? saved : 'design';
@@ -343,6 +355,83 @@ const DeckEditor = ({
 
     const requestAddChart = useCallback(() => { changePanel('charts'); setSidePanelCollapsed(false); }, []);
 
+    // ── El Assistant en el deck (plan del Assistant, E4) ────────────────────
+    // Lo último de cada cosa, para que el Assistant lo lea al enviar sin que el
+    // Studio se repinte por ello.
+    const alDia = useRef({});
+    alDia.current = { deck, activeSlideIndex, content, escribir };
+
+    // El foco: la lámina activa (por su número, el mismo que ve el modelo) y el
+    // deck lámina por lámina. Los gráficos los resume el servidor (R3).
+    useEffect(() => fijarProveedorDeFoco(tabId, () => {
+        const { deck: d, activeSlideIndex: i } = alDia.current;
+        return {
+            lamina: d.slides[i] ? { n: i + 1 } : null,
+            deck: estructuraDeDeck(d),
+        };
+    }), [tabId]);
+
+    /** Una pregunta sobre la lámina activa, al panel. */
+    const asistir = useCallback((accion) => {
+        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+    }, [tabId]);
+
+    // Aceptar: con el historial del Studio (Ctrl+Z lo deshace), cambiando solo esa lámina.
+    const [revision, setRevision] = useState(null);   // { id, vista: 'antes' | 'propuesta' }
+    useEffect(() => fijarAplicador(tabId, (resultado) => {
+        const { content: texto, escribir: escribirAhora } = alDia.current;
+        const r = aplicarALaminas(texto, resultado);
+        if (r.error) return { error: r.error };
+        escribirAhora(r.texto);
+        setActiveSlideIndex(r.donde.indice);
+        setRevision(null);
+        toast.info(`Applied: ${describirLamina(resultado, r.donde)}. Ctrl+Z undoes it.`);
+        return { ok: true };
+    }), [tabId, toast]);
+
+    // Las propuestas pendientes de este deck, y cómo aceptarlas o rechazarlas.
+    const [propuestas, setPropuestas] = useState({ propuestas: [], acciones: null });
+    useEffect(() => (filePath ? suscribirPropuestas(filePath, (p) => setPropuestas({
+        propuestas: (p.propuestas || []).filter(tc => esDeLamina(tc.result)),
+        acciones: p.acciones,
+    })) : undefined), [filePath]);
+
+    // Dónde cae hoy cada una: un cambio, en su lámina; una lámina nueva, en su hueco.
+    const ubicadas = useMemo(() => propuestas.propuestas
+        .map(tc => ({ tc, donde: ubicarLamina(deck.slides, tc.result) }))
+        .filter(x => x.donde), [propuestas.propuestas, deck.slides]);
+    const marcadas = useMemo(() => new Set(ubicadas.filter(x => !x.donde.insertar).map(x => x.donde.indice)), [ubicadas]);
+    const fantasmas = useMemo(() => ubicadas.filter(x => x.donde.insertar).map(x => {
+        const l = laminaPropuesta(content, x.tc.result);
+        return { id: x.tc.toolCallId, indice: x.donde.indice, titulo: l ? slideTitle(l.markdown) : 'New slide', layout: l?.layout || 'content' };
+    }), [ubicadas, content]);
+
+    // La que se revisa: la elegida (Review, un fantasma) o la del cambio de la lámina activa.
+    const enRevision = useMemo(() => {
+        // Solo mientras se está en su lámina (o en la de antes, si es una nueva).
+        const suya = (x) => (x.donde.insertar ? Math.max(0, x.donde.indice - 1) : x.donde.indice) === activeSlideIndex;
+        const elegida = revision && ubicadas.find(x => x.tc.toolCallId === revision.id && suya(x));
+        if (elegida) return { ...elegida, vista: revision.vista };
+        const aqui = ubicadas.find(x => !x.donde.insertar && x.donde.indice === activeSlideIndex);
+        return aqui ? { ...aqui, vista: 'antes' } : null;
+    }, [revision, ubicadas, activeSlideIndex]);
+
+    const revisar = useCallback((id) => {
+        const x = ubicadas.find(u => u.tc.toolCallId === id);
+        if (!x) return;
+        switchView('design');
+        setActiveSlideIndex(x.donde.insertar ? Math.max(0, x.donde.indice - 1) : x.donde.indice);
+        setRevision({ id, vista: 'propuesta' });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ubicadas]);
+    const revisarRef = useRef(revisar);
+    revisarRef.current = revisar;
+    useEffect(() => {
+        const alRevisar = (e) => revisarRef.current(e.detail?.toolCallId);
+        window.addEventListener('amox_revisar_propuesta', alRevisar);
+        return () => window.removeEventListener('amox_revisar_propuesta', alRevisar);
+    }, []);
+
     // Los atajos del Studio. Van en captura sobre el contenedor de la pestaña y
     // no en `window`: con dos pestañas abiertas, el deshacer de una no puede
     // tocar el deck de la otra.
@@ -396,6 +485,60 @@ const DeckEditor = ({
         [activeSlide],
     );
     const showExport = viewMode !== 'source' && deck.slides.length > 0;
+
+    // La barra Antes / Propuesta y, en «Proposal», la lámina como quedaría.
+    let barraRevision = null;
+    let lienzoPropuesto = null;
+    if (enRevision && activeSlide) {
+        const { tc, donde, vista } = enRevision;
+        const propuesta = laminaPropuesta(content, tc.result);
+        const nueva = donde.insertar;
+        const indice = ubicadas.findIndex(u => u.tc.toolCallId === tc.toolCallId);
+        barraRevision = (
+            <AntesYPropuesta
+                key={tc.toolCallId}
+                tc={tc}
+                acciones={propuestas.acciones}
+                titulo={describirLamina(tc.result, donde)}
+                resumen={tc.result.resumen}
+                cambios={cambiosDeLamina(nueva ? null : deck.slides[donde.indice], tc.result)}
+                vista={vista}
+                onVista={(v) => setRevision({ id: tc.toolCallId, vista: v })}
+                indice={indice}
+                total={ubicadas.length}
+                onSiguiente={() => revisar(ubicadas[(indice + 1) % ubicadas.length].tc.toolCallId)}
+            />
+        );
+        if (vista === 'propuesta' && propuesta) {
+            lienzoPropuesto = (
+                <SlidePreview
+                    slide={propuesta}
+                    eyebrow={antetituloDe(propuesta)}
+                    deckFooter={deck.frontMatter?.footer}
+                    slideNumber={donde.indice + 1}
+                    refreshedAt={refreshedAt}
+                    frontMatter={deck.frontMatter}
+                    variables={deck.frontMatter?.variables}
+                    refreshToken={refreshToken}
+                    onOpenFile={onOpenFile}
+                    theme={theme}
+                />
+            );
+        }
+    }
+
+    // El mando Assist de la lámina (R2): lo que se le pide a la lámina activa.
+    const mandoAsistir = tabId && activeSlide ? (
+        <MandoAsistir
+            opciones={[
+                ['lamina_ajustar', LuWandSparkles, 'Tighten the text'],
+                ...(activeChartSrc ? [['lamina_titular', LuHeading, 'Write the headline from the chart']] : []),
+                ['lamina_notas', LuNotebookPen, 'Speaker notes'],
+                ['lamina_despues', LuCopyPlus, 'Add a slide after'],
+            ]}
+            onElegir={asistir}
+        />
+    ) : null;
 
     return (
         <div className={`deck-studio${isActive ? ' active' : ''}`}>
@@ -557,6 +700,9 @@ const DeckEditor = ({
                         onDuplicateSlide={handleDuplicateSlide}
                         onInsertChart={handleInsertChart}
                         onInsertImage={handleInsertImage}
+                        marcadas={marcadas}
+                        fantasmas={fantasmas}
+                        onAbrirFantasma={revisar}
                     />
 
                     <div className="deck-main">
@@ -630,8 +776,11 @@ const DeckEditor = ({
                                     onRemoveChart={handleRemoveChart}
                                     onRemoveChartAt={handleRemoveChartAt}
                                     onRequestAddChart={requestAddChart}
-                                    onPrev={() => goToSlide(activeSlideIndex - 1)}
-                                    onNext={() => goToSlide(activeSlideIndex + 1)}
+                                    onPrev={() => { setRevision(null); goToSlide(activeSlideIndex - 1); }}
+                                    onNext={() => { setRevision(null); goToSlide(activeSlideIndex + 1); }}
+                                    asistir={mandoAsistir}
+                                    revision={barraRevision}
+                                    lienzoPropuesto={lienzoPropuesto}
                                     selRegionId={selRegionId}
                                     onSelectRegion={setSelRegionId}
                                     onProcedenciaChange={setProcedenciaActiva}
@@ -697,5 +846,34 @@ const DeckEditor = ({
         </div>
     );
 };
+
+/** El mando Assist de la barra de la lámina: un menú corto de lo que se le pide. */
+function MandoAsistir({ opciones, onElegir }) {
+    const [abierto, setAbierto] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+        if (!abierto) return undefined;
+        const fuera = (e) => { if (!ref.current?.contains(e.target)) setAbierto(false); };
+        document.addEventListener('mousedown', fuera);
+        return () => document.removeEventListener('mousedown', fuera);
+    }, [abierto]);
+    return (
+        <div className="deck-asistir" ref={ref}>
+            <button type="button" className={`deck-design-limpia${abierto ? ' deck-design-limpia--on' : ''}`} onClick={() => setAbierto(v => !v)}
+                title="Ask Assist about this slide" aria-haspopup="menu" aria-expanded={abierto}>
+                <LuSparkles size={14} /> Assist
+            </button>
+            {abierto && (
+                <div className="deck-asistir-menu" role="menu">
+                    {opciones.map(([accion, Icono, etiqueta]) => (
+                        <button key={accion} type="button" role="menuitem" onClick={() => { setAbierto(false); onElegir(accion); }}>
+                            <Icono size={13} /> {etiqueta}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default DeckEditor;

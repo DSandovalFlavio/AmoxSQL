@@ -13,10 +13,10 @@
  *     filas de un spec de Vega-Lite ni un archivo de datos abierto como texto; y un
  *     archivo de credenciales no sale nunca hacia un modelo en la nube;
  *   - **cuánto**: un tope, para no llenar la ventana de un modelo local;
- *   - **si el Assistant puede proponer cambios** sobre él. En los archivos
- *     estructurados (gráfico, Data Flow, Canvas, diagrama) explica pero no
- *     propone hasta que tengan su propia forma de revisar (E4/E5): reescribir su
- *     JSON a mano lo rompe o no se ve.
+ *   - **si el Assistant puede proponer cambios** sobre él. El gráfico propone
+ *     por paneles desde E4, cuando llega con su estructura; Data Flow, Canvas y
+ *     diagrama explican pero no proponen hasta E5: reescribir su JSON a mano lo
+ *     rompe o no se ve.
  *
  * Puro: no lee disco ni red. Lo usa `politica.sanearOpciones`.
  */
@@ -147,6 +147,56 @@ function textoDeCuaderno(estructura) {
     return partes.join('\n\n');
 }
 
+const CERCA = '```';
+
+/**
+ * El deck como lo lee el modelo (E4): cada lámina con su número, su diseño, su
+ * texto, sus gráficos (con lo que muestra cada uno) y sus notas. El número es como
+ * el modelo señala una lámina en `propose_change`.
+ */
+function textoDeDeck(estructura, laminas) {
+    const partes = [];
+    if (estructura.titulo) partes.push(`Deck title: ${estructura.titulo}`);
+    partes.push(`Layouts available: ${(estructura.disenos || []).join(', ')}`);
+    const graficos = estructura.graficos || {};
+    for (const l of laminas) {
+        const g = l.graficos.length
+            ? l.graficos.map(src => {
+                const r = graficos[src];
+                if (!r) return src;
+                if (r.falta) return `${src} (MISSING: the file does not exist)`;
+                const que = [r.tipo ? `${r.tipo} chart` : null, r.titulo ? `"${r.titulo}"` : null, r.x ? `x: ${r.x}` : null, r.y?.length ? `y: ${r.y.join(', ')}` : null].filter(Boolean).join(', ');
+                return `${src}${que ? ` (${que})` : ''}`;
+            }).join('; ')
+            : 'none';
+        const notas = l.notas ? `\nSpeaker notes: ${l.notas}` : '';
+        partes.push(`### Slide ${l.n} · layout ${l.diseno} · charts: ${g}\n${CERCA}markdown\n${l.prosa}\n${CERCA}${notas}`);
+    }
+    const conConsulta = Object.entries(graficos).filter(([, r]) => r && r.consulta);
+    if (conConsulta.length) {
+        const lista = conConsulta.map(([src, r]) => `- ${src}:\n${CERCA}sql\n${r.consulta}\n${CERCA}`).join('\n');
+        partes.push(`Queries of the charts (run one with execute_sql to see its numbers):\n${lista}`);
+    }
+    return partes.join('\n\n');
+}
+
+/**
+ * El gráfico como lo lee el modelo (E4, V2): el tipo, los paneles elegidos, la
+ * consulta y sus columnas. Las filas no van aquí (son el resultado, con la política).
+ */
+function textoDeGrafico(g) {
+    const columnas = (g.columnas || []).map(c => (c.type ? `${c.name} (${c.type})` : c.name)).join(', ');
+    const partes = [
+        `Chart type: ${g.tipo}${g.modo === 'codigo' ? ' · written in code (Vega-Lite): the spec is the figure' : ''}`,
+        `Columns of its result: ${columnas || 'unknown (the query has not run)'}`,
+        `Panels set (Story Flow keys that differ from the defaults):\n${CERCA}json\n${JSON.stringify(g.paneles || {}, null, 2)}\n${CERCA}`,
+    ];
+    if (g.consulta) partes.push(`Its query${g.origen ? ` (it lives in ${g.origen})` : ' (saved with the chart)'}:\n${CERCA}sql\n${g.consulta}\n${CERCA}`);
+    if (g.conExtras) partes.push('Part of the figure was written in code and is kept as "extras" over the panels.');
+    if (g.spec) partes.push(`The Vega-Lite spec (Code view):\n${CERCA}json\n${g.spec}\n${CERCA}`);
+    return partes.join('\n\n');
+}
+
 /** Quita los valores entre comillas de un mensaje de error (pueden ser datos de una fila). */
 function sinLiterales(texto) {
     return String(texto || '').replace(/'(?:[^'\n]|'')*'/g, "'…'").replace(/"(?:[^"\n]){40,}"/g, '"…"');
@@ -166,7 +216,16 @@ function prepararFoco({ archivo, foco = null, error = null, datos = 'filas' }) {
         const rango = (r) => (r && Number.isInteger(r.desde) && Number.isInteger(r.hasta) && r.desde >= 1 && r.hasta >= r.desde && r.desde <= lineas.length
             ? { desde: r.desde, hasta: Math.min(r.hasta, lineas.length) } : null);
         const sel = rango(foco.seleccion);
-        if (archivo.tipo === 'cuaderno') {
+        if (archivo.tipo === 'deck') {
+            // E4: la lámina en la que está (por número, el mismo que ve el modelo).
+            const l = (archivo.laminas || []).find(x => x.n === foco.lamina?.n);
+            if (l) out.lamina = { n: l.n, diseno: l.diseno, titulo: l.titulo || null };
+        } else if (archivo.tipo === 'grafico') {
+            // E4: la etapa de Story Flow y si está en la vista Code.
+            const etapa = foco.grafico?.etapa;
+            if (etapa) out.etapa = String(etapa).slice(0, 20);
+            if (foco.grafico?.vista === 'codigo') out.vista = 'codigo';
+        } else if (archivo.tipo === 'cuaderno') {
             // E3: la celda en la que está (por número, el mismo que ve el modelo).
             const c = (archivo.celdas || []).find(x => x.n === foco.celda?.n);
             if (c) out.celda = { n: c.n, tipo: c.tipo, nombre: c.nombre || null };
@@ -256,7 +315,37 @@ function prepararArchivo({ filePath = null, fileType = null, contenido = '', dat
         texto = textoDeCuaderno({ ...estructura, celdas });
     }
 
-    if (tipo === 'grafico' && datos !== 'filas' && texto.trim()) {
+    // E4: un deck llega con sus láminas; el modelo las lee numeradas y propone por láminas.
+    let laminas = null;
+    let disenos = null;
+    if (tipo === 'deck' && estructura && Array.isArray(estructura.laminas)) {
+        laminas = estructura.laminas.slice(0, 200).map(l => ({
+            n: Number(l.n), diseno: String(l.diseno || 'content'), titulo: l.titulo ? String(l.titulo).slice(0, 200) : null,
+            prosa: String(l.prosa ?? ''), graficos: Array.isArray(l.graficos) ? l.graficos.map(String).slice(0, 8) : [],
+            notas: String(l.notas ?? ''), raw: String(l.raw ?? ''),
+        }));
+        disenos = Array.isArray(estructura.disenos) ? estructura.disenos.map(String) : [];
+        texto = textoDeDeck(estructura, laminas);
+    }
+
+    // E4: un gráfico llega con sus paneles (los del editor, no el JSON del archivo).
+    let grafico = null;
+    if (tipo === 'grafico' && estructura && estructura.claves && typeof estructura.claves === 'object') {
+        const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+        grafico = {
+            tipo: String(estructura.tipo || 'bar'), modo: estructura.modo === 'codigo' ? 'codigo' : 'interfaz',
+            vista: estructura.vista === 'codigo' ? 'codigo' : 'paneles',
+            paneles: obj(estructura.paneles), valores: obj(estructura.valores),
+            consulta: String(estructura.consulta || '').slice(0, 6000), origen: estructura.origen || null,
+            columnas: Array.isArray(estructura.columnas) ? estructura.columnas.slice(0, 200) : [],
+            conExtras: !!estructura.conExtras, spec: estructura.spec ? String(estructura.spec).slice(0, 12000) : null,
+            claves: obj(estructura.claves), tipos: Array.isArray(estructura.tipos) ? estructura.tipos.map(String) : [],
+            admite: obj(estructura.admite),
+        };
+        texto = textoDeGrafico(grafico);
+    }
+
+    if (tipo === 'grafico' && !grafico && datos !== 'filas' && texto.trim()) {
         try {
             const spec = JSON.parse(texto);
             const limpio = sinValoresDeVega(spec);
@@ -289,7 +378,8 @@ function prepararArchivo({ filePath = null, fileType = null, contenido = '', dat
 
     return {
         tipo, nombre: def.nombre, ruta: filePath, idioma, contenido: r.texto, notas,
-        puedeProponer: def.propone && !retenido && !r.recortado, retenido,
+        // Un gráfico propone cuando llega con sus paneles (E4): se cambian ellos, no el JSON.
+        puedeProponer: (def.propone || !!grafico) && !retenido && !r.recortado, retenido,
         // Qué es, si es un archivo del proyecto que AmoxSQL entiende (T3, M3).
         descripcion: conocido(filePath),
         // Los tipos que se cambian por líneas (E2; Markdown desde E3): el prompt
@@ -298,7 +388,13 @@ function prepararArchivo({ filePath = null, fileType = null, contenido = '', dat
         // El notebook se cambia por celdas (E3), cuando llega su estructura.
         porCeldas: !!celdas,
         celdas,
-        idiomaCuerpo: celdas ? 'markdown' : idioma,
+        // Un deck se cambia por láminas y un gráfico por paneles (E4).
+        porLaminas: !!laminas,
+        laminas,
+        disenos,
+        porPaneles: !!grafico,
+        grafico,
+        idiomaCuerpo: celdas || laminas || grafico ? 'markdown' : idioma,
     };
 }
 

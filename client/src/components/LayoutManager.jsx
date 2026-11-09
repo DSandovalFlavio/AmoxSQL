@@ -1734,9 +1734,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             if (!tab) return { error: 'No file is open.' };
             // E3: a notebook applies a cell proposal on its own document, keeping
             // the other cells (and their results) as they are.
-            if (resultado?.objetivo?.tipo === 'celda') {
+            // E4: so do a deck (a slide, through the Studio's history) and a chart
+            // (its panels, through Story Flow's own state).
+            const propio = { celda: 'notebook', lamina: 'deck', paneles: 'chart', spec: 'chart' }[resultado?.objetivo?.tipo];
+            if (propio) {
                 const aplicar = aplicadorDe(tab.id);
-                return aplicar ? aplicar(resultado) : { error: 'Show the notebook to apply this change.' };
+                return aplicar ? aplicar(resultado) : { error: `Show the ${propio} to apply this change.` };
             }
             const ed = editorDe(tab.id);
             const modelo = ed?.getModel();

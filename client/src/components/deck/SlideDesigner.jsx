@@ -18,7 +18,7 @@
  * prosa COMPLETA, así que una región nunca puede partir el archivo.
  */
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
-import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen, LuTriangleAlert, LuEye, LuCode } from 'react-icons/lu';
+import { LuChevronLeft, LuChevronRight, LuChevronUp, LuChevronDown, LuChartBar, LuX, LuPencilLine, LuNotebookPen, LuTriangleAlert, LuEye, LuCode, LuSparkles } from 'react-icons/lu';
 import MarkdownPreview from '../markdown/MarkdownPreview';
 import { SlideEyebrow, SlideSectionIndex, SlideCoverMeta } from './SlidePreview';
 import DeckFooter from './DeckFooter';
@@ -278,6 +278,9 @@ const SlideDesigner = ({
     onRequestAddChart, onPrev, onNext,
     selRegionId = null, onSelectRegion, onProcedenciaChange,
     crudo = null, crudoAbierto = false, onAlternarCrudo,
+    // E4 (plan del Assistant): el mando Assist de la barra, la barra Antes /
+    // Propuesta encima de la lámina y, en «Proposal», la lámina como quedaría.
+    asistir = null, revision = null, lienzoPropuesto = null,
 }) => {
     const { prose, chartSrc, charts, notes } = splitSlideContent(slide.markdown);
     const layout = slide.layout;
@@ -527,15 +530,26 @@ const SlideDesigner = ({
                 >
                     <LuCode size={14} /> Raw
                 </button>
+                {asistir}
                 <button type="button" onClick={onNext} disabled={index >= total - 1} title="Next slide">
                     <LuChevronRight size={16} />
                 </button>
             </div>
 
+            {revision}
+
+            {/* La lámina editable se queda montada (oculta) mientras se ve la
+                propuesta: su medición de desborde observa ese mismo nodo. */}
+            {lienzoPropuesto && (
+                <div className="deck-design-canvas deck-propuesta-lienzo" style={{ aspectRatio }}>
+                    <span className="deck-propuesta-etiqueta"><LuSparkles size={11} /> Proposal</span>
+                    {lienzoPropuesto}
+                </div>
+            )}
             <div
                 className={`deck-design-canvas${limpia ? ' deck-design-canvas--limpia' : ''}`}
                 ref={canvasRef}
-                style={{ aspectRatio }}
+                style={{ aspectRatio, ...(lienzoPropuesto ? { display: 'none' } : {}) }}
             >
                 {body}
                 {desborde.px > 2 && (
@@ -550,7 +564,7 @@ const SlideDesigner = ({
 
             {crudo}
 
-            {onEditNotes && <NotesPanel notes={notes} onCommit={onEditNotes} />}
+            {onEditNotes && !lienzoPropuesto && <NotesPanel notes={notes} onCommit={onEditNotes} />}
         </div>
     );
 };

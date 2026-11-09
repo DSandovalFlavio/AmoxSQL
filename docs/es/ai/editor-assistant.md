@@ -22,7 +22,7 @@ Es reactivo y conversacional pero compacto: abre con el hallazgo, teje los núme
 ## Cómo usarlo
 
 ### Abrir el Asistente
-1. Abre un archivo. El botón **Assist** está en el editor SQL, el notebook, Markdown y Report Flow; **Ctrl+L** lo abre sobre cualquier archivo.
+1. Abre un archivo. El botón **Assist** está en el editor SQL, el notebook, Markdown, Report Flow y la cabecera de Story Flow; **Ctrl+L** lo abre sobre cualquier archivo.
 2. Escribe tu pregunta y envía con **Enter**.
 
 El Asistente sabe qué archivo tiene delante (una consulta, un notebook, un deck, un gráfico, un Data Flow…) y lo trata como tal.
@@ -49,6 +49,21 @@ El Asistente sabe en qué celda estás, y ve su resultado o su error, las demás
 
 Propone **celda a celda**, nunca el cuaderno entero: el cambio de una celda aparece debajo de ella, con lo que sale y lo que entra; una celda nueva aparece como **fantasma** (con borde discontinuo) en el sitio donde entraría. Las dos se aceptan o se rechazan ahí mismo o desde el chat. Aceptar no toca las demás celdas ni sus resultados.
 
+### En Report Flow
+El Asistente sabe en qué lámina estás, y ve el deck lámina a lámina (su diseño, su texto, sus notas) y, de cada gráfico, qué tipo es, qué ejes tiene y de qué consulta sale.
+
+- En la barra de la lámina, **Assist** abre un menú: **Tighten the text**, **Write the headline from the chart** (si la lámina tiene un gráfico), **Speaker notes** y **Add a slide after**.
+
+Propone **lámina a lámina**, nunca el deck entero: el diseño, el texto, los gráficos y las notas de una lámina, o una lámina nueva. La lámina con una propuesta lleva la marca del Asistente en el esquema; una lámina nueva aparece como **fantasma**, con borde discontinuo, en el hueco donde entraría. Sobre la lámina, una barra con **Before** / **Proposal** te deja ver cómo está y cómo quedaría, y **Accept** / **Reject**. Aceptar no toca las demás láminas ni la cabecera, y **Ctrl+Z** lo deshace.
+
+### En un gráfico
+El Asistente sabe en qué etapa de Story Flow estás (Type, Data, Format, Style, Story, Export, o la vista Code), y ve el tipo de gráfico, los paneles que elegiste, la consulta, sus columnas y unas filas de muestra.
+
+- En la cabecera de Story Flow, **Assist** ofrece primero la pregunta de tu etapa: *Which chart tells this best?* en Type, *Write the takeaway* en Story, *Make it readable in a slide* en Style…
+- **Auto Story**, en la etapa Story, ya no escribe encima de tus textos: propone el título, el subtítulo, la nota y el takeaway, y tú los aceptas o los rechazas.
+
+Propone **cambios de paneles** (el tipo, los ejes, el resalte, los textos…), los mismos que tocarías tú, nunca el JSON del archivo. Un panel que ese tipo de gráfico no dibuja no se propone. Encima de la figura, **Before** / **Proposal** te enseña el gráfico como está y como quedaría, con la lista de lo que cambia (*Type: area → line · Highlight: max*). En la vista **Code** puede proponer un Vega-Lite entero.
+
 ### Arreglar un error
 Cuando una consulta falla, junto al mensaje de error aparece **Fix with Assist**. El Asistente ya sabe el error y la consulta: no hace falta pegar nada. Al empezar una conversación con la consulta en error, la primera sugerencia es **Fix the error**.
 
@@ -60,12 +75,11 @@ En un `.sql` o un archivo de texto, el Asistente propone **solo las líneas que 
 
 En Markdown funciona igual, en la vista **Escribir** o **Dividido**. En la vista **Leer**, un aviso dice que hay una propuesta y **Show it** la abre en la vista dividida.
 
-En Report Flow todavía propone el archivo entero, y se revisa en el chat:
+En todos los archivos:
 
-1. Cuando el Asistente propone cambiar tu archivo, aparece un bloque de cambio con **Accept** / **Reject**, con lo que sale y lo que entra.
-2. **Accept** vuelca el nuevo contenido en el editor **sin guardarlo en disco** — tú revisas y guardas (Ctrl+S). En el editor SQL, **Ctrl+Z** lo deshace. **Reject** lo descarta.
-3. Lo que decidiste se recuerda: al reabrir la conversación, el bloque dice **Applied to the editor** o **Rejected**.
-4. Si el archivo cambió desde que se hizo la propuesta, aceptarla borraría lo que escribiste después. Por eso no se aplica: el bloque lo dice y ofrece **Propose again**, que se la pide de nuevo sobre la versión actual. Una propuesta por líneas solo caduca si cambiaron **esas** líneas.
+1. **Accept** pone el cambio en el editor **sin guardarlo en disco** — tú revisas y guardas (Ctrl+S). **Reject** lo descarta. En el chat, cada propuesta tiene también **Accept** / **Reject** y **Review**, que te lleva a ella.
+2. Lo que decidiste se recuerda: al reabrir la conversación, el bloque dice **Applied to the editor** o **Rejected**.
+3. Si esa parte del archivo cambió desde que se hizo la propuesta (sus líneas, su celda, su lámina, esos paneles), aceptarla borraría lo que hiciste después. Por eso no se aplica: el bloque lo dice y ofrece **Propose again**, que se la pide de nuevo sobre la versión actual.
 
 ### Crear un archivo nuevo
 Si le pides algo que va en otro archivo (*"guárdame esta consulta en un archivo"*), el Asistente propone la ruta y el contenido. Nada se escribe hasta que pulsas **Create**, que crea el archivo y lo abre. Nunca sobrescribe uno que ya exista.
@@ -91,7 +105,7 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 |---|---|
 | Responder preguntas | Sobre tu query, tus datos o SQL de DuckDB en general |
 | Generar / explicar / optimizar SQL | Escribe o reescribe la query del archivo activo |
-| Proponer ediciones | Cambio con **Accept** / **Reject**; al aceptar carga en el editor sin guardar. En `.sql` y texto, solo las líneas que cambian, revisadas en el editor |
+| Proponer ediciones | Cambio con **Accept** / **Reject**; al aceptar carga en el editor sin guardar. Solo la parte que cambia (líneas, una celda, una lámina, unos paneles), revisada donde vive |
 | Preguntar desde el editor | La barra sobre la selección, **Fix with Assist** en un error, **Explain** / **Chart it** en los resultados |
 | Proponer archivos nuevos | Ruta y contenido con **Create**; nunca sobrescribe |
 | Proponer gráficos | Gráfico configurado con **Apply to chart** hacia Story Flow |
@@ -103,7 +117,7 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 | Elemento | De dónde |
 |---|---|
 | Query actual | El buffer del editor activo, con sus líneas numeradas |
-| Dónde estás | El texto seleccionado, o la sentencia bajo el cursor; en Markdown, la sección; en un notebook, la celda |
+| Dónde estás | El texto seleccionado, o la sentencia bajo el cursor; en Markdown, la sección; en un notebook, la celda; en un deck, la lámina; en un gráfico, la etapa de Story Flow |
 | El último error | El mensaje de la última ejecución que falló |
 | Un modelo dbt | Sus columnas y descripciones del YAML, y el SQL que dbt compiló (sin lanzar dbt); los cambios se proponen en Jinja |
 | Último resultado | La tabla de resultados en pantalla |
@@ -117,8 +131,9 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 |---|---|
 | `.sql`, Markdown `.md`, texto (`.yml`, `.json`…) | Propone las líneas que cambian, revisadas en el editor |
 | Notebook `.sqlnb` | Propone celda a celda: el cambio debajo de su celda, o una celda nueva en su sitio |
-| Report Flow `.amoxdeck` | Propone el archivo entero, revisado en el chat |
-| Gráfico `.amoxvis`, Data Flow `.sqlchain`, Canvas `.amoxcanvas`, diagrama `.amoxdiagram` | Explica qué cambiar y dónde, para que lo hagas en su editor. Todavía no propone cambios: reescribir el archivo a mano lo rompería |
+| Report Flow `.amoxdeck` | Propone lámina a lámina: Before / Proposal sobre la lámina, o una lámina nueva en su hueco |
+| Gráfico `.amoxvis` | Propone cambios de paneles (o, en la vista Code, un Vega-Lite): Before / Proposal sobre la figura |
+| Data Flow `.sqlchain`, Canvas `.amoxcanvas`, diagrama `.amoxdiagram` | Explica qué cambiar y dónde, para que lo hagas en su editor. Todavía no propone cambios: reescribir el archivo a mano lo rompería |
 | Un archivo muy largo | Ve la primera parte y lo dice; no propone reescribirlo, porque perdería lo que no ve |
 
 ### Qué no sale de tu equipo

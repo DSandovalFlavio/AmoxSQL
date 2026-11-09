@@ -18,7 +18,7 @@
 import { memo, useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { API_BASE } from '../../api';
-import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste, LuSlidersHorizontal, LuCode, LuBraces, LuHistory } from 'react-icons/lu';
+import { LuDownload, LuMaximize, LuMinimize, LuSave, LuUpload, LuChartColumn, LuDatabase, LuSettings2, LuRuler, LuPalette, LuPenLine, LuInfo, LuX, LuClipboardPaste, LuSlidersHorizontal, LuCode, LuBraces, LuHistory, LuSparkles } from 'react-icons/lu';
 import SaveQueryModal from '../SaveQueryModal';
 import AlertDialog from '../AlertDialog';
 
@@ -65,6 +65,59 @@ const TABS = [
     { key: 'story', icon: LuPenLine, title: 'Story', hint: 'Make it speak' },
     { key: 'export', icon: LuDownload, title: 'Export', hint: 'Ship it' },
 ];
+
+/** La pregunta de cada etapa (plan del Assistant, E4, V3). */
+const PREGUNTAS_DE_ETAPA = {
+    type: 'Which chart tells this best?',
+    data: 'What goes where?',
+    format: 'Make it readable',
+    style: 'Make it readable in a slide',
+    story: 'Write the takeaway',
+    export: 'Is it ready to share?',
+};
+
+/** Assist en la cabecera de Story Flow: la pregunta de la etapa y «Explain this chart». */
+function MandoAsistirGrafico({ etapa, onElegir }) {
+    const [abierto, setAbierto] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+        if (!abierto) return undefined;
+        const fuera = (e) => { if (!ref.current?.contains(e.target)) setAbierto(false); };
+        document.addEventListener('mousedown', fuera);
+        return () => document.removeEventListener('mousedown', fuera);
+    }, [abierto]);
+    const elegir = (accion) => { setAbierto(false); onElegir(accion); };
+    return (
+        <div className="deck-asistir" ref={ref}>
+            <button type="button" className="sf-cabecera-btn sf-asistir" onClick={() => setAbierto(v => !v)}
+                title="Ask Assist about this chart" aria-haspopup="menu" aria-expanded={abierto}>
+                <LuSparkles size={13} /> <span>Assist</span>
+            </button>
+            {abierto && (
+                <div className="deck-asistir-menu" role="menu">
+                    {etapa && PREGUNTAS_DE_ETAPA[etapa] && (
+                        <button type="button" role="menuitem" onClick={() => elegir(`grafico_${etapa}`)}>
+                            <LuSparkles size={13} /> {PREGUNTAS_DE_ETAPA[etapa]}
+                        </button>
+                    )}
+                    {etapa !== 'type' && (
+                        <button type="button" role="menuitem" onClick={() => elegir('grafico_type')}>
+                            <LuChartColumn size={13} /> {PREGUNTAS_DE_ETAPA.type}
+                        </button>
+                    )}
+                    {etapa !== 'story' && (
+                        <button type="button" role="menuitem" onClick={() => elegir('grafico_story')}>
+                            <LuPenLine size={13} /> {PREGUNTAS_DE_ETAPA.story}
+                        </button>
+                    )}
+                    <button type="button" role="menuitem" onClick={() => elegir('grafico_explicar')}>
+                        <LuInfo size={13} /> Explain this chart
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}
 
 // ─── Component ───────────────────────────────────────────────
 /**
@@ -164,7 +217,7 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null, recordadoCon = null, onAbrirArchivo = null, destinoIa = null }) => {
+const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null, recordadoCon = null, onAbrirArchivo = null, destinoIa = null, onFoco = null, onAsistir = null }) => {
     /**
      * Sin mandos, pero NO empotrada.
      *
@@ -348,6 +401,8 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     const aplicarCodigo = useCallback(
         (obj) => setFields(asimilarCodigo(obj, estadoRef.current, opFigura)),
         [setFields, opFigura]);
+    const aplicarCodigoRef = useRef(aplicarCodigo);
+    aplicarCodigoRef.current = aplicarCodigo;
     /* Un Vega-Lite que llega entero (un archivo de fuera, el asistente, el
        formato anterior en modo código) se asimila en cuanto hay datos: los
        paneles leen lo que entienden y el resto queda como extras. */
@@ -447,12 +502,20 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     useEffect(() => {
         if (!destinoIa) return undefined;
         const handler = (event) => {
-            if (event.detail?.tabId !== destinoIa) return;
-            setFields(event.detail.changes);
+            const d = event.detail || {};
+            if (d.tabId !== destinoIa) return;
+            // E4: an accepted Vega-Lite spec goes in as if typed in the Code view;
+            // a file changed from outside (X3) replaces the whole state.
+            if (d.spec) { aplicarCodigoRef.current(d.spec); return; }
+            if (d.reemplazar) { loadConfig(d.reemplazar); return; }
+            if (d.changes) setFields(d.changes);
         };
         window.addEventListener('amox_update_chart_config', handler);
         return () => window.removeEventListener('amox_update_chart_config', handler);
-    }, [setFields, destinoIa]);
+    }, [setFields, loadConfig, destinoIa]);
+
+    // E4: where the user is in Story Flow (the stage, or the Code view), for the Assistant.
+    useEffect(() => { if (onFoco) onFoco({ etapa: activeTab, vista: lateral }); }, [onFoco, activeTab, lateral]);
 
     // First-run Story Flow tour (editor only, not report mode). Rendering +
     // replay are owned by the global OnboardingHost via the tour registry.
@@ -1003,6 +1066,10 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                             <button onClick={() => setShowGuide(true)} title="What is Story Flow?" className="sf-cabecera-btn">
                                 <LuInfo size={13} />
                             </button>
+                            {/* E4: Assist, with the question of the stage you are in. */}
+                            {onAsistir && (
+                                <MandoAsistirGrafico etapa={lateral === 'codigo' ? null : activeTab} onElegir={onAsistir} />
+                            )}
                         </div>
                     </div>
 

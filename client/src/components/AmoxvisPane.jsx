@@ -16,8 +16,14 @@
  * que parecía un `.sql` y guardaba en el gráfico.
  */
 import { API_BASE } from '../api.js';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { recordarDatosDeGrafico, leerDatosDeGrafico } from '../utils/memoriaDePestana';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { recordarDatosDeGrafico, leerDatosDeGrafico, fijarProveedorDeFoco, fijarAplicador } from '../utils/memoriaDePestana';
+import { suscribirPropuestas } from './ai/propuestasEnEditor.js';
+import {
+    estructuraDeGrafico, esDeGrafico, vigenteEnGrafico, aplicarCambios, validarCambios, describirCambios, describirGrafico,
+} from './ai/archivos/grafico.js';
+import AntesYPropuesta from './ai/revision/AntesYPropuesta.jsx';
+import { mismoGrafico, escribirAmoxvis } from './DataVisualizer/vega/figura';
 import Editor from '@monaco-editor/react';
 import {
     LuLoader, LuChevronDown, LuChevronRight, LuRefreshCw, LuBookOpen, LuSave, LuUnlink,
@@ -71,6 +77,8 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
     const [moviendo, setMoviendo] = useState(false);
 
     const tabId = tab.id;
+    const metaRef = useRef({ types: null, queryId: null, truncated: false });
+    const avisadoRef = useRef(null);
     const peticionRef = useRef(null);
     // Irse de la pestaña detiene la lectura: si no, seguía ocupando el motor.
     useEffect(() => () => peticionRef.current?.abort(), []);
@@ -90,6 +98,8 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
             });
             const result = await response.json();
             if (response.ok) {
+                // Los tipos y el id del resultado, para el Assistant (E4).
+                metaRef.current = { types: result.types || null, queryId: result.queryId || null, truncated: !!result.truncated };
                 setData(result.data);
                 setConsultaEjecutada(q);
                 recordarDatosDeGrafico(tabId, q, result.data);
@@ -110,6 +120,9 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
         const source = 'source' in cambios ? cambios.source : sourceLink;
         const merged = { ...ultimoConfigRef.current, ...(cambios.config || {}), query: query || '' };
         if (source) merged.source = source; else delete merged.source;
+        // Lo último que este gráfico escribió en la pestaña: lo que llegue distinto
+        // vino de fuera (X3).
+        avisadoRef.current = merged;
         onConfigChange(merged);
     }, [onConfigChange, currentQuery, sourceLink]);
 
@@ -253,6 +266,98 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
     }, [currentQuery, avisar, toast]);
 
     const sinEjecutar = currentQuery.trim() !== consultaEjecutada.trim();
+
+    // ── El Assistant en el gráfico (plan del Assistant, E4) ──────────────────
+    // Lo último de cada cosa, para leerlo al enviar sin repintar el gráfico.
+    const focoRef = useRef({ etapa: 'type', vista: 'paneles' });
+    const alDia = useRef({});
+    alDia.current = { data, consultaEjecutada };
+    const alFoco = useCallback((f) => { focoRef.current = f; }, []);
+
+    // El foco: los paneles, la consulta, las columnas y la etapa (V2). Las filas
+    // van como resultado, por la política de IA.
+    useEffect(() => fijarProveedorDeFoco(tabId, () => {
+        const { data: filas } = alDia.current;
+        const meta = metaRef.current;
+        const cfg = ultimoConfigRef.current || {};
+        const columnas = meta.types
+            ? Object.entries(meta.types).map(([name, type]) => ({ name, type }))
+            : (filas?.[0] ? Object.keys(filas[0]) : []);
+        return {
+            grafico: estructuraDeGrafico({ config: cfg, columnas, etapa: focoRef.current.etapa, vista: focoRef.current.vista, spec: cfg.spec }),
+            resultado: filas?.length ? { data: filas, types: meta.types, queryId: meta.queryId, truncated: meta.truncated, rowCount: filas.length } : null,
+        };
+    }), [tabId]);
+
+    /** Una pregunta sobre el gráfico, al panel. */
+    const asistir = useCallback((accion) => {
+        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+    }, [tabId]);
+
+    // Aceptar: los paneles entran por el estado de Story Flow (como si los tocara el
+    // usuario); un spec, como si lo escribiera en la vista Code.
+    useEffect(() => fijarAplicador(tabId, (resultado) => {
+        if (!esDeGrafico(resultado)) return { error: 'This proposal is not for a chart.' };
+        if (!alDia.current.data?.length) return { error: 'Run the chart\'s query first: the chart is drawn from its result.' };
+        if (resultado.objetivo.tipo === 'spec') {
+            window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { tabId, spec: resultado.spec } }));
+            toast.info('Applied the Vega-Lite spec. Save to keep it.');
+            return { ok: true };
+        }
+        const actual = ultimoConfigRef.current || {};
+        if (!vigenteEnGrafico(actual, resultado)) return { error: 'Those settings changed since this was proposed.' };
+        const { cambios, errores } = validarCambios(actual, resultado.cambios, Object.keys(alDia.current.data[0] || {}));
+        if (errores.length) return { error: errores.join(' ') };
+        const nuevos = aplicarCambios(actual, cambios);
+        const soloLosQueCambian = Object.fromEntries(Object.keys(cambios).map(k => [k, nuevos[k]]));
+        window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { tabId, changes: soloLosQueCambian } }));
+        toast.info(`Applied: ${describirCambios(resultado).join(' · ')}. Save to keep it.`);
+        return { ok: true };
+    }), [tabId, toast]);
+
+    // Las propuestas pendientes de este gráfico.
+    const [propuestas, setPropuestas] = useState({ propuestas: [], acciones: null });
+    useEffect(() => (tab.path ? suscribirPropuestas(tab.path, (p) => setPropuestas({
+        propuestas: (p.propuestas || []).filter(tc => esDeGrafico(tc.result)),
+        acciones: p.acciones,
+    })) : undefined), [tab.path]);
+    const [revision, setRevision] = useState({ id: null, vista: 'propuesta' });
+    const vigentes = propuestas.propuestas.filter(tc => vigenteEnGrafico(ultimoConfigRef.current, tc.result));
+    const enRevision = vigentes.find(tc => tc.toolCallId === revision.id) || vigentes[0] || null;
+    const vistaRevision = enRevision && enRevision.toolCallId === revision.id ? revision.vista : 'antes';
+    useEffect(() => {
+        const alRevisar = (e) => {
+            const id = e.detail?.toolCallId;
+            if (propuestas.propuestas.some(tc => tc.toolCallId === id)) setRevision({ id, vista: 'propuesta' });
+        };
+        window.addEventListener('amox_revisar_propuesta', alRevisar);
+        return () => window.removeEventListener('amox_revisar_propuesta', alRevisar);
+    }, [propuestas.propuestas]);
+    // La figura propuesta: el gráfico de hoy con los cambios (o con el spec, que se asimila al dibujar).
+    const configPropuesta = useMemo(() => {
+        if (!enRevision) return null;
+        const actual = ultimoConfigRef.current || {};
+        const r = enRevision.result;
+        if (r.objetivo.tipo === 'spec') return { ...actual, modo: 'codigo', spec: r.spec };
+        return aplicarCambios(actual, validarCambios(actual, r.cambios, data?.[0] ? Object.keys(data[0]) : []).cambios);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [enRevision, data]);
+
+    // X3: el contenido de la pestaña cambió por fuera (otra herramienta, un archivo
+    // que se recargó): el gráfico lo vuelve a leer en vez de seguir con lo viejo.
+    useEffect(() => {
+        const avisado = avisadoRef.current;
+        if (!tab.content || !avisado) return;
+        if (mismoGrafico(tab.content, escribirAmoxvis(avisado))) return;
+        const nuevo = configDe(tab);
+        avisadoRef.current = nuevo;
+        // Solo cambió la consulta (el gráfico siguió a su .sql): ya se redibujó.
+        if (mismoGrafico(tab.content, escribirAmoxvis({ ...avisado, query: nuevo.query || '' }))) return;
+        ultimoConfigRef.current = nuevo;
+        window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { tabId, reemplazar: nuevo } }));
+        if ((nuevo.query || '') !== currentQuery) { setCurrentQuery(nuevo.query || ''); if (nuevo.query) executeQuery(nuevo.query); }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [tab.content]);
 
     return (
         <div className="axp">
@@ -398,6 +503,25 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
                 </section>
             )}
 
+            {/* ── Antes / Propuesta: lo que propone el Assistant (E4) ── */}
+            {enRevision && data && data.length > 0 && (
+                <div className="axp-revision">
+                    <AntesYPropuesta
+                        key={enRevision.toolCallId}
+                        tc={enRevision}
+                        acciones={propuestas.acciones}
+                        titulo={describirGrafico(enRevision.result)}
+                        resumen={enRevision.result.resumen}
+                        cambios={describirCambios(enRevision.result)}
+                        vista={vistaRevision}
+                        onVista={(v) => setRevision({ id: enRevision.toolCallId, vista: v })}
+                        indice={vigentes.indexOf(enRevision)}
+                        total={vigentes.length}
+                        onSiguiente={() => setRevision({ id: vigentes[(vigentes.indexOf(enRevision) + 1) % vigentes.length].toolCallId, vista: 'propuesta' })}
+                    />
+                </div>
+            )}
+
             {/* ── El gráfico ── */}
             <div className="axp-figura">
                 {isLoading && !data && (
@@ -406,16 +530,36 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
 
                 {error && <div className="axp-error">{error}</div>}
 
+                {/* La figura propuesta, sin mandos; la editable sigue montada debajo
+                    (oculta) para no perder su estado. */}
+                {data && data.length > 0 && enRevision && vistaRevision === 'propuesta' && configPropuesta && (
+                    <div className="axp-capa axp-capa--propuesta">
+                        <span className="deck-propuesta-etiqueta">Proposal</span>
+                        <DataVisualizer
+                            key={`propuesta-${enRevision.toolCallId}`}
+                            data={data}
+                            query={currentQuery}
+                            initialChartConfig={configPropuesta}
+                            lectura
+                        />
+                    </div>
+                )}
+
                 {data && data.length > 0 && (
-                    <DataVisualizer
-                        data={data}
-                        query={currentQuery}
-                        initialChartConfig={config}
-                        onConfigChange={handleConfigChange}
-                        onCreateNew={onCreateNew}
-                        incluirSpec
-                        onGuardar={onSave ? () => onSave() : null}
-                    />
+                    <div className={`axp-capa${enRevision && vistaRevision === 'propuesta' && configPropuesta ? ' axp-capa--oculta' : ''}`}>
+                        <DataVisualizer
+                            data={data}
+                            query={currentQuery}
+                            initialChartConfig={config}
+                            onConfigChange={handleConfigChange}
+                            onCreateNew={onCreateNew}
+                            incluirSpec
+                            onGuardar={onSave ? () => onSave() : null}
+                            destinoIa={tabId}
+                            onFoco={alFoco}
+                            onAsistir={isReadOnly ? null : asistir}
+                        />
+                    </div>
                 )}
 
                 {data && data.length === 0 && !isLoading && (

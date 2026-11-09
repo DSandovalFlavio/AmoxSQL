@@ -37,6 +37,9 @@ const DeckSidePanel = ({
     onDuplicateSlide,
     onInsertChart,
     onInsertImage,
+    marcadas,
+    fantasmas,
+    onAbrirFantasma,
 }) => {
     if (collapsed) {
         return (
@@ -81,6 +84,9 @@ const DeckSidePanel = ({
                         onDelete={onDeleteSlide}
                         onAddSlide={onAddSlide}
                         onDuplicate={onDuplicateSlide}
+                        marcadas={marcadas}
+                        fantasmas={fantasmas}
+                        onAbrirFantasma={onAbrirFantasma}
                     />
                 )}
                 {activePanel === 'charts' && <ChartsPanel onInsertChart={onInsertChart} />}

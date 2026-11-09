@@ -665,6 +665,8 @@ const EditorPane = ({
                             showAiSidebar={showAiSidebar}
                             isActive={isActive}
                             onOpenFile={onOpenFile}
+                            tabId={activeTab.id}
+                            filePath={activeTab.path}
                         />
                         </Suspense>
                     </div>

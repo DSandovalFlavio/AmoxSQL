@@ -2610,6 +2610,35 @@ function dbtDelArchivo(filePath, fileType) {
     } catch { return null; }
 }
 
+/**
+ * Lo que muestra cada gráfico de un deck (plan del Assistant, E4, R3): para
+ * escribir el titular de una lámina el modelo necesita saber qué gráfico es y
+ * de qué consulta sale, no solo su ruta. Lee los `.amoxvis` del proyecto; nunca
+ * los ejecuta (para sus cifras, el modelo corre la consulta con execute_sql).
+ * Deja el resumen dentro de `foco.deck.graficos`.
+ */
+function conGraficosDelDeck(foco) {
+    const deck = foco && foco.deck;
+    if (!deck || !Array.isArray(deck.laminas) || !ROOT_DIR) return foco;
+    const raiz = path.resolve(ROOT_DIR);
+    const srcs = [...new Set(deck.laminas.flatMap(l => (Array.isArray(l.graficos) ? l.graficos : [])))].slice(0, 24);
+    const graficos = {};
+    for (const src of srcs) {
+        const limpio = String(src).replace(/^(\.\/|\/)/, '');
+        const completo = path.resolve(raiz, limpio);
+        if (!completo.startsWith(raiz + path.sep)) { graficos[src] = { falta: true }; continue; }
+        try {
+            const c = amoxvis.leer(fs.readFileSync(completo, 'utf8'));
+            graficos[src] = {
+                tipo: c.chartType || null, titulo: c.chartTitle || null, takeaway: c.takeaway || null,
+                x: c.xAxisKey || null, y: Array.isArray(c.yAxisKeys) ? c.yAxisKeys : [],
+                consulta: c.query ? String(c.query).slice(0, 1500) : null,
+            };
+        } catch { graficos[src] = { falta: true }; }
+    }
+    return { ...foco, deck: { ...deck, graficos } };
+}
+
 async function buildAssistantQueryContext(currentQuery, filePath = null, fileType = null) {
     const allNames = await listAllTableNames();
     let objs = [];
@@ -2859,7 +2888,7 @@ app.post('/api/ai/chat/stream', async (req, res) => {
             activeSkillId,
             filePath,
             fileType,
-            foco: foco || null,
+            foco: (mode || 'diving') === 'assistant' ? conGraficosDelDeck(foco || null) : (foco || null),
             resultsError: resultsError || null,
             dbt,
             tableRoster,

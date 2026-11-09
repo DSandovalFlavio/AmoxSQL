@@ -8,6 +8,7 @@
 import { memo, useRef, useState } from 'react';
 import { Section, Toggle, SelectField, InputField, SimpleColorPicker, panelStyles } from './shared';
 import { capacidades } from './capacidades';
+import { LuSparkles, LuCheck, LuX } from 'react-icons/lu';
 
 const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => {
     const { chartType, chartTitle, chartSubtitle, chartFootnote, takeaway, textAlign,
@@ -47,6 +48,15 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
         if (sourceRef.current) setField('chartSource', sourceRef.current.value);
     };
 
+    // Auto Story no escribe encima de lo tuyo: llega como propuesta, con lo que
+    // cambia, y se acepta o se rechaza (plan del Assistant, E4, V3).
+    const [sugerencia, setSugerencia] = useState(null);
+    const aceptarSugerencia = () => {
+        if (!sugerencia) return;
+        for (const [k, v] of Object.entries(sugerencia)) setField(k, v);
+        setSugerencia(null);
+    };
+
     const handleGenerateStory = async () => {
         if (!onGenerateStory) return;
         setIsGenerating(true);
@@ -54,15 +64,17 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
         try {
             const story = await onGenerateStory();
             if (story && !story.error) {
-                if (titleRef.current) titleRef.current.value = story.chart_title || '';
-                if (subtitleRef.current) subtitleRef.current.value = story.chart_subtitle || '';
-                if (footnoteRef.current) footnoteRef.current.value = story.footnote || '';
                 const tw = Array.isArray(story.key_insights) ? story.key_insights.join(' ') : '';
-                if (takeawayRef.current) takeawayRef.current.value = tw;
-                setField('chartTitle', story.chart_title || '');
-                setField('chartSubtitle', story.chart_subtitle || '');
-                setField('chartFootnote', story.footnote || '');
-                setField('takeaway', tw);
+                const propuesta = {
+                    chartTitle: story.chart_title || '',
+                    chartSubtitle: story.chart_subtitle || '',
+                    chartFootnote: story.footnote || '',
+                    takeaway: tw,
+                };
+                const actuales = { chartTitle, chartSubtitle, chartFootnote, takeaway };
+                const cambian = Object.fromEntries(Object.entries(propuesta).filter(([k, v]) => v && v !== (actuales[k] || '')));
+                if (Object.keys(cambian).length) setSugerencia(cambian);
+                else setStoryError('Auto Story has nothing new to suggest.');
             } else {
                 setStoryError(story?.error || 'Could not generate story.');
             }
@@ -165,6 +177,22 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                 {storyError && (
                     <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--color-error, #e05555)', padding: '4px 6px', background: 'var(--surface-raised)', borderRadius: '3px' }}>
                         {storyError}
+                    </div>
+                )}
+
+                {sugerencia && (
+                    <div className="sf-sugerencia" role="group" aria-label="Auto Story proposal">
+                        <div className="sf-sugerencia-cab"><LuSparkles size={11} /> Auto Story proposes</div>
+                        {Object.entries(sugerencia).map(([k, v]) => (
+                            <div key={k} className="sf-sugerencia-fila">
+                                <span className="sf-sugerencia-clave">{{ chartTitle: 'Title', chartSubtitle: 'Subtitle', chartFootnote: 'Footnote', takeaway: 'Takeaway' }[k]}</span>
+                                <span className="sf-sugerencia-valor">{v}</span>
+                            </div>
+                        ))}
+                        <div className="sf-sugerencia-acciones">
+                            <button type="button" className="amx-rev-btn" onClick={() => setSugerencia(null)}><LuX size={11} /> Reject</button>
+                            <button type="button" className="amx-rev-btn amx-rev-btn--ok" onClick={aceptarSugerencia}><LuCheck size={11} /> Accept</button>
+                        </div>
                     </div>
                 )}
                 </div>

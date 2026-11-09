@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { LuCheck, LuX, LuFilePlus2, LuFilePen, LuHistory, LuRefreshCw, LuChevronDown, LuChevronRight, LuLoader } from 'react-icons/lu';
+import { LuCheck, LuX, LuFilePlus2, LuFilePen, LuHistory, LuRefreshCw, LuChevronDown, LuChevronRight, LuLoader, LuScanSearch, LuChartColumn } from 'react-icons/lu';
 import EditProposalBlock from './EditProposalBlock';
 import { estadoDe, esArchivoNuevo } from './propuestas';
 import { esDeRango, ubicarRango } from './archivos/rango.js';
 import { esDeCelda } from './archivos/cuaderno.js';
 import { describirPropuesta } from './archivos/index.js';
+import { esDeLamina, laminaPropuesta } from './archivos/deck.js';
+import { esDeGrafico, describirCambios } from './archivos/grafico.js';
 
 /**
  * **Una propuesta del Assistant, como lo que es** (plan del Assistant, E1/A1).
@@ -34,7 +36,7 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
         return (
             <div className="ai-propuesta ai-propuesta--compacta">
                 {nuevo ? <LuFilePlus2 size={13} /> : <LuFilePen size={13} />}
-                <span>{nuevo ? <>Proposing <code>{r.path}</code></> : esDeRango(r) ? `Proposing a change to ${describirPropuesta(r).replace(/^(Change to|Insert) /, '')}` : esDeCelda(r) ? `Proposing: ${describirPropuesta(r)}` : 'Proposing a change to this file'}</span>
+                <span>{nuevo ? <>Proposing <code>{r.path}</code></> : esDeRango(r) ? `Proposing a change to ${describirPropuesta(r).replace(/^(Change to|Insert) /, '')}` : (esDeCelda(r) || esDeLamina(r) || esDeGrafico(r)) ? `Proposing: ${describirPropuesta(r)}` : 'Proposing a change to this file'}</span>
             </div>
         );
     }
@@ -73,6 +75,8 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
                         {estado === 'caducada'
                             ? (esDeRango(r)
                                 ? 'Those lines changed since this was proposed, so it no longer fits.'
+                                : esDeLamina(r) ? 'That slide changed since this was proposed, so it no longer fits.'
+                                : esDeGrafico(r) ? 'Those chart settings changed since this was proposed, so it no longer fits.'
                                 : 'The file changed since this was proposed, so applying it would undo your edits.')
                             : nuevo
                                 ? <>Proposed <code>{r.path}</code> in an earlier session.</>
@@ -132,6 +136,57 @@ const PropuestaBlock = ({ tc, contenidoActual, enCurso = false, onAccept, onReje
                 />
                 {error && <div className="ai-propuesta__error">{error}</div>}
             </>
+        );
+    }
+
+    // E4: one slide of a deck. The diff is that slide's source as it would be
+    // written; Review takes you to the slide, with Before / Proposal.
+    if (esDeLamina(r)) {
+        const nueva = r.objetivo.accion === 'despues_de';
+        const propuesta = contenidoActual != null ? laminaPropuesta(contenidoActual, r) : null;
+        return (
+            <>
+                <EditProposalBlock
+                    titulo={describirPropuesta(r, propuesta?.donde)}
+                    currentContent={nueva ? [] : r.original}
+                    proposedContent={propuesta ? propuesta.raw : (r.lamina?.prosa || '')}
+                    description={r.resumen}
+                    onRevisar={onRevisar ? () => onRevisar(tc.toolCallId) : undefined}
+                    onAccept={aceptar}
+                    onReject={() => onReject && onReject(tc)}
+                />
+                {error && <div className="ai-propuesta__error">{error}</div>}
+            </>
+        );
+    }
+
+    // E4: a chart's settings. The list of what changes; Review shows Before /
+    // Proposal on the figure itself.
+    if (esDeGrafico(r)) {
+        return (
+            <div className="ai-edit-proposal">
+                <div className="ai-edit-proposal__header">
+                    <span className="ai-propuesta__titulo"><LuChartColumn size={13} /> <span>{describirPropuesta(r)}</span></span>
+                </div>
+                {r.resumen && <div className="ai-propuesta__desc-fila">{r.resumen}</div>}
+                <ul className="ai-propuesta__cambios">
+                    {describirCambios(r).map((c, i) => <li key={i}>{c}</li>)}
+                </ul>
+                <div className="ai-propuesta__acciones ai-propuesta__acciones--pie">
+                    {onRevisar && (
+                        <button type="button" className="ai-edit-proposal__btn ai-edit-proposal__btn--reject" onClick={() => onRevisar(tc.toolCallId)} title="Show Before / Proposal on the chart">
+                            <LuScanSearch size={12} /> Review
+                        </button>
+                    )}
+                    <button type="button" className="ai-edit-proposal__btn ai-edit-proposal__btn--reject" onClick={() => onReject && onReject(tc)}>
+                        <LuX size={12} /> Reject
+                    </button>
+                    <button type="button" className="ai-edit-proposal__btn ai-edit-proposal__btn--accept" onClick={aceptar} disabled={ocupada}>
+                        {ocupada ? <LuLoader size={12} className="ai-tool-spinner" /> : <LuCheck size={12} />} Accept
+                    </button>
+                </div>
+                {error && <div className="ai-propuesta__error">{error}</div>}
+            </div>
         );
     }
 

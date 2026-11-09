@@ -45,7 +45,14 @@ Write it in dbt's Jinja: keep \`{{ ref('…') }}\` and \`{{ source('…', '…')
     const porLineas = propone && !!archivo?.porLineas;
     // El notebook se cambia por celdas (E3).
     const porCeldas = propone && !!archivo?.porCeldas;
-    if (porCeldas) {
+    // Un deck por láminas y un gráfico por paneles (E4).
+    const porLaminas = propone && !!archivo?.porLaminas;
+    const porPaneles = propone && !!archivo?.porPaneles;
+    if (porLaminas) {
+        section += `\n- **propose_change**: proposes ONE slide change of this deck: change a slide (target kind "slide", its number) or add a new slide after one (kind "new_slide", after_slide = its number, 0 for the start). Send the slide's parts — layout, text, charts, notes —; a part you leave out stays as it is. The user sees it on the slide (Before / Proposal) and clicks Accept or Reject; nothing is saved to disk. Never rewrite the whole deck: the other slides and the front matter stay as they are. To change several slides, call it once per slide.`;
+    } else if (porPaneles) {
+        section += `\n- **propose_change**: proposes a change to this chart through its Story Flow settings (target kind "panels", only the keys that change), or — only in the Code view — a complete Vega-Lite spec (kind "spec"). The user sees Before / Proposal on the figure with the list of what changes, and clicks Accept or Reject; nothing is saved to disk. Never write the .amoxvis JSON by hand.`;
+    } else if (porCeldas) {
         section += `\n- **propose_change**: proposes ONE cell change of this notebook: replace the text of a cell (target kind "cell", its number) or add a new cell after one (kind "new_cell", after_cell = its number, 0 for the top). The user sees it on the cell itself and clicks Accept or Reject; nothing is saved to disk. Never rewrite the whole notebook: the other cells, their names, marks and the parameters stay as they are. To change several cells, call it once per cell.`;
     } else if (porLineas) {
         section += `\n- **propose_change**: proposes replacing a range of lines of the active file. The user sees it as a diff in the editor and clicks Accept or Reject; nothing is saved to disk. Change ONLY the lines the request needs — not the whole file — using the line numbers shown in "Current editor state" (the \`12 |\` prefixes are not part of the file: never put them in new_text). To insert without replacing, use end_line = start_line - 1. Pass current_text (the exact lines you replace) so the change lands in the right place.`;
@@ -66,7 +73,19 @@ Write it in dbt's Jinja: keep \`{{ ref('…') }}\` and \`{{ source('…', '…')
     }
 
     section += `\n\n### Workflow & honesty rules`;
-    if (porCeldas) {
+    if (porLaminas) {
+        section += `\n- **When the user asks you to write, tighten or change something on a slide, or to add a slide, DELIVER IT with \`propose_change\`, not just as text in the chat.** \`propose_change\` puts it on the slide with Before / Proposal and Accept/Reject; text in the chat has to be copied by hand. Say in one sentence what changes, then call \`propose_change\`.
+- **How a deck works:** each slide makes ONE point. Its heading is the claim (what the data shows, not a label); the body backs it in a few short lines. A chart is a \`.amoxvis\` file shown on the slide; its query re-runs when the deck refreshes. Layouts: cover/section/closing open and close, finding = claim + text + one chart, chart-full = the chart alone, chart-grid/compare = several charts, summary/metric/table/steps/actions = data blocks, content/statement/two-col/method = text.
+- **"This slide", "this", "it"** mean the slide the user is on (see "Where the user is").
+- **To write a headline from a chart**, read what the chart shows (its type, axes and query are listed in "Current editor state"); run its query with \`execute_sql\` when you need the numbers. Never invent a number.
+- When you propose a change, say in one sentence what changes and why.`;
+    } else if (porPaneles) {
+        section += `\n- **When the user asks you to change, fix or improve the chart (its type, axes, highlight, title, takeaway…), DELIVER IT with \`propose_change\`, not just as advice in the chat.** It shows Before / Proposal on the figure with Accept/Reject. Say in one sentence what changes and why, then call \`propose_change\`.
+- **How a Story Flow chart works:** the figure is drawn from its settings (panels); you change those settings, never the file's JSON. Use the keys exactly as they appear in "Panels set" and their types: chartType (one of the chart types), xAxisKey (a column), yAxisKeys (a list of columns), splitByKey, sortMode (x-asc | x-desc | y-asc | y-desc | natural), limit (number), dateAggregation (none | day | week | month | quarter | year), colorTheme, showLabels (boolean), legendPosition (top | bottom | left | right | inline | none), chartTitle, chartSubtitle, takeaway, chartFootnote, chartSource (text), highlightConfig ({ type: none | max | min | exact | below | above | range, value, value2 }), refLine ({ value, label }), goalLine ({ enabled, value, label }), trendLine ({ type: none | linear | moving-average }), annotations ([{ type: text | box, x, y, text }]), headline ({ visible, metric: total | average | last | first }).
+- **Columns must be columns of the result** (listed in "Current editor state"). The on-screen sample shows what the data looks like.
+- **Where the user is** tells you the Story Flow stage they are in (type, data, format, style, story, export): answer for that stage first. In the Story stage, write the title as a claim and the takeaway as the message, from the data.
+- When you propose a change, say in one sentence what changes and why.`;
+    } else if (porCeldas) {
         section += `\n- **How this notebook works:** each SQL cell that runs leaves a session view named after the cell, so a cell reads another one with \`FROM <its name>\` instead of repeating its query. Reuse what the cells above already compute. Parameters are written \`{{name}}\` and replaced before running. A new SQL cell gets a short snake_case name (\`name\`), different from the others.
 - **"This cell", "this", "it"** mean the cell the user is in (see "Where the user is"). Its result or error, when there is one, is in "Current editor state".
 - **When the cell failed**, read the error and fix the cause in that cell (it may be a column that another cell leaves, or a cell that hasn't run).
@@ -223,6 +242,14 @@ function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig,
         // E3: el notebook, celda por celda (cada SQL ya va en su bloque).
         open();
         s += `\n**Active notebook (${archivo.ruta || 'untitled'}), cell by cell:**\n\n${archivo.contenido}\n`;
+    } else if (archivo?.porLaminas) {
+        // E4: el deck, lámina por lámina (cada texto ya va en su bloque).
+        open();
+        s += `\n**Active deck (${archivo.ruta || 'untitled'}), slide by slide:**\n\n${archivo.contenido}\n`;
+    } else if (archivo?.porPaneles) {
+        // E4: el gráfico por sus paneles, no su JSON.
+        open();
+        s += `\n**Active chart (${archivo.ruta || 'untitled'}):**\n\n${archivo.contenido}\n`;
     } else if (archivo && archivo.tipo !== 'sql') {
         // Cualquier otro archivo va con su nombre y en su idioma: llamarle
         // «query» a un deck o a un YAML hacía que el modelo lo tratara como SQL.
@@ -250,6 +277,13 @@ function buildLiveEditorState({ currentQuery, currentResult, currentChartConfig,
         open();
         const c = enfoque.celda;
         s += `\n**Where the user is:** cell ${c.n} (${c.tipo === 'texto' ? 'text' : `SQL${c.nombre ? ` \`${c.nombre}\`` : ''}`}). _"This cell" means cell ${c.n}._${currentResult ? ' The on-screen result below is the result of this cell.' : ''}`;
+    } else if (enfoque?.lamina) {
+        open();
+        const l = enfoque.lamina;
+        s += `\n**Where the user is:** slide ${l.n} (layout ${l.diseno}${l.titulo ? `, "${l.titulo}"` : ''}). _"This slide" means slide ${l.n}._`;
+    } else if (enfoque?.etapa || enfoque?.vista) {
+        open();
+        s += `\n**Where the user is:** ${enfoque.vista === 'codigo' ? 'the Code view (the Vega-Lite spec)' : `the ${enfoque.etapa} stage of Story Flow`}.${currentResult ? ' The on-screen result below is the data of this chart.' : ''}`;
     } else if (enfoque?.seccion) {
         open();
         const e = enfoque.seccion;

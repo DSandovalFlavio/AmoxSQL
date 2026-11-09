@@ -2,7 +2,7 @@
 
 **Sale de:** [auditoria_ux_assistant.md](auditoria_ux_assistant.md) (A1–A13) y
 [auditoria_assistant_por_archivo.md](auditoria_assistant_por_archivo.md) (X1–X10 y los hallazgos por tipo)
-**Estado:** **E1, E2 y E3 hechas** (2026-11-07/08, rama `claude/plan-5-19-interaccion`); E4–E6 sin empezar. Las seis decisiones,
+**Estado:** **E1, E2, E3 y E4 hechas** (2026-11-07/09, rama `claude/plan-5-19-interaccion`); E5–E6 sin empezar. Las seis decisiones,
 tomadas como se proponían. Mockups en el artifact «El Assistant donde está el trabajo».
 
 ## La idea
@@ -342,6 +342,76 @@ cambiar una celda; nombre que choca; celda que lee algo que no existe), `markdow
 
 **Tamaño:** mediano. **Se prueba:** `deck.js` ida y vuelta (diseño que no existe, gráfico que no existe), `grafico.js`
 con `capacidades` (un panel que ese tipo no admite se rechaza) y el spec compilado; `probarGraficos` sigue verde.
+
+**Hecha (2026-11-09).** Lo que quedó (y en qué se aparta de arriba):
+- **Report Flow — el foco y el contexto.** `DeckEditor` (con `tabId` y `filePath` nuevos) deja en
+  `fijarProveedorDeFoco` la lámina activa (`lamina: { n }`) y el deck lámina por lámina
+  (`ai/archivos/deck.estructuraDeDeck`: número, diseño, título, texto, gráficos, notas, crudo, y los diseños que
+  existen). El servidor (`conGraficosDelDeck` en `index.js`) lee cada `.amoxvis` del deck y añade qué es (tipo,
+  título, ejes) y su consulta (R3); nunca lo ejecuta: para sus cifras el modelo corre la consulta. `archivoActivo`
+  lo convierte en «### Slide 2 · layout finding · charts: charts/x.amoxvis (bar chart, "…", x: region, y: venta)»
+  con `porLaminas`.
+- **Report Flow — la propuesta.** `propose_change` con `kind: 'slide' | 'new_slide'` y las **partes** de la lámina
+  (`layout`, `text`, `charts`, `notes`; lo que no se manda se queda). Se valida que el diseño exista, que los
+  gráficos existan en el proyecto, que el texto no tenga una línea `---` (partiría la lámina) ni bloques
+  `amoxchart`/`notes`. Devuelve `objetivo: { tipo: 'lamina', accion, n }`, `lamina` y `original` (el crudo de la
+  lámina). El cliente la compone con `buildSlideRaw`, el mismo del Studio: el antetítulo, el pie y el tono, que el
+  modelo no ve, se conservan. Se aplica con el historial del Studio (Ctrl+Z) y se comprueba la ida y vuelta con
+  `parseDeck`. **Se aparta:** el plan decía objetivo `lamina` con el crudo; las partes son más seguras.
+- **Report Flow — la revisión.** En el esquema, la lámina con propuesta lleva la marca del Assistant en lugar de su
+  número, y una lámina nueva es un **fantasma** en su hueco (pulsarlo la revisa). Sobre la lámina,
+  `ai/revision/AntesYPropuesta.jsx` (Before · Proposal · Reject · Accept · 1 of N, y la lista de lo que cambia);
+  en «Proposal» se dibuja `SlidePreview` de la lámina propuesta, con su gráfico, y la editable queda montada y
+  oculta. **Assist** en la barra de la lámina: Tighten the text · Write the headline from the chart (si tiene
+  gráfico) · Speaker notes · Add a slide after. Sin «Add a slide with Assist…» en la tira de miniaturas
+  (aplazado: «Add a slide after» cubre el caso).
+- **Gráfico — el foco y el contexto (V2).** `AmoxvisPane` deja los paneles elegidos, la consulta, las columnas con
+  su tipo, la etapa de Story Flow y la vista (`ai/archivos/grafico.estructuraDeGrafico`), y las filas como
+  `resultado` (pasan por la política). Para validar, la estructura lleva las claves con su tipo de valor, los tipos
+  de gráfico y la tabla de `capacidades` por pieza.
+- **Gráfico — la propuesta (V1).** `propose_change` con `kind: 'panels'` (claves de Story Flow; un tipo compuesto
+  como `bar-stacked` pasa a tipo + apilado; columnas que existen; un panel que el tipo no dibuja se rechaza) o
+  `kind: 'spec'` (solo en la vista Code; se compila en el servidor como `display_chart` y se comprueban sus
+  campos). Devuelve `cambios` y `original` (el valor de hoy de cada clave): caduca si alguien toca esos paneles.
+  Se aplica por `amox_update_chart_config` con el `destinoIa` de la pestaña (`setFields`, o `aplicarCodigo` para un
+  spec), como si lo tocara el usuario. Un gráfico sin estructura (un cliente viejo) sigue sin proponer.
+- **Gráfico — la revisión.** Antes / Propuesta sobre la figura, con la lista («Type: “area” → “line” · Highlight:
+  max»); «Proposal» dibuja un `DataVisualizer` de lectura con los cambios aplicados.
+- **Gráfico — las puertas.** **Assist** en la cabecera de Story Flow: la pregunta de la etapa primero (Which chart
+  tells this best? · What goes where? · Make it readable · Make it readable in a slide · Write the takeaway · Is
+  it ready to share?), y Explain this chart. **Auto Story** (V3) ya no escribe encima: propone título,
+  subtítulo, nota y takeaway con Accept / Reject en el panel Story. **Se aparta:** Auto Story sigue con su propio
+  endpoint, no pasa por la conversación.
+- **X3 en el gráfico.** `AmoxvisPane` recuerda lo último que escribió en la pestaña (`avisadoRef`); si el contenido
+  llega distinto (de fuera), lo vuelve a leer (`loadConfig`) y, si cambió la consulta, la ejecuta.
+- **El prompt.** Deck y gráfico tienen sus reglas («DELIVER IT with propose_change», cómo funciona un deck, las
+  claves de Story Flow con sus valores) y su «Where the user is» (la lámina; la etapa o la vista Code).
+- **Pruebas.**
+  - `probarAssist.mjs`: 200/0 (54 nuevas: deck en cliente y servidor, gráfico en cliente y servidor, el objetivo
+    tolerante).
+  - Siguen verdes `probarGraficos` 177, `probarCuaderno` 45, `probarDeepDive` 46, `probarFlujoGrafico` 22,
+    `probarGraficoIA` 14, `probarCuotaDeepDive` 14.
+  - `probarInteraccion`: 100 bien, 4 mal (Ctrl+L, Ctrl+Shift+F, Escape del plan y la caída que sigue, todos en la
+    fase de atajos). **Fallan igual con el código de E3** (comprobado poniendo `client/src` y `server` de
+    `982b815`): no es de E4; parece de las teclas reales hacia la ventana de Electron en esta máquina.
+  - En la app, con `reportes/resumen_2024.amoxdeck` y `charts/venta_mensual.amoxvis` de la tienda (conversaciones
+    sembradas):
+    - deck: marca y fantasma en el esquema; Before / Proposal de la lámina 3 con su gráfico; Accept cambia solo
+      esa lámina y le pone sus notas; Accept del fantasma la mete como lámina 5; el menú Assist de la lámina, que
+      envía la lámina activa y las 7 láminas;
+    - gráfico: abre en Before con la barra y la lista; Proposal dibuja la línea con el pico resaltado y el
+      takeaway; Accept la aplica (pestaña con cambios); el menú Assist de Story Flow con la pregunta de la etapa,
+      que envía tipo, etapa, paneles, columnas con su tipo y la muestra;
+    - X3: guardado el gráfico y cambiado su título en disco, la pestaña lo vuelve a leer.
+  - **Con un modelo real** (el local configurado, gemma4 e2b, ~2B): contestó en prosa; con la regla «DELIVER IT
+    with propose_change» llamó a la herramienta pero con `target: "4"` (de ahí el objetivo tolerante: un número
+    suelto, sin `kind` o con números como texto se aceptan, en láminas, celdas, líneas y paneles); después escribió
+    la llamada como texto. Es el límite de un modelo de ese tamaño: falta probar con uno mayor.
+- **Arreglado en el camino:** el menú Assist de la lámina salía de 30 px de ancho (`.deck-design-nav button`
+  también lo alcanzaba); la figura editable, oculta con `display: none` mientras se veía la propuesta, volvía
+  dibujada al 40 % (se oculta con `visibility`, y la revisión abre en Before).
+- **Sin probar:** Auto Story como propuesta con un modelo (el código es pequeño y no cambió su petición), y el
+  `spec` de la vista Code en la app (sí en las pruebas: compila y comprueba sus campos).
 
 ### E5 — Data Flow, Canvas y diagrama
 - **Data Flow:** la barra de IA de abajo pasa a ser **el Assistant de este archivo** (misma conversación; el panel

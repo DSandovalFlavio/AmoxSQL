@@ -22,7 +22,7 @@ It's reactive and conversational but compact: it opens with the finding, weaves 
 ## How to use it
 
 ### Open the Assistant
-1. Open a file. The **Assist** button is in the SQL editor, the notebook, Markdown and Report Flow; **Ctrl+L** opens it on any file.
+1. Open a file. The **Assist** button is in the SQL editor, the notebook, Markdown, Report Flow and the Story Flow header; **Ctrl+L** opens it on any file.
 2. Type your question and send with **Enter**.
 
 The Assistant knows what file it has in front of it (a query, a notebook, a deck, a chart, a Data Flow…) and treats it as such.
@@ -49,6 +49,21 @@ The Assistant knows which cell you are in, and sees its result or its error, the
 
 It proposes **cell by cell**, never the whole notebook: a cell's change shows below it, with what goes out and what comes in; a new cell shows as a **ghost** (dashed border) where it would go. Both can be accepted or rejected right there or from the chat. Accepting doesn't touch the other cells or their results.
 
+### In Report Flow
+The Assistant knows which slide you are on, and sees the deck slide by slide (its layout, text and notes) and, for each chart, its type, its axes and the query it comes from.
+
+- In the slide's bar, **Assist** opens a menu: **Tighten the text**, **Write the headline from the chart** (if the slide has a chart), **Speaker notes** and **Add a slide after**.
+
+It proposes **slide by slide**, never the whole deck: one slide's layout, text, charts and notes, or a new slide. A slide with a proposal carries the Assistant's mark in the outline; a new slide shows as a **ghost** (dashed border) where it would go. Above the slide, a bar with **Before** / **Proposal** lets you see it as it is and as it would be, plus **Accept** / **Reject**. Accepting doesn't touch the other slides or the front matter, and **Ctrl+Z** undoes it.
+
+### In a chart
+The Assistant knows which Story Flow stage you are in (Type, Data, Format, Style, Story, Export, or the Code view), and sees the chart type, the panels you set, the query, its columns and a few sample rows.
+
+- In the Story Flow header, **Assist** offers your stage's question first: *Which chart tells this best?* in Type, *Write the takeaway* in Story, *Make it readable in a slide* in Style…
+- **Auto Story**, in the Story stage, no longer writes over your texts: it proposes the title, subtitle, footnote and takeaway, and you accept or reject them.
+
+It proposes **panel changes** (the type, the axes, the highlight, the texts…), the same ones you would make, never the file's JSON. A panel that the chart type doesn't draw is never proposed. Above the figure, **Before** / **Proposal** shows the chart as it is and as it would be, with the list of what changes (*Type: area → line · Highlight: max*). In the **Code** view it can propose a whole Vega-Lite spec.
+
 ### Fix an error
 When a query fails, **Fix with Assist** appears next to the error message. The Assistant already knows the error and the query: no need to paste anything. When you start a conversation with the query in error, the first suggestion is **Fix the error**.
 
@@ -60,12 +75,11 @@ In a `.sql` or a text file, the Assistant proposes **only the lines that change*
 
 Markdown works the same way, in the **Write** or **Split** view. In the **Read** view, a notice says there is a proposal and **Show it** opens it in the split view.
 
-In Report Flow it still proposes the whole file, reviewed in the chat:
+In every file:
 
-1. When the Assistant proposes changing your file, a change block appears with **Accept** / **Reject**, with what goes out and what comes in.
-2. **Accept** drops the new content into the editor **without saving to disk** — you review and save (Ctrl+S). In the SQL editor, **Ctrl+Z** undoes it. **Reject** discards it.
-3. What you decided is remembered: when you reopen the conversation, the block says **Applied to the editor** or **Rejected**.
-4. If the file changed since the proposal was made, accepting it would erase what you wrote afterwards. So it isn't applied: the block says so and offers **Propose again**, which asks for it again on the current version. A line proposal only goes stale if **those** lines changed.
+1. **Accept** puts the change in the editor **without saving to disk** — you review and save (Ctrl+S). **Reject** discards it. In the chat, each proposal also has **Accept** / **Reject** and **Review**, which takes you to it.
+2. What you decided is remembered: when you reopen the conversation, the block says **Applied to the editor** or **Rejected**.
+3. If that part of the file changed since the proposal was made (its lines, its cell, its slide, those panels), accepting it would erase what you did afterwards. So it isn't applied: the block says so and offers **Propose again**, which asks for it again on the current version.
 
 ### Create a new file
 If you ask for something that belongs in another file (*"save this query to a file"*), the Assistant proposes the path and the content. Nothing is written until you click **Create**, which creates the file and opens it. It never overwrites an existing file.
@@ -91,7 +105,7 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 |---|---|
 | Answer questions | About your query, your data, or DuckDB SQL in general |
 | Generate / explain / optimize SQL | Writes or rewrites the active file's query |
-| Propose edits | Change block with **Accept** / **Reject**; accepting loads it in the editor unsaved. In `.sql` and text, only the lines that change, reviewed in the editor |
+| Propose edits | Change with **Accept** / **Reject**; accepting loads it in the editor unsaved. Only the part that changes (lines, a cell, a slide, some panels), reviewed where it lives |
 | Ask from the editor | The bar over a selection, **Fix with Assist** on an error, **Explain** / **Chart it** on results |
 | Propose new files | Path and content with **Create**; never overwrites |
 | Propose charts | Configured chart with **Apply to chart** into Story Flow |
@@ -103,7 +117,7 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 | Item | Where from |
 |---|---|
 | Current query | The active editor buffer, with numbered lines |
-| Where you are | The selected text, or the statement under the cursor; in Markdown, the section; in a notebook, the cell |
+| Where you are | The selected text, or the statement under the cursor; in Markdown, the section; in a notebook, the cell; in a deck, the slide; in a chart, the Story Flow stage |
 | The last error | The message of the last run that failed |
 | A dbt model | Its YAML columns and descriptions, and the SQL dbt compiled (without running dbt); changes are proposed in Jinja |
 | Last result | The results table on screen |
@@ -117,8 +131,9 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 |---|---|
 | `.sql`, `.md` Markdown, text (`.yml`, `.json`…) | Proposes the lines that change, reviewed in the editor |
 | `.sqlnb` notebook | Proposes cell by cell: the change below its cell, or a new cell in its place |
-| `.amoxdeck` Report Flow | Proposes the whole file, reviewed in the chat |
-| `.amoxvis` chart, `.sqlchain` Data Flow, `.amoxcanvas` Canvas, `.amoxdiagram` diagram | Explains what to change and where, so you do it in its editor. It doesn't propose changes yet: rewriting the file by hand would break it |
+| `.amoxdeck` Report Flow | Proposes slide by slide: Before / Proposal on the slide, or a new slide where it would go |
+| `.amoxvis` chart | Proposes panel changes (or, in the Code view, a Vega-Lite spec): Before / Proposal on the figure |
+| `.sqlchain` Data Flow, `.amoxcanvas` Canvas, `.amoxdiagram` diagram | Explains what to change and where, so you do it in its editor. It doesn't propose changes yet: rewriting the file by hand would break it |
 | A very long file | Sees the first part and says so; it doesn't propose rewriting it, since it would lose what it can't see |
 
 ### What doesn't leave your computer

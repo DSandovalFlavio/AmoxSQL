@@ -1,6 +1,10 @@
 import { ubicarRango, esDeRango } from './archivos/rango.js';
 import { ubicarCelda, esDeCelda } from './archivos/cuaderno.js';
 import { leerCuaderno } from '../../utils/cuadernoFile.js';
+import { ubicarLamina, esDeLamina } from './archivos/deck.js';
+import { vigenteEnGrafico, esDeGrafico } from './archivos/grafico.js';
+import { parseDeck } from '../../utils/deckParser.js';
+import { leerAmoxvis } from '../DataVisualizer/vega/figura.js';
 
 /**
  * **Las propuestas del Assistant y su estado** (plan del Assistant, E1/A1).
@@ -66,6 +70,14 @@ export function estadoDe(tc, contenidoActual = null) {
     if (esDeCelda(tc.result)) {
         return contenidoActual != null && !ubicarCelda(leerCuaderno(contenidoActual).celdas, tc.result) ? 'caducada' : 'propuesta';
     }
+    // E4: por láminas, caduca solo si cambió su lámina; un gráfico, si alguien
+    // tocó los mismos paneles.
+    if (esDeLamina(tc.result)) {
+        return contenidoActual != null && !ubicarLamina(parseDeck(contenidoActual).slides, tc.result) ? 'caducada' : 'propuesta';
+    }
+    if (esDeGrafico(tc.result)) {
+        return contenidoActual != null && !vigenteEnGrafico(leerAmoxvis(contenidoActual), tc.result) ? 'caducada' : 'propuesta';
+    }
     if (!esArchivoNuevo(tc) && tc.base && contenidoActual != null && huella(contenidoActual) !== tc.base) {
         return 'caducada';
     }
@@ -81,7 +93,7 @@ export function marcarPropuestas(llamadas, contenidoEnviado) {
     return llamadas.map(tc => {
         if (!esPropuesta(tc) || tc.estado) return tc;
         // Por líneas no hace falta la huella: la propuesta trae el texto que reemplaza.
-        if (esDeRango(tc.result) || esDeCelda(tc.result)) return { ...tc, estado: 'propuesta' };
+        if (esDeRango(tc.result) || esDeCelda(tc.result) || esDeLamina(tc.result) || esDeGrafico(tc.result)) return { ...tc, estado: 'propuesta' };
         return esArchivoNuevo(tc) ? { ...tc, estado: 'propuesta' } : { ...tc, estado: 'propuesta', base };
     });
 }

@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { createRequire } from 'node:module';
+import { createRequire, register } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,6 +34,22 @@ fs.mkdirSync(path.join(P, 'queries'), { recursive: true });
 fs.writeFileSync(path.join(P, 'queries', 'existe.sql'), 'SELECT 1;\n');
 
 const require = createRequire(import.meta.url);
+// El código del cliente importa sin extensión (lo resuelve Vite) y sus paquetes
+// viven en client/node_modules: un gancho de resolución hace lo mismo en Node (E4:
+// el deck y el gráfico usan deckParser, deckTemplates y Story Flow).
+const CLIENTE = path.join(RAIZ, 'client');
+register('data:text/javascript,' + encodeURIComponent(`
+    const CLIENTE = ${JSON.stringify(pathToFileURL(CLIENTE + '/package.json').href)};
+    export async function resolve(esp, ctx, sig) {
+        if (/^\\.\\.?\\//.test(esp) && !/\\.[cm]?jsx?$/.test(esp)) {
+            try { return await sig(esp + '.js', ctx); } catch { /* sigue */ }
+        }
+        if (!/^(node:|data:|file:|\\.|\\/)/.test(esp)) {
+            try { return await sig(esp, ctx); } catch { return sig(esp, { ...ctx, parentURL: CLIENTE }); }
+        }
+        return sig(esp, ctx);
+    }
+`));
 let ok = 0, mal = 0;
 const bien = (nombre, cond, detalle = '') => {
     cond ? ok++ : mal++;
@@ -401,6 +417,168 @@ console.log('\nE3 · el notebook en el servidor');
     const celdasCliente = estructura.celdas.map(x => ({ id: `id${x.n}`, tipo: x.tipo, nombre: x.nombre || '', contenido: x.texto }));
     const ap = cu.aplicarACeldas(celdasCliente, c, () => 'z');
     bien('lo que propone el servidor lo aplica el cliente', ap.celdas[2].contenido.includes('OVER (ORDER BY mes)') && ap.celdas[2].id === 'id3');
+}
+
+// ── E4. Report Flow por láminas y el gráfico por paneles ───────────────────
+const DECK = `---
+title: Ventas Q3
+section: Q3 2026
+---
+
+<!-- layout: cover -->
+# Ventas Q3
+
+---
+
+<!-- layout: finding -->
+## Sur crece
+
+El Sur sube.
+
+\`\`\`amoxchart
+src: charts/v.amoxvis
+\`\`\`
+
+\`\`\`notes
+Decir el número.
+\`\`\`
+
+---
+
+<!-- layout: content -->
+<!-- eyebrow: Anexo -->
+## Método
+
+Ventas netas.
+`;
+fs.mkdirSync(path.join(P, 'charts'), { recursive: true });
+fs.writeFileSync(path.join(P, 'charts', 'v.amoxvis'), JSON.stringify({ $schema: 'https://vega.github.io/schema/vega-lite/v6.json', mark: 'bar', usermeta: { amoxsql: { version: 2, modo: 'interfaz', consulta: 'SELECT region, sum(v) AS venta FROM ventas GROUP BY 1', interfaz: { chartType: 'bar', xAxisKey: 'region', yAxisKeys: ['venta'] } } } }));
+
+console.log('\nE4 · el deck por láminas (cliente)');
+const dk = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/deck.js')).href);
+const { parseDeck } = await import(pathToFileURL(path.join(RAIZ, 'client/src/utils/deckParser.js')).href);
+{
+    const deck = parseDeck(DECK);
+    const est = dk.estructuraDeDeck(deck);
+    bien('la estructura: número, diseño, texto, gráficos, notas', est.laminas.length === 3 && est.laminas[1].diseno === 'finding' && est.laminas[1].graficos[0] === 'charts/v.amoxvis'
+        && est.laminas[1].notas === 'Decir el número.' && !est.laminas[1].prosa.includes('amoxchart') && est.disenos.includes('chart-full'), JSON.stringify(est.laminas[1]));
+    const cambio = { action: 'propose_change', objetivo: { tipo: 'lamina', accion: 'cambiar', n: 2 }, original: deck.slides[1].raw, lamina: { prosa: '## El Sur crece un 18%\n\nY arrastra al resto.' } };
+    const ap = dk.aplicarALaminas(DECK, cambio);
+    const despues = parseDeck(ap.texto || '');
+    bien('cambiar el texto: el gráfico y las notas se quedan', !ap.error && despues.slides[1].markdown.includes('18%') && despues.slides[1].markdown.includes('src: charts/v.amoxvis') && despues.slides[1].markdown.includes('Decir el número.'), ap.error);
+    bien('las demás láminas y la cabecera, byte a byte', despues.slides[0].raw === deck.slides[0].raw && despues.slides[2].raw === deck.slides[2].raw && despues.frontMatterText === deck.frontMatterText);
+    const diseno = dk.aplicarALaminas(DECK, { ...cambio, objetivo: { ...cambio.objetivo, n: 3 }, original: deck.slides[2].raw, lamina: { diseno: 'statement' } });
+    bien('cambiar el diseño conserva el antetítulo (una directiva que el modelo no ve)', parseDeck(diseno.texto).slides[2].layout === 'statement' && parseDeck(diseno.texto).slides[2].eyebrow === 'Anexo');
+    const nueva = { action: 'propose_change', objetivo: { tipo: 'lamina', accion: 'despues_de', n: 1 }, original: deck.slides[0].raw, lamina: { diseno: 'statement', prosa: '## Una sola idea' } };
+    const ins = dk.aplicarALaminas(DECK, nueva);
+    bien('una lámina nueva entra después de su vecina', parseDeck(ins.texto).slides.length === 4 && parseDeck(ins.texto).slides[1].layout === 'statement' && ins.donde.indice === 1);
+    const movido = parseDeck(DECK).slides;
+    const reordenado = [movido[1], movido[0], movido[2]].map(s => s.raw).join('\n\n---\n\n');
+    bien('la lámina se movió: se encuentra por su crudo', dk.ubicarLamina(parseDeck(reordenado).slides, cambio)?.indice === 0);
+    const tocada = DECK.replace('El Sur sube.', 'El Sur sube mucho.');
+    bien('su texto cambió: caducada', dk.ubicarLamina(parseDeck(tocada).slides, cambio) === null);
+    const tc = { toolCallId: 'l1', toolName: 'propose_change', estado: 'propuesta', result: cambio };
+    bien('estado: pendiente / caducada / pendiente si cambió OTRA lámina', prop.estadoDe(tc, DECK) === 'propuesta' && prop.estadoDe(tc, tocada) === 'caducada'
+        && prop.estadoDe(tc, DECK.replace('Ventas netas.', 'Ventas brutas.')) === 'propuesta');
+    bien('un texto que partiría la lámina no se aplica', !!dk.aplicarALaminas(DECK, { ...cambio, lamina: { prosa: '## A\n\n---\n\n## B' } }).error);
+    bien('describir y la lista de cambios', dk.describirLamina(cambio) === 'Change to slide 2' && dk.describirLamina(nueva) === 'New slide after slide 1'
+        && dk.cambiosDeLamina(deck.slides[2], { lamina: { diseno: 'statement', notas: 'x' } }).join('|') === 'Layout: content → statement|Speaker notes');
+    const lp = dk.laminaPropuesta(DECK, nueva);
+    bien('la lámina propuesta, leída como la lee el Studio', lp?.layout === 'statement' && lp.markdown.includes('Una sola idea'));
+}
+
+console.log('\nE4 · el deck en el servidor');
+{
+    const estructura = { ...dk.estructuraDeDeck(parseDeck(DECK)), graficos: { 'charts/v.amoxvis': { tipo: 'bar', titulo: 'Ventas por región', x: 'region', y: ['venta'], consulta: 'SELECT region, sum(v) AS venta FROM ventas GROUP BY 1' } } };
+    const a = prepararArchivo({ filePath: 'ventas.amoxdeck', fileType: 'amoxdeck', contenido: DECK, estructura });
+    bien('el deck va por láminas: diseño, gráficos con lo que muestran, consultas', a.porLaminas && !a.porLineas && a.puedeProponer
+        && a.contenido.includes('### Slide 2 · layout finding · charts: charts/v.amoxvis (bar chart, "Ventas por región", x: region, y: venta)')
+        && a.contenido.includes('Layouts available:') && a.contenido.includes('Queries of the charts'), a.contenido.slice(0, 400));
+    const o = politica.sanearOpciones({ mode: 'assistant', filePath: 'ventas.amoxdeck', fileType: 'amoxdeck', currentQuery: DECK, foco: { lamina: { n: 2 }, deck: estructura } }, 'ollama');
+    bien('el foco: la lámina 2', o.enfoque?.lamina?.n === 2 && o.enfoque.lamina.diseno === 'finding');
+    const p = buildSystemPrompt({ ...o, modelProfile: { tier: 'high' } });
+    bien('el prompt: lámina por lámina, la activa, y propone por láminas', p.includes('Active deck (ventas.amoxdeck), slide by slide') && p.includes('**Where the user is:** slide 2 (layout finding')
+        && p.includes('proposes ONE slide change') && !p.includes('**write_file**: proposes'));
+    const t = createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant', archivo: a });
+    bien('deck: propose_change sí, write_file no', !!t.propose_change && !t.write_file);
+    const pc = (args) => t.propose_change.execute({ summary: '', ...args }, {});
+    const c = await pc({ target: { kind: 'slide', slide: 2 }, text: '## El Sur crece un 18%\n\nY arrastra al resto.' });
+    bien('cambiar la lámina 2: su texto y su crudo de ahora', c.objetivo?.tipo === 'lamina' && c.objetivo.n === 2 && c.lamina.prosa.includes('18%') && c.original.includes('src: charts/v.amoxvis') && c.lamina.graficos === undefined, JSON.stringify(c));
+    bien('un diseño que no existe: error con la lista', /not a layout/.test((await pc({ target: { kind: 'slide', slide: 2 }, layout: 'hero' })).error || ''));
+    bien('un gráfico que no existe: error', /do not exist/.test((await pc({ target: { kind: 'slide', slide: 2 }, charts: ['charts/nada.amoxvis'] })).error || ''));
+    bien('un --- en el texto: error', /splits the slide/.test((await pc({ target: { kind: 'slide', slide: 2 }, text: '## A\n---\n## B' })).error || ''));
+    bien('un bloque amoxchart en el texto: error', /Put charts in/.test((await pc({ target: { kind: 'slide', slide: 2 }, text: '## A\n```amoxchart\nsrc: x\n```' })).error || ''));
+    bien('sin cambios: error', /nothing to change/.test((await pc({ target: { kind: 'slide', slide: 2 }, layout: 'finding' })).error || ''));
+    bien('una lámina que no existe: error', /no slide 9/.test((await pc({ target: { kind: 'slide', slide: 9 }, text: 'x' })).error || ''));
+    const n = await pc({ target: { kind: 'new_slide', after_slide: 3 }, layout: 'actions', text: '## Qué proponemos', charts: ['charts/v.amoxvis'] });
+    bien('una lámina nueva al final, con un gráfico que existe', n.objetivo?.accion === 'despues_de' && n.objetivo.n === 3 && n.lamina.diseno === 'actions' && n.lamina.graficos[0] === 'charts/v.amoxvis', JSON.stringify(n));
+    const ap = dk.aplicarALaminas(DECK, c);
+    bien('lo que propone el servidor lo aplica el cliente', parseDeck(ap.texto).slides[1].markdown.includes('18%') && parseDeck(ap.texto).slides[1].markdown.includes('src: charts/v.amoxvis'));
+    // Un modelo local de 2B mandó `target: "4"` (visto en la app): se acepta.
+    const esq = t.propose_change.inputSchema;
+    bien('objetivo como número suelto, sin kind o con números como texto: se entiende', esq.parse({ target: '4', text: 'x' }).target.slide === 4
+        && esq.parse({ target: { after_slide: '2' }, text: 'x' }).target.kind === 'new_slide' && esq.parse({ target: { slide: 3 } }).target.kind === 'slide');
+    const tcu = createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant', archivo: prepararArchivo({ filePath: 'v.sqlnb', fileType: 'sqlnb', contenido: 'x', estructura: { celdas: [{ n: 1, tipo: 'sql', texto: 'SELECT 1' }] } }) });
+    bien('…y en el notebook (celda «2» → { kind: cell, cell: 2 })', tcu.propose_change.inputSchema.parse({ target: '2', new_text: 'x' }).target.kind === 'cell');
+    bien('sin estructura (un cliente viejo), el deck sigue con write_file', !!createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant', archivo: prepararArchivo({ filePath: 'd.amoxdeck', fileType: 'amoxdeck', contenido: DECK }) }).write_file);
+}
+
+console.log('\nE4 · el gráfico por paneles (cliente)');
+const gr = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/grafico.js')).href);
+const { escribirAmoxvis } = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/DataVisualizer/vega/figura.js')).href);
+const CONFIG = { chartType: 'bar', xAxisKey: 'region', yAxisKeys: ['venta'], chartTitle: 'Ventas', query: 'SELECT region, venta, mes FROM v' };
+const COLS = [{ name: 'region', type: 'VARCHAR' }, { name: 'venta', type: 'DOUBLE' }, { name: 'mes', type: 'DATE' }];
+{
+    const est = gr.estructuraDeGrafico({ config: CONFIG, columnas: COLS, etapa: 'story' });
+    bien('la estructura: paneles elegidos, columnas, etapa; sin filas', est.paneles.xAxisKey === 'region' && est.paneles.chartTitle === 'Ventas' && !('chartType' in est.paneles)
+        && est.columnas[2].type === 'DATE' && est.etapa === 'story' && est.tipos.includes('line') && !est.tipos.includes('bar-stacked') && est.claves.highlightConfig === 'object' && !('data' in est));
+    bien('la tabla de capacidades: el resalte no se dibuja en un donut', est.admite.resalte.includes('bar') && !est.admite.resalte.includes('donut'));
+    const v1 = gr.validarCambios(CONFIG, { chartType: 'bar-stacked', sortMode: 'y-desc' }, COLS);
+    bien('un tipo compuesto pasa a tipo + apilado', v1.cambios.chartType === 'bar' && v1.cambios.barStackMode === 'stack' && !v1.errores.length);
+    bien('una columna que no está: error', gr.validarCambios(CONFIG, { xAxisKey: 'pais' }, COLS).errores.some(e => /pais is not a column/.test(e)));
+    bien('un panel que el tipo no dibuja: error', gr.validarCambios(CONFIG, { chartType: 'donut', highlightConfig: { type: 'max' } }, COLS).errores.some(e => /does not draw highlightConfig/.test(e)));
+    bien('apagar un panel que no se dibuja sí vale', !gr.validarCambios({ ...CONFIG, chartType: 'donut' }, { highlightConfig: { type: 'none' } }, COLS).errores.length);
+    bien('un valor del tipo equivocado y una clave que no existe: error', gr.validarCambios(CONFIG, { limit: '10', color: 'red' }, COLS).errores.length === 2);
+    const mezcla = gr.aplicarCambios(CONFIG, { highlightConfig: { type: 'exact', value: 'Sur' } });
+    bien('un objeto se mezcla con el de hoy (conserva su color)', mezcla.highlightConfig.type === 'exact' && mezcla.highlightConfig.value === 'Sur' && !!mezcla.highlightConfig.color);
+    const r = { action: 'propose_change', objetivo: { tipo: 'paneles' }, cambios: { chartType: 'line', takeaway: 'El Sur lidera' }, original: { chartType: 'bar', takeaway: '' } };
+    bien('vigente si esos paneles siguen igual; caduca si alguien tocó uno', gr.vigenteEnGrafico(CONFIG, r) && !gr.vigenteEnGrafico({ ...CONFIG, takeaway: 'otra' }, r) && gr.vigenteEnGrafico({ ...CONFIG, chartTitle: 'Otro' }, r));
+    const texto = JSON.stringify(escribirAmoxvis(CONFIG));
+    const tc = { toolCallId: 'g1', toolName: 'propose_change', estado: 'propuesta', result: r };
+    bien('estado sobre el archivo .amoxvis', prop.estadoDe(tc, texto) === 'propuesta' && prop.estadoDe(tc, JSON.stringify(escribirAmoxvis({ ...CONFIG, chartType: 'area' }))) === 'caducada');
+    bien('la lista de lo que cambia', gr.describirCambios(r).join(' | ') === 'Type: “bar” → “line” | Takeaway: — → “El Sur lidera”', gr.describirCambios(r).join(' | '));
+    bien('la línea del chat', gr.describirGrafico(r) === 'Change to the chart: Type, Takeaway');
+    const arch = await import(pathToFileURL(path.join(RAIZ, 'client/src/components/ai/archivos/index.js')).href);
+    bien('el inicio del gráfico, con la pregunta de la etapa', arch.inicioDe({ type: 'amoxvis', path: 'v.amoxvis', content: '{}', foco: { grafico: { etapa: 'story' } } })[0]?.etiqueta === 'Write the takeaway');
+    bien('el inicio del deck, con la lámina', arch.inicioDe({ type: 'amoxdeck', path: 'd.amoxdeck', content: DECK, foco: { lamina: { n: 2 } } })[0]?.etiqueta === 'Tighten this slide');
+}
+
+console.log('\nE4 · el gráfico en el servidor');
+{
+    const estructura = gr.estructuraDeGrafico({ config: CONFIG, columnas: COLS, etapa: 'type' });
+    const a = prepararArchivo({ filePath: 'charts/v.amoxvis', fileType: 'amoxvis', contenido: '{"mark":"bar"}', estructura });
+    bien('el gráfico va por paneles y SÍ propone', a.porPaneles && a.puedeProponer && a.contenido.includes('Chart type: bar') && a.contenido.includes('region (VARCHAR)') && a.contenido.includes('"chartTitle": "Ventas"'));
+    bien('sin estructura, un gráfico no propone (como antes)', !prepararArchivo({ filePath: 'v.amoxvis', fileType: 'amoxvis', contenido: '{}' }).puedeProponer);
+    const o = politica.sanearOpciones({ mode: 'assistant', filePath: 'charts/v.amoxvis', fileType: 'amoxvis', currentQuery: '{}', foco: { grafico: estructura } }, 'ollama');
+    const p = buildSystemPrompt({ ...o, modelProfile: { tier: 'high' } });
+    bien('el prompt: el gráfico por sus paneles y la etapa', p.includes('Active chart (charts/v.amoxvis)') && p.includes('the type stage of Story Flow') && p.includes('Never write the .amoxvis JSON by hand'));
+    const t = createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant', archivo: a });
+    bien('gráfico: propose_change sí, write_file no', !!t.propose_change && !t.write_file);
+    const pc = (args) => t.propose_change.execute({ summary: '', ...args }, {});
+    const c = await pc({ target: { kind: 'panels', changes: { chartType: 'bar-horizontal', sortMode: 'y-desc', highlightConfig: { type: 'max' } } } });
+    bien('paneles: los cambios y lo que había', c.objetivo?.tipo === 'paneles' && c.cambios.chartType === 'bar-horizontal' && c.original.chartType === 'bar' && c.original.sortMode === 'x-asc', JSON.stringify(c));
+    bien('una columna que no está: error', /pais is not a column/.test((await pc({ target: { kind: 'panels', changes: { xAxisKey: 'pais' } } })).error || ''));
+    bien('un donut no dibuja resaltes: error', /does not draw highlightConfig/.test((await pc({ target: { kind: 'panels', changes: { chartType: 'donut', highlightConfig: { type: 'max' } } } })).error || ''));
+    bien('sin cambios: error', /nothing to change/.test((await pc({ target: { kind: 'panels', changes: { chartType: 'bar' } } })).error || ''));
+    bien('un spec fuera de la vista Code: error', /only proposed in the Code view/.test((await pc({ target: { kind: 'spec', vega_lite: { mark: 'line' } } })).error || ''));
+    const ac = prepararArchivo({ filePath: 'charts/v.amoxvis', fileType: 'amoxvis', contenido: '{}', estructura: { ...estructura, vista: 'codigo' } });
+    const tc2 = createTools({ dbManager: null, queryResults: new Map(), projectPath: P, mode: 'assistant', archivo: ac });
+    const sp = await tc2.propose_change.execute({ summary: '', target: { kind: 'spec', vega_lite: { mark: 'line', encoding: { x: { field: 'mes', type: 'temporal' }, y: { field: 'venta', type: 'quantitative' } } } } }, {});
+    bien('en la vista Code, un spec que compila', sp.objetivo?.tipo === 'spec' && sp.spec.data.name === 'dataset', JSON.stringify(sp).slice(0, 200));
+    bien('un spec con un campo que no está: error', /not in the result: pais/.test((await tc2.propose_change.execute({ summary: '', target: { kind: 'spec', vega_lite: { mark: 'bar', encoding: { x: { field: 'pais', type: 'nominal' } } } } }, {})).error || ''));
+    bien('gráfico: un objetivo sin kind con claves de Story Flow son cambios de paneles', t.propose_change.inputSchema.parse({ target: { chartType: 'line' } }).target.changes.chartType === 'line');
+    const v = gr.validarCambios(CONFIG, c.cambios, COLS);
+    bien('lo que propone el servidor lo valida igual el cliente', !v.errores.length && gr.aplicarCambios(CONFIG, v.cambios).highlightConfig.type === 'max');
 }
 
 // ── 6. El servidor ──────────────────────────────────────────────────────────
