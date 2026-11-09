@@ -725,7 +725,7 @@ class ChainExecutor extends EventEmitter {
         const config = this.applyVars(node.config || {}, vars);
         const out = this.physName(chainFile, node.id);
         const src0 = sources[0];
-        const fromSrc = src0 ? `(${src0})` : '(SELECT NULL /* connect an upstream node */)';
+        const fromSrc = src0 ? `(${src0})` : '(SELECT NULL::VARCHAR AS no_input /* connect an upstream node */)';
 
         switch (node.type) {
             case 'sql_inline':
@@ -748,7 +748,7 @@ class ChainExecutor extends EventEmitter {
             case 'publicar': {
                 // El SQL equivalente es la escritura; el renombrado, la
                 // comprobación de esquema y el registro los hace AmoxSQL.
-                const q = config.query || src0 || '(SELECT NULL)';
+                const q = config.query || src0 || '(SELECT NULL::VARCHAR AS no_input)';
                 const formato = config.formato === 'csv' ? 'csv' : 'parquet';
                 const archivo = String(config.archivo || '').trim() || `${config.fuente || 'published'}.${formato}`;
                 const destino = `${String(config.carpeta || '').replace(/[\\/]+$/, '').replace(/\\/g, '/')}/${archivo}`;
@@ -789,11 +789,11 @@ class ChainExecutor extends EventEmitter {
             }
             case 'create_table': {
                 const tbl = config.tableName || 'new_table';
-                const q = config.query || src0 || '(SELECT NULL)';
+                const q = config.query || src0 || '(SELECT NULL::VARCHAR AS no_input)';
                 return `CREATE OR REPLACE TABLE "${tbl}" AS ${q}`;
             }
             case 'export_file': {
-                const q = config.query || src0 || '(SELECT NULL)';
+                const q = config.query || src0 || '(SELECT NULL::VARCHAR AS no_input)';
                 const fmt = config.format || 'csv';
                 const p = (config.outputPath || '').replace(/\\/g, '/');
                 const partCols = Array.isArray(config.partitionBy) ? config.partitionBy : (config.partitionBy ? String(config.partitionBy).split(',').map(s => s.trim()).filter(Boolean) : []);
@@ -861,7 +861,7 @@ class ChainExecutor extends EventEmitter {
                 if (!keys.length) return `CREATE OR REPLACE TABLE "${out}" AS SELECT DISTINCT * FROM ${fromSrc} AS _src`;
                 const part = keys.map(k => `"${k}"`).join(', ');
                 const order = config.keep === 'last' ? 'DESC' : 'ASC';
-                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * EXCLUDE (_rn) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY ${part} ORDER BY rowid ${order}) AS _rn FROM ${fromSrc} AS _src) WHERE _rn = 1`;
+                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * EXCLUDE (_rn, _orden) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY ${part} ORDER BY _orden ${order}) AS _rn FROM (SELECT *, row_number() OVER () AS _orden FROM ${fromSrc} AS _src0) AS _src) WHERE _rn = 1`;
             }
             case 'add_column': {
                 const cols = config.newColumns || [];
@@ -878,7 +878,7 @@ class ChainExecutor extends EventEmitter {
             case 'sample': {
                 const v = parseInt(config.sampleValue) || 100;
                 if (config.sampleType === 'percent') return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM ${fromSrc} AS _src USING SAMPLE ${Math.min(v, 100)}%`;
-                if (config.sampleType === 'stratified' && config.strataColumn) return `CREATE OR REPLACE TABLE "${out}" AS SELECT * EXCLUDE (_rn) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY "${config.strataColumn}" ORDER BY random()) AS _rn FROM ${fromSrc} AS _src) WHERE _rn <= ${v}`;
+                if (config.sampleType === 'stratified' && config.strataColumn) return `CREATE OR REPLACE TABLE "${out}" AS SELECT * EXCLUDE (_rn, _azar) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY "${config.strataColumn}" ORDER BY _azar) AS _rn FROM (SELECT *, random() AS _azar FROM ${fromSrc} AS _src0) AS _src) WHERE _rn <= ${v}`;
                 return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM ${fromSrc} AS _src LIMIT ${v}`;
             }
             case 'pivot': {
@@ -888,7 +888,7 @@ class ChainExecutor extends EventEmitter {
             case 'unpivot': {
                 const vc = (config.valueColumns || []).map(c => `"${c}"`).join(', ');
                 if (!vc) return null;
-                return `CREATE OR REPLACE TABLE "${out}" AS UNPIVOT ${fromSrc} ON (${vc}) INTO NAME "${config.nameColumn || 'variable'}" VALUE "${config.valueColumn || 'value'}"`;
+                return `CREATE OR REPLACE TABLE "${out}" AS UNPIVOT ${fromSrc} ON ${vc} INTO NAME "${config.nameColumn || 'variable'}" VALUE "${config.valueColumn || 'value'}"`;
             }
             case 'type_cast': {
                 const casts = config.casts || [];
@@ -1853,7 +1853,7 @@ class ChainExecutor extends EventEmitter {
                 } else {
                     const partitionBy = keyColumns.map(c => `"${c}"`).join(', ');
                     const order = keepPolicy === 'last' ? 'DESC' : 'ASC';
-                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY ${partitionBy} ORDER BY rowid ${order}) AS _rn FROM (${sourceQuery}) AS _src) WHERE _rn = 1`;
+                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * EXCLUDE (_rn, _orden) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY ${partitionBy} ORDER BY _orden ${order}) AS _rn FROM (SELECT *, row_number() OVER () AS _orden FROM (${sourceQuery}) AS _src0) AS _src) WHERE _rn = 1`;
                 }
                 await dbManager.query(sql);
                 // Remove helper column if present
@@ -1941,7 +1941,7 @@ class ChainExecutor extends EventEmitter {
                 if (sampleType === 'percent') {
                     sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src USING SAMPLE ${Math.min(sampleValue, 100)}%`;
                 } else if (sampleType === 'stratified' && config.strataColumn) {
-                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * EXCLUDE (_rn) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY "${config.strataColumn}" ORDER BY random()) AS _rn FROM (${sourceQuery}) AS _src) WHERE _rn <= ${sampleValue}`;
+                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * EXCLUDE (_rn, _azar) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY "${config.strataColumn}" ORDER BY _azar) AS _rn FROM (SELECT *, random() AS _azar FROM (${sourceQuery}) AS _src0) AS _src) WHERE _rn <= ${sampleValue}`;
                 } else {
                     sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src LIMIT ${sampleValue}`;
                 }
@@ -2088,7 +2088,7 @@ class ChainExecutor extends EventEmitter {
                 if (valueColumns.length === 0) throw new Error('Unpivot node: at least one value column is required');
 
                 const valCols = valueColumns.map(c => `"${c}"`).join(', ');
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS UNPIVOT (${sourceQuery}) ON (${valCols}) INTO NAME "${nameColumn}" VALUE "${valueColumn}"`;
+                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS UNPIVOT (${sourceQuery}) ON ${valCols} INTO NAME "${nameColumn}" VALUE "${valueColumn}"`;
                 await dbManager.query(sql);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
                 resultType = 'table_created';
