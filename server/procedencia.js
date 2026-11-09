@@ -133,8 +133,8 @@ async function anotar(db, referencia, { origen, archivos = [], fuente = null, ho
 async function deLasTablas(db) {
     const q = (sql) => (db.systemQuery ? db.systemQuery(sql) : db.query(sql));
     const filas = await q(
-        `SELECT schema_name, table_name, comment FROM duckdb_tables()
-         WHERE comment LIKE '%"amoxsql":"procedencia"%' AND database_name <> 'fuentes'`
+        `SELECT table_schema AS schema_name, table_name, table_comment AS comment FROM ${require('./esquemas').TABLAS} AS t
+         WHERE table_type <> 'VIEW' AND table_comment LIKE '%"amoxsql":"procedencia"%' AND table_catalog <> 'fuentes'`
     );
     const r = {};
     for (const f of filas) {

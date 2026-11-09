@@ -56,6 +56,7 @@ const amoxvis = require('./amoxvis');
 const borradores = require('./borradores');
 
 const planDeEjecucion = require('./planDeEjecucion');
+const esquemas = require('./esquemas');
 const app = express();
 const PORT = 3001;
 
@@ -738,14 +739,15 @@ app.get('/api/db/version', async (req, res) => {
 app.get('/api/db/tables', async (req, res) => {
     try {
         const tables = await dbManager.systemQuery(
-            `SELECT table_schema, table_name, table_type FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`,
+            `SELECT table_catalog, table_schema, table_name, table_type FROM ${esquemas.TABLAS} AS t WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`,
             { lane: 'meta' }
         );
 
+        const lit = (v) => `'${String(v).replace(/'/g, "''")}'`;
         const result = [];
         for (const t of tables) {
             const columns = await dbManager.systemQuery(
-                `SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '${t.table_name}' AND table_schema = '${t.table_schema}'`,
+                `SELECT column_name, data_type FROM ${esquemas.COLUMNAS} AS c WHERE table_catalog = ${lit(t.table_catalog)} AND table_name = ${lit(t.table_name)} AND table_schema = ${lit(t.table_schema)} ORDER BY ordinal_position`,
                 { lane: 'meta' }
             );
             result.push({ name: t.table_name, schema: t.table_schema, type: t.table_type, columns });
@@ -764,9 +766,9 @@ app.get('/api/db/schemas', async (req, res) => {
         const rows = await dbManager.systemQuery(
             `SELECT t.table_schema, t.table_name, t.table_type,
                     c.column_name, c.data_type
-             FROM information_schema.tables t
-             LEFT JOIN information_schema.columns c
-                    ON c.table_schema = t.table_schema AND c.table_name = t.table_name
+             FROM ${esquemas.TABLAS} t
+             LEFT JOIN ${esquemas.COLUMNAS} c
+                    ON c.table_catalog = t.table_catalog AND c.table_schema = t.table_schema AND c.table_name = t.table_name
              WHERE ${userTablesWhereClause('t.table_schema', 't.table_name')}
              ORDER BY t.table_schema, t.table_name, c.ordinal_position`,
             { lane: 'meta' }
@@ -818,9 +820,9 @@ app.get('/api/db/er-schema', async (req, res) => {
         const rows = await dbManager.systemQuery(
             `SELECT t.table_schema, t.table_name, t.table_type,
                     c.column_name, c.data_type, c.is_nullable, c.column_default
-             FROM information_schema.tables t
-             LEFT JOIN information_schema.columns c
-                    ON c.table_schema = t.table_schema AND c.table_name = t.table_name
+             FROM ${esquemas.TABLAS} t
+             LEFT JOIN ${esquemas.COLUMNAS} c
+                    ON c.table_catalog = t.table_catalog AND c.table_schema = t.table_schema AND c.table_name = t.table_name
              WHERE ${userTablesWhereClause('t.table_schema', 't.table_name')}${schemaFilter}
                AND t.table_catalog <> 'temp'   -- las vistas que deja cada celda del cuaderno no son el modelo
              ORDER BY t.table_schema, t.table_name, c.ordinal_position`
@@ -863,7 +865,9 @@ app.get('/api/db/er-schema', async (req, res) => {
         const result = [];
         for (const entry of Object.values(tableMap)) {
             const constraints = [];
-            for (const c of todas.filter(x => x.table_name === entry.name && x.schema_name === entry.schema)) {
+            // duckdb_constraints() da el último nombre del esquema (sin el padre).
+            const hoja = esquemas.partes(entry.schema).pop();
+            for (const c of todas.filter(x => x.table_name === entry.name && x.schema_name === hoja)) {
                 const cols = Array.isArray(c.cols) ? c.cols : [];
                 const refs = Array.isArray(c.ref_cols) ? c.ref_cols : [];
                 cols.forEach((col, i) => constraints.push({
@@ -1022,7 +1026,7 @@ app.post('/api/db/table-details', async (req, res) => {
     if (!tableName) return res.status(400).json({ error: 'Table name required' });
 
     // Schema-qualified reference — handles tables in non-default schemas (e.g. main_gold)
-    const ref = schema ? `"${schema}"."${tableName}"` : `"${tableName}"`;
+    const ref = esquemas.referencia(schema, tableName);
 
     try {
         // 1. Schema & Metadata
@@ -1078,7 +1082,7 @@ app.post('/api/db/import', async (req, res) => {
     if (!filePath || !tableName) return res.status(400).json({ error: 'File path and table name required' });
 
     // Optional target schema — create it if needed and qualify the new table
-    const target = schema && schema !== 'main' ? `"${schema}"."${tableName}"` : `"${tableName}"`;
+    const target = schema && schema !== 'main' ? esquemas.referencia(schema, tableName) : esquemas.referencia(null, tableName);
 
     let fullSourcePath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
     fullSourcePath = fullSourcePath.replace(/\\/g, '/');
@@ -1091,7 +1095,9 @@ app.post('/api/db/import', async (req, res) => {
 
     try {
         if (schema && schema !== 'main') {
-            await dbManager.systemQuery(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+            // Un esquema anidado (`ventas.crudo`) se crea nivel a nivel.
+            const niveles = esquemas.partes(schema);
+            for (let i = 1; i <= niveles.length; i++) await dbManager.systemQuery(`CREATE SCHEMA IF NOT EXISTS ${esquemas.citarRuta(niveles.slice(0, i).map(n => `"${n.replace(/"/g, '""')}"`).join('.'))}`);
         }
         if (cleanColumns) {
             const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
@@ -2311,7 +2317,7 @@ async function listAllTableNames() {
     if (_tableNamesCache && (now - _tableNamesCacheTime) < TABLE_CONTEXT_TTL) return _tableNamesCache;
     try {
         const rows = await dbManager.systemQuery(
-            `SELECT table_name FROM information_schema.tables
+            `SELECT table_name FROM ${esquemas.TABLAS} AS t
              WHERE ${userTablesWhereClause()} AND table_type = 'BASE TABLE'
              ORDER BY table_name`,
             { lane: 'meta' }
@@ -2356,8 +2362,8 @@ async function buildTableContext(contextTables = null) {
 
     try {
         let query = `
-            SELECT table_schema, table_name
-            FROM information_schema.tables
+            SELECT table_catalog, table_schema, table_name
+            FROM ${esquemas.TABLAS} AS t
             WHERE ${userTablesWhereClause()}
             AND table_type = 'BASE TABLE'
         `;
@@ -2396,15 +2402,15 @@ async function buildTableContext(contextTables = null) {
             [colRows, sizeRows] = await Promise.all([
                 dbManager.systemQuery(
                     `SELECT table_schema, table_name, column_name, data_type
-                     FROM information_schema.columns
+                     FROM ${esquemas.COLUMNAS} AS c
                      WHERE table_schema || '.' || table_name IN (${keyList})
                      ORDER BY table_schema, table_name, ordinal_position`,
                     { lane: 'meta' }
                 ),
                 dbManager.systemQuery(
-                    `SELECT schema_name, table_name, estimated_size
-                     FROM duckdb_tables()
-                     WHERE schema_name || '.' || table_name IN (${keyList})`,
+                    `SELECT table_schema AS schema_name, table_name, estimated_size
+                     FROM ${esquemas.TABLAS} AS t
+                     WHERE table_type = 'BASE TABLE' AND table_schema || '.' || table_name IN (${keyList})`,
                     { lane: 'meta' }
                 ),
             ]);
@@ -3084,7 +3090,7 @@ app.get('/api/ai/preguntas-sugeridas', async (req, res) => {
         let columnas = [];
         try {
             const filas = await dbManager.systemQuery(
-                `SELECT table_name, column_name, data_type FROM information_schema.columns WHERE ${userTablesWhereClause()} ORDER BY table_name, ordinal_position`,
+                `SELECT table_name, column_name, data_type FROM ${esquemas.COLUMNAS} AS c WHERE ${userTablesWhereClause()} ORDER BY table_name, ordinal_position`,
                 { lane: 'meta' },
             );
             columnas = filas.map(f => ({ tabla: f.table_name, columna: f.column_name, tipo: String(f.data_type || '') }));
@@ -5229,7 +5235,7 @@ app.post('/api/notebook-state', async (req, res) => {
 app.get('/api/schema', async (req, res) => {
     try {
         const tables = await dbManager.systemQuery(
-            `SELECT table_schema as schema, table_name as name FROM information_schema.tables WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`
+            `SELECT table_schema as schema, table_name as name FROM ${esquemas.TABLAS} AS t WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`
         );
         res.json(tables);
     } catch (err) {
@@ -6288,11 +6294,11 @@ app.get('/api/chains/preview/:tableName', async (req, res) => {
         }
         if (!schema) {
             const found = await db.query(
-                `SELECT table_schema FROM information_schema.tables WHERE table_name = '${bare.replace(/'/g, "''")}' ORDER BY (table_schema = 'main') DESC LIMIT 1`
+                `SELECT table_schema FROM ${esquemas.TABLAS} AS t WHERE table_name = '${bare.replace(/'/g, "''")}' ORDER BY (table_schema = 'main') DESC LIMIT 1`
             );
             schema = found[0]?.table_schema || 'main';
         }
-        const qref = `"${schema}"."${bare}"`;
+        const qref = esquemas.referencia(schema, bare);
         const rows = await db.query(`SELECT * FROM ${qref} LIMIT ${limit}`);
         const countResult = await db.query(`SELECT COUNT(*) as cnt FROM ${qref}`);
         const totalRows = countResult[0]?.cnt || 0;

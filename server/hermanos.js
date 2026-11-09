@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const workspaces = require('./workspaces');
 const { baseDelProyecto } = require('./ejecucion/ContextoDeEjecucion');
+const esquemas = require('./esquemas');
 
 /** Los alias adjuntados aquí, para dejarlos fuera del árbol de la base propia. */
 const adjuntados = new Set();
@@ -105,8 +106,8 @@ async function soltar(dbManager, alias) {
 async function tablas(dbManager, alias) {
     const filas = await dbManager.query(
         `SELECT t.table_schema AS esquema, t.table_name AS nombre, t.table_type AS tipo, c.column_name AS columna, c.data_type AS dato
-         FROM information_schema.tables t
-         LEFT JOIN information_schema.columns c
+         FROM ${esquemas.TABLAS} t
+         LEFT JOIN ${esquemas.COLUMNAS} c
            ON c.table_catalog = t.table_catalog AND c.table_schema = t.table_schema AND c.table_name = t.table_name
          WHERE t.table_catalog = ${literal(alias)} AND t.table_schema NOT IN ('information_schema', 'pg_catalog')
            AND t.table_schema NOT LIKE 'amoxsql%' AND t.table_name NOT LIKE 'amox\\_%' ESCAPE '\\'

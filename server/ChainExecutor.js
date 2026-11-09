@@ -472,7 +472,7 @@ class ChainExecutor extends EventEmitter {
         if (!output) return null;
         if (output.table) {
             // Honor an explicit schema (e.g. a Table Reference to a non-main table)
-            const ref = output.schema ? `"${output.schema}"."${output.table}"` : `"${output.table}"`;
+            const ref = require("./esquemas").referencia(output.schema || null, output.table);
             return `SELECT * FROM ${ref}`;
         }
         if (output.view) return `SELECT * FROM "${output.view}"`;
@@ -1105,7 +1105,7 @@ class ChainExecutor extends EventEmitter {
         const materializedFallback = (node) => {
             const ref = this.staticOutputRef(node, chainFile);
             return ref && ref.table
-                ? { kind: 'table', ref: ref.schema ? `"${ref.schema}"."${ref.table}"` : `"${ref.table}"` }
+                ? { kind: 'table', ref: require("./esquemas").referencia(ref.schema || null, ref.table) }
                 : { kind: 'none' };
         };
 
@@ -1142,7 +1142,7 @@ class ChainExecutor extends EventEmitter {
             if (node.type === 'table_ref') {
                 const c = this.applyVars(node.config || {}, vars);
                 const r = c.tableName
-                    ? { kind: 'table', ref: c.schema ? `"${c.schema}"."${c.tableName}"` : `"${c.tableName}"` }
+                    ? { kind: 'table', ref: require("./esquemas").referencia(c.schema || null, c.tableName) }
                     : { kind: 'none' };
                 resolved.set(id, r);
                 return r;
@@ -1279,19 +1279,21 @@ class ChainExecutor extends EventEmitter {
                 // lookup preferring main) so non-default schemas work, and validate.
                 let schema = config.schema || null;
                 let bare = tableName;
+                const esquemas = require('./esquemas');
                 if (!schema && tableName.includes('.')) {
-                    const dot = tableName.indexOf('.');
-                    schema = tableName.slice(0, dot);
-                    bare = tableName.slice(dot + 1);
+                    // `esquema.tabla`, o la ruta de un esquema anidado (`ventas.crudo.tabla`).
+                    const trozos = esquemas.partes(tableName);
+                    bare = trozos.pop();
+                    schema = trozos.join('.');
                 }
                 if (!schema) {
                     const found = await dbManager.query(
-                        `SELECT table_schema FROM information_schema.tables WHERE table_name = '${bare.replace(/'/g, "''")}' ORDER BY (table_schema = 'main') DESC LIMIT 1`
+                        `SELECT table_schema FROM ${esquemas.TABLAS} AS t WHERE table_name = '${bare.replace(/'/g, "''")}' ORDER BY (table_schema = 'main') DESC LIMIT 1`
                     );
                     schema = found[0]?.table_schema || null;
                 }
                 if (!schema) throw new Error(`Table "${tableName}" does not exist`);
-                const ref = `"${schema}"."${bare}"`;
+                const ref = esquemas.referencia(schema, bare);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM ${ref}`);
                 const rowCount = countResult[0]?.cnt || 0;
                 sql = `-- Table Reference: ${schema}.${bare}`;

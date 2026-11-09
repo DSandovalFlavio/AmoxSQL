@@ -24,14 +24,16 @@ import { LuWaves, LuHistory as LuVersiones } from 'react-icons/lu';
  * Builds a schema-qualified name: "schema"."table" for non-main schemas, just "table" for main.
  */
 const qualifiedName = (schema, tableName) => {
-    if (!schema || schema === 'main') return `"${tableName}"`;
-    return `"${schema}"."${tableName}"`;
+    if (!schema || schema === 'main') return ident(tableName);
+    return `${identEsquema(schema)}.${ident(tableName)}`;
 };
 
 /** Un identificador entre comillas dobles, con las suyas dobladas. */
-const ident = (n) => `"${String(n).replace(/"/g, '""')}"`;
+function ident(n) { return `"${String(n).replace(/"/g, '""')}"`; }
+/** Un esquema con su ruta: DuckDB 2 anida esquemas y el servidor los da como `ventas.crudo`. */
+function identEsquema(s) { return String(s || 'main').split('.').map(ident).join('.'); }
 /** `schema.tabla` calificado siempre (también `main`): para ALTER y DROP. */
-const calificado = (schema, nombre) => `${ident(schema || 'main')}.${ident(nombre)}`;
+const calificado = (schema, nombre) => `${identEsquema(schema)}.${ident(nombre)}`;
 
 /**
  * Returns a display name for drag/drop and copy operations.
@@ -245,11 +247,11 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     };
 
     const nuevaTabla = (schema = 'main') => {
-        const prefijo = schema && schema !== 'main' ? `${ident(schema)}.` : '';
+        const prefijo = schema && schema !== 'main' ? `${identEsquema(schema)}.` : '';
         onSelectQuery?.(`CREATE TABLE ${prefijo}nueva_tabla (\n    id INTEGER PRIMARY KEY,\n    nombre VARCHAR,\n    creada TIMESTAMP DEFAULT current_timestamp\n);\n\n-- Or from a query:\n-- CREATE TABLE ${prefijo}nueva_tabla AS SELECT * FROM otra_tabla;\n`);
     };
     const nuevaVista = (schema = 'main') => {
-        const prefijo = schema && schema !== 'main' ? `${ident(schema)}.` : '';
+        const prefijo = schema && schema !== 'main' ? `${identEsquema(schema)}.` : '';
         onSelectQuery?.(`CREATE OR REPLACE VIEW ${prefijo}nueva_vista AS\nSELECT *\nFROM tabla\nWHERE true;\n`);
     };
     const nuevoEsquema = async () => {
@@ -267,7 +269,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                 : 'It is empty. This cannot be undone.',
             confirmLabel: 'Drop schema', destructive: true,
         });
-        if (ok) await ejecutar(`DROP SCHEMA ${ident(schema)}${tablas ? ' CASCADE' : ''}`, `Schema "${schema}" dropped`);
+        if (ok) await ejecutar(`DROP SCHEMA ${identEsquema(schema)}${tablas ? ' CASCADE' : ''}`, `Schema "${schema}" dropped`);
     };
 
     /** Abre un menú bajo el botón que se pulsó (los tres puntos o el «+»). */
