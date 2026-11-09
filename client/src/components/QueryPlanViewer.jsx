@@ -85,7 +85,9 @@ function buildHints(root, metrics, mode) {
     if (filterAfterScan) hints.push({ severity: 'mid', text: `A filter drops most rows after scanning ${fmtRows(filterAfterScan.children[0].cardinality)}. Pushing the condition into the source (a WHERE on the table/file) reads far less data.` });
 
     // Full scan with no filter anywhere.
-    const hasFilter = nodes.some((n) => /FILTER/.test(n.name || ''));
+    // The engine pushes a WHERE into the scan itself (extra_info.Filters), with no FILTER node.
+    const hasFilter = nodes.some((n) => /FILTER/.test(n.name || '')
+        || (n.extra_info && typeof n.extra_info === 'object' && String(n.extra_info.Filters ?? n.extra_info.filters ?? '').trim() !== ''));
     const bigScan = nodes.find((n) => isScan(n) && (n.cardinality || n.estimated_cardinality || 0) >= 100000);
     if (bigScan && !hasFilter) hints.push({ severity: 'info', text: `${friendly(bigScan.name)} reads the full source (${fmtRows(bigScan.cardinality || bigScan.estimated_cardinality)} rows) with no filter. If you don't need every row, add a WHERE to read less.` });
 
