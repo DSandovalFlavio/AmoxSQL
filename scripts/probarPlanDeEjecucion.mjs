@@ -85,6 +85,15 @@ try {
     r = await post('/api/db/explain', { query: consulta, mode: 'explain' });
     comprobar('Explain: árbol estimado, sin métricas', !r.error && r.mode === 'explain' && r.metrics === null && nodos(r.plan).some(x => x.estimated_cardinality != null), r.error || JSON.stringify(r).slice(0, 200));
 
+    // 6.0 (O2): la poda. Una tabla guardada en orden se salta bloques con un filtro por esa
+    // columna; la misma en desorden no puede.
+    await post('/api/query', { query: 'CREATE OR REPLACE TABLE ordenada AS SELECT range AS id, range % 97 AS v FROM range(1000000) ORDER BY id' });
+    await post('/api/query', { query: 'CREATE OR REPLACE TABLE revuelta AS SELECT * FROM ordenada ORDER BY hash(id)' });
+    const poda = await post('/api/db/explain', { query: 'SELECT sum(v) FROM ordenada WHERE id < 1000', mode: 'analyze' });
+    comprobar('ordenada: lee menos bloques de los que hay', poda.metrics?.rowGroupsToScan >= 4 && poda.metrics.rowGroupsScanned < poda.metrics.rowGroupsToScan, JSON.stringify(poda.metrics));
+    const sinPoda = await post('/api/db/explain', { query: 'SELECT sum(v) FROM revuelta WHERE id < 1000', mode: 'analyze' });
+    comprobar('revuelta: los lee todos', sinPoda.metrics?.rowGroupsToScan >= 4 && sinPoda.metrics.rowGroupsScanned === sinPoda.metrics.rowGroupsToScan, JSON.stringify(sinPoda.metrics));
+
     r = await post('/api/db/explain', { query: 'CREATE TABLE x AS SELECT 1', mode: 'analyze' });
     comprobar('Analyze de algo que escribe: cae a Explain y lo dice', r.mode === 'explain' && /read-only/.test(r.note || ''), JSON.stringify(r).slice(0, 200));
 

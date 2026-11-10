@@ -91,6 +91,14 @@ function buildHints(root, metrics, mode) {
     const bigScan = nodes.find((n) => isScan(n) && (n.cardinality || n.estimated_cardinality || 0) >= 100000);
     if (bigScan && !hasFilter) hints.push({ severity: 'info', text: `${friendly(bigScan.name)} reads the full source (${fmtRows(bigScan.cardinality || bigScan.estimated_cardinality)} rows) with no filter. If you don't need every row, add a WHERE to read less.` });
 
+    // 6.0 (O2): a filter that could not skip a single block of rows. The engine skips a
+    // row group when its min/max (zone map) rule the filter out; data in random order
+    // on that column has nothing to skip.
+    if (mode === 'analyze' && metrics && hasFilter && metrics.rowGroupsToScan >= 4
+        && metrics.rowGroupsScanned === metrics.rowGroupsToScan) {
+        hints.push({ severity: 'info', text: `The filter could not skip any block of rows (read ${fmtRows(metrics.rowGroupsScanned)} of ${fmtRows(metrics.rowGroupsToScan)} row groups). If you filter by this column often, storing the table sorted by it (CREATE TABLE … AS SELECT … ORDER BY that column) lets the engine skip most of them.` });
+    }
+
     // Expensive sort that isn't a Top-N.
     const sort = nodes.find((n) => n.name === 'ORDER_BY' && typeof n.timing === 'number');
     if (sort && total > 0 && sort.timing / total >= 0.3) hints.push({ severity: 'mid', text: `Sorting is ${((sort.timing / total) * 100).toFixed(0)}% of the run. If you only need the top rows, add ORDER BY … LIMIT so the engine uses a cheaper Top-N.` });

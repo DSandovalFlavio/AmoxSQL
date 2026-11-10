@@ -121,7 +121,7 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query, mode = 'analyze', metric
     const askAi = () => {
         const summary = summarizeTree(planRoot(plan)).join('\n');
         const head = (mode === 'analyze' && metrics)
-            ? `Total latency: ${fmtMs(metrics.latency)} · rows returned: ${metrics.rowsReturned} · rows scanned: ${metrics.rowsScanned} · peak memory: ${fmtBytes(metrics.peakMemory)}\n`
+            ? `Total latency: ${fmtMs(metrics.latency)} · rows returned: ${metrics.rowsReturned} · rows scanned: ${metrics.rowsScanned} · peak memory: ${fmtBytes(metrics.peakMemory)}${metrics.rowGroupsToScan > 0 ? ` · row groups read: ${metrics.rowGroupsScanned} of ${metrics.rowGroupsToScan}` : ''}\n`
             : '';
         const prompt = `Optimize this DuckDB SQL query. Below is the query and its ${mode === 'analyze' ? 'actual (EXPLAIN ANALYZE)' : 'estimated'} execution plan.\n\nQuery:\n\`\`\`sql\n${query}\n\`\`\`\n\nExecution plan:\n\`\`\`\n${head}${summary}\n\`\`\`\n\nSuggest concrete optimizations (query rewrites, predicate pushdown / filters, sorting & limits, join order) and briefly explain why each helps.`;
         window.dispatchEvent(new CustomEvent('amox_ai_prompt', { detail: { prompt } }));
@@ -231,6 +231,13 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query, mode = 'analyze', metric
                         <Metric label="CPU" value={fmtMs(metrics.cpuTime)} />
                         <Metric label="Peak memory" value={fmtBytes(metrics.peakMemory)} />
                         <Metric label="Bytes read" value={fmtBytes(metrics.bytesRead)} />
+                        {/* 6.0 (O2): blocks of rows the engine read out of the ones it had; fewer = it skipped data. */}
+                        {metrics.rowGroupsToScan > 0 && (
+                            <span title="Blocks of rows (row groups) read, out of those in the tables. The engine skips a block when its min/max show no row can match the filter.">
+                                <Metric label="Row groups" value={`${fmtNum(metrics.rowGroupsScanned)} / ${fmtNum(metrics.rowGroupsToScan)}`} />
+                            </span>
+                        )}
+                        {metrics.bytesWritten > 0 && <Metric label="Bytes written" value={fmtBytes(metrics.bytesWritten)} />}
                     </div>
                 )}
 
