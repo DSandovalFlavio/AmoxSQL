@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
     LuHash, LuType, LuCalendar, LuKey, LuToggleLeft, LuLoader, LuMaximize, LuMinimize,
     LuTriangleAlert, LuInfo, LuCircleCheck, LuLightbulb, LuChevronRight, LuChevronDown, LuSparkles,
-    LuDownload, LuChartColumnBig,
+    LuDownload, LuChartColumnBig, LuBraces,
 } from 'react-icons/lu';
 import { useModalA11y } from '../hooks/useModalA11y';
 import FiguraVega from './DataVisualizer/vega/FiguraVega';
@@ -38,9 +38,22 @@ const fmtAxis = (v) => {
 };
 
 // ── Semantic type detection (beyond the raw SQL type) ──
+// The engine's VARIANT type names, in words (UINT64 → integer, BOOL_TRUE → yes/no).
+function tipoLegible(t) {
+    const x = String(t || '').toUpperCase();
+    if (/^BOOL/.test(x)) return 'yes/no';
+    if (/INT/.test(x)) return 'integer';
+    if (/DOUBLE|FLOAT|DECIMAL/.test(x)) return 'decimal';
+    if (/VARCHAR|STRING/.test(x)) return 'text';
+    if (x === 'ARRAY' || x === 'LIST') return 'list';
+    return x.toLowerCase();
+}
+
 function semanticType(col) {
     const name = (col.column || '').toLowerCase();
     const raw = (col.rawType || '').toUpperCase();
+    // 6.0 (O5): a VARIANT (or STRUCT / LIST / MAP) holds nested values, not categories.
+    if (raw === 'VARIANT' || /^(STRUCT|MAP)\(|\[\]$/.test(raw)) return { key: 'nested', label: 'Nested', Icon: LuBraces };
     if (raw.includes('DATE') || raw.includes('TIME')) return { key: 'date', label: 'Date', Icon: LuCalendar };
     if (raw.includes('BOOL')) return { key: 'bool', label: 'Boolean', Icon: LuToggleLeft };
     const looksUnique = col.uniqueCount > 0 && col.total > 20 && col.uniqueCount >= col.total * 0.98;
@@ -337,8 +350,8 @@ const DataProfiler = ({ data, isActive, query }) => {
                             })) : undefined,
                             // 6.0 (O5): a VARIANT column — its keys, in % of rows, with their types.
                             keys: result.visuals?.[colName]?.type === 'keys' ? result.visuals[colName].data.map((k) => ({
-                                value: k.tipos?.length ? `${k.value} · ${k.tipos.map(t => t.toLowerCase()).join(' / ')}` : k.value,
-                                key: k.value, tipos: k.tipos || [], count: k.count,
+                                value: k.tipos?.length ? `${k.value} · ${[...new Set(k.tipos.map(tipoLegible))].join(' / ')}` : k.value,
+                                key: k.value, tipos: [...new Set((k.tipos || []).map(tipoLegible))], count: k.count,
                                 pct: totalRows > 0 ? ((k.count / totalRows) * 100).toFixed(1) : '0',
                             })) : undefined,
                         };

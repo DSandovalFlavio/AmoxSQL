@@ -51,7 +51,7 @@ export default function FormatoDeBase({ refresco, onActualizada }) {
     return (
         <div className="fdb" role="status">
             <LuDatabaseZap size={13} className="fdb-icono" />
-            <span className="fdb-texto">
+            <span className="fdb-texto" title={`${e.nombre} uses the format of AmoxSQL 5 (DuckDB 1). Upgrading makes it smaller and keeps the original next to it.`}>
                 <strong>{e.nombre}</strong> uses AmoxSQL 5's format{e.tamano ? ` · ${mb(e.tamano)}` : ''}
             </span>
             <button type="button" className="fdb-btn" onClick={actualizar} disabled={trabajando}
