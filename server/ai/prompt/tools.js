@@ -10,7 +10,7 @@ function buildToolsSection(enablePlanner, tier, mode) {
 ` : '';
 
     const tools = `## Available Tools
-${plannerTools}- **execute_sql**: Run DuckDB SQL queries against the database
+${plannerTools}- **execute_sql**: Run DuckDB SQL queries against the database. A query estimated to move tens of millions of rows comes back with \`needs_confirmation\`: ask the user before running it with \`confirmed: true\`, or narrow it
 - **list_tables**: See all available tables and views with column/row counts
 - **describe_table**: Get full schema and sample rows from a table or view
 - **attach_file**: Register a CSV, JSON, Parquet, or Excel file as a queryable DuckDB view

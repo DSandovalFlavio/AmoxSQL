@@ -61,11 +61,19 @@ function createTools(context) {
             description: "Execute a DuckDB SQL query to analyze data. Always verify column names with describe_table first. Returns a queryId for display_chart. If a 'join-fanout' warning appears in results, add DISTINCT or GROUP BY — the JOIN produced more rows than expected due to non-unique keys.",
             inputSchema: z.object({
                 query: z.string().describe('Valid DuckDB SELECT statement.'),
+                confirmed: z.preprocess(v => (v === 'true' ? true : v === 'false' ? false : v), z.boolean().optional())
+                    .describe('Only true after the user agreed to run a query that came back with needs_confirmation (it would move tens of millions of rows).'),
             }),
-            execute: async ({ query }) => {
+            execute: async ({ query, confirmed }) => {
                 try {
                     if (!query || typeof query !== 'string') {
                         return { error: 'Invalid query parameter. Expected a SQL string.' };
+                    }
+                    // 6.0 (O6): a query the engine estimates as very large is not run
+                    // until the user agrees (the estimated plan reads no data).
+                    if (confirmed !== true && confirmed !== 'true') {
+                        const pregunta = await require('./costoDeConsulta').antesDeCorrer(db, query);
+                        if (pregunta) return pregunta;
                     }
                     // Cap the result INSIDE DuckDB (LIMIT 501 probe) instead of
                     // materializing millions of rows in JS and slicing after.
