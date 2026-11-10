@@ -802,6 +802,16 @@ app.get('/api/db/schemas', async (req, res) => {
             }
         }
 
+        // 6.0 (O3): los esquemas vacíos también (uno recién creado, o el padre de uno
+        // anidado que sólo tiene subesquemas), de la base abierta.
+        try {
+            const vacios = await dbManager.systemQuery(
+                `SELECT schema_name AS table_schema, '' AS table_name FROM ${esquemas.ESQUEMAS} AS s
+                 WHERE catalog_name = current_database() AND schema_name <> 'main' AND ${userTablesWhereClause('table_schema', 'table_name').replace(/table_catalog/g, 'catalog_name')}`,
+                { lane: 'meta' });
+            for (const v of vacios) if (!schemaMap[v.table_schema]) schemaMap[v.table_schema] = { schema: v.table_schema, tables: {} };
+        } catch { /* sólo los que tienen tablas */ }
+
         // De dónde salió cada tabla (C5): su procedencia y si el archivo cambió.
         let origenes = {};
         try { origenes = await procedencia.deLasTablas(dbManager.lane('meta')); } catch { /* sin procedencias */ }
@@ -1091,7 +1101,7 @@ app.post('/api/db/table-details', async (req, res) => {
 });
 
 app.post('/api/db/import', async (req, res) => {
-    const { filePath, tableName, cleanColumns, schema } = req.body;
+    const { filePath, tableName, cleanColumns, schema, comoVariant } = req.body;
 
     if (!filePath || !tableName) return res.status(400).json({ error: 'File path and table name required' });
 
@@ -1113,7 +1123,12 @@ app.post('/api/db/import', async (req, res) => {
             const niveles = esquemas.partes(schema);
             for (let i = 1; i <= niveles.length; i++) await dbManager.systemQuery(`CREATE SCHEMA IF NOT EXISTS ${esquemas.citarRuta(niveles.slice(0, i).map(n => `"${n.replace(/"/g, '""')}"`).join('.'))}`);
         }
-        if (cleanColumns) {
+        if (comoVariant) {
+            // 6.0 (O5): each record as it is, in one VARIANT column (`datos`): no fixed
+            // columns, so records with different fields don't fail or turn into NULL columns.
+            const lit = fullSourcePath.replace(/'/g, "''");
+            await dbManager.systemQuery(`CREATE OR REPLACE TABLE ${target} AS SELECT json::VARIANT AS datos FROM read_json_objects('${lit}', format = 'auto')`);
+        } else if (cleanColumns) {
             const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
             const selectParts = describe.map(col => {
                 const oldName = col.column_name;
@@ -4446,6 +4461,8 @@ app.post('/api/profile', async (req, res) => {
         const visualQueries = profileData.map(col => {
             const isNumeric = ['INTEGER', 'BIGINT', 'DOUBLE', 'FLOAT', 'DECIMAL', 'HUGEINT', 'TINYINT', 'SMALLINT'].some(t => col.column_type.toUpperCase().includes(t));
             const colName = `"${col.column_name}"`;
+            // 6.0 (O5): a VARIANT's «top values» are whole objects; its keys go below.
+            if (String(col.column_type).toUpperCase() === 'VARIANT') return null;
 
             if (isNumeric) {
                 if (col.min === null || col.max === null || col.min === col.max) return null;
@@ -4488,6 +4505,24 @@ app.post('/api/profile', async (req, res) => {
                     visuals[colName] = { type: 'top', data: res.map(r => ({ value: String(r.val), count: Number(r.count) })) };
                 }
             });
+        }
+
+        // 6.0 (O5): a VARIANT column — which keys its objects have, in how many rows, and
+        // with which types (variant_extract needs a constant key: a second pass).
+        for (const col of profileData.filter(c => String(c.column_type).toUpperCase() === 'VARIANT')) {
+            try {
+                const c = `"${String(col.column_name).replace(/"/g, '""')}"`;
+                const claves = await dbManager.systemQuery(
+                    `SELECT k, count(*) AS n FROM (SELECT unnest(variant_keys(${c})) AS k FROM (${cleanQuery}) AS subq WHERE variant_type(${c}) = 'OBJECT') GROUP BY k ORDER BY n DESC, k LIMIT 30`, opciones);
+                if (!claves.length) continue;
+                const lit = (s) => `'${String(s).replace(/'/g, "''")}'`;
+                const tiposSql = claves.map((r, i) => `list(DISTINCT variant_type(variant_extract(${c}, ${lit(r.k)}))) FILTER (WHERE variant_type(variant_extract(${c}, ${lit(r.k)})) IS NOT NULL) AS t${i}`).join(', ');
+                const tipos = (await dbManager.systemQuery(`SELECT ${tiposSql} FROM (${cleanQuery}) AS subq WHERE variant_type(${c}) = 'OBJECT'`, opciones))[0] || {};
+                visuals[col.column_name] = {
+                    type: 'keys',
+                    data: claves.map((r, i) => ({ value: r.k, count: Number(r.n), tipos: (tipos[`t${i}`] || []).map(String).sort() })),
+                };
+            } catch { /* sin claves: se queda con lo general */ }
         }
 
         // 5. Execute Global & Advanced queries in parallel

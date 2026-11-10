@@ -76,6 +76,10 @@ try {
     comprobar('la descripción de la tabla y de la columna', ped?.descripcion === 'Los pedidos crudos' && ped.columns.find(c => c.column_name === 'importe')?.descripcion === 'En pesos', JSON.stringify(ped));
     comprobar('lo de siempre igual: main con su tabla', arbol.find(s => s.schema === 'main')?.tables.some(t => t.name === 'plana'));
 
+    await sql('CREATE SCHEMA ventas.vacio');
+    const conVacio = (await get('/api/db/schemas')).map(s => s.schema);
+    comprobar('un esquema vacío (recién creado) también sale', conVacio.includes('ventas.vacio') && conVacio.includes('ventas'), JSON.stringify(conVacio));
+    comprobar('  y main vacío no se inventa, ni los internos', conVacio.filter(x => x === 'main').length === 1 && !conVacio.some(x => /^amoxsql/.test(x)), JSON.stringify(conVacio));
     const tablas = await get('/api/db/tables');
     const t2 = tablas.find(t => t.schema === 'compras.crudo' && t.name === 'pedidos');
     comprobar('/api/db/tables: ruta y columnas propias', t2 && t2.columns.map(c => c.column_name).join() === 'otro', JSON.stringify(t2));

@@ -22370,3 +22370,15 @@ tr:hover td {
 }
 .fdb-btn:hover:not(:disabled) { background: var(--hover-bg); }
 .fdb-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* 6.0 (O5): un valor anidado (VARIANT, STRUCT, LIST) como árbol. */
+.rt-cell-peek-arbol { overflow: auto; }
+.aj { font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; color: var(--text-primary); }
+.aj-hijos { padding-left: 14px; border-left: 1px solid var(--border-subtle); margin-left: 4px; }
+.aj-nodo > summary { cursor: pointer; list-style: revert; }
+.aj-clave { color: var(--text-secondary); }
+.aj-resumen { color: var(--text-tertiary); }
+.aj-texto { color: var(--color-success-text, var(--accent-primary)); }
+.aj-numero { color: var(--accent-primary); }
+.aj-logico { color: var(--color-info, var(--accent-primary)); }
+.aj-nulo { color: var(--text-disabled); font-style: italic; }

@@ -261,6 +261,18 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
         if (!n) return;
         if (await ejecutar(`CREATE SCHEMA ${ident(n)}`, `Schema "${n}" created`)) setExpandedSchemas(p => ({ ...p, [n]: true }));
     };
+    // 6.0 (O3): DuckDB 2 nests schemas — `ventas.crudo` lives inside `ventas`.
+    const nuevoSubesquema = async (padre) => {
+        const nombre = await dialog.promptAsync({
+            title: `New schema inside ${padre}`,
+            message: `It is written ${padre}.name — for example, raw data, clean data and deliveries of the same area.`,
+            placeholder: 'raw', confirmLabel: 'Create', validate: (v) => nombreValido(v) || (/\./.test(v) ? 'One level at a time: no dots' : null),
+        });
+        const n = String(nombre || '').trim();
+        if (!n) return;
+        const ruta = `${padre}.${n}`;
+        if (await ejecutar(`CREATE SCHEMA ${identEsquema(padre)}.${ident(n)}`, `Schema "${ruta}" created`)) setExpandedSchemas(p => ({ ...p, [ruta]: true }));
+    };
     const borrarEsquema = async ({ schema, tablas }) => {
         if (schema === 'main') { toast.info('The main schema cannot be dropped.'); return; }
         const ok = await dialog.confirmAsync({
@@ -638,6 +650,11 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     <div className="ctx-menu-item" onClick={() => { const s = menuEsquema.schema; setMenuEsquema(null); nuevaVista(s); }}>
                         <LuEye size={14} /> New view in {menuEsquema.schema}…
                     </div>
+                    {menuEsquema.schema !== 'main' && (
+                        <div className="ctx-menu-item" onClick={() => { const s = menuEsquema.schema; setMenuEsquema(null); nuevoSubesquema(s); }}>
+                            <LuFolderPlus size={14} /> New schema inside {menuEsquema.schema}…
+                        </div>
+                    )}
                     <div className="ctx-menu-item" onClick={() => { const s = menuEsquema.schema; setMenuEsquema(null); onOpenErDiagram?.(s); }}>
                         <LuWorkflow size={14} /> ER Diagram
                     </div>

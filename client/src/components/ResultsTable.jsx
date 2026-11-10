@@ -5,6 +5,7 @@ import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFi
 
 const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
+import ArbolJson from './ArbolJson';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
 import { useToast } from './ToastProvider';
@@ -393,7 +394,8 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
             ? ''
             : (typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val));
         const rect = e.currentTarget.getBoundingClientRect();
-        setCellPeek({ column: col, text, x: rect.left, y: rect.bottom });
+        // 6.0 (O5): a nested value (VARIANT, STRUCT, LIST…) opens as a tree.
+        setCellPeek({ column: col, text, valor: (val && typeof val === 'object') ? val : undefined, x: rect.left, y: rect.bottom });
     };
 
     // Page-size options never let the user pick something that would blow the
@@ -967,8 +969,10 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                                 // Triple-click opens the cell peek: long text (an LLM answer, a
                                                 // JSON blob) is unreadable in a one-line ellipsised cell.
                                                 onClick={(e) => {
-                                                    if (e.detail < 3) return;
-                                                    openCellPeek(e, col, row ? row[col] : null);
+                                                    const v = row ? row[col] : null;
+                                                    // A nested value is unreadable in one line: one click opens its tree.
+                                                    if (e.detail < 3 && !(v && typeof v === 'object')) return;
+                                                    openCellPeek(e, col, v);
                                                 }}
                                                 // Tooltip text is computed lazily, only for the cell actually
                                                 // hovered — not on every render for every cell. With a wide
@@ -1103,13 +1107,17 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                 <LuX size={12} />
                             </button>
                         </div>
-                        <textarea
-                            className="rt-cell-peek-body"
-                            readOnly
-                            value={cellPeek.text}
-                            autoFocus
-                            spellCheck={false}
-                        />
+                        {cellPeek.valor !== undefined ? (
+                            <div className="rt-cell-peek-body rt-cell-peek-arbol"><ArbolJson valor={cellPeek.valor} /></div>
+                        ) : (
+                            <textarea
+                                className="rt-cell-peek-body"
+                                readOnly
+                                value={cellPeek.text}
+                                autoFocus
+                                spellCheck={false}
+                            />
+                        )}
                     </div>
                 </>
             )}

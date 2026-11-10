@@ -185,7 +185,7 @@ const ColumnDetail = ({ col, onPlot }) => {
                 pct: total > 0 ? (c / total) * 100 : null,
             }));
         }
-        const tops = col.topValues || [];
+        const tops = col.keys || col.topValues || [];
         // topValues carries pct already; fall back to the scanned row count.
         const denom = Number(col.total) || tops.reduce((a, t) => a + Number(t.count), 0);
         return tops.map((t) => {
@@ -217,7 +217,7 @@ const ColumnDetail = ({ col, onPlot }) => {
             <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                        {col.dtype === 'numeric' ? 'Value distribution' : 'Top values'}
+                        {col.dtype === 'numeric' ? 'Value distribution' : col.keys ? 'Keys (in how many rows, and their types)' : 'Top values'}
                     </div>
                     {onPlot && (
                         <button
@@ -250,6 +250,8 @@ const ColumnDetail = ({ col, onPlot }) => {
                     <>
                         <StatBlock label="Length min/avg/max" value={`${fmt(col.minLength)} / ${fmt(col.avgLength && col.avgLength.toFixed(1))} / ${fmt(col.maxLength)}`} />
                         {col.topValues && col.topValues[0] && <StatBlock label="Most common" value={`"${col.topValues[0].value}" (${col.topValues[0].pct}%)`} />}
+                        {col.keys && <StatBlock label="Keys" value={`${fmt(col.keys.length)}${col.keys.length >= 30 ? '+' : ''} · ${fmt(col.keys.filter(k => Number(k.pct) >= 99.95).length)} in every row`} />}
+                        {col.keys && col.keys.some(k => k.tipos.length > 1) && <StatBlock label="Mixed types" value={col.keys.filter(k => k.tipos.length > 1).map(k => k.key).slice(0, 4).join(', ')} />}
                     </>
                 )}
             </div>
@@ -332,6 +334,12 @@ const DataProfiler = ({ data, isActive, query }) => {
                             histogram: result.visuals?.[colName]?.type === 'histogram' ? result.visuals[colName].data : undefined,
                             topValues: result.visuals?.[colName]?.type === 'top' ? result.visuals[colName].data.map((tv) => ({
                                 value: tv.value, count: tv.count, pct: totalRows > 0 ? ((tv.count / totalRows) * 100).toFixed(1) : '0',
+                            })) : undefined,
+                            // 6.0 (O5): a VARIANT column — its keys, in % of rows, with their types.
+                            keys: result.visuals?.[colName]?.type === 'keys' ? result.visuals[colName].data.map((k) => ({
+                                value: k.tipos?.length ? `${k.value} · ${k.tipos.map(t => t.toLowerCase()).join(' / ')}` : k.value,
+                                key: k.value, tipos: k.tipos || [], count: k.count,
+                                pct: totalRows > 0 ? ((k.count / totalRows) * 100).toFixed(1) : '0',
                             })) : undefined,
                         };
                         o.semantic = semanticType(o);

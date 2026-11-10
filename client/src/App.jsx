@@ -989,7 +989,7 @@ function App() {
     }
   }, []);
 
-  const performImport = useCallback(async (tableName, cleanColumns, overridePath = null, schema = null) => {
+  const performImport = useCallback(async (tableName, cleanColumns, overridePath = null, schema = null, opciones = {}) => {
     try {
       const finalPath = overridePath || importTargetFile;
       const response = await fetch(`${API_BASE}/api/db/import`, {
@@ -999,7 +999,8 @@ function App() {
           filePath: finalPath,
           tableName: tableName,
           cleanColumns: cleanColumns,
-          schema: schema
+          schema: schema,
+          comoVariant: !!opciones.comoVariant,
         })
       });
       const data = await response.json();
