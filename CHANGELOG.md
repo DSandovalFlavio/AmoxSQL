@@ -7,7 +7,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased] — 6.0: el motor nuevo (DuckDB 2.0)
 
-AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_duckdb_2.md`. Fases 0, 1 y 2 hechas; se publicará con DuckDB 2.0.1.
+AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_duckdb_2.md`. Fases 0 a 3 hechas; se publicará con DuckDB 2.0.1.
 
 ### Cambiado
 - **El motor es DuckDB 2.0.** Las bases que crea AmoxSQL quedan en el formato de 2.0: una 5.x ya no las abre. Las bases que ya existían se siguen abriendo y siguen abriendo en la 5.x aunque la 6.0 escriba en ellas. Las zonas horarias son más rápidas (−39 % en el proyecto de ejemplo) y las bases ocupan menos (−10 a −17 %).
@@ -17,6 +17,11 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 
 ### Nuevo
 - **Variables del proyecto, con `$nombre`.** Se declaran una vez en **SQL Snippets › Variables** (nombre, tipo —texto, número, fecha, sí/no, lista—, valor y para qué sirve) y se usan en cualquier consulta, celda, tarjeta del Canvas o proceso de Data Flow como `WHERE region = $region`, sin comillas a mano y con su tipo; ningún valor puede cambiar la consulta. Se guardan con el proyecto (`.amoxsql/variables.json`), así que un gráfico o un proceso guardado con `$region` sigue funcionando. La barra Variables del editor muestra la misma lista; al escribir `$` el editor las ofrece con su descripción; el Assistant las conoce. `${x}` sigue pegando texto, como antes.
+- **Actualizar el formato de una base de la 5.x.** El explorador lo ofrece (**Upgrade…**): la copia al formato actual —en el ejemplo, de 22,8 MB a 18,3 MB— con todo lo que tenía, y deja la original al lado como `<nombre>.before-6.duckdb`. Nunca es automático: después, la 5.x ya no abre el archivo actualizado.
+- **JSON sin forma fija, como VARIANT.** Al importar un JSON se puede guardar cada registro tal cual en una sola columna (`datos`), aunque los registros no tengan los mismos campos; se lee con `datos.cliente.nombre`. En los resultados, un valor anidado se abre como árbol con un clic, y el perfil dice qué claves hay, en cuántas filas y con qué tipos.
+- **El Assistant pregunta antes de una consulta enorme.** Si el motor estima que movería más de 50 millones de filas, no la corre: dice qué leería y pregunta, o propone acotarla.
+- **El plan de ejecución dice cuántos bloques de filas leyó** de los que había, y cuando un filtro no se salta ninguno sugiere guardar la tabla ordenada por esa columna.
+- **Subesquemas:** **New schema inside…** en el menú de un esquema; los esquemas vacíos también se ven en el explorador.
 - **Esquemas anidados** (`CREATE SCHEMA ventas.crudo`): el explorador, el diagrama ER, la vista de una tabla, el Assistant, Data Flow y la importación los muestran con su ruta (`ventas.crudo`), y dos esquemas «crudo» de padres distintos no se mezclan.
 - **Abrir un lago DuckLake de la 5.x** lo dice: leerlo no lo cambia; la primera escritura lo deja sólo para la 6.
 

@@ -236,6 +236,18 @@ Variables del editor, parámetros del cuaderno y del Canvas y parámetros de Dat
 ### Fase 3 · Lo nuevo que se ve (O2, O3, O4, O5, O6)
 El plan con E/S y poda; el menú de subesquemas; «Actualizar el formato de la base»; VARIANT en importar, la tabla y el perfil; el asistente que estima el costo. → **beta.1**.
 
+#### Resultado de la fase 3 (2026-11-09) — hecha
+
+| # | Qué | Dónde | Visto |
+|---|---|---|---|
+| O2 | «Row groups: leídos / en las tablas» en el plan (y bytes escritos); una pista cuando un filtro no se salta ni un bloque (guardar la tabla ordenada por esa columna) | `QueryPlanModal`, `QueryPlanViewer`; `probarPlanDeEjecucion` (43: una tabla ordenada se salta bloques, una revuelta no) | — |
+| O4 | **Upgrade…** en el explorador para una base de la 5.x: `COPY FROM DATABASE` a un archivo nuevo, la original queda como `<nombre>.before-6.duckdb`, la sesión sigue (vistas temporales incluidas) | `server/formatoDeBase.js`, `FormatoDeBase.jsx`; `probarFormatoDeBase` (14) | En la app: `tienda.duckdb` 22,8 MB → 18,3 MB |
+| O6 | `execute_sql` mira el plan estimado: más de 50 M de filas (lo que leen las hojas o el paso más grande) no corre sin `confirmed: true`; el modelo pregunta o la acota | `server/ai/costoDeConsulta.js`; `probarCostoAsistente` (8) | — |
+| O3 | **New schema inside…** en el menú de un esquema; el explorador enseña también los esquemas vacíos | `DatabaseExplorer.jsx`, `/api/db/schemas`; `probarEsquemasAnidados` (22) | En la app: `staging.crudo` |
+| O5 | Importar un JSON como una columna VARIANT (`datos`); un valor anidado se abre como árbol con un clic; el perfil de un VARIANT dice sus claves, en cuántas filas y con qué tipos (tipos mezclados, aparte) | `/api/db/import` (`comoVariant`), `ImportModal`, `ArbolJson.jsx`, `ResultsTable`, `/api/profile`, `DataProfiler`; `probarVariant` (10) | En la app: el árbol y las claves («total · decimal / text») |
+
+Fuera de esta fase, a propósito: el nodo Flatten de Data Flow con VARIANT (6.x, como decía O5) y la tabla en markdown compacto del modo agente (O6), que no hacía falta: el Assistant ya recibe los resultados recortados.
+
 ### Fase 4 · Cerrar → **6.0.0**
 Docs ES/EN (qué cambió para el usuario, la sintaxis nueva de lambdas, los parámetros), el proyecto de ejemplo rehecho con 2.0 y sus capturas, CHANGELOG, recorrido real con la app instalada. Publicar cuando exista el **2.0.1** de Node o, si tarda, con la 2.0.0 tras una beta probada.
 
@@ -278,3 +290,4 @@ Respondidas el 2026-11-09: el autor aceptó las cuatro recomendaciones.
 | 2026-11-09 | 0 | Motor 2.0.0-r.1 en la rama: carga en Electron 33, suites 70/70 → 67/70 (tres causas, ninguna de fondo), Electron real 106/106, tiempos antes/después, compatibilidad de la base central y de DuckLake, dbt de Python con duckdb 2.0 (bien) y dbt 2.0.11 (trae DuckDB 1.5.4: no abre bases de la 6.0), fixtures del plan |
 | 2026-11-09 | 1 | Plan de ejecución, guarda del SQL generado (4 fallos de Data Flow), esquemas anidados, reintentos HTTP (67 s → 3,7 s), dbt con Python 3.11+ (recorrido real 12/12), lagos de la 5.x y lagos que viajan, el asistente con la documentación 2.0 y **Rewrite the lambda**. Suites 75/75, Electron real 106/106 |
 | 2026-11-09 | 2 | Variables del proyecto con `$nombre` (Dec-98, Dec-99): `server/variables.js`, SQL Snippets › Variables, la barra del editor, completado; `probarVariables` 23/23 |
+| 2026-11-09 | 3 | O2 poda en el plan, O4 actualizar el formato de la base, O6 el Assistant estima el costo, O3 subesquemas, O5 VARIANT para JSON |
