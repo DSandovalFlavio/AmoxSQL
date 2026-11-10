@@ -685,6 +685,12 @@ app.post('/api/db/connect', async (req, res) => {
         if (!readOnly && typeof dbPath === 'string' && /\.ducklake$/i.test(dbPath)) {
             try { aviso = require('./lago').avisoDeFormato(path.isAbsolute(dbPath) ? dbPath : path.join(ROOT_DIR, dbPath)); } catch { /* sin aviso */ }
         }
+        // 6.0 (O4): el formato del archivo, también antes de adjuntarlo.
+        try {
+            const r = typeof dbPath === 'string' && dbPath !== ':memory:' && !/\.ducklake(\.sqlite)?$/i.test(dbPath)
+                ? (path.isAbsolute(dbPath) ? dbPath : path.join(ROOT_DIR, dbPath)) : null;
+            require('./formatoDeBase').recordarAlAbrir(r && fs.existsSync(r) ? r : null);
+        } catch { /* sin formato */ }
         await dbManager.connect(dbPath, ROOT_DIR, { readOnly: !!readOnly });
 
         // Initialize AI persistence schema for this project's database.
@@ -5112,6 +5118,23 @@ app.get('/api/functions/coverage', (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+});
+
+/* --- El formato de la base abierta (6.0, O4) --- */
+
+app.get('/api/db/formato', (req, res) => {
+    res.json(require('./formatoDeBase').estado(dbManager));
+});
+
+app.post('/api/db/formato/actualizar', async (req, res) => {
+    const formato = require('./formatoDeBase');
+    try {
+        const r = await formato.actualizar(dbManager);
+        invalidateTableContextCache();
+        res.json(r);
+    } catch (e) {
+        res.status(e instanceof formato.ErrorDeFormato ? 400 : 500).json({ error: e.message });
     }
 });
 

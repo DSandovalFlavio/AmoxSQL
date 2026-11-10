@@ -14,6 +14,7 @@ import {
 import { useDialog } from './dialogs/DialogProvider';
 import { useToast } from './ToastProvider';
 import DeleteConfirmModal from './DeleteConfirmModal';
+import FormatoDeBase from './FormatoDeBase';
 import FuentesExplorador from './fuentes/FuentesExplorador';
 import OtrosProyectos from './OtrosProyectos';
 import DestinosDeEntrega from './fuentes/DestinosDeEntrega';
@@ -463,6 +464,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     />
                     {/* Y adónde se entrega (D6): las carpetas con nombre de los procesos. */}
                     {!deferredSearchQuery && <DestinosDeEntrega variante="arbol" />}
+                    {/* 6.0 (O4): una base en el formato de la 5.x se puede actualizar. */}
+                    {!deferredSearchQuery && <FormatoDeBase refresco={`${currentDb}|${onRefresh || ''}`} onActualizada={fetchSchemas} />}
                     {/* 5.12 (I8): las versiones del lago abierto */}
                     {!deferredSearchQuery && esLago(currentDb) && <VersionesDelLago refresco={`${currentDb}|${onRefresh || ''}`} onSelectQuery={onSelectQuery} />}
                     {loading && <div className="db-loading">Loading...</div>}

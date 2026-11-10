@@ -22354,3 +22354,19 @@ tr:hover td {
 .vp-btn:hover { background: var(--hover-bg); }
 .vp-btn-primario { background: var(--accent-color-user); color: var(--button-text-color); border-color: transparent; }
 .vp-btn-primario:disabled { opacity: 0.5; cursor: default; }
+
+/* 6.0 (O4): la base abierta está en el formato de la 5.x. */
+.fdb {
+  display: flex; align-items: center; gap: 8px; margin: 6px 10px; padding: 6px 8px;
+  border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--surface-base);
+  font-size: 11px; color: var(--text-secondary);
+}
+.fdb-icono { flex: none; color: var(--accent-primary); }
+.fdb-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fdb-texto strong { color: var(--text-primary); font-weight: 600; }
+.fdb-btn {
+  flex: none; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--accent-primary);
+  background: transparent; color: var(--accent-primary); font: inherit; font-weight: 600; cursor: pointer;
+}
+.fdb-btn:hover:not(:disabled) { background: var(--hover-bg); }
+.fdb-btn:disabled { opacity: 0.6; cursor: default; }
