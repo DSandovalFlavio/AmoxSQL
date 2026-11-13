@@ -44,7 +44,7 @@ export default function Ayuda({ seccion = 'shortcuts', onClose }) {
                             onClick={() => setActiva(id)}
                             className={`stg-tab${activa === id ? ' stg-tab--active' : ''}`}
                         >
-                            <span className="ayuda-tab">
+                            <span className="fila">
                                 <Icono size={16} /> {etiqueta}
                             </span>
                         </div>

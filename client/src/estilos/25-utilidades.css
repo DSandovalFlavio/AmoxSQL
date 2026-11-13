@@ -1,0 +1,28 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   UTILIDADES (6.0, M8 · D6)
+
+   Lo que hasta ahora se escribía en `style={{…}}` una y otra vez: una fila
+   centrada con hueco, una columna, el hueco, el texto que va en segundo plano.
+   Lo nuevo usa estas clases (o una clase en el archivo de su tema) en vez de
+   un estilo en línea; `style` queda para lo que se calcula al pintar (un ancho
+   arrastrado, una posición). `scripts/probarEstilosEnLinea.mjs` no deja que
+   el número de estilos en línea suba; los viejos se quitan al tocar cada
+   componente.
+
+   Van al final de la cascada a propósito: una utilidad gana a la regla del
+   componente con la misma especificidad, que es lo que se espera al ponerla.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.fila { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.columna { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+
+.hueco-0 { gap: 0; }
+.hueco-1 { gap: var(--space-1); }
+.hueco-2 { gap: var(--space-2); }
+.hueco-3 { gap: var(--space-3); }
+.hueco-4 { gap: var(--space-4); }
+.hueco-5 { gap: var(--space-5); }
+.hueco-6 { gap: var(--space-6); }
+
+.texto-secundario { color: var(--text-secondary); }
+.texto-tenue { color: var(--text-muted); }
