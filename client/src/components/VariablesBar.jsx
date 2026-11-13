@@ -81,7 +81,7 @@ export const VariablesPanel = ({ variables, onChange }) => {
                     )}
                     {v.tipo === 'logico' || v.tipo === 'lista' ? (
                         // Edited in SQL Snippets › Variables; the bar keeps the type.
-                        <span className="ep-var-select" title="Edit it in SQL Snippets › Variables">{v.tipo === 'lista' ? 'list' : 'yes/no'}</span>
+                        <span className="ep-var-select" title="Edit it in Library › Snippets › Variables">{v.tipo === 'lista' ? 'list' : 'yes/no'}</span>
                     ) : (
                         <select
                             value={v.type}

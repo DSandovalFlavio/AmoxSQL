@@ -26,6 +26,11 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 - **Abrir un lago DuckLake de la 5.x** lo dice: leerlo no lo cambia; la primera escritura lo deja sólo para la 6.
 - **El gráfico acierta a la primera.** Al abrir el gráfico de un resultado, AmoxSQL mira qué es cada columna: una fecha va al eje X como línea; un ranking o un id no es el eje si hay algo mejor; al eje Y va la medida principal (un importe antes que un conteo, nunca un cociente); una lista larga de categorías sale en barras horizontales, de mayor a menor. Dice lo que eligió («Suggested: …») con **Undo**. Un gráfico ya recordado no se toca.
 
+- **Una barra lateral que se entiende.** Quince iconos sin nombre pasan a siete entradas: **Files**, **Search**, **Data** (base, fuentes y destinos, con Extensions plegadas al final), **Library** (Snippets y variables, Functions, History y Saved, en pestañas), **dbt** (sólo en un proyecto de dbt), **Git** (sólo en un repositorio) y **Deep Dive**. La galería de gráficos y New Data Flow, que eran acciones, quedan en el «+» de las pestañas y en la paleta; la paleta también abre cada panel por su nombre. Los nombres bajo los iconos se pueden mostrar (**Appearance › Activity Bar**). Los atajos no cambian.
+- **El explorador de archivos:** nueve iconos en la cabecera pasan a **+ New** (un menú con cada tipo de archivo y carpeta), Refresh y **…** (orden). El nombre del archivo manda: tamaño y fecha salen al pasar el ratón, o siempre si el panel es ancho.
+- **Amox Dark es el tema de una instalación nueva.** Quien ya eligió un tema lo conserva. El cambio rápido de tema de la paleta va de cualquier oscuro a Amox Light y vuelve a Amox Dark.
+- **La primera serie de un gráfico es el cian de la marca**, no violeta (el violeta pasa a tercero). Va fijo en la paleta, no sale del tema: una figura exportada se ve igual en cualquier sitio. Los gráficos guardados con la paleta por defecto cambian de color al abrirlos.
+
 ### Seguridad
 - **El servidor local sólo atiende a la ventana de AmoxSQL.** Escuchaba en todas las interfaces de red: otra máquina de la red podía consultarlo, y una página web abierta en el navegador también. Ahora escucha sólo en `127.0.0.1`, y rechaza (403) cualquier origen que no sea la app o un `Host` que no sea local. No afecta a otras herramientas locales.
 - Una ruta con apóstrofo ya no rompe (ni altera) el SQL de importar, Data Flow o el modo sin herramientas.
@@ -35,6 +40,7 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 - **Una descarga contra un servidor caído tardaba 67 s en fallar** con DuckDB 2 (reintentaba nueve veces con espera creciente). Ahora 3,7 s; los reintentos largos de lo programado siguen igual.
 - **Data Flow:** la muestra estratificada fallaba con DuckDB 2; **Deduplicate** con columnas clave no corría (ni en la 5.x) y dejaba una columna `_rn`; **Unpivot** de varias columnas no corría (ni en la 5.x); un paso sin entrada creaba una columna sin tipo.
 - **Un lago que viajó con su carpeta** (otra máquina, una carpeta sincronizada) se abre con los datos que tiene al lado, en vez de fallar porque el catálogo recuerda otra ruta.
+- **El editor SQL podía quedarse en blanco** al ejecutar, si la pestaña había cambiado mientras el editor terminaba de cargar (al abrir el proyecto con pestañas restauradas): el editor se quedaba con el modelo de una pestaña que ya no existía y ese modelo se desechaba en el siguiente cambio.
 - **El selector de base** pone primero la última que se usó en el proyecto, ya no ofrece el `.wal` y deja al final, marcados como «backup», los respaldos de **Upgrade…**.
 - **Un doble clic abre el archivo una vez**, no dos pestañas.
 - **El historial de consultas** guarda sólo lo que ejecutas tú (editor y celdas del cuaderno), con tu texto y una vez; las vistas previas, los totales de un gráfico o un deck ya no lo llenan.

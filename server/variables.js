@@ -152,7 +152,7 @@ function explicarError(mensaje) {
     if (!m) return null;
     const nombres = m[1].split(',').map(s => s.trim()).filter(Boolean);
     const lista = nombres.map(n => `$${n}`).join(', ');
-    return `${lista} ${nombres.length === 1 ? 'is not a project variable' : 'are not project variables'}. Declare ${nombres.length === 1 ? 'it' : 'them'} in SQL Snippets › Variables (or the editor's Variables bar).`;
+    return `${lista} ${nombres.length === 1 ? 'is not a project variable' : 'are not project variables'}. Declare ${nombres.length === 1 ? 'it' : 'them'} in Library › Snippets › Variables (or the editor's Variables bar).`;
 }
 
 /** Cómo se describe al Assistant: una línea por variable. */

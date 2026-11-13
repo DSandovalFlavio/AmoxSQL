@@ -1209,6 +1209,19 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                                         </div>
                                     </div>
                                 </div>
+                                <hr className="stg-divider" />
+                                <div>
+                                    <h3 className="stg-section-heading stg-section-heading--mb4">Activity Bar</h3>
+                                    <div className="stg-group">
+                                        <div className="stg-row">
+                                            <div>
+                                                <span className="stg-row-label">Show names under the icons</span>
+                                                <p className="stg-row-desc">Files, Search, Data, Library… written under each icon of the left strip</p>
+                                            </div>
+                                            <Toggle on={!!editorSettings.activityBarLabels} onChange={() => onEditorSettingsChange?.({ activityBarLabels: !editorSettings.activityBarLabels })} />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         )}
 

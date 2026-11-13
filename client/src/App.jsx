@@ -51,7 +51,7 @@ const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
 const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink, LuSearch, LuPin } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink, LuSearch, LuPin, LuLibraryBig, LuChevronRight } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
 // Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
 const FunctionReference   = lazy(() => import('./components/FunctionReference'));
@@ -73,6 +73,20 @@ const PHASE = {
 
 // Check if this window is a pop-out results window
 const isPopoutMode = new URLSearchParams(window.location.search).get('popout') === 'true';
+
+// 6.0 (M3): which strip entry each sidebar panel belongs to.
+const GRUPO_DE_PANEL = {
+  files: 'files', search: 'search',
+  schema: 'data', extensions: 'data',
+  snippets: 'library', functions: 'library', history: 'library', vault: 'library',
+  dbt: 'dbt', git: 'git', deepdive: 'deepdive',
+};
+const PESTANAS_BIBLIOTECA = [
+  { id: 'snippets', label: 'Snippets', icon: LuCode, title: 'SQL snippets and project variables' },
+  { id: 'functions', label: 'Functions', icon: LuSquareFunction, title: 'DuckDB function reference' },
+  { id: 'history', label: 'History', icon: LuHistory, title: 'What you ran' },
+  { id: 'vault', label: 'Saved', icon: LuPackage, title: 'Saved analyses (Analysis Vault)' },
+];
 
 function App() {
   // If this is a pop-out child window, render ONLY the results page
@@ -144,6 +158,24 @@ function App() {
   useEffect(() => {
     setVisitedSidebarTabs(prev => prev.has(activeSidebarTab) ? prev : new Set(prev).add(activeSidebarTab));
   }, [activeSidebarTab]);
+  // 6.0 (M3): the strip shows groups, the panels keep their ids. Library holds four
+  // panels in tabs (it reopens on the last one used); Data holds the schema and,
+  // folded at the bottom, Extensions.
+  const [ultimaBiblioteca, setUltimaBiblioteca] = useState('snippets');
+  useEffect(() => { if (GRUPO_DE_PANEL[activeSidebarTab] === 'library') setUltimaBiblioteca(activeSidebarTab); }, [activeSidebarTab]);
+  const [extensionesAbiertas, setExtensionesAbiertas] = useState(false);
+  // dbt only shows when the folder is a dbt project, Git only when it is a repository.
+  const [proyectoTiene, setProyectoTiene] = useState({ dbt: false, git: false });
+  /**
+   * Open a panel by its id from anywhere (palette, shortcuts): unfolds the sidebar,
+   * and `extensions` is a section of Data, so it opens Data with that section unfolded.
+   */
+  const mostrarPanel = useCallback((id) => {
+    if (id === 'extensions') { setExtensionesAbiertas(true); id = 'schema'; }
+    setSidebarCollapsed(false);
+    setActiveSidebarTab(id);
+  }, []);
+  const abrirGaleria = useCallback(() => setIsGalleryOpen(true), []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(
     () => parseInt(localStorage.getItem('amoxsql-sidebar-width')) || 280
@@ -801,7 +833,8 @@ function App() {
     return [
       ...buildDefaultActions({
         layoutRef,
-        setActiveSidebarTab,
+        setActiveSidebarTab: mostrarPanel,
+        onOpenGallery: abrirGaleria,
         setShowAiSidebar,
         showAiSidebar,
         setIsSettingsOpen,
@@ -1257,6 +1290,32 @@ function App() {
     }
   };
 
+  // A strip entry (6.0, M3): a group opens its last panel; clicking the open group folds the sidebar.
+  const grupoActivo = GRUPO_DE_PANEL[activeSidebarTab] || activeSidebarTab;
+  const handleGrupoClick = (grupo) => {
+    if (grupo === grupoActivo && !sidebarCollapsed) {
+      if (editorSettings.toggleSidebarOnActiveTabClick ?? true) setSidebarCollapsed(true);
+      return;
+    }
+    if (sidebarCollapsed) setSidebarCollapsed(false);
+    setActiveSidebarTab(grupo === 'library' ? ultimaBiblioteca : grupo === 'data' ? 'schema' : grupo);
+  };
+
+  useEffect(() => {
+    if (appPhase !== PHASE.IDE || !projectPath) return;
+    let vivo = true;
+    const mirar = () => Promise.all([
+      fetch(`${API_BASE}/api/dbt/detect`).then(r => r.json()).then(d => !!d?.exists).catch(() => false),
+      fetch(`${API_BASE}/api/git/status`).then(r => r.json()).then(d => !!d?.isRepo).catch(() => false),
+    ]).then(([dbt, git]) => {
+      if (vivo) setProyectoTiene(p => (p.dbt === dbt && p.git === git ? p : { dbt, git }));
+    });
+    mirar();
+    // A `git init` or a new dbt project may happen outside: look again when the window comes back.
+    window.addEventListener('focus', mirar);
+    return () => { vivo = false; window.removeEventListener('focus', mirar); };
+  }, [appPhase, projectPath, fileRefreshTrigger]);
+
   /**
    * `onBuscarProyecto`, con identidad estable.
    *
@@ -1473,107 +1532,33 @@ function App() {
 
           {/* Left Panel Card — Activity Bar + Sidebar unified */}
           <div className="left-panel-card">
-            <div className="activity-bar">
-              <button
-                onClick={() => handleSidebarTabClick('files')}
-                className={`activity-bar-btn ${activeSidebarTab === 'files' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Explorer (Ctrl+Shift+E)"
-              >
-                <LuFolder size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('search')}
-                className={`activity-bar-btn ${activeSidebarTab === 'search' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Search in project (Ctrl+Shift+F)"
-              >
-                <LuSearch size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('schema')}
-                className={`activity-bar-btn ${activeSidebarTab === 'schema' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Database Schema (Ctrl+Shift+D)"
-              >
-                <LuDatabase size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('extensions')}
-                className={`activity-bar-btn ${activeSidebarTab === 'extensions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Extensions"
-              >
-                <LuPuzzle size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('dbt')}
-                className={`activity-bar-btn ${activeSidebarTab === 'dbt' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="DBT Studio"
-              >
-                <LuContainer size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('snippets')}
-                className={`activity-bar-btn ${activeSidebarTab === 'snippets' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="SQL Snippets"
-              >
-                <LuCode size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('functions')}
-                className={`activity-bar-btn ${activeSidebarTab === 'functions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="DuckDB Function Reference"
-              >
-                <LuSquareFunction size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('history')}
-                className={`activity-bar-btn ${activeSidebarTab === 'history' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Query History"
-              >
-                <LuHistory size={20} />
-              </button>
-              {/* Analysis Vault */}
-              <button
-                onClick={() => handleSidebarTabClick('vault')}
-                className={`activity-bar-btn ${activeSidebarTab === 'vault' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Analysis Vault"
-              >
-                <LuPackage size={20} />
-              </button>
-              {/* Source Control */}
-              <button
-                onClick={() => handleSidebarTabClick('git')}
-                className={`activity-bar-btn ${activeSidebarTab === 'git' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Source Control"
-              >
-                <LuGitBranch size={20} />
-              </button>
-              {/* Deep Dive — autonomous analyst conversations */}
-              <button
-                onClick={() => handleSidebarTabClick('deepdive')}
-                className={`activity-bar-btn ${activeSidebarTab === 'deepdive' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Deep Dive — autonomous analyst conversations"
-              >
-                <LuSparkles size={20} />
-              </button>
+            <div className={`activity-bar ${editorSettings.activityBarLabels ? 'activity-bar--nombres' : ''}`}>
+              {/* 6.0 (M3): seven entries instead of fifteen. Each one is a group of the
+                  panels below (GRUPO_DE_PANEL); dbt and Git only when the folder is one.
+                  Chart Gallery and New Data Flow are actions: the "+" of the tabs, a new
+                  file's screen and Ctrl+K have them. */}
+              {[
+                { grupo: 'files', icon: LuFolder, nombre: 'Files', title: 'Files (Ctrl+Shift+E)' },
+                { grupo: 'search', icon: LuSearch, nombre: 'Search', title: 'Search in project (Ctrl+Shift+F)' },
+                { grupo: 'data', icon: LuDatabase, nombre: 'Data', title: 'Data: tables, sources, destinations and extensions (Ctrl+Shift+D)' },
+                { grupo: 'library', icon: LuLibraryBig, nombre: 'Library', title: 'Library: snippets and variables, functions, history, saved analyses' },
+                (proyectoTiene.dbt || grupoActivo === 'dbt') && { grupo: 'dbt', icon: LuContainer, nombre: 'dbt', title: 'DBT Studio' },
+                (proyectoTiene.git || grupoActivo === 'git') && { grupo: 'git', icon: LuGitBranch, nombre: 'Git', title: 'Source Control' },
+                { grupo: 'deepdive', icon: LuSparkles, nombre: 'Deep Dive', title: 'Deep Dive: autonomous analyst conversations' },
+              ].filter(Boolean).map(({ grupo, icon: Icono, nombre, title }) => (
+                <button
+                  key={grupo}
+                  onClick={() => handleGrupoClick(grupo)}
+                  className={`activity-bar-btn ${grupoActivo === grupo && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                  title={title}
+                  aria-label={nombre}
+                >
+                  <Icono size={20} />
+                  {editorSettings.activityBarLabels && <span className="activity-bar-nombre">{nombre}</span>}
+                </button>
+              ))}
 
               <div className="activity-bar-spacer" />
-
-              {/* Chart Gallery */}
-              <button
-                onClick={() => setIsGalleryOpen(true)}
-                className="activity-bar-btn"
-                title="Chart Gallery"
-              >
-                <LuLayoutGrid size={20} />
-              </button>
-
-              {/* New Data Flow */}
-              <button
-                onClick={() => layoutRef.current?.createNew('sqlchain')}
-                className="activity-bar-btn"
-                title="New Data Flow"
-              >
-                <LuLink size={20} />
-              </button>
 
               <div className="activity-bar-separator" />
 
@@ -1594,6 +1579,23 @@ function App() {
             </div>
 
             <div ref={sidebarElRef} className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={sidebarCollapsed ? {} : { width: `${sidebarWidth}px` }}>
+
+            {grupoActivo === 'library' && (
+              <div className="sidebar-pestanas" role="tablist" aria-label="Library">
+                {PESTANAS_BIBLIOTECA.map(({ id, label, title }) => (
+                  <button
+                    key={id}
+                    role="tab"
+                    aria-selected={activeSidebarTab === id}
+                    className={`sidebar-pestana ${activeSidebarTab === id ? 'sidebar-pestana--activa' : ''}`}
+                    onClick={() => setActiveSidebarTab(id)}
+                    title={title}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Content Switcher — keep-alive: cada panel se monta en la primera visita
                 y permanece montado. display:none/flex controla visibilidad. */}
@@ -1618,25 +1620,38 @@ function App() {
               </div>
             )}
 
-            {visitedSidebarTabs.has('schema') && (
-              <div className={activeSidebarTab === 'schema' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'schema' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <DatabaseExplorer
-                  currentDb={currentDb}
-                  onRefresh={refreshDbTrigger}
-                  onTablesLoaded={setAvailableTables}
-                  onSelectQuery={handleCreateSqlTab}
-                  onQualityCheck={handleOpenQualityCheck}
-                  onOpenErDiagram={handleOpenErDiagram}
-                />
+            {/* Data (6.0, M3): the database explorer (tables, sources, destinations) with
+                Extensions folded at the bottom — they belong to the engine and are seldom looked at. */}
+            {(visitedSidebarTabs.has('schema') || visitedSidebarTabs.has('extensions')) && (
+              <div className={grupoActivo === 'data' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: grupoActivo === 'data' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <DatabaseExplorer
+                    currentDb={currentDb}
+                    onRefresh={refreshDbTrigger}
+                    onTablesLoaded={setAvailableTables}
+                    onSelectQuery={handleCreateSqlTab}
+                    onQualityCheck={handleOpenQualityCheck}
+                    onOpenErDiagram={handleOpenErDiagram}
+                  />
+                </div>
+                <div className={`sidebar-seccion-plegable ${extensionesAbiertas ? 'sidebar-seccion-plegable--abierta' : ''}`}>
+                  <button
+                    className="sidebar-seccion-plegable__cabecera"
+                    onClick={() => setExtensionesAbiertas(v => !v)}
+                    aria-expanded={extensionesAbiertas}
+                  >
+                    <LuChevronRight size={12} className="sidebar-seccion-plegable__flecha" />
+                    <LuPuzzle size={13} />
+                    Extensions
+                  </button>
+                  {extensionesAbiertas && (
+                    <div className="sidebar-seccion-plegable__cuerpo">
+                      <ExtensionExplorer />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
-
-            {visitedSidebarTabs.has('extensions') && (
-              <div className={activeSidebarTab === 'extensions' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'extensions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <ExtensionExplorer />
-              </div>
-            )}
-
 
             {visitedSidebarTabs.has('dbt') && (
               <div className={activeSidebarTab === 'dbt' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'dbt' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>

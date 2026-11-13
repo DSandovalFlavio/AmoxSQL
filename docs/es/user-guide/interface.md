@@ -14,23 +14,23 @@ Muestra el **proyecto activo** (nombre · modo de conexión MEM/RO/RW · base) y
 <img src="../../images/user-guide/title-bar-workspace.png" alt="barra de título con el widget del proyecto desplegado" width="100%" />
 
 ### Barra de actividad (extremo izquierdo)
-Iconos que cambian el contenido del panel lateral:
+Siete entradas que cambian el contenido del panel lateral (desde la 6.0; antes eran quince iconos sueltos):
 
 <img src="../../images/user-guide/activity-bar.png" alt="la activity bar con sus iconos resaltados" width="100%" />
 
-| Icono | Panel |
+| Entrada | Qué hay dentro |
 |---|---|
-| Explorer | [Explorador de archivos](../data/file-explorer.md) del proyecto |
-| Database Schema | [Explorador de base de datos](../data/database-explorer.md) (esquemas, tablas, ER) |
-| Extensions | [Extensiones de DuckDB](../data/duckdb-extensions.md) |
-| DBT Studio | [Integración DBT](../dbt/dbt-studio.md) |
-| Snippets | [Fragmentos SQL](../editor/snippets.md) |
-| Query History | [Historial y bookmarks](../editor/history-and-bookmarks.md) |
-| Analysis Vault | [Análisis guardados](../ai/analysis-vault.md) |
-| Source Control | Estado de Git del proyecto |
-| Deep Dive | [Análisis agéntico profundo](../ai/deep-dive.md) |
+| **Files** | El [explorador de archivos](../data/file-explorer.md) del proyecto. **+ New** crea cualquier tipo de archivo o una carpeta; **…** ordena la lista |
+| **Search** | Buscar en todo el proyecto |
+| **Data** | El [explorador de base de datos](../data/database-explorer.md): fuentes, destinos, esquemas y tablas. Abajo, plegadas, las [extensiones de DuckDB](../data/duckdb-extensions.md) |
+| **Library** | Cuatro pestañas: **Snippets** ([fragmentos SQL](../editor/snippets.md) y variables del proyecto), **Functions** (referencia de funciones), **History** ([historial](../editor/history-and-bookmarks.md)) y **Saved** ([análisis guardados](../ai/analysis-vault.md)). Se abre en la última que usaste |
+| **dbt** | [DBT Studio](../dbt/dbt-studio.md). Sólo aparece si la carpeta tiene `dbt_project.yml` |
+| **Git** | Estado de Git del proyecto. Sólo aparece si la carpeta es un repositorio |
+| **Deep Dive** | [Análisis agéntico profundo](../ai/deep-dive.md) |
 
-Abajo: **Chart Gallery**, **New Execution Chain** ([Data Flow](../data-flow/data-flow.md)), colapsar sidebar y **Ajustes**.
+Abajo: plegar el panel lateral (**Ctrl+B**) y **Ajustes**. La **galería de gráficos** y **New Data Flow** ya no están en la barra: son acciones, y siguen en el «+» de las pestañas, en la pantalla de un archivo nuevo y en la paleta (**Ctrl+K**). Desde la paleta también se llega directo a cada panel (por ejemplo «Show Query History», o «Show DBT Studio» aunque la carpeta todavía no sea de dbt).
+
+Si prefieres ver el nombre bajo cada icono: **Ajustes → Appearance → Activity Bar → Show names under the icons**. Los atajos no cambiaron (**Ctrl+Shift+E** archivos, **Ctrl+Shift+F** buscar, **Ctrl+Shift+D** datos).
 
 ### Área de editor (centro)
 Aquí viven las **pestañas**. Cada pestaña es un archivo (`.sql`, `.sqlnb`, `.sqlchain`, `.md`, `.amoxdeck`, `.amoxvis`) o una vista especial (Deep Dive, diagrama ER, linaje DBT). Puedes:
@@ -51,7 +51,7 @@ Aparece al ejecutar una query. Alterna entre **Table**, **Chart** y **Profile**.
 
 ## Apariencia
 
-El tema (claro/oscuro, 10 temas), el color de acento, la tipografía y el zoom se ajustan en **Ajustes → Appearance**. Ver [Temas y apariencia](themes-and-appearance.md).
+El tema (claro/oscuro; desde la 6.0 una instalación nueva empieza en **Amox Dark**), el color de acento, la tipografía y el zoom se ajustan en **Ajustes → Appearance**. Ver [Temas y apariencia](themes-and-appearance.md).
 
 ## Relacionado
 - [Primeros pasos](first-steps.md) · [Proyectos y conexiones](projects-and-connections.md)

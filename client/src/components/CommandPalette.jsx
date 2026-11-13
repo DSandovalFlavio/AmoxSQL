@@ -5,8 +5,10 @@ import {
     LuCode, LuBookOpen, LuSearch, LuActivity, LuCommand,
     LuKeyboard, LuGitBranch, LuZap, LuLifeBuoy, LuShare2,
     LuPresentation, LuChartBar, LuFile, LuTable, LuColumns3, LuLayoutDashboard,
+    LuSquareFunction, LuPackage, LuSparkles, LuLayoutGrid, LuContainer,
 } from 'react-icons/lu';
 import { TOURS, openTour } from './onboarding/tourRegistry';
+import { isLightTheme } from '../theme';
 
 /**
  * Puntua una coincidencia. Empezar por lo escrito vale mas que contenerlo, y
@@ -287,6 +289,7 @@ export function buildDefaultActions({
     setUiZoomLevel,
     setEditorSettings,
     onActivateSkill,
+    onOpenGallery,
 }) {
     const aiSkillActions = onActivateSkill ? [
         {
@@ -319,7 +322,7 @@ export function buildDefaultActions({
         { id: 'save-as', label: 'Save As…', category: 'File', icon: LuSave, shortcut: 'Ctrl+Shift+S', action: () => layoutRef.current?.handleTriggerSaveAs() },
         { id: 'new-sql', label: 'New SQL Query', category: 'File', icon: LuFilePlus, shortcut: 'Ctrl+N', action: () => layoutRef.current?.createNew('sql') },
         { id: 'new-notebook', label: 'New Notebook', category: 'File', icon: LuBookOpen, shortcut: 'Ctrl+Shift+N', action: () => layoutRef.current?.createNew('notebook') },
-        { id: 'new-chain', label: 'New Chain', category: 'File', icon: LuGitBranch, action: () => layoutRef.current?.createNew('sqlchain') },
+        { id: 'new-chain', label: 'New Data Flow', category: 'File', icon: LuGitBranch, action: () => layoutRef.current?.createNew('sqlchain') },
         { id: 'new-deck', label: 'New Report Flow Deck', category: 'File', icon: LuPresentation, action: () => layoutRef.current?.createNew('amoxdeck') },
         { id: 'new-diagram', label: 'New Diagram (AmoxDiagram)', category: 'File', icon: LuShare2, action: () => layoutRef.current?.createNew('amoxdiagram') },
         { id: 'new-canvas', label: 'New Canvas', category: 'File', icon: LuLayoutDashboard, action: () => layoutRef.current?.createNew('amoxcanvas') },
@@ -331,13 +334,22 @@ export function buildDefaultActions({
         { id: 'nav-files', label: 'Show File Explorer', category: 'Navigation', icon: LuFolder, shortcut: 'Ctrl+Shift+E', action: () => setActiveSidebarTab('files') },
         { id: 'nav-schema', label: 'Show Database Schema', category: 'Navigation', icon: LuDatabase, shortcut: 'Ctrl+Shift+D', action: () => setActiveSidebarTab('schema') },
         { id: 'nav-extensions', label: 'Show Extensions', category: 'Navigation', icon: LuPuzzle, action: () => setActiveSidebarTab('extensions') },
+        // 6.0 (M3): these panels live inside Library, Git and Deep Dive; the palette still reaches each one.
+        { id: 'nav-snippets', label: 'Show Snippets and Variables', category: 'Navigation', icon: LuCode, action: () => setActiveSidebarTab('snippets') },
+        { id: 'nav-functions', label: 'Show Function Reference', category: 'Navigation', icon: LuSquareFunction, action: () => setActiveSidebarTab('functions') },
+        { id: 'nav-history', label: 'Show Query History', category: 'Navigation', icon: LuHistory, action: () => setActiveSidebarTab('history') },
+        { id: 'nav-saved', label: 'Show Saved Analyses', category: 'Navigation', icon: LuPackage, action: () => setActiveSidebarTab('vault') },
+        { id: 'nav-git', label: 'Show Source Control', category: 'Navigation', icon: LuGitBranch, action: () => setActiveSidebarTab('git') },
+        { id: 'nav-deepdive', label: 'Show Deep Dive', category: 'Navigation', icon: LuSparkles, action: () => setActiveSidebarTab('deepdive') },
+        ...(onOpenGallery ? [{ id: 'chart-gallery', label: 'Open Chart Gallery', category: 'File', icon: LuLayoutGrid, action: onOpenGallery }] : []),
         { id: 'toggle-ai', label: showAiSidebar ? 'Close Assist' : 'Open Assist', category: 'Navigation', icon: LuBot, shortcut: 'Ctrl+L', action: () => setShowAiSidebar(!showAiSidebar) },
         { id: 'next-tab', label: 'Next Tab', category: 'Navigation', icon: LuCommand, shortcut: 'Ctrl+Tab', action: () => layoutRef.current?.navigateTab(1) },
         { id: 'prev-tab', label: 'Previous Tab', category: 'Navigation', icon: LuCommand, shortcut: 'Ctrl+Shift+Tab', action: () => layoutRef.current?.navigateTab(-1) },
 
         // Settings
         { id: 'settings', label: 'Open Settings', category: 'Settings', icon: LuSettings, shortcut: 'Ctrl+,', action: () => setIsSettingsOpen(true) },
-        { id: 'toggle-theme', label: theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme', category: 'Settings', icon: theme === 'dark' ? LuSun : LuMoon, action: () => setTheme(theme === 'dark' ? 'light' : 'dark') },
+        // Any dark theme goes to the house light one and back (not only Obsidian: since 6.0 the default is Amox Dark).
+        { id: 'toggle-theme', label: isLightTheme(theme) ? 'Switch to Dark Theme' : 'Switch to Light Theme', category: 'Settings', icon: isLightTheme(theme) ? LuMoon : LuSun, action: () => setTheme(isLightTheme(theme) ? 'amoxdark' : 'amoxlight') },
         { id: 'shortcuts', label: 'Show Keyboard Shortcuts', category: 'Settings', icon: LuKeyboard, shortcut: 'Ctrl+Shift+/', action: () => { setIsSettingsOpen(true); setSettingsInitialTab?.('shortcuts'); } },
 
         // View / Appearance
@@ -348,7 +360,7 @@ export function buildDefaultActions({
         { id: 'toggle-wordwrap', label: 'Toggle Editor Word Wrap', category: 'View', icon: LuCode, action: () => setEditorSettings?.(prev => ({...prev, wordWrap: prev.wordWrap === 'on' ? 'off' : 'on'})) },
 
         // DBT
-        { id: 'dbt-panel', label: 'Show DBT Studio', category: 'DBT', icon: LuFolder, action: () => setActiveSidebarTab('dbt') },
+        { id: 'dbt-panel', label: 'Show DBT Studio', category: 'DBT', icon: LuContainer, action: () => setActiveSidebarTab('dbt') },
         // 'DBT: New Model' removed — it only navigated to the panel (no new-model flow was
         // wired), duplicating 'Show DBT Studio'. Re-add with a real action if needed.
 

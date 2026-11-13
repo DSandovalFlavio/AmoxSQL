@@ -108,7 +108,7 @@ try {
     comprobar('cambiar una se ve en la consulta siguiente', r.data?.[0]?.r === 'este', JSON.stringify(r));
     await put('/api/variables', { variables: LISTA.filter(v => v.nombre !== 'minimo') });
     r = await sql('SELECT $minimo AS m');
-    comprobar('quitar una la quita, y el error lo dice en palabras', /\$minimo is not a project variable/.test(r.error || '') && /SQL Snippets › Variables/.test(r.error || ''), JSON.stringify(r));
+    comprobar('quitar una la quita, y el error lo dice en palabras', /\$minimo is not a project variable/.test(r.error || '') && /Library › Snippets › Variables/.test(r.error || ''), JSON.stringify(r));
     await post('/api/db/close', {});
     await abrir();
     r = await sql('SELECT $region AS r, $desde AS d');

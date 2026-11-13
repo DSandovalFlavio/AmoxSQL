@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { marcarPropuestas, conEstado, estadoDe, esArchivoNuevo } from './propuestas';
 import { API_BASE as API } from '../../api.js';
+import { migrateTheme } from '../../theme.js';
 import { guardarBorrador, leerBorrador, borrarBorrador } from '../../utils/borradorDeAnalisis';
 
 /** Stable client-side message id (survives the streaming→historical handoff). */
@@ -615,7 +616,7 @@ export default function useAiChat({
                 const cs = getComputedStyle(document.body);
                 requestBody.uiTheme = {
                     mode: document.body.classList.contains('mode-light') ? 'light' : 'dark',
-                    theme: localStorage.getItem('amoxsql-theme') || 'dark',
+                    theme: migrateTheme(localStorage.getItem('amoxsql-theme')),
                     accent: localStorage.getItem('amoxsql-accent') || 'default',
                     accentColor: cs.getPropertyValue('--accent-primary').trim() || null,
                 };

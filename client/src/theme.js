@@ -43,7 +43,13 @@ const RETIRADOS = {
     ayu: 'amoxdark',
 };
 
-export const migrateTheme = (theme) => RETIRADOS[theme] || theme || 'dark';
+/**
+ * Sin nada guardado (una instalación nueva) el tema es Amox Dark, el de la casa
+ * (6.0, M4.3; auditoría D1). Quien ya eligió uno —incluido Obsidian, `dark`— lo
+ * conserva: sólo cambia el valor por defecto.
+ */
+export const TEMA_POR_DEFECTO = 'amoxdark';
+export const migrateTheme = (theme) => RETIRADOS[theme] || theme || TEMA_POR_DEFECTO;
 
 /** Body class that defines a theme's own surfaces. Default dark = no class. */
 export const themeClassFor = (theme) => {

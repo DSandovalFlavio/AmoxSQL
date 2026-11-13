@@ -13,6 +13,8 @@
 
 ## Temas (10)
 
+Una instalación nueva empieza en **Amox Dark** (desde la 6.0); si ya habías elegido otro tema, se queda el tuyo.
+
 Divididos en dos modos:
 
 - **Oscuros:** **Amox Dark** (insignia, cian/teal), Obsidian, Onyx, **Ayu Dark** (adaptación fiel de la paleta ayu), Nord Dark, Dark Islands.

@@ -1,7 +1,9 @@
 // ─── Color Palettes ─────────────────────────────────────────
 export const COLOR_PALETTES = {
-    // AmoxSQL signature palette (inspired by reference images)
-    default: ['#9b87f5', '#f87171', '#60a5fa', '#fbbf24', '#34d399', '#f472b6', '#a78bfa', '#fb923c'],
+    // AmoxSQL signature palette. 6.0 (D3): the first series is the brand accent
+    // (the default cyan, oklch(0.73 0.155 195)), fixed here so an exported figure
+    // doesn't depend on the theme; the violet moves to third.
+    default: ['#00c4c6', '#f87171', '#9b87f5', '#fbbf24', '#34d399', '#f472b6', '#60a5fa', '#fb923c'],
     // Modern data-viz palettes
     vivid: [
         '#3366CC', '#DC3912', '#FF9900', '#109618', '#990099', '#3B3EAC', '#0099C6',

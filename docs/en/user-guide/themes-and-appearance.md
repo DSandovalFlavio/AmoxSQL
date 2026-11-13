@@ -13,6 +13,8 @@
 
 ## Themes (10)
 
+A new install starts on **Amox Dark** (since 6.0); if you had already chosen another theme, yours stays.
+
 Split into two modes:
 
 - **Dark:** **Amox Dark** (signature, cyan/teal), Obsidian, Onyx, **Ayu Dark** (faithful adaptation of the ayu palette), Nord Dark, Dark Islands.

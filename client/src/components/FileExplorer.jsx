@@ -8,7 +8,7 @@ import {
     LuLayoutList, LuLayers, LuCode, LuColumns3, LuLoader, LuBrain,
     LuFileCode2, LuPackage, LuBot,
     LuFolderInput, LuEyeOff, LuExternalLink, LuScissors, LuCheck, LuSquare, LuSquareCheck, LuFiles, LuSparkles,
-    LuPresentation
+    LuPresentation, LuPlus, LuEllipsis, LuLink
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -459,12 +459,22 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
         return groups;
     })();
 
-    const cycleSortMode = () => {
-        const idx = SORT_MODES.indexOf(sortMode);
-        const next = SORT_MODES[(idx + 1) % SORT_MODES.length];
-        setSortMode(next);
-        localStorage.setItem('amoxsql-fe-sort', next);
+    const elegirOrden = (modo) => {
+        setSortMode(modo);
+        try { localStorage.setItem('amoxsql-fe-sort', modo); } catch { /* sin almacenamiento, sólo esta sesión */ }
     };
+
+    // The header's menus («+ New» and «…»): one open at a time; a click outside or Escape closes it.
+    const [menuCabecera, setMenuCabecera] = useState(null);
+    const menuCabeceraRef = useRef(null);
+    useEffect(() => {
+        if (!menuCabecera) return;
+        const fuera = (e) => { if (!menuCabeceraRef.current?.contains(e.target)) setMenuCabecera(null); };
+        const tecla = (e) => { if (e.key === 'Escape') setMenuCabecera(null); };
+        document.addEventListener('mousedown', fuera);
+        document.addEventListener('keydown', tecla);
+        return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', tecla); };
+    }, [menuCabecera]);
 
     // --- Rename Logic ---
     const startRename = (file) => {
@@ -815,45 +825,79 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
     }, [currentPath]);
 
     return (
-        <div ref={wrapperRef} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div ref={wrapperRef} className="fe-raiz" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header */}
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <LuFolder size={14} /> Files
                 </span>
-                <div className="fe-header-actions">
-                    <button onClick={() => onNewFile(currentPath, 'sql')} title="New SQL File" className="fe-header-btn">
-                        <LuFilePlus size={13} />
-                    </button>
-                    <button onClick={() => onNewFile(currentPath, 'sqlnb')} title="New SQL Notebook" className="fe-header-btn">
-                        <LuBookOpen size={13} />
-                    </button>
-                    <button onClick={() => onNewFile(currentPath, 'md')} title="New Markdown" className="fe-header-btn">
-                        <LuFileText size={13} />
-                    </button>
-                    <button onClick={() => onNewFile(currentPath, 'amoxdeck')} title="New Report Flow Deck" className="fe-header-btn">
-                        <LuPresentation size={13} />
-                    </button>
-                    <button onClick={() => onNewFile(currentPath, 'amoxcanvas')} title="New Canvas" className="fe-header-btn">
-                        <LuLayoutDashboard size={13} />
-                    </button>
-                    <button onClick={() => onNewFile(currentPath, 'amoxdiagram')} title="New diagram (AmoxDiagram)" className="fe-header-btn">
-                        <LuShare2 size={13} />
-                    </button>
-                    <button onClick={() => onNewFolder(currentPath)} title="New Folder" className="fe-header-btn">
-                        <LuFolderPlus size={13} />
-                    </button>
+                {/* 6.0 (M3, U4): nine icons → «+ New», Refresh and «…». The same actions,
+                    named in a menu instead of guessed from a 13px icon. */}
+                <div className="fe-header-actions" ref={menuCabeceraRef}>
                     <button
-                        onClick={cycleSortMode}
-                        title={`Sort: ${SORT_LABELS[sortMode]}`}
-                        className="fe-header-btn"
-                        style={{ color: sortMode !== 'default' ? 'var(--accent-primary)' : undefined }}
+                        onClick={() => setMenuCabecera(m => (m === 'nuevo' ? null : 'nuevo'))}
+                        title="New file or folder"
+                        className="fe-header-nuevo"
+                        aria-haspopup="menu"
+                        aria-expanded={menuCabecera === 'nuevo'}
                     >
-                        {sortMode === 'type' || sortMode === 'extension' ? <LuLayers size={13} /> : <LuLayoutList size={13} />}
+                        <LuPlus size={13} /> New
                     </button>
                     <button onClick={() => fetchFiles(currentPath)} title="Refresh" className="fe-header-btn">
                         <LuRefreshCw size={13} />
                     </button>
+                    <button
+                        onClick={() => setMenuCabecera(m => (m === 'mas' ? null : 'mas'))}
+                        title="More"
+                        className="fe-header-btn"
+                        aria-haspopup="menu"
+                        aria-expanded={menuCabecera === 'mas'}
+                        style={{ color: sortMode !== 'default' ? 'var(--accent-primary)' : undefined }}
+                    >
+                        <LuEllipsis size={14} />
+                    </button>
+                    {menuCabecera === 'nuevo' && (
+                        <div className="fe-header-menu" role="menu">
+                            {[
+                                ['sql', LuFilePlus, 'SQL Query'],
+                                ['sqlnb', LuBookOpen, 'SQL Notebook'],
+                                ['sqlchain', LuLink, 'Data Flow'],
+                                ['amoxdeck', LuPresentation, 'Report Flow deck'],
+                                ['amoxcanvas', LuLayoutDashboard, 'Canvas'],
+                                ['amoxdiagram', LuShare2, 'Diagram'],
+                                ['md', LuFileText, 'Markdown'],
+                            ].map(([tipo, Icono, nombre]) => (
+                                <button key={tipo} role="menuitem" className="fe-header-menu-item"
+                                    onClick={() => { setMenuCabecera(null); onNewFile(currentPath, tipo); }}>
+                                    <Icono size={13} /> {nombre}
+                                </button>
+                            ))}
+                            <div className="fe-header-menu-sep" />
+                            <button role="menuitem" className="fe-header-menu-item"
+                                onClick={() => { setMenuCabecera(null); onNewFolder(currentPath); }}>
+                                <LuFolderPlus size={13} /> Folder
+                            </button>
+                        </div>
+                    )}
+                    {menuCabecera === 'mas' && (
+                        <div className="fe-header-menu fe-header-menu--derecha" role="menu">
+                            <div className="fe-header-menu-titulo">Sort</div>
+                            {SORT_MODES.map(modo => (
+                                <button key={modo} role="menuitemradio" aria-checked={sortMode === modo} className="fe-header-menu-item"
+                                    onClick={() => { setMenuCabecera(null); elegirOrden(modo); }}>
+                                    {sortMode === modo ? <LuCheck size={13} /> : <span style={{ width: 13 }} />} {SORT_LABELS[modo]}
+                                </button>
+                            ))}
+                            {currentPath && (
+                                <>
+                                    <div className="fe-header-menu-sep" />
+                                    <button role="menuitem" className="fe-header-menu-item" onClick={() => { setMenuCabecera(null); handleUp(); }}>
+                                        <LuArrowUp size={13} /> Go up
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -1006,7 +1050,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                         </span>
                                     )}
                                     {(editorSettings?.showFileSizes ?? true) && file.sizeBytes != null && (
-                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '6px', flexShrink: 0 }}>
+                                        <span className="fe-meta" style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '6px', flexShrink: 0 }}>
                                             {formatBytes(file.sizeBytes)}
                                         </span>
                                     )}
@@ -1019,6 +1063,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                         pasar el ratón. */}
                                     {file.mtimeMs != null && (
                                         <span
+                                            className="fe-meta"
                                             style={{ fontSize: '10px', color: 'var(--text-disabled)', marginLeft: '6px', flexShrink: 0 }}
                                             title={new Date(file.mtimeMs).toLocaleString()}
                                         >
