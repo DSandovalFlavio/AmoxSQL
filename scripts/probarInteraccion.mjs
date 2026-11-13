@@ -362,6 +362,24 @@ async function fase2(app) {
       tabla?.click(); await t.dormir(200);
       return { boton: true, svg: !!svg, marcas, error };`);
     bien('la vista de gráfico dibuja la figura', e.boton && e.svg && e.marcas > 0 && !e.error, e);
+
+    // Cada sección de Settings vive en su archivo y se carga al abrirla (6.0, M8).
+    console.log('— Settings, sección a sección');
+    e = await app.js(`
+      window.dispatchEvent(new CustomEvent('amox_abrir_ajustes', { detail: 'appearance' }));
+      for (let i = 0; i < 40 && !document.querySelector('.stg-tab'); i++) await t.dormir(100);
+      const nombres = [...document.querySelectorAll('.stg-tab')].map(x => x.innerText.trim());
+      const vacias = [];
+      const pintar = async () => { for (let i = 0; i < 40; i++) { const b = document.querySelector('.stg-content-body'); if (b && b.innerText.trim().length > 20) return true; await t.dormir(100); } return false; };
+      for (const n of nombres) {
+        [...document.querySelectorAll('.stg-tab')].find(x => x.innerText.trim() === n)?.click();
+        if (!(await pintar())) vacias.push(n);
+        if (n === 'AI') for (const sub of [...document.querySelectorAll('.stg-content-body button')].filter(b => /^(Modes|Models|Knowledge|Skills)$/.test(b.innerText.trim()))) { sub.click(); if (!(await pintar())) vacias.push('AI › ' + sub.innerText.trim()); }
+      }
+      const vivo = !!document.querySelector('.stg-modal');
+      document.querySelector('.stg-close-btn')?.click(); await t.dormir(200);
+      return { secciones: nombres.length, vacias, vivo };`);
+    bien('cada sección se abre y pinta', e.secciones >= 10 && !e.vacias.length && e.vivo, e);
 }
 // ── Fase 3: la ventana emergente ────────────────────────────────────────────
 async function fase3(app) {
