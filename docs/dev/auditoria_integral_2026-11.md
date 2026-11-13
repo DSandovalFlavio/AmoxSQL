@@ -191,10 +191,10 @@ Lo que está bien: resultados por lotes y con tope, consultas por turnos y cance
 | `.sql` | Sólido | F3 (historial), U3 (barra de resultados), R1 (gráfico por defecto) |
 | `.sqlnb` | Funciona | F2, F4, F7, U6 |
 | `.amoxvis` | Muy completo | R1, R2, D3 |
-| `.sqlchain` | Funciona; revisado sólo en código | E2 (SQL duplicado); panel de configuración de 2 448 líneas |
-| `.amoxcanvas` | No recorrido en esta pasada | Tanda 2 |
-| `.amoxdeck` | No recorrido en esta pasada | Tanda 2 |
-| `.amoxdiagram` | No recorrido en esta pasada | Tanda 2 |
+| `.sqlchain` | Funciona; recorrido en la tanda 2 | T1 (se abre al 33 %), T2 (se abre como modificado), T3–T5 |
+| `.amoxcanvas` | Sólido (tanda 2) | T6 (la paleta tapa la primera tarjeta) |
+| `.amoxdeck` | Funciona (tanda 2) | T7 (la lámina se queda en 537×301), T8 |
+| `.amoxdiagram` | Funciona (tanda 2) | T9 (se abre al 42 %), T10 |
 | `.md` | Funciona | F8 (textos en español en el editor) |
 | `.duckdb` | Sólido | F1 |
 
@@ -204,3 +204,47 @@ Lo que está bien: resultados por lotes y con tope, consultas por turnos y cance
 - El formato de los archivos: todos son texto legible y con diff razonable.
 - El modelo «el Assistant propone, tú decides».
 - Las pruebas contra el motor real con casa temporal: son la red que permitió cambiar de motor en dos días.
+
+## 11. Tanda 2 (2026-11-13): lo que la primera pasada no recorrió
+
+**Cómo se hizo.** La app de la rama `claude/v6-duckdb-2` (con M0–M9 dentro), servidor con casa temporal y los proyectos de `scripts/ejemplos/` recreados con el motor de la 6.0 (tienda, marketing y un proyecto dbt), ventana de 1440×900. Cada área se abrió, se usó y se midió en el DOM; lo que se cita con archivo y línea se leyó después en el código.
+
+**Lo que NO se pudo comprobar.** Deep Dive con un modelo real: en la máquina no había proveedor (Ollama parado, sin claves en la casa temporal), así que sólo se vio su arranque y cómo falla sin modelo. dbt no se ejecutó (no se toca el entorno del autor ni se descarga uno): DBT Studio se vio sin correr ningún comando.
+
+### 11.1 Hallazgos
+
+| # | Área | Hallazgo | Gravedad | Fuente |
+|---|---|---|---|---|
+| **T1** | Data Flow | El flujo de ejemplo (8 pasos) se abre al **33 % de zoom**: cada paso mide 61×27 px, su texto queda en ~4 px y los botones del paso (Configure, To here, From here) en 27×7 px. El encuadre inicial mete todo el flujo en el lienzo, que a 1440 px son 675 px (lateral 360 + inspector 380), con un mínimo de 0,2 (`ChainEditor.jsx`, `fitVisible`) | Medio | Visto + medido |
+| **T2** | Data Flow | **Abrir un `.sqlchain` lo marca como modificado.** El efecto de autoguardado (`ChainEditor.jsx:234`) corre al montar y otra vez cuando el lienzo mide los nodos: pone `isDirty` y emite el JSON re-serializado | Medio | Visto + leído |
+| **T3** | Data Flow | La hora de cada línea del registro enseña **sólo los milisegundos** («679»): `ChainLogPanel.jsx:54` pide `fractionalSecondDigits` sin hora, minuto ni segundo | Bajo | Visto + leído |
+| **T4** | Data Flow | El minimapa (202×152, fijo arriba a la izquierda) tapa los primeros pasos, que es donde empieza el flujo; con ocho pasos no aporta. El inspector sin nada elegido ocupa 380 px con una frase | Bajo | Visto + medido |
+| **T5** | Data Flow | El registro enseña por defecto los nombres internos (`__chain_5nqovb_importe`) y el SQL completo de cada paso | Bajo | Visto |
+| **T6** | Canvas | La paleta de herramientas tapa el comienzo de la primera tarjeta: el encuadre no descuenta su ancho | Bajo | Visto + medido |
+| **T7** | Report Flow | La lámina mide **537×301 px en una ventana de 1440×900** (el 12 % de la pantalla); sus textos pequeños quedan en ~4 px y debajo sobran unos 330 px de alto. El ancho se lo llevan el lateral de la app (360), el esquema (~250) y el inspector (232) | Medio | Medido |
+| **T8** | Report Flow | Un aviso mezcla idiomas: «Ojo: One figure would be left…» (`DeckInspector.jsx:467`). En una lámina con gráfico, 12 de las 16 disposiciones llevan ese aviso | Bajo | Visto + leído |
+| **T9** | Diagrama | Igual que T1: 7 cajas al **42 %**, en una franja que usa el 15 % del alto del lienzo | Medio | Visto + medido |
+| **T10** | Diagrama | Las cuatro direcciones son los caracteres «→ ↓ ← ↑», no iconos Lucide | Bajo | Visto |
+| **T11** | DBT Studio | La tira de seis pestañas mide 502 px y se ven 250: **Sources, Lineage y Commands quedan fuera** sin nada que indique que existen | Medio | Medido |
+| **T12** | DBT Studio | La pestaña de linaje, sin manifest, dice «Run "dbt compile" or "dbt run" first» y sólo ofrece **Retry**: no hay botón para compilar desde ahí. El selector de entorno no dice si encontró el dbt elegido ni su versión | Bajo | Visto |
+| **T13** | Operations | Las cifras de arriba dicen «0 today · 0 finished» encima de una bitácora con cuatro ejecuciones terminadas hoy: sólo cuentan las de una programación (`server/api/operacion.js:186`) y la etiqueta no lo dice | Bajo | Visto + leído |
+| **T14** | Operations | La ficha de una ejecución no dice con qué valores de parámetros corrió (el paso se llama «Desde ${desde}») y enseña el proceso con su ruta absoluta | Bajo | Visto |
+| **T15** | Workspaces | **Una entrega vencida desaparece del resumen.** La tarjeta del cliente dice «No due dates» con un proyecto sin entregar cuya fecha pasó hace 738 días: `server/workspaces.js:424` sólo mira las fechas de hoy en adelante. La tarjeta «Where you left off» sí lo avisa | Medio | Visto + leído |
+| **T16** | Workspaces | Las rutas largas se cortan por la derecha, que es la parte que distingue un proyecto de otro. La vista de clientes sólo se alcanza desde la bienvenida | Bajo | Visto |
+| **T17** | Deep Dive | **Sin modelo, la respuesta es «Please select or enter a model name.»** (`useAiChat.js:425`): no dice que no hay ningún proveedor disponible ni lleva a Settings › AI, y la pantalla de inicio no lo avisa antes de preguntar | Medio | Visto + leído |
+| **T18** | Transversal | La pista de un recorrido se compone mal con uno de los nombres: «New to Meet the AI?». La de Data Flow sigue a la vista en pestañas de otro tipo y después de haber ejecutado el flujo | Bajo | Visto |
+| **T19** | Transversal | Al recargar, «Where you left off» se pinta encima del documento que se acaba de restaurar | Bajo | Visto |
+| **T20** | Servidor | Al abrir un proyecto justo después de reiniciar el motor, el registro avisa «[Fuentes] No se pudo montar el catálogo: Schema with name fuentes does not exist» (`server/index.js:406`); se recupera solo, pero es una carrera | Bajo | Visto (registro) |
+
+### 11.2 Lo que está bien
+
+- **Data Flow:** configurar un paso (tarjeta centrada con los datos al lado), ver los datos de un paso sin ejecutar el flujo, y la ejecución completa: ocho pasos, 310 956 filas, un Excel entregado, en 5,5 s.
+- **Canvas:** «Refresh all» actualiza las siete tarjetas en orden de dependencia y dibuja los dos gráficos; abrirlo no lo marca como modificado.
+- **Report Flow:** las seis láminas y su gráfico se pintan a la primera; el esquema, las disposiciones y las notas están donde se esperan.
+- **Operations y la ficha de una ejecución:** se leen de un vistazo (qué leyó, qué dejó, cuánto tardó cada paso, Run again).
+- **Workspaces:** la página de un cliente junta proyectos, fuentes, destinos, calendario y ejecuciones sin ruido.
+- **Deep Dive:** la pantalla de inicio propone preguntas sacadas de las métricas del proyecto, en el idioma del proyecto, y dice de dónde sale cada una.
+
+### 11.3 El patrón que se repite
+
+T1, T7 y T9 son el mismo problema: **los editores con paneles propios no caben al lado del lateral de la app.** A 1440 px, el lateral (360) más los paneles del editor dejan al documento entre el 37 % y el 47 % del ancho, y el encuadre «que quepa todo» lo reduce hasta que no se lee. Arreglarlo una vez —plegar el lateral de la app al abrir uno de estos editores, o un zoom inicial mínimo legible anclado al principio del documento— arregla los tres.
