@@ -22382,3 +22382,17 @@ tr:hover td {
 .aj-numero { color: var(--accent-primary); }
 .aj-logico { color: var(--color-info, var(--accent-primary)); }
 .aj-nulo { color: var(--text-disabled); font-style: italic; }
+
+/* 6.0 (M2): el tipo de gráfico elegido para este resultado, y cómo deshacerlo. */
+.sf-sugerido {
+  display: flex; align-items: center; gap: 8px; margin: -2px 0 10px; padding: 5px 8px;
+  border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--surface-base);
+  font-size: 11px; color: var(--text-secondary);
+}
+.sf-sugerido span { flex: 1; min-width: 0; }
+.sf-sugerido strong { color: var(--text-primary); font-weight: 600; }
+.sf-sugerido button {
+  flex: none; border: none; background: transparent; color: var(--accent-primary);
+  font: inherit; font-weight: 600; cursor: pointer; padding: 0 2px;
+}
+.sf-sugerido button:hover { text-decoration: underline; }

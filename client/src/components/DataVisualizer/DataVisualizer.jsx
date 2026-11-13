@@ -55,6 +55,7 @@ import { temaVega, TOKENS_CLAROS } from './vega/tema';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
 import { StoryFlowGuide } from './StoryFlowGuide';
 import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
+import { perfilarColumnas, ejesPorDefecto, tipoSugerido } from '../../utils/columnas';
 
 // ─── Tab definitions ─────────────────────────────────────────
 const TABS = [
@@ -217,7 +218,7 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null, recordadoCon = null, onAbrirArchivo = null, destinoIa = null, onFoco = null, onAsistir = null }) => {
+const DataVisualizer = memo(({ data, tipos = null, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null, recordadoCon = null, onAbrirArchivo = null, destinoIa = null, onFoco = null, onAsistir = null }) => {
     /**
      * Sin mandos, pero NO empotrada.
      *
@@ -290,22 +291,36 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     // stale axis from a previous query would keep pointing at a column that no
     // longer exists → processChartData returns nothing → the chart shows
     // "No data" until a full app restart. (Reported bug.)
+    // 6.0 (M2, R1/R2): the axes come from what each column IS (utils/columnas.js),
+    // not from its position: «lugar, producto, …» used to chart units by rank.
+    const [sugerido, setSugerido] = useState(null);   // { chartType, motivo, antes }
     useEffect(() => {
         if (columns.length === 0) return;
         const xValid = state.xAxisKey && columns.includes(state.xAxisKey);
         const yValid = state.yAxisKeys?.length > 0 && state.yAxisKeys.every(k => columns.includes(k));
         const spInvalid = state.splitByKey && !columns.includes(state.splitByKey);
         if (xValid && yValid && !spInvalid) return;
-        const x = xValid ? state.xAxisKey : columns[0];
-        // La Y por defecto es la primera columna numérica que NO es la X: con
-        // «mes» (1..12) primero, X e Y salían iguales y la figura sumaba el mes.
-        const numericCols = columns.filter(c => c !== x && !isNaN(Number(data[0][c])));
-        const fallbackY = numericCols.length > 0 ? [numericCols[0]] : [columns.find(c => c !== x) || columns[0]];
+        const perfil = perfilarColumnas(data, tipos);
+        const ejes = ejesPorDefecto(perfil, data);
+        const x = xValid ? state.xAxisKey : (ejes.x || columns[0]);
+        const fallbackY = ejes.y.length && !ejes.y.includes(x) ? ejes.y : [columns.find(c => c !== x) || columns[0]];
         const patch = {
             xAxisKey:  x,
             yAxisKeys: yValid ? state.yAxisKeys : fallbackY,
         };
         if (spInvalid) patch.splitByKey = '';
+        // A brand-new chart (nothing chosen and nothing loaded) also gets the type that
+        // tells this result best — said in one line, with one click to undo it.
+        const nuevo = !xValid && !yValid && !initialChartConfig?.chartType && !lectura;
+        if (nuevo) {
+            if (!state.splitByKey && ejes.partir) patch.splitByKey = ejes.partir;
+            const t = tipoSugerido(perfil, { x, y: patch.yAxisKeys }, data);
+            if (t && t.chartType !== state.chartType) {
+                patch.chartType = t.chartType;
+                if (t.sortMode) patch.sortMode = t.sortMode;
+                setSugerido({ ...t, antes: { chartType: state.chartType, sortMode: state.sortMode } });
+            } else setSugerido(null);
+        } else setSugerido(null);
         setFields(patch);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [columns]);
@@ -519,10 +534,12 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
 
     // First-run Story Flow tour (editor only, not report mode). Rendering +
     // replay are owned by the global OnboardingHost via the tour registry.
+    // 6.0 (M1, F6): only when the chart is actually in view. The visualizer is
+    // mounted with every result, also while the user is looking at the table.
     useEffect(() => {
-        if (sinMandos) return;
+        if (sinMandos || !isActive) return;
         if (!hasSeenTour('storyflow')) openTour('storyflow');
-    }, [sinMandos]);
+    }, [sinMandos, isActive]);
 
     // ── Font family resolution ──
     const fontFamily = useMemo(() => {
@@ -1125,6 +1142,14 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                             </div>
                         ) : null;
                     })()}
+
+                    {/* 6.0 (M2): the type chosen for this result, and the way back. */}
+                    {sugerido && activeTab === 'type' && state.chartType === sugerido.chartType && (
+                        <div className="sf-sugerido" role="status">
+                            <span>Suggested: <strong>{sugerido.motivo}</strong></span>
+                            <button type="button" onClick={() => { setFields(sugerido.antes); setSugerido(null); }}>Undo</button>
+                        </div>
+                    )}
 
                     {/* ── Tab Content ── */}
                     <div style={{ flex: 1, overflowY: 'auto', scrollbarGutter: 'stable', paddingRight: '4px' }}>
