@@ -732,49 +732,6 @@ const conCentral = (fn) => async (req, res) => {
     }
 };
 
-app.get('/api/workspaces', conCentral(async (req) => ({
-    workspaces: await workspaces.listar({ archivados: req.query.archivados === '1' }),
-})));
-app.post('/api/workspaces', conCentral(async (req) => workspaces.crear(req.body || {})));
-app.get('/api/workspaces/:id', conCentral(async (req) => {
-    const w = await workspaces.leer(req.params.id);
-    if (!w) throw new Error('It does not exist.');
-    return w;
-}));
-app.put('/api/workspaces/:id', conCentral(async (req) => {
-    const w = await workspaces.actualizar(req.params.id, req.body || {});
-    if (PROYECTO_ABIERTO) await workspaces.refrescarPolitica(ROOT_DIR);
-    return w;
-}));
-app.post('/api/workspaces/:id/archivar', conCentral(async (req) =>
-    workspaces.archivar(req.params.id, req.body?.archivado !== false)));
-app.get('/api/workspaces/:id/proyectos', conCentral(async (req) => ({
-    proyectos: await workspaces.proyectosDe(req.params.id),
-})));
-
-// Su contexto (B2): archivos de texto, editables sin proyecto abierto.
-app.get('/api/workspaces/:id/contexto', conCentral(async (req) => ({
-    archivos: await workspaces.archivosDeContexto(req.params.id),
-})));
-app.get('/api/workspaces/:id/contexto/archivo', conCentral(async (req) =>
-    workspaces.leerArchivo(req.params.id, req.query.ruta)));
-app.put('/api/workspaces/:id/contexto/archivo', conCentral(async (req) =>
-    workspaces.escribirArchivo(req.params.id, req.body?.ruta, req.body?.texto)));
-app.post('/api/workspaces/:id/contexto/subir-metrica', conCentral(async (req) => {
-    if (!PROYECTO_ABIERTO) throw new Error('Open the project that has the metric.');
-    return workspaces.subirMetrica(req.params.id, ROOT_DIR, req.body?.nombre);
-}));
-
-
-// Exportar e importar un workspace (B6): un .amoxworkspace sin credenciales.
-app.get('/api/workspaces/:id/exportar', conCentral(async (req) => workspaces.exportar(req.params.id)));
-app.post('/api/workspaces-importar/analizar', conCentral(async (req) => workspaces.analizarImportacion(req.body?.contenido)));
-app.post('/api/workspaces-importar', conCentral(async (req) => {
-    const r = await workspaces.importar(req.body?.contenido, req.body?.opciones || {});
-    remontarFuentes();
-    return r;
-}));
-
 
 // La palabra: null mientras el usuario no la haya elegido (pantalla 1).
 app.get('/api/preferencias/etiqueta', conCentral(async () => {
@@ -1004,6 +961,7 @@ app.use(require('./api/proyecto'));
 app.use(require('./api/archivos'));
 app.use(require('./api/fuentes'));
 app.use(require('./api/operacion'));
+app.use(require('./api/workspaces'));
 // ── fin de las rutas por familias ──
 
 // Lo último antes de arrancar: el atrapa-todo de producción responde 404 a
