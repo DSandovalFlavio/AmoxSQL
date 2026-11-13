@@ -169,3 +169,6 @@ Lo que esta pasada no recorrió en pantalla: Data Flow (el panel de configuraci�
 | Fecha | Entrega | Qué |
 |---|---|---|
 | 2026-11-12 | — | Auditoría y plan escritos |
+| 2026-11-12 | M0 | Hecha (c28affa). `server/puerta.js`: escucha en 127.0.0.1, lista de orígenes, `Host` local, CORS con la misma lista. Elegida en vez de un token de sesión: `EventSource`, imágenes y descargas no pueden mandar cabeceras y ningún GET tiene efectos. Rutas con apóstrofo escapadas (importar, Data Flow, modo sin herramientas). `probarServidorCerrado` 14/14 |
+| 2026-11-12 | M1 | Hecha (72cc79c), F1–F11. F3 cambió de diseño: el historial pasa a ser opcional (`historial` en `query`/`queryWithMetadata`) y sólo lo piden el editor y las celdas; `probarSecretos` se ajustó. Guardas nuevas: `probarHistorial`, `probarFormatoCelda`, `probarTextosEnIngles` |
+| 2026-11-12 | M2 | Hecha en parte (035c144): R1 y R2 con `client/src/utils/columnas.js`, 11 de 11 consultas de ejemplo con el gráfico esperado (`probarColumnas`), «Suggested… Undo» verificado en la app. Un borrador de gráfico guardado antes de la 6.0 conserva los ejes viejos (se respeta lo recordado). Pendiente: R3 (Data Profiler y preguntas sugeridas del servidor sobre el mismo módulo) y D3, que espera la decisión 3. 83/83 suites pasan |
