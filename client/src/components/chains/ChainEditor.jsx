@@ -54,7 +54,9 @@ import { fijarProveedorDeFoco, fijarAplicador } from '../../utils/memoriaDePesta
 import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
 import { esDePasos, vigenteEnFlujo, clasificar, fundirPasos, posicionesNuevas, describirPasos } from '../ai/archivos/flujo.js';
 import AntesYPropuesta from '../ai/revision/AntesYPropuesta.jsx';
-import { emitir } from '../../eventos.js';
+import { emitir } from '../../eventos.js';
+import { encuadreLegible } from '../../utils/encuadreLegible';
+import { mismoProceso } from './mismoProceso';
 
 const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave, tabId = null }) => {
     const toast = useToast();
@@ -232,10 +234,13 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave, tab
     // Lo que llegue distinto a la pestaña vino de fuera y se vuelve a leer.
     const emitidoRef = useRef(content);
     useEffect(() => {
-        setIsDirty(true);
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         saveTimerRef.current = setTimeout(() => {
             const chainDef = serialize();
+            // Nada cambió (6.0, M10 · T2): al abrir, el efecto corre al montar y
+            // cuando el lienzo mide los pasos. Sin esto, abrir ya era modificar.
+            if (mismoProceso(chainDef, emitidoRef.current)) return;
+            setIsDirty(true);
             const json = JSON.stringify(chainDef, null, 2);
             emitidoRef.current = json;
             onChange?.(json);
@@ -1134,7 +1139,13 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave, tab
 
         // maxZoom 1: acercar mas del tamano real nunca ayuda a leer un flujo, y
         // con un solo nodo pequeno "lo que quepa" era el zoom maximo (300 %).
-        const vp = getViewportForBounds(bounds, w, h, 0.2, 1, 0.2);
+        // Con `legible` (el encuadre que hace la app sola, 6.0 M10): si todo
+        // cabe sólo por debajo de ZOOM_LEGIBLE, se queda ahí y se ancla al
+        // principio del flujo. El botón Fit sigue encuadrando todo.
+        const vp = opts.legible
+            ? encuadreLegible(bounds, w, h, { relleno: 0.2, maximo: 1 })
+            : getViewportForBounds(bounds, w, h, 0.2, 1, 0.2);
+        if (!vp) return false;
         // El rectangulo libre arranca en la esquina superior izquierda del
         // lienzo, asi que el viewport no necesita desplazamiento adicional.
         setViewport(vp, { duration: opts.duration ?? 220 });
@@ -1152,7 +1163,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave, tab
     useEffect(() => {
         if (!nodesInitialized) return;
         if (fittedForRef.current === filePath) return;
-        if (fitVisible({ duration: 0 })) fittedForRef.current = filePath;
+        if (fitVisible({ duration: 0, legible: true })) fittedForRef.current = filePath;
     }, [nodesInitialized, filePath, fitVisible]);
 
     // Abrir o cerrar la tabla cambia el espacio disponible: se reencuadra para
@@ -1162,7 +1173,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave, tab
     useEffect(() => {
         if (prevPanelOpenRef.current === panelOpen) return;
         prevPanelOpenRef.current = panelOpen;
-        if (fittedForRef.current !== null) fitVisible();
+        if (fittedForRef.current !== null) fitVisible({ legible: true });
     }, [panelOpen, fitVisible]);
 
     // Una fuente se coloca a la izquierda de todo y sin conectar: es un origen

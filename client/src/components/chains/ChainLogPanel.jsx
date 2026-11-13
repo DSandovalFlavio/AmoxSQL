@@ -2,7 +2,15 @@
  * ChainLogPanel — Real-time execution log panel.
  * Shows structured logs per node: SQL executed, timing, row counts, errors.
  */
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
+
+// La hora de una línea: hh:mm:ss.mmm. Con sólo `fractionalSecondDigits`, el
+// navegador escribía sólo los milisegundos («679») (6.0, M10 · T3).
+const HORA = { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 };
+const formatTime = (ts) => {
+    if (!ts) return '';
+    try { return new Date(ts).toLocaleTimeString('en-US', HORA); } catch { return ''; }
+};
 import {
     LuX, LuCopy, LuTrash2, LuChevronDown, LuChevronUp, LuFilter,
     LuInfo, LuCheck, LuTriangleAlert, LuChevronRight,
@@ -22,6 +30,11 @@ const ChainLogPanel = ({ logs = [], isRunning, onClear, collapsed, onToggleColla
     const [pinToBottom, setPinToBottom] = useState(true);
     const [filterType, setFilterType] = useState('all');
     const [showFilter, setShowFilter] = useState(false);
+    // El SQL de cada paso, plegado a una línea (6.0, M10 · T5): con los nombres
+    // internos (`__chain_…`) y la consulta entera, tapaba lo que el registro
+    // cuenta. Un clic lo despliega; copiar el registro copia el SQL completo.
+    const [abiertos, setAbiertos] = useState(() => new Set());
+    const alternar = (id) => setAbiertos(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s; });
 
     // Auto-scroll when pinned
     useEffect(() => {
@@ -39,7 +52,7 @@ const ChainLogPanel = ({ logs = [], isRunning, onClear, collapsed, onToggleColla
 
     const handleCopy = () => {
         const text = filteredLogs.map(l => {
-            const time = l.timestamp ? new Date(l.timestamp).toLocaleTimeString('en-US', { hour12: false, fractionalSecondDigits: 3 }) : '';
+            const time = formatTime(l.timestamp);
             const label = l.nodeLabel ? `[${l.nodeLabel}] ` : '';
             return `${time} ${label}${l.message}`;
         }).join('\n');
@@ -48,12 +61,7 @@ const ChainLogPanel = ({ logs = [], isRunning, onClear, collapsed, onToggleColla
 
     const filteredLogs = filterType === 'all' ? logs : logs.filter(l => l.type === filterType);
 
-    const formatTime = (ts) => {
-        if (!ts) return '';
-        try {
-            return new Date(ts).toLocaleTimeString('en-US', { hour12: false, fractionalSecondDigits: 3 });
-        } catch { return ''; }
-    };
+
 
     if (collapsed) {
         return (
@@ -130,8 +138,9 @@ const ChainLogPanel = ({ logs = [], isRunning, onClear, collapsed, onToggleColla
                                     <span className="chain-log-node-label">[{log.nodeLabel}]</span>
                                 )}
                                 <span
-                                    className={`chain-log-message ${log.type === 'sql' ? 'chain-log-sql' : ''}`}
+                                    className={`chain-log-message${log.type === 'sql' ? ` chain-log-sql${abiertos.has(log.id) ? '' : ' chain-log-sql--plegado'}` : ''}`}
                                     style={{ color: style.color }}
+                                    {...(log.type === 'sql' ? { role: 'button', tabIndex: 0, title: abiertos.has(log.id) ? 'Fold the SQL' : 'Show the whole SQL', onClick: () => alternar(log.id), onKeyDown: (e) => { if (e.key === 'Enter') alternar(log.id); } } : {})}
                                 >
                                     {log.message}
                                 </span>

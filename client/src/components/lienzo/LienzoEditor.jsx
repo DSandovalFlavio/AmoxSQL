@@ -57,6 +57,8 @@ import { PUNTOS_DE_FOTO } from '../../utils/lienzoFile.js';
 const DataVisualizer = lazy(() => import('../DataVisualizer'));
 import './lienzo.css';
 import { emitir } from '../../eventos.js';
+import { encuadreLegible } from '../../utils/encuadreLegible';
+import { useEncuadreInicial } from '../../hooks/useEncuadreInicial';
 
 const TIPOS_DE_NODO = {
     source: TarjetaDatos, query: TarjetaDatos, note: TarjetaNota, text: TarjetaTexto, frame: TarjetaMarco,
@@ -123,6 +125,7 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
     const dialog = useDialog();
     const toast = useToast();
     const flow = useReactFlow();
+    const flujoRef = useRef(null);
 
     // ── El documento ────────────────────────────────────────────────────────
     const leer = (texto) => { try { return { lienzo: leerLienzo(texto), error: null }; } catch (e) { return { lienzo: null, error: e.message }; } };
@@ -452,6 +455,18 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
         };
     }), [vigentes, tarjetas, lienzo, propuestas.acciones]);
     const nodosConFantasmas = useMemo(() => (fantasmas.length ? [...nodos, ...fantasmas] : nodos), [nodos, fantasmas]);
+
+    // El encuadre inicial (6.0, M10 · T6): si el archivo no guarda su vista, el
+    // de «que se lea» — y descontando la paleta de la izquierda, que tapaba la
+    // primera tarjeta. Una vez por archivo, cuando el lienzo tiene tamaño.
+    useEncuadreInicial(flujoRef, flow.viewportInitialized && nodos.length > 0 && !lienzo?.vista, () => {
+        const r = flujoRef.current.getBoundingClientRect();
+        if (r.width < 80 || r.height < 80) return false;
+        const vp = encuadreLegible(flow.getNodesBounds(nodos), r.width, r.height, { relleno: 0.08, maximo: 1, izquierda: 64 });
+        if (!vp) return false;
+        flow.setViewport(vp, { duration: 0 });
+        return true;
+    });
     const bordesFantasma = useMemo(() => vigentes.map((tc) => {
         const o = tc.result.objetivo;
         const desde = o.accion === 'cambiar' ? o.id : o.cerca;
@@ -881,7 +896,7 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
                     )}
                 </div>
 
-                <div className="lz-flujo">
+                <div className="lz-flujo" ref={flujoRef}>
                     <ReactFlow
                         nodes={nodosConFantasmas}
                         edges={bordes}
@@ -896,7 +911,6 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
                         onPaneClick={() => { setSeleccion(null); setEditando(null); setMenuConexion(null); }}
                         onMoveEnd={(_, v) => { vistaRef.current = v; }}
                         defaultViewport={lienzo.vista ? { x: lienzo.vista.x, y: lienzo.vista.y, zoom: lienzo.vista.zoom } : undefined}
-                        fitView={!lienzo.vista}
                         nodesDraggable={presentando === null}
                         elementsSelectable={presentando === null}
                         panOnDrag={presentando === null}

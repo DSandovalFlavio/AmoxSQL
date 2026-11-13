@@ -1694,7 +1694,7 @@
   color: var(--text-muted);
   font-size: 11px;
   white-space: nowrap;
-  min-width: 78px;
+  min-width: 86px;
 }
 
 .chain-log-prefix {
@@ -1717,6 +1717,15 @@
   font-family: var(--font-mono);
   font-size: 11px;
   white-space: pre-wrap;
+}
+/* 6.0 (M10 · T5): plegado a una línea hasta que se pide entero. */
+.chain-log-sql { cursor: pointer; }
+.chain-log-sql--plegado {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  opacity: 0.75;
 }
 
 .chain-log-scroll-bottom {
