@@ -374,6 +374,7 @@
 .dgm-dir {
     flex: 1; height: 27px; border: 1px solid var(--border-subtle); border-radius: 6px;
     background: none; color: var(--text-secondary); cursor: pointer; font-size: 13px;
+    display: inline-flex; align-items: center; justify-content: center;   /* el icono, centrado (6.0, M10 · T10) */
 }
 .dgm-dir:hover { border-color: var(--border-strong); }
 .dgm-dir--on { border-color: var(--accent-primary); background: color-mix(in oklch, var(--accent-primary) 10%, transparent); color: var(--accent-primary); }

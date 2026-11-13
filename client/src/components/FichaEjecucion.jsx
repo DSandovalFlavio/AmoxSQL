@@ -19,6 +19,14 @@ import { marcarVistas } from './operacion/Atencion';
 import CompararEntrega from './CompararEntrega';
 import { useEscape } from '../hooks/useEscape';
 
+/** `C:\…\tienda\flujos\x.sqlchain` en el proyecto `C:\…\tienda` → `flujos/x.sqlchain`. */
+const rutaEnProyecto = (ruta, proyecto) => {
+    if (!ruta) return '';
+    const norm = (x) => String(x).replace(/\\/g, '/').replace(/\/+$/, '');
+    const r = norm(ruta), p = proyecto ? norm(proyecto) : '';
+    return p && r.toLowerCase().startsWith(p.toLowerCase() + '/') ? r.slice(p.length + 1) : r;
+};
+
 const ORIGEN = {
     interfaz: 'Run from Data Flow',
     linea_de_comandos: 'Command line',
@@ -106,7 +114,8 @@ export default function FichaEjecucion({ runId, onClose, onAbrirProceso }) {
                                     </>
                                 )}
                                 {Object.keys(e.parametros || {}).length > 0 && (<><dt>With</dt><dd className="fej-params">{Object.entries(e.parametros).map(([k, v]) => <code key={k}>{k} = {String(v)}</code>)}</dd></>)}
-                                <dt>Process</dt><dd className="fej-ruta" title={e.proceso}>{e.proceso}</dd>
+                                {/* Relativa al proyecto, que es lo que distingue (6.0, M10 · T14); la completa, al pasar por encima. */}
+                                <dt>Process</dt><dd className="fej-ruta" title={e.proceso}>{rutaEnProyecto(e.proceso, e.proyecto)}</dd>
                             </dl>
 
                             {res?.guardados?.length > 0 && (

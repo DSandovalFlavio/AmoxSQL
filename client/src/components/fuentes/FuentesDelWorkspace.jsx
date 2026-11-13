@@ -10,6 +10,7 @@ import { LuInbox, LuPlus, LuFolderOpen, LuPencil, LuTrash2 } from 'react-icons/l
 import EditorDeFuente from './EditorDeFuente';
 import DeleteConfirmModal from '../DeleteConfirmModal';
 import { listarFuentes, borrarFuente, ubicarFuente, elegirArchivo, avisarCambio, TEXTO_ESTADO } from './api';
+import { rutaCorta } from '../../utils/rutaCorta';
 
 export default function FuentesDelWorkspace({ workspace, avisar }) {
     const [lista, setLista] = useState(null);
@@ -67,7 +68,7 @@ export default function FuentesDelWorkspace({ workspace, avisar }) {
                                 <tr key={f.nombre}>
                                     <td><b className="wsv-mono">{f.nombre}</b>{f.descripcion && <small>{f.descripcion}</small>}</td>
                                     <td>
-                                        <small className="wsv-mono fnt-ruta">{f.ubicacionAqui || '—'}</small>
+                                        <small className="wsv-mono fnt-ruta" title={f.ubicacionAqui || undefined}>{rutaCorta(f.ubicacionAqui) || '—'}</small>
                                         {f.actual && (
                                             <small className="fnt-actual">
                                                 {f.criterio === 'todos' ? `${f.leidos} files combined, newest ` : 'Reading '}

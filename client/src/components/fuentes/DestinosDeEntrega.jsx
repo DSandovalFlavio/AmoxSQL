@@ -11,7 +11,8 @@ import { LuChevronDown, LuChevronRight, LuFolderOpen, LuPencil, LuPlus, LuSend, 
 import DeleteConfirmModal from '../DeleteConfirmModal';
 import EditorDeDestino from './EditorDeDestino';
 import { listarDestinos, borrarDestino, ubicarDestino, elegirCarpeta, avisarCambioDestinos, TEXTO_ESTADO_DESTINO } from './api';
-import { API_BASE } from '../../api.js';
+import { API_BASE } from '../../api.js';
+import { rutaCorta } from '../../utils/rutaCorta';
 
 export default function DestinosDeEntrega({ variante = 'arbol', workspace = null, avisar }) {
     // En el explorador, el workspace del proyecto abierto (para ofrecer «todos sus proyectos»).
@@ -98,7 +99,7 @@ export default function DestinosDeEntrega({ variante = 'arbol', workspace = null
                                     <tr key={d.nombre}>
                                         <td><b className="wsv-mono">{d.nombre}</b>{d.descripcion && <small>{d.descripcion}</small>}</td>
                                         <td>
-                                            <small className="wsv-mono fnt-ruta">{d.ubicacionAqui || '—'}</small>
+                                            <small className="wsv-mono fnt-ruta" title={d.ubicacionAqui || undefined}>{rutaCorta(d.ubicacionAqui) || '—'}</small>
                                             {d.subcarpeta && <small className="fnt-actual">then <span className="wsv-mono">{d.subcarpeta}</span></small>}
                                         </td>
                                         <td>{problema ? <span className="wsv-chip wsv-chip--warn">{problema.toLowerCase()}</span> : <span className="wsv-chip">ready</span>}</td>

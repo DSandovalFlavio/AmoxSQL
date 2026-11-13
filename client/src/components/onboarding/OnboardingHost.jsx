@@ -70,6 +70,23 @@ export default function OnboardingHost() {
         return () => window.removeEventListener(OFRECER_TOUR_EVENT, alOfrecer);
     }, []);
 
+    // La pista se retira sola (6.0, M10 · T18) al pasar a otra pestaña o a los
+    // 20 s, sin darla por vista: el tour sigue en Ctrl+K › Tour. Antes la de Data
+    // Flow seguía a la vista en un cuaderno, y después de ejecutar el flujo.
+    useEffect(() => {
+        if (!ofrecido) return undefined;
+        let pestana = null;
+        const alFoco = (e) => {
+            const id = e?.detail?.tabId;
+            if (!id) return;
+            if (pestana === null) pestana = id;
+            else if (id !== pestana) setOfrecido(null);
+        };
+        const reloj = setTimeout(() => setOfrecido(null), 20000);
+        window.addEventListener('amox_foco', alFoco);
+        return () => { clearTimeout(reloj); window.removeEventListener('amox_foco', alFoco); };
+    }, [ofrecido]);
+
     const tour = queue[0] ? getTour(queue[0]) : null;
     const pista = !tour && ofrecido ? getTour(ofrecido) : null;
     if (pista) {
@@ -77,7 +94,7 @@ export default function OnboardingHost() {
         return (
             <div className="onb-pista" role="status">
                 {Icono && <Icono size={14} className="onb-pista__icono" />}
-                <span className="onb-pista__texto">New to {pista.brandLabel}?</span>
+                <span className="onb-pista__texto">{pista.pista || `New to ${pista.brandLabel}?`}</span>
                 <button type="button" className="onb-pista__tomar" title={`${pista.steps.length} short steps`} onClick={() => { setOfrecido(null); enqueue(pista.id); }}>
                     Tour
                 </button>

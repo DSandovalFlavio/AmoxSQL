@@ -32,7 +32,10 @@ async function ejecutarProceso({
     // el historial.
     const fuera = origen !== 'interfaz';
     const historial = baseCentral.estaAbierta()
-        ? historialCentral(baseCentral, { proyecto, workspaceId, origen, parametros: { ...(variables || {}), ...(deFuera || {}) }, programacionId, prevista })
+        // Los valores con los que corrió de verdad (6.0, M10 · T14): también los
+        // del propio proceso, no sólo los que llegaron de fuera; si no, la ficha
+        // no decía con qué «desde» se ejecutó.
+        ? historialCentral(baseCentral, { proyecto, workspaceId, origen, parametros: { ...(chainDef?.variables || {}), ...(variables || {}), ...(deFuera || {}) }, programacionId, prevista })
         : (fuera ? historialMudo() : await historialDeReserva(dbManager));
 
     // 5.13 (Dec-42): sin nadie delante y con la aplicación abierta, con límites.

@@ -38,7 +38,8 @@ export const TOURS = [
         legacyReplayEvent: 'amox_replay_dataflow_tour',
     },
     {
-        id: 'ai-modes', brandLabel: 'Meet the AI', brandIcon: LuSparkles, doneLabel: 'Got it',
+        // `pista`: la frase de la pista cuando «New to <brandLabel>?» no se lee bien (6.0, M10 · T18).
+        id: 'ai-modes', brandLabel: 'Meet the AI', pista: 'New to the AI assistant?', brandIcon: LuSparkles, doneLabel: 'Got it',
         steps: AI_MODES, storageKey: 'amox-ai-modes-tour-seen',
     },
     {

@@ -29,7 +29,7 @@ import { bloquesDe, BLOQUES } from './deckBlockModel';
 import DeckBlockForm from './DeckBlockForm';
 import { VIBRANT_ACCENTS, SOBER_ACCENTS } from '../../accents.js';
 import { COLOR_PALETTES } from '../DataVisualizer/constants';
-import { medirAcentos, PISO_CONTRASTE } from './deckColor';
+import { medirAcentos, PISO_CONTRASTE } from './deckColor';
 import { migrateAccent } from '../../theme.js';
 
 /** Cómo se llama cada campo del pie donde lo lee una persona. */
@@ -464,7 +464,7 @@ const DeckInspector = ({
                                             type="button"
                                             className={`dki-lay${item.id === layout ? ' dki-lay--on' : ''}`}
                                             onClick={() => onApplyLayout(item.id)}
-                                            title={sueltas ? `${item.hint}\n\nOjo: ${aviso}` : item.hint}
+                                            title={sueltas ? `${item.hint}\n\nNote: ${aviso}` : item.hint}
                                         >
                                             {item.Preview ? <item.Preview /> : null}
                                             <span className="dki-lay-label">{item.label}</span>

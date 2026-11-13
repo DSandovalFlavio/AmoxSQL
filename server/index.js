@@ -403,7 +403,12 @@ function remontarFuentes() {
                     alLlegarUnArchivo
                 );
             } catch (e) {
-                registrador.aviso('[Fuentes] No se pudo montar el catálogo:', e?.message || e);
+                // Abrir un proyecto y conectar su base reinicia el motor: el montaje
+                // que corría contra el motor viejo falla («Schema with name fuentes
+                // does not exist»), pero el reinicio ya pidió otra vuelta, que sí
+                // monta (6.0, M10 · T20). Sólo es un aviso si no hay reintento.
+                if (fuentesOtraVez) registrador.depurar('[Fuentes] El motor se reinició mientras se montaba el catálogo; se vuelve a montar:', e?.message || e);
+                else registrador.aviso('[Fuentes] No se pudo montar el catálogo:', e?.message || e);
             }
         } while (fuentesOtraVez);
     })().finally(() => { montandoFuentes = null; });

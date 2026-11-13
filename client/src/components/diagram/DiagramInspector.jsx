@@ -10,10 +10,11 @@
  * Ese estado existe porque si no, cambiar la dirección no tendría sitio: no es
  * propiedad de ninguna caja.
  */
-import { LuShare2, LuBox, LuBoxes, LuLayers, LuMoveRight, LuCopy, LuTrash2, LuPlus } from 'react-icons/lu';
+import { LuShare2, LuBox, LuBoxes, LuLayers, LuMoveRight, LuCopy, LuTrash2, LuPlus, LuArrowRight, LuArrowDown, LuArrowUp, LuArrowLeft } from 'react-icons/lu';
 import { FORMAS, ESTILOS_ARISTA, DIRECCIONES, capasDe } from '../markdown/mermaidFlow';
 
-const DIRECCION_FLECHA = { LR: '→', TB: '↓', TD: '↓', BT: '↑', RL: '←' };
+// Iconos Lucide, no caracteres (6.0, M10 · T10).
+const DIRECCION_FLECHA = { LR: <LuArrowRight size={14} />, TB: <LuArrowDown size={14} />, TD: <LuArrowDown size={14} />, BT: <LuArrowUp size={14} />, RL: <LuArrowLeft size={14} /> };
 const DIRECCION_NOMBRE = { LR: 'Left to right', TB: 'Top to bottom', BT: 'Bottom to top', RL: 'Right to left' };
 // `LR` primero porque es la dirección por defecto y la que dibuja casi todo el
 // mundo; `TD` no se lista porque es el mismo sitio que `TB` con otro nombre.

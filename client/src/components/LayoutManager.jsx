@@ -218,6 +218,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // 5.14 (F5, Dec-46): «Donde lo dejaste», con las pestañas que volvieron.
     const [retomar, setRetomar] = useState(null);
     const copiaRef = useRef(null);
+    const reanudadaRef = useRef(false);
     // «Where you left off» se cierra en cuanto abres o cambias de pestaña: es un
     // resumen para empezar, y se quedaba flotando encima de lo que abrieras.
     const retomarVistoRef = useRef(null);
@@ -370,7 +371,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // en desarrollo este efecto corre dos veces, y la segunda restauración pisaba
         // lo que había añadido la primera.
         if (!copiaRef.current) {
-            const copia = consumirReanudada() ? leerCopia(projectPath) : [];
+            reanudadaRef.current = consumirReanudada();
+            const copia = reanudadaRef.current ? leerCopia(projectPath) : [];
             const base = Date.now();
             copiaRef.current = copia.map((t, i) => ({
                 id: `${base}-copia-${i}`, path: null, name: t.name, type: t.type, content: t.content,
@@ -378,7 +380,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             }));
         }
         restoreTabs().then((nombres) => {
-            setRetomar({ pestanas: nombres || [] });
+            // Tras recargar la ventana (Reload, o volver de un fallo) no se vuelve a
+            // nada: es la misma sesión, y la tarjeta tapaba el documento que se
+            // acababa de restaurar (6.0, M10 · T19). Sólo al abrir el proyecto.
+            if (!reanudadaRef.current) setRetomar({ pestanas: nombres || [] });
             const izquierda = copiaRef.current.filter(t => t.panel !== 'right');
             const derecha = copiaRef.current.filter(t => t.panel === 'right');
             const sumar = (prev, nuevas) => [...prev.filter(t => !nuevas.some(n => n.id === t.id)), ...nuevas];

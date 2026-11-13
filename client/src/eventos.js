@@ -40,7 +40,7 @@ export const EVENTOS = {
     amox_asistir: { detalle: "{ tabId, accion?: 'preguntar' | …, pregunta? } — una puerta al Assistant", emite: 'App, EditorPane, los editores (cuaderno, deck, diagrama, Canvas, Data Flow, gráfico), conectarAsistente', escucha: 'App, AiAssistantPanel' },
     amox_ai_prompt: { detalle: '{ prompt }', emite: 'DataProfiler, QueryPlanModal', escucha: 'App, AiAssistantPanel' },
     amox_activate_skill: { detalle: '{ skillId }', emite: 'App', escucha: 'AiAssistantPanel' },
-    amox_foco: { detalle: '{ tabId, seleccion?, … } dónde está el usuario en el archivo', emite: 'utils/memoriaDePestana (fijarFoco)', escucha: 'AiAssistantPanel' },
+    amox_foco: { detalle: '{ tabId, seleccion?, … } dónde está el usuario en el archivo', emite: 'utils/memoriaDePestana (fijarFoco)', escucha: 'AiAssistantPanel, onboarding/OnboardingHost (retira la pista de un tour al cambiar de pestaña)' },
     amox_revisar_propuesta: { detalle: '{ toolCallId, … } una propuesta del Assistant para revisar en su editor', emite: 'ai/propuestasEnEditor', escucha: 'RevisionEnMonaco y los editores (gráfico, Data Flow, cuaderno, deck, diagrama, Canvas)' },
     amox_settings_updated: { detalle: '—', emite: 'SettingsModal, useAiChat', escucha: 'useAiChat' },
     amox_conversation_created: { detalle: '{ id }', emite: 'useAiChat, AiDivingPanel, ConversationList', escucha: 'AiDivingPanel, ConversationList' },
