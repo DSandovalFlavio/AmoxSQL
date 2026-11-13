@@ -11,7 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const dbManager        = require('../DatabaseManager');
 const workspaces       = require('../workspaces');
-const { crearVigilante, firmaDe } = require('../vigilanteArchivos');
+const { firmaDe } = require('../vigilanteArchivos');
 const excel = require('../excel');
 
 const ctx = require('./compartido');

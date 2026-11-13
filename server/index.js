@@ -23,7 +23,7 @@ const descripciones    = require('./descripciones');
 const lineaDeComandos  = require('./ejecucion/lineaDeComandos');
 // La apertura de la base de AmoxSQL y del llavero (ver startServer).
 let arranque = Promise.resolve();
-const { crearVigilante, firmaDe } = require('./vigilanteArchivos');
+const { crearVigilante } = require('./vigilanteArchivos');
 
 const esquemas = require('./esquemas');
 const variablesDelProyecto = require('./variables');
