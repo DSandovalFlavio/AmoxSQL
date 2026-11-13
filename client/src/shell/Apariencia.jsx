@@ -14,7 +14,7 @@
  * su hijo (ver la nota de `effectiveAccentL`).
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { themeClassFor, modeClassFor, migrateTheme } from '../theme.js';
+import { themeClassFor, modeClassFor, migrateTheme, migrateAccent } from '../theme.js';
 import { deriveLogoStops } from '../utils/logoGradient.js';
 import { syncMonacoTheme } from '../monacoTheme.js';
 
@@ -22,10 +22,10 @@ const Contexto = createContext(null);
 
 export function AparienciaProvider({ children }) {
   const [theme, setTheme] = useState(() => migrateTheme(localStorage.getItem('amoxsql-theme')));
-  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('amoxsql-accent') || 'cyan'); // 'cyan' | 'linear' | 'amox-2' .. 'amox-10'
+  const [accentColor, setAccentColor] = useState(() => migrateAccent(localStorage.getItem('amoxsql-accent'))); // 'cyan' y los de accents.js
   // Luminosidad del acento. null = sin personalizar, se usa la L propia del preset.
-  // Guardarla como null en vez de un número evita aplanar la rampa amox-2..amox-10,
-  // que varía L y tono a la vez: cada preset conserva su identidad hasta que el
+  // Guardarla como null en vez de un número evita aplanar los presets,
+  // que tienen cada uno su L: cada preset conserva su identidad hasta que el
   // usuario decide apartarse de ella.
   const [accentL, setAccentL] = useState(() => {
     const v = parseFloat(localStorage.getItem('amoxsql-accent-l'));

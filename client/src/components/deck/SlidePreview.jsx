@@ -24,6 +24,7 @@ import DeckFooter from './DeckFooter';
 import SlideCharts from './SlideCharts';
 import { SlideKpi, SlideTakeaway, SlideTituloHeredado, tieneTituloPropio, partirCabecera } from './SlideFigureParts';
 import { renderDeckBlock } from './deckBlocks';
+import { migrateAccent } from '../../theme.js';
 
 // `\r?\n` y no `\n`: en Windows un .amoxdeck guardado por cualquier editor
 // llega con CRLF, y con el salto sin contemplar el retorno esta expresion no
@@ -115,7 +116,7 @@ const SlidePreview = ({
 }) => {
     // Tema del deck: el acento se aplica como clase en la lámina y la paleta
     // viaja a cada figura. Así una lámina y su gráfico no pueden discrepar.
-    const acento = frontMatter?.accent || null;
+    const acento = frontMatter?.accent ? migrateAccent(frontMatter.accent) : null;   // un deck viejo puede traer un id de antes de la 6.0
     const paleta = frontMatter?.palette || null;
     const tono = resolveTone({ slideTone: slide.tone, deckTone: frontMatter?.tone });
     // La procedencia la reporta la figura cuando termina de ejecutarse; la

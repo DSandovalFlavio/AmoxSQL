@@ -86,56 +86,26 @@
 
 /* ═══════════════════════════════════════════════
    ACCENT PRESETS (oklch — perceptually uniform)
-   Each preset sets ONLY --accent-primary. muted/subtle/focus-ring/color-user are
-   derived ONCE in :root (dark washes) and .mode-light (softer light washes); the
-   color-mix reads var(--accent-primary), which re-resolves per element, so the
-   picked accent flows into every derived token automatically.
-   Presets flow from bright cyan → deep blue.
+   Each preset sets ONLY --acc-l/c/h; body composes --accent-primary, and
+   muted/subtle/focus-ring/color-user are derived ONCE in :root (dark washes)
+   and .mode-light (softer light washes).
+
+   6.0 (M9): los ocho «Vibrant» cubren el círculo cromático — cian (el de la
+   marca, que es el de :root y no necesita clase), azul, violeta, magenta,
+   rojo, naranja, lima y verde. Antes eran siete azules casi iguales y un
+   violeta. Cada uno con el croma máximo dentro de sRGB a su luminosidad, y
+   ésta la mínima que da ≥ 4.6:1 como texto sobre las superficies de los siete
+   temas oscuros (scripts/checkThemeContrast.cjs). Los ids viejos (amox-2…10,
+   linear, islands) se traducen al cargar: theme.js → migrateAccent.
    ═══════════════════════════════════════════════ */
 
-.accent-linear {
-  --acc-l: 0.53; --acc-c: 0.14; --acc-h: 277;   /* Linear Blue */     /* Linear Blue */
-}
-
-.accent-islands {
-  --acc-l: 0.650; --acc-c: 0.173; --acc-h: 262.7;   /* Islands Blue (era #548af7) */                  /* Islands Blue — JetBrains Dark */
-}
-
-.accent-amox-2 {
-  --acc-l: 0.89; --acc-c: 0.150; --acc-h: 195;   /* ~ #00F5FF */    /* ≈ #00F5FF */
-}
-
-.accent-amox-3 {
-  --acc-l: 0.88; --acc-c: 0.145; --acc-h: 197;   /* ~ #00ECFF */    /* ≈ #00ECFF */
-}
-
-.accent-amox-4 {
-  --acc-l: 0.85; --acc-c: 0.140; --acc-h: 202;   /* ~ #00DAFF */    /* ≈ #00DAFF */
-}
-
-.accent-amox-5 {
-  --acc-l: 0.82; --acc-c: 0.135; --acc-h: 212;   /* ~ #00C8FF */    /* ≈ #00C8FF */
-}
-
-.accent-amox-6 {
-  --acc-l: 0.77; --acc-c: 0.140; --acc-h: 228;   /* ~ #00B6FF */    /* ≈ #00B6FF */
-}
-
-.accent-amox-7 {
-  --acc-l: 0.72; --acc-c: 0.155; --acc-h: 245;   /* ~ #00A3FF */    /* ≈ #00A3FF */
-}
-
-.accent-amox-8 {
-  --acc-l: 0.66; --acc-c: 0.170; --acc-h: 255;   /* ~ #0090FF */    /* ≈ #0090FF */
-}
-
-.accent-amox-9 {
-  --acc-l: 0.61; --acc-c: 0.190; --acc-h: 262;   /* ~ #007CFF */    /* ≈ #007CFF */
-}
-
-.accent-amox-10 {
-  --acc-l: 0.56; --acc-c: 0.210; --acc-h: 268;   /* ~ #0068FF */    /* ≈ #0068FF */
-}
+.accent-blue    { --acc-l: 0.720; --acc-c: 0.145; --acc-h: 258; }   /* 5.01:1 */
+.accent-violet  { --acc-l: 0.720; --acc-c: 0.160; --acc-h: 295; }   /* 4.78:1 */
+.accent-magenta { --acc-l: 0.730; --acc-c: 0.210; --acc-h: 340; }   /* 4.72:1 */
+.accent-red     { --acc-l: 0.720; --acc-c: 0.170; --acc-h: 25;  }   /* 4.68:1 */
+.accent-orange  { --acc-l: 0.760; --acc-c: 0.165; --acc-h: 55;  }   /* 5.55:1 */
+.accent-lime    { --acc-l: 0.860; --acc-c: 0.200; --acc-h: 125; }   /* 8.52:1 */
+.accent-green   { --acc-l: 0.780; --acc-c: 0.180; --acc-h: 155; }   /* 6.70:1 */
 
 /* ═══════════════════════════════════════════════
    DARK THEME: EMBER — suelo frio, codigo calido
@@ -988,21 +958,16 @@
    sigue ganando al acento propio del tema (0-1-0) y no colisiona con las reglas
    `:not([class*="accent-"])`, que solo aplican cuando NO hay acento elegido.
    ═══════════════════════════════════════════════ */
-.mode-light.accent-linear  { --accent-primary: oklch(0.507 0.141 277.1); }   /* ≈ #5359B4 */
-.mode-light.accent-amox-2  { --accent-primary: oklch(0.476 0.108 195.6);  --button-text-color: #ffffff; }   /* ≈ #006E70 */
-.mode-light.accent-amox-3  { --accent-primary: oklch(0.478 0.105 198.1);  --button-text-color: #ffffff; }   /* ≈ #006E72 */
-.mode-light.accent-amox-4  { --accent-primary: oklch(0.479 0.102 204.2);  --button-text-color: #ffffff; }   /* ≈ #006D78 */
-.mode-light.accent-amox-5  { --accent-primary: oklch(0.484 0.102 215.0);  --button-text-color: #ffffff; }   /* ≈ #006C82 */
-.mode-light.accent-amox-6  { --accent-primary: oklch(0.490 0.116 233.6);  --button-text-color: #ffffff; }   /* ≈ #006997 */
-.mode-light.accent-amox-7  { --accent-primary: oklch(0.492 0.137 246.1);  --button-text-color: #ffffff; }   /* ≈ #0065A9 */
-.mode-light.accent-amox-8  { --accent-primary: oklch(0.500 0.161 255.3);  --button-text-color: #ffffff; }   /* ≈ #0A61BC */
-.mode-light.accent-amox-9  { --accent-primary: oklch(0.489 0.180 262.0);  --button-text-color: #ffffff; }   /* ≈ #2057C4 */
-.mode-light.accent-amox-10 { --accent-primary: oklch(0.471 0.200 267.9);  --button-text-color: #ffffff; }   /* ≈ #2D49C9 */
+.mode-light.accent-blue    { --accent-primary: oklch(0.500 0.180 258); --button-text-color: #ffffff; }   /* texto 4.69 · blanco encima 6.16 */
+.mode-light.accent-violet  { --accent-primary: oklch(0.520 0.220 295); --button-text-color: #ffffff; }   /* 4.68 · 6.14 */
+.mode-light.accent-magenta { --accent-primary: oklch(0.520 0.210 340); --button-text-color: #ffffff; }   /* 4.73 · 6.21 */
+.mode-light.accent-red     { --accent-primary: oklch(0.520 0.200 25);  --button-text-color: #ffffff; }   /* 4.66 · 6.12 */
+.mode-light.accent-orange  { --accent-primary: oklch(0.505 0.125 55);  --button-text-color: #ffffff; }   /* 4.67 · 6.14 */
+.mode-light.accent-lime    { --accent-primary: oklch(0.490 0.120 125); --button-text-color: #ffffff; }   /* 4.61 · 6.05 */
+.mode-light.accent-green   { --accent-primary: oklch(0.485 0.115 155); --button-text-color: #ffffff; }   /* 4.60 · 6.05 */
 
-/* Acentos sobrios + islands, oscurecidos para fondo claro. Los sobrios ya
-   cumplian los dos usos y no se tocan; islands bajaba de 4.5 como texto por un
-   pelo (4.23). */
-.mode-light.accent-islands { --accent-primary: oklch(0.504 0.179 261.9); }   /* ≈ #245CC8 */
+/* Acentos sobrios, oscurecidos para fondo claro. Ya cumplian los dos usos y
+   no se tocan. */
 .mode-light.accent-sage     { --accent-primary: oklch(0.48 0.13 155); }
 .mode-light.accent-amber    { --accent-primary: oklch(0.50 0.13 75); }
 .mode-light.accent-rose     { --accent-primary: oklch(0.52 0.18 15); }

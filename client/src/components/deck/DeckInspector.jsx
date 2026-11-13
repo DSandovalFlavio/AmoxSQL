@@ -29,7 +29,8 @@ import { bloquesDe, BLOQUES } from './deckBlockModel';
 import DeckBlockForm from './DeckBlockForm';
 import { VIBRANT_ACCENTS, SOBER_ACCENTS } from '../../accents.js';
 import { COLOR_PALETTES } from '../DataVisualizer/constants';
-import { medirAcentos, PISO_CONTRASTE } from './deckColor';
+import { medirAcentos, PISO_CONTRASTE } from './deckColor';
+import { migrateAccent } from '../../theme.js';
 
 /** Cómo se llama cada campo del pie donde lo lee una persona. */
 const NOMBRE_CAMPO = {
@@ -166,7 +167,7 @@ function PanelDeck({ frontMatter, onSetFrontMatter }) {
 
     const muestra = (acento) => {
         const m = medidas.get(acento.id);
-        const elegido = fm.accent === acento.id;
+        const elegido = !!fm.accent && migrateAccent(fm.accent) === acento.id;
         return (
             <button
                 key={acento.id}

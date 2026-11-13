@@ -51,6 +51,20 @@ const RETIRADOS = {
 export const TEMA_POR_DEFECTO = 'amoxdark';
 export const migrateTheme = (theme) => RETIRADOS[theme] || theme || TEMA_POR_DEFECTO;
 
+/**
+ * Los acentos de antes de la 6.0 (M9) eran siete azules casi iguales; ahora los
+ * ocho «Vibrant» recorren el círculo cromático. Un id viejo guardado se traduce
+ * al más cercano: los turquesas (amox-2…5) a cian, los azules a azul, el índigo
+ * a violeta. Sin traducirlo, su clase ya no existe y el acento caería al cian
+ * sin que el selector marcase ninguno.
+ */
+const ACENTOS_RETIRADOS = {
+    'amox-2': 'cyan', 'amox-3': 'cyan', 'amox-4': 'cyan', 'amox-5': 'cyan',
+    'amox-6': 'blue', 'amox-7': 'blue', 'amox-8': 'blue', 'amox-9': 'blue', 'amox-10': 'blue',
+    islands: 'blue', linear: 'violet',
+};
+export const migrateAccent = (accent) => ACENTOS_RETIRADOS[accent] || accent || 'cyan';
+
 /** Body class that defines a theme's own surfaces. Default dark = no class. */
 export const themeClassFor = (theme) => {
     if (theme === 'dark') return null; // obsidian default
@@ -75,7 +89,7 @@ export const modeClassFor = (theme) => (isLightTheme(theme) ? 'mode-light' : 'mo
 export const applyStoredTheme = () => {
     try {
         const theme = migrateTheme(localStorage.getItem('amoxsql-theme'));
-        const accent = localStorage.getItem('amoxsql-accent') || 'cyan';
+        const accent = migrateAccent(localStorage.getItem('amoxsql-accent'));
         const body = document.body;
 
         const themeClass = themeClassFor(theme);

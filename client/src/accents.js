@@ -14,15 +14,18 @@
  * que resolverlo del DOM; ver `deck/deckColor.js`.
  */
 
+// 6.0 (M9): ocho tonos que recorren el círculo cromático. Los ids viejos
+// (amox-2…10, linear, islands: siete azules) se traducen en theme.js →
+// migrateAccent, así que quien tenía uno guardado sigue teniendo un acento.
 export const VIBRANT_ACCENTS = [
-    { id: 'cyan', color: '#00FFFF', label: 'Cyan (Default)' },
-    { id: 'amox-2', color: '#00F5FF', label: 'Aqua' },
-    { id: 'amox-4', color: '#00DAFF', label: 'Sky' },
-    { id: 'amox-6', color: '#00B6FF', label: 'Azure' },
-    { id: 'amox-8', color: '#0090FF', label: 'Blue' },
-    { id: 'amox-10', color: '#0068FF', label: 'Cobalt' },
-    { id: 'linear', color: '#5E6AD2', label: 'Linear Blue' },
-    { id: 'islands', color: '#548af7', label: 'Islands Blue' },
+    { id: 'cyan', color: '#22d3ee', label: 'Cyan (Default)' },
+    { id: 'blue', color: '#69a5fe', label: 'Blue' },
+    { id: 'violet', color: '#ad8dfd', label: 'Violet' },
+    { id: 'magenta', color: '#f968d0', label: 'Magenta' },
+    { id: 'red', color: '#fd736d', label: 'Red' },
+    { id: 'orange', color: '#ff9138', label: 'Orange' },
+    { id: 'lime', color: '#b3e635', label: 'Lime' },
+    { id: 'green', color: '#30d882', label: 'Green' },
 ];
 
 export const SOBER_ACCENTS = [

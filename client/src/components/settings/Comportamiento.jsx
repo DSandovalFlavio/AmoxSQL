@@ -4,7 +4,8 @@
  * se carga la primera vez que se abre la sección.
  */
 import { LuDownload, LuTrash2 } from 'react-icons/lu';
-import { Toggle } from './comun';
+import { Toggle } from './comun';
+import { migrateAccent } from '../../theme.js';
 
 export default function Comportamiento({
     currentAccent,
@@ -148,7 +149,7 @@ export default function Comportamiento({
                                         const data = JSON.parse(re.target.result);
                                         if (data.editor) onEditorSettingsChange?.(data.editor);
                                         if (data.theme) onThemeChange?.(data.theme);
-                                        if (data.accent) onAccentChange?.(data.accent);
+                                        if (data.accent) onAccentChange?.(migrateAccent(data.accent));
                                         if (data.layout) onLayoutChange?.(data.layout);
                                         if (data.zoom) onUiZoomChange?.(data.zoom);
                                         toast.success('Settings imported successfully');
