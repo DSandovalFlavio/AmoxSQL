@@ -2,7 +2,7 @@
 
 **🌐 [English](../../en/reference/configuration.md) · Español**
 
-> El modal de Ajustes de AmoxSQL: apariencia, editor, comportamiento, IA, integraciones de almacenamiento, proyecto, atajos, tours y "Acerca de" — todo en un solo lugar.
+> El modal de Ajustes de AmoxSQL: apariencia, editor, comportamiento, IA, credenciales, almacenamiento en la nube, proyecto, workspaces y "Acerca de" — todo en un solo lugar. Los atajos y las guías viven en el diálogo **Help**.
 
 <img src="../../../images/09_settings_modal.png" alt="Modal de Ajustes de AmoxSQL" width="100%" />
 
@@ -10,7 +10,9 @@
 
 Ajustes es el panel central de configuración de AmoxSQL. Se abre con **Ctrl+,** (o el engrane en la barra) y agrupa todas las preferencias en pestañas a la izquierda. Un buscador en la parte superior filtra las pestañas por nombre.
 
-Las pestañas se dividen en dos bloques: **Configurar** (Apariencia, Editor, Comportamiento, IA, Integraciones de almacenamiento, Project) y **Ayuda e info** (Atajos, Story Flow, Data Flow, Acerca de). La mayoría de los cambios se aplican en vivo.
+Las pestañas se dividen en tres bloques: **la app** (Appearance, Editor, Behavior, AI), **los datos y dónde trabajas** (Credentials, Cloud storage, Project, Workspaces) y **About**. La mayoría de los cambios se aplican en vivo.
+
+Los atajos de teclado y las guías de Story Flow y Data Flow no son ajustes: desde la 6.0 viven en el diálogo **Help** — **Ctrl+Shift+/**, el menú de la aplicación → **Keyboard Shortcuts**, o la paleta de comandos → **Help & Tours**.
 
 La configuración persiste en `~/.amoxsql/config.json`; las preferencias de UI se guardan además en `localStorage` (ver [Dónde se guarda](#dónde-se-guarda-la-configuración)).
 
@@ -72,7 +74,7 @@ Configura proveedores, claves y modelos del asistente. Ver [Proveedores y modelo
 
 > Las claves de API se guardan en tu `config.json` local; no salen de tu equipo salvo hacia el proveedor que elijas.
 
-## Integraciones de almacenamiento
+## Almacenamiento en la nube (Cloud storage)
 
 Conecta almacenamiento en la nube para importar y exportar datos. Ver [Google Sheets](../data/google-sheets.md) y [Exportar datos](../data/exporting-data.md).
 
@@ -90,25 +92,15 @@ Un asistente para configurar el proyecto activo (rutas, base de datos, contexto)
 |---|---|
 | Asistente del proyecto (*Open Project Setup*) | Guía paso a paso para configurar el proyecto activo |
 
-## Atajos
+## Help (un diálogo aparte)
 
-Pestaña de solo referencia con el set completo de atajos de teclado, agrupados por categoría. Es el mismo contenido de [Atajos de teclado](keyboard-shortcuts.md).
+Desde la 6.0 no forma parte de Ajustes. Se abre con **Ctrl+Shift+/**, el menú de la aplicación → **Keyboard Shortcuts**, o la paleta → **Help & Tours**.
 
-## Story Flow
-
-Ayuda y reinicio del tour de la sección de visualización. Ver [Story Flow](../visualization/story-flow.md).
-
-| Opción | Qué controla |
+| Sección | Qué contiene |
 |---|---|
-| Reiniciar tour de Story Flow | Vuelve a mostrar el recorrido guiado la próxima vez que entres |
-
-## Data Flow
-
-Ayuda y reinicio del tour del editor de pipelines. Ver [Data Flow](../data-flow/data-flow.md).
-
-| Opción | Qué controla |
-|---|---|
-| Reiniciar tour de Data Flow | Vuelve a mostrar el recorrido guiado la próxima vez que entres |
+| Keyboard Shortcuts | El set completo de atajos, agrupados por categoría — el mismo contenido de [Atajos de teclado](keyboard-shortcuts.md) |
+| Story Flow | La guía de la sección de visualización y **Replay tour**. Ver [Story Flow](../visualization/story-flow.md) |
+| Data Flow | La guía del editor de pipelines y **Replay tour**. Ver [Data Flow](../data-flow/data-flow.md) |
 
 ## Acerca de
 

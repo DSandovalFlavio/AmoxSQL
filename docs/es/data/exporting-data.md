@@ -65,7 +65,7 @@ Un matiz importante: el export está **ligado a la query**, no a lo que ves en p
 - **Límite de Excel:** una hoja `.xlsx` admite como máximo 1 048 576 filas. Si tu resultado la supera, verás un error claro pidiendo usar CSV o Parquet.
 - **Excel con formato:** el libro lo escribe AmoxSQL, sin extensiones. Las fechas son fechas, los decimales conservan sus cifras, y el encabezado va en negrita, fijo y con filtro. Cada columna tiene el ancho de su contenido. Para varias hojas o la plantilla del cliente, usa el [nodo Excel](../data-flow/excel-output.md) de Data Flow.
 - **Nube sin Excel:** el export a la nube valida el formato y rechaza `.xlsx` a propósito.
-- **Credenciales en Ajustes:** configura las claves de S3/GCS en **Ajustes → Store Integrations** antes de exportar a la nube.
+- **Credenciales en Ajustes:** configura las claves de S3/GCS en **Ajustes → Cloud storage** antes de exportar a la nube.
 
 ## Relacionado
 

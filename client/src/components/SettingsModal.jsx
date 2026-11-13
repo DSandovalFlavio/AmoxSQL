@@ -23,7 +23,7 @@ const TAB_TITLES = {
     editor:      'Editor',
     behavior:    'Behavior',
     ai:          'AI',
-    integrations:'Store Integrations',
+    integrations:'Cloud storage',
     credentials: 'Credentials',
     workspace:   'Project',
     about:       'About AmoxSQL',
@@ -31,7 +31,7 @@ const TAB_TITLES = {
     formatter:   'Editor',
     memories:    'AI',
     aicontext:   'AI',
-    cloud:       'Store Integrations',
+    cloud:       'Cloud storage',
     gallery:     'Chart Gallery',
 };
 
@@ -559,13 +559,15 @@ const SettingsModal = ({ isOpen, onClose, initialTab, onTabReset }) => {
                         aria-label="Search settings"
                     />
                     {[
-                        // ── Configure ──
+                        // ── La app (6.0, M9: el orden es el de la auditoría U5) ──
                         { id: 'appearance',    icon: <LuPalette   size={16} />, label: 'Appearance' },
                         { id: 'editor',        icon: <LuCode      size={16} />, label: 'Editor' },
                         { id: 'behavior',      icon: <LuSettings  size={16} />, label: 'Behavior' },
                         { id: 'ai',            icon: <LuCpu       size={16} />, label: 'AI' },
-                        { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Store Integrations' },
+                        // ── Datos y credenciales, y dónde se trabaja ──
+                        { separator: true, id: '_sep_datos' },
                         { id: 'credentials',   icon: <LuKeyRound  size={16} />, label: 'Credentials' },
+                        { id: 'integrations',  icon: <LuPlug      size={16} />, label: 'Cloud storage' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Project' },
                         { id: 'workspaces',    icon: <LuLayers    size={16} />, label: etiqueta.P },
                         // ── Info (la ayuda vive en su propio diálogo, ayuda/Ayuda.jsx) ──

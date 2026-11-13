@@ -17,6 +17,9 @@ import { Toggle } from './comun';
  * se elige de verdad — nadie compara Amox Light contra Nord, compara Amox
  * contra Sterling.
  *
+ * La primera pareja, la de la marca (Amox Dark y Amox Light), va aparte, arriba
+ * y más grande (6.0, M9): es la que se recomienda, y la galería lo dice.
+ *
  * Las dos ultimas son los temas con caracter propio, que no tienen pareja
  * clara. Van ordenados de mas oscuro arriba a mas claro abajo, columna a
  * columna: Obsidian 0,145 · Ember 0,203 · Dark Islands 0,217 · Nord 0,234 (la
@@ -74,34 +77,39 @@ export default function Apariencia({
     onThemeChange,
     onUiZoomChange,
     uiZoomLevel,
-}) {
+}) {
+    const tarjeta = (t, marca) => (
+        <div
+            key={t.id}
+            onClick={() => onThemeChange(t.id)}
+            className={`stg-theme-card${marca ? ' stg-theme-card--marca' : ''}${currentTheme === t.id ? ' stg-theme-card--active' : ''}`}
+            style={{ backgroundColor: t.editor }}
+        >
+            <div className="stg-theme-card-label" style={{ color: t.text }}>
+                {t.icon} {t.label}
+            </div>
+            <div className="stg-theme-preview">
+                <div className="stg-theme-preview-sidebar" style={{ background: t.sidebar, borderRight: `1px solid ${t.id === 'light' ? '#dee2e6' : '#333'}` }} />
+                <div className="stg-theme-preview-editor" style={{ background: t.editor, color: t.text }}>
+                    SELECT *
+                </div>
+            </div>
+            <div className="stg-theme-card-desc" style={{ color: t.text }}>{t.desc}</div>
+        </div>
+    );
+
     return (
         <div className="stg-section">
             {/* Theme */}
             <div>
                 <h3 className="stg-section-heading stg-section-heading--mb12">Color Theme</h3>
+                <div className="stg-theme-marca">
+                    {COLUMNAS_DE_TEMAS[0].map(t => tarjeta(t, true))}
+                </div>
                 <div className="stg-theme-grid">
-                    {COLUMNAS_DE_TEMAS.map((columna, i) => (
+                    {COLUMNAS_DE_TEMAS.slice(1).map((columna, i) => (
                       <div className="stg-theme-col" key={i}>
-                    {columna.map(t => (
-                        <div
-                            key={t.id}
-                            onClick={() => onThemeChange(t.id)}
-                            className={`stg-theme-card${currentTheme === t.id ? ' stg-theme-card--active' : ''}`}
-                            style={{ backgroundColor: t.editor }}
-                        >
-                            <div className="stg-theme-card-label" style={{ color: t.text }}>
-                                {t.icon} {t.label}
-                            </div>
-                            <div className="stg-theme-preview">
-                                <div className="stg-theme-preview-sidebar" style={{ background: t.sidebar, borderRight: `1px solid ${t.id === 'light' ? '#dee2e6' : '#333'}` }} />
-                                <div className="stg-theme-preview-editor" style={{ background: t.editor, color: t.text }}>
-                                    SELECT *
-                                </div>
-                            </div>
-                            <div className="stg-theme-card-desc" style={{ color: t.text }}>{t.desc}</div>
-                        </div>
-                    ))}
+                    {columna.map(t => tarjeta(t, false))}
                       </div>
                     ))}
                 </div>

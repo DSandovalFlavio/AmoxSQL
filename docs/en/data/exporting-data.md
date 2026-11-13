@@ -65,7 +65,7 @@ One important nuance: export is **tied to the query**, not to what's on screen. 
 - **Excel limit:** one `.xlsx` sheet holds at most 1,048,576 rows. If your result exceeds it, you'll get a clear error asking you to use CSV or Parquet.
 - **Excel with formatting:** AmoxSQL writes the workbook itself, with no extension. Dates are dates, decimals keep their places, and the header is bold, fixed and filtered. Each column is as wide as its content. For several sheets or the client's template, use the [Excel node](../data-flow/excel-output.md) of Data Flow.
 - **No cloud Excel:** cloud export validates the format and rejects `.xlsx` on purpose.
-- **Credentials in Settings:** set your S3/GCS keys in **Settings → Store Integrations** before exporting to the cloud.
+- **Credentials in Settings:** set your S3/GCS keys in **Settings → Cloud storage** before exporting to the cloud.
 
 ## Related
 
