@@ -272,7 +272,7 @@ rutas.get('/api/file/raw', (req, res) => {
     });
 });
 
-rutas.post('/api/file', (req, res) => {
+rutas.post('/api/file', async (req, res) => {
     const { path: filePath, content, firmaEsperada } = req.body;
     if (!filePath || content === undefined) return res.status(400).json({ error: 'Path and content are required' });
 
@@ -311,7 +311,7 @@ rutas.post('/api/file', (req, res) => {
     // la versión anterior (Dec-81).
     let anterior;
     if (req.body.devolverAnterior) {
-        try { anterior = fs.readFileSync(fullPath, 'utf8'); } catch { anterior = null; }
+        try { anterior = await fs.promises.readFile(fullPath, 'utf8'); } catch { anterior = null; }
     }
 
     fs.writeFile(fullPath, content, 'utf8', (err) => {
@@ -326,7 +326,7 @@ rutas.post('/api/file', (req, res) => {
  * como consulta. Antes, renombrar `ventas.sql` dejaba sus gráficos apuntando a
  * un archivo que ya no existía. Nunca impide el renombre.
  */
-function acompanarRenombre(fullOld, fullNew) {
+async function acompanarRenombre(fullOld, fullNew) {
     try { borradores.mover(ctx.ROOT_DIR, fullOld, fullNew); } catch (e) { console.warn('[borradores] move:', e.message); }
     const rel = (p) => path.relative(ctx.ROOT_DIR, p).replace(/\\/g, '/');
     const viejo = rel(fullOld), nuevo = rel(fullNew);
@@ -335,10 +335,10 @@ function acompanarRenombre(fullOld, fullNew) {
     try { esCarpeta = fs.statSync(fullNew).isDirectory(); } catch { return; }
     if (!esCarpeta && !/\.sql$/i.test(viejo)) return;
     try {
-        for (const f of findFilesByExtension(ctx.ROOT_DIR, '.amoxvis')) {
+        for (const f of await findFilesByExtension(ctx.ROOT_DIR, '.amoxvis')) {
             const full = path.join(ctx.ROOT_DIR, f.path);
             let textoActual;
-            try { textoActual = fs.readFileSync(full, 'utf8'); } catch { continue; }
+            try { textoActual = await fs.promises.readFile(full, 'utf8'); } catch { continue; }
             const origen = (amoxvis.leer(textoActual).source || '').replace(/\\/g, '/');
             if (!origen) continue;
             let destino = null;
@@ -346,7 +346,7 @@ function acompanarRenombre(fullOld, fullNew) {
             else if (esCarpeta && origen.startsWith(`${viejo}/`)) destino = nuevo + origen.slice(viejo.length);
             if (!destino) continue;
             const cambiado = amoxvis.conCambios(textoActual, { origen: destino });
-            if (cambiado) fs.writeFileSync(full, cambiado, 'utf8');
+            if (cambiado) await fs.promises.writeFile(full, cambiado, 'utf8');
         }
     } catch (e) {
         console.warn('[amoxvis] rename follow-up:', e.message);
@@ -354,7 +354,7 @@ function acompanarRenombre(fullOld, fullNew) {
 }
 
 /* --- File Rename & Delete APIs --- */
-rutas.post('/api/file/rename', (req, res) => {
+rutas.post('/api/file/rename', async (req, res) => {
     const { oldPath, newPath } = req.body;
     if (!oldPath || !newPath) return res.status(400).json({ error: 'oldPath and newPath are required' });
 
@@ -366,7 +366,7 @@ rutas.post('/api/file/rename', (req, res) => {
 
     try {
         fs.renameSync(fullOld, fullNew);
-        acompanarRenombre(fullOld, fullNew);
+        await acompanarRenombre(fullOld, fullNew);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: 'Rename failed', details: err.message });
@@ -395,7 +395,7 @@ rutas.post('/api/file/delete', (req, res) => {
 });
 
 /* --- File Move (also used for drag-and-drop reorder) --- */
-rutas.post('/api/file/move', (req, res) => {
+rutas.post('/api/file/move', async (req, res) => {
     const { sourcePath, destinationDir } = req.body;
     if (!sourcePath || destinationDir === undefined) {
         return res.status(400).json({ error: 'sourcePath and destinationDir are required' });
@@ -414,7 +414,7 @@ rutas.post('/api/file/move', (req, res) => {
         // Ensure destination directory exists
         fs.mkdirSync(destDir, { recursive: true });
         fs.renameSync(fullSource, fullDest);
-        acompanarRenombre(fullSource, fullDest);
+        await acompanarRenombre(fullSource, fullDest);
         res.json({ success: true, newPath: path.relative(ctx.ROOT_DIR, fullDest).replace(/\\/g, '/') });
     } catch (err) {
         res.status(500).json({ error: 'Move failed', details: err.message });
@@ -497,11 +497,14 @@ rutas.post('/api/file/reveal', (req, res) => {
  * —que es lo que necesita el indice del omnibox—, para no tener dos
  * caminadores distintos diciendo cada uno que archivos tiene el proyecto.
  */
-const findFilesByExtension = (srcPath, ext) => {
+// 6.0 (M7): asíncrono. Recorre el proyecto entero, y en una carpeta sincronizada o de
+// red un recorrido síncrono dejaba al servidor sin atender nada más mientras tanto.
+// Una carpeta detrás de otra, para que el orden sea el de siempre.
+const findFilesByExtension = async (srcPath, ext) => {
     let matches = [];
     let items;
     try {
-        items = fs.readdirSync(srcPath, { withFileTypes: true });
+        items = await fs.promises.readdir(srcPath, { withFileTypes: true });
     } catch (err) {
         return matches;
     }
@@ -509,7 +512,7 @@ const findFilesByExtension = (srcPath, ext) => {
         const itemFullPath = path.join(srcPath, item.name);
         if (item.isDirectory()) {
             if (item.name === 'node_modules' || item.name === '.git') continue;
-            matches = matches.concat(findFilesByExtension(itemFullPath, ext));
+            matches = matches.concat(await findFilesByExtension(itemFullPath, ext));
         } else if (!ext || item.name.toLowerCase().endsWith(ext)) {
             const relativePath = path.relative(ctx.ROOT_DIR, itemFullPath).replace(/\\/g, '/');
             matches.push({ name: item.name, path: relativePath });
@@ -529,9 +532,9 @@ const findFilesByExtension = (srcPath, ext) => {
  * es de milisegundos. Guardar una copia solo abriria la puerta a que el omnibox
  * ensenara archivos que ya no existen.
  */
-rutas.get('/api/files/index', (req, res) => {
+rutas.get('/api/files/index', async (req, res) => {
     try {
-        const files = findFilesByExtension(ctx.ROOT_DIR, null)
+        const files = (await findFilesByExtension(ctx.ROOT_DIR, null))
             .filter(f => !f.path.split('/').some(seg => seg.startsWith('.')));
         res.json(files);
     } catch (err) {
@@ -541,13 +544,13 @@ rutas.get('/api/files/index', (req, res) => {
 
 // Always walks from ROOT_DIR (no user-supplied path segment), so there is no
 // path-traversal surface here — same trust boundary as GET /api/folders.
-rutas.get('/api/files/find-by-extension', (req, res) => {
+rutas.get('/api/files/find-by-extension', async (req, res) => {
     const ext = String(req.query.ext || '').toLowerCase();
     if (!/^\.[a-z0-9]+$/.test(ext)) {
         return res.status(400).json({ error: 'ext must look like ".ext" (letters/digits only)' });
     }
     try {
-        const files = findFilesByExtension(ctx.ROOT_DIR, ext);
+        const files = await findFilesByExtension(ctx.ROOT_DIR, ext);
         res.json(files);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -561,18 +564,18 @@ rutas.get('/api/files/find-by-extension', (req, res) => {
  * (server-side, one directory walk + N small JSON reads) rather than having
  * the client fetch every .amoxvis and check client-side.
  */
-rutas.get('/api/charts/using-source', (req, res) => {
+rutas.get('/api/charts/using-source', async (req, res) => {
     const sourcePath = req.query.path;
     if (!sourcePath) return res.status(400).json({ error: 'path is required' });
     const normalized = sourcePath.replace(/\\/g, '/');
 
     try {
-        const amoxvisFiles = findFilesByExtension(ctx.ROOT_DIR, '.amoxvis');
+        const amoxvisFiles = await findFilesByExtension(ctx.ROOT_DIR, '.amoxvis');
         const matches = [];
         for (const f of amoxvisFiles) {
             try {
                 const fullPath = path.join(ctx.ROOT_DIR, f.path);
-                const config = amoxvis.leer(fs.readFileSync(fullPath, 'utf8'));
+                const config = amoxvis.leer(await fs.promises.readFile(fullPath, 'utf8'));
                 if ((config.source || '').replace(/\\/g, '/') === normalized) {
                     matches.push({ name: f.name, path: f.path });
                 }

@@ -36,7 +36,7 @@ const dbtProyecto      = require('../dbt/proyecto');
 // GET /api/dbt/manifest — Read target/manifest.json from project root
 // Returns both the "panel" shape (available/models/sources) consumed by SqlEditor
 // and the "lineage" shape (exists/nodes/edges) consumed by DbtLineageGraph.
-rutas.get('/api/dbt/manifest', (req, res) => {
+rutas.get('/api/dbt/manifest', async (req, res) => {
     try {
         const manifestPath = path.join(ctx.ROOT_DIR, 'target', 'manifest.json');
         if (!fs.existsSync(manifestPath)) {
@@ -50,7 +50,8 @@ rutas.get('/api/dbt/manifest', (req, res) => {
                 edges: [],
             });
         }
-        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        // 6.0 (M7): el manifest de un proyecto grande pasa de decenas de MB.
+        const manifest = JSON.parse(await fs.promises.readFile(manifestPath, 'utf8'));
 
         // Panel shape: simplified models/sources for SqlEditor autocomplete
         const models = Object.values(manifest.nodes || {})

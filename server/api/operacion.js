@@ -65,7 +65,7 @@ rutas.get('/api/procesos/cambios', async (req, res) => {
         const antes = await gitManager.getFileAt(ctx.ROOT_DIR, relGit, req.query.antes === 'index' ? 'index' : 'HEAD');
         const despues = req.query.despues === 'index'
             ? await gitManager.getFileAt(ctx.ROOT_DIR, relGit, 'index')
-            : (fs.existsSync(abs) ? fs.readFileSync(abs, 'utf8') : null);
+            : await fs.promises.readFile(abs, 'utf8').catch(() => null);
         const diffDeProcesos = require('../diffDeProcesos');
         const d = /\.amoxcanvas$/i.test(rel) ? diffDeProcesos.diferenciasDeLienzo(antes, despues) : diffDeProcesos.diferencias(antes, despues);
         res.json({ ...d, lineas: diffDeProcesos.describir(d), nuevo: antes == null, borrado: despues == null });

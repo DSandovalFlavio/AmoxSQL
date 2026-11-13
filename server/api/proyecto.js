@@ -178,15 +178,16 @@ rutas.post('/api/folder', (req, res) => {
     });
 });
 
-const getDirectories = (srcPath) => {
+// 6.0 (M7): asíncrono, como el índice de archivos (una carpeta sincronizada).
+const getDirectories = async (srcPath) => {
     let dirs = [];
     try {
-        const items = fs.readdirSync(srcPath, { withFileTypes: true });
+        const items = await fs.promises.readdir(srcPath, { withFileTypes: true });
         for (const item of items) {
             if (item.isDirectory() && item.name !== 'node_modules' && item.name !== '.git') {
                 const relativePath = path.relative(ctx.ROOT_DIR, path.join(srcPath, item.name)).replace(/\\/g, '/');
                 dirs.push({ name: item.name, path: relativePath });
-                const subDirs = getDirectories(path.join(srcPath, item.name));
+                const subDirs = await getDirectories(path.join(srcPath, item.name));
                 dirs = dirs.concat(subDirs);
             }
         }
@@ -195,9 +196,9 @@ const getDirectories = (srcPath) => {
     return dirs;
 };
 
-rutas.get('/api/folders', (req, res) => {
+rutas.get('/api/folders', async (req, res) => {
     try {
-        const folders = getDirectories(ctx.ROOT_DIR);
+        const folders = await getDirectories(ctx.ROOT_DIR);
         folders.unshift({ name: 'Root', path: '' });
         res.json(folders);
     } catch (err) {
