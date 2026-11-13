@@ -72,7 +72,7 @@ The sidebar header has the **Panels | Code** switch, the **Save** button (always
 - An `.amoxvis` edited outside AmoxSQL (in another editor) is recognized on open and read the same way: the panels take what they understand and the rest stays as your own code.
 
 ### The guide and the tour
-- The **?** button (info icon) in the panel header opens a drawer with the **Story Flow guide**: it explains the six stages and the storytelling principles. The same guide lives in Settings → Story Flow.
+- The **?** button (info icon) in the panel header opens a drawer with the **Story Flow guide**: it explains the six stages and the storytelling principles. The same guide lives in the **Help** dialog → Story Flow (Ctrl+Shift+/).
 - The first time you open Story Flow a **welcome tour** starts (a carousel through the six stages). You can replay it from the guide.
 
 ### Live update from the AI

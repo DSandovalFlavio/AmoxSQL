@@ -34,10 +34,10 @@ Las acciones vienen **agrupadas por categoría** (Análisis con IA, Query, Archi
 | **Query** | Ejecutar query (Ctrl+Enter / F5), Analizar plan (Ctrl+Shift+A) |
 | **File** | Guardar (Ctrl+S), Guardar como (Ctrl+Shift+S), Nueva query SQL (Ctrl+N), Nuevo Notebook (Ctrl+Shift+N), Nuevo Chain, Cerrar pestaña (Ctrl+W) |
 | **Navigation** | Explorador de archivos (Ctrl+Shift+E), Esquema de la base (Ctrl+Shift+D), Extensiones, Abrir/cerrar Assist (Ctrl+L), Pestaña siguiente/anterior |
-| **Settings** | Abrir ajustes (Ctrl+,), Cambiar tema, Ver atajos de teclado |
+| **Settings** | Abrir ajustes (Ctrl+,), Cambiar tema |
 | **View** | Zoom + / − / reset de la interfaz, Alternar minimapa, Alternar word wrap |
 | **DBT** | Abrir DBT Studio |
-| **Help & Tours** | Relanzar cualquier tour de onboarding desde donde estés |
+| **Help & Tours** | Ver los atajos de teclado, abrir las guías de Story Flow y Data Flow (el diálogo **Help**), relanzar cualquier tour de onboarding desde donde estés |
 
 > Las acciones de **AI Analysis** aparecen cuando hay un contexto de IA disponible; lanzan skills del asistente sobre la tabla o el análisis actual (ver [Skills](../ai/skills.md)).
 

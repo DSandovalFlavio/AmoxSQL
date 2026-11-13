@@ -72,7 +72,7 @@ En la cabecera de la barra lateral están el interruptor **Panels | Code**, el b
 - Un `.amoxvis` editado fuera de AmoxSQL (en otro editor) se reconoce al abrirlo y se lee igual: los paneles toman lo que entienden y el resto queda como código propio.
 
 ### La guía y el tour
-- El botón **?** (icono de info) en la cabecera del panel abre un cajón con la **guía de Story Flow**: explica las seis etapas y los principios de narrativa. La misma guía vive en Ajustes → Story Flow.
+- El botón **?** (icono de info) en la cabecera del panel abre un cajón con la **guía de Story Flow**: explica las seis etapas y los principios de narrativa. La misma guía vive en el diálogo **Help** → Story Flow (Ctrl+Shift+/).
 - La primera vez que abres Story Flow arranca un **tour de bienvenida** (un carrusel por las seis etapas). Puedes reproducirlo de nuevo desde la guía.
 
 ### Actualización en vivo desde la IA

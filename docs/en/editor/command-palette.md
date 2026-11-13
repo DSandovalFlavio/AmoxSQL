@@ -34,10 +34,10 @@ Actions are **grouped by category** (AI Analysis, Query, File, Navigation, Setti
 | **Query** | Run query (Ctrl+Enter / F5), Analyze plan (Ctrl+Shift+A) |
 | **File** | Save (Ctrl+S), Save As (Ctrl+Shift+S), New SQL query (Ctrl+N), New Notebook (Ctrl+Shift+N), New Chain, Close tab (Ctrl+W) |
 | **Navigation** | File explorer (Ctrl+Shift+E), Database schema (Ctrl+Shift+D), Extensions, Open/close Assist (Ctrl+L), Next/previous tab |
-| **Settings** | Open settings (Ctrl+,), Switch theme, Show keyboard shortcuts |
+| **Settings** | Open settings (Ctrl+,), Switch theme |
 | **View** | Zoom in / out / reset UI, Toggle minimap, Toggle word wrap |
 | **DBT** | Open DBT Studio |
-| **Help & Tours** | Replay any onboarding tour from wherever you are |
+| **Help & Tours** | Show keyboard shortcuts, open the Story Flow and Data Flow guides (the **Help** dialog), replay any onboarding tour from wherever you are |
 
 > **AI Analysis** actions appear when an AI context is available; they launch assistant skills over the current table or analysis (see [Skills](../ai/skills.md)).
 

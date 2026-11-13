@@ -53,6 +53,7 @@ const ImportExcelModal = lazy(() => import('./components/ImportExcelModal'));
 const WorkspaceWizard = lazy(() => import('./components/WorkspaceWizard'));
 const FichaEjecucion = lazy(() => import('./components/FichaEjecucion'));
 const ExportarProyecto = lazy(() => import('./components/paquete/ExportarProyecto'));
+const Ayuda = lazy(() => import('./components/ayuda/Ayuda'));
 const PanelCargando = <div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading...</div>;
 // Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
 const FunctionReference   = lazy(() => import('./components/FunctionReference'));
@@ -290,6 +291,14 @@ function App() {
     return () => window.removeEventListener('amox_abrir_ajustes', abrir);
   }, []);
 
+  // Help (6.0, M8): los atajos y las guías, fuera de Settings. `detail` es la sección.
+  const [ayuda, setAyuda] = useState(null);
+  useEffect(() => {
+    const abrir = (e) => setAyuda(e.detail || 'shortcuts');
+    window.addEventListener('amox_abrir_ayuda', abrir);
+    return () => window.removeEventListener('amox_abrir_ayuda', abrir);
+  }, []);
+
   useEffect(() => {
     if (projectPath && window.electronAPI?.setProjectRoot) {
       window.electronAPI.setProjectRoot(projectPath);
@@ -525,7 +534,7 @@ function App() {
       archivos: () => setActiveSidebarTab('files'),
       esquema: () => setActiveSidebarTab('schema'),
       ajustes: () => setIsSettingsOpen(true),
-      lista: () => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); },
+      lista: () => setAyuda('shortcuts'),
       cerrar: () => layoutRef.current?.closeActiveTab(),
       nuevoSql: () => layoutRef.current?.createNew('sql'),
       nuevoCuaderno: () => layoutRef.current?.createNew('notebook'),
@@ -1409,7 +1418,7 @@ function App() {
           onCloseProject={handleCloseProject}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenShortcuts={() => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); }}
+        onOpenShortcuts={() => setAyuda('shortcuts')}
           onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
         />
         <WorkspacesHost />
@@ -1446,6 +1455,7 @@ function App() {
           onUiZoomChange={setUiZoomLevel}
         />
         </Suspense>
+        {ayuda && <Suspense fallback={null}><Ayuda seccion={ayuda} onClose={() => setAyuda(null)} /></Suspense>}
       </div>
     );
   }
@@ -1485,7 +1495,7 @@ function App() {
         onCloseProject={handleCloseProject}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenShortcuts={() => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); }}
+        onOpenShortcuts={() => setAyuda('shortcuts')}
         onSwitchProject={handleSwitchProject}
       />
 
@@ -2017,6 +2027,8 @@ function App() {
           onImport={(config) => performExcelImport(config)}
         />
       </Suspense>
+
+      {ayuda && <Suspense fallback={null}><Ayuda seccion={ayuda} onClose={() => setAyuda(null)} /></Suspense>}
 
       {/* Global onboarding host — owns all first-run/replay tour rendering */}
       <OnboardingHost />

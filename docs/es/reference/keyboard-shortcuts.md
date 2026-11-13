@@ -2,7 +2,7 @@
 
 **🌐 [English](../../en/reference/keyboard-shortcuts.md) · Español**
 
-> El set completo de atajos de teclado de AmoxSQL, agrupado por categoría. El mismo listado vive en Ajustes → Atajos.
+> El set completo de atajos de teclado de AmoxSQL, agrupado por categoría. El mismo listado vive en el diálogo **Help** (Ctrl+Shift+/, o menú de la aplicación → Keyboard Shortcuts).
 
 ## Qué es
 

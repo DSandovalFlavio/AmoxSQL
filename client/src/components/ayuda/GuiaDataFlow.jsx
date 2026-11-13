@@ -1,7 +1,7 @@
 /**
- * Settings › La guía de Data Flow y volver a ver su recorrido.
- * Sale de SettingsModal (6.0, M8): lo que necesita del modal llega por props y
- * se carga la primera vez que se abre la sección.
+ * Help › La guía de Data Flow y volver a ver su recorrido.
+ * Vivía en Settings; desde la 6.0 (M8) es una sección del diálogo Help
+ * (Ayuda.jsx), que la carga al abrirla.
  */
 import { LuGitBranch } from 'react-icons/lu';
 import { DataFlowGuide } from '../chains/DataFlowGuide';

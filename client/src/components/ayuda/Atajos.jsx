@@ -1,7 +1,7 @@
 /**
- * Settings › La lista de atajos (sale de utils/atajos.js).
- * Sale de SettingsModal (6.0, M8): lo que necesita del modal llega por props y
- * se carga la primera vez que se abre la sección.
+ * Help › La lista de atajos (sale de utils/atajos.js).
+ * Vivía en Settings; desde la 6.0 (M8) es una sección del diálogo Help
+ * (Ayuda.jsx), que la carga al abrirla.
  */
 import { seccionesDeAtajos } from '../../utils/atajos';
 

@@ -125,3 +125,6 @@
 /* 6.0 (M5): the results' «Save / Share ▾» menu */
 .rt-menu-guardar { min-width: 230px; }
 .rt-menu-guardar .toolbar-dropdown-item { white-space: nowrap; }
+
+/* 6.0 (M8): Help — los atajos y las guías, en su propio diálogo (ayuda/Ayuda.jsx). */
+.ayuda-tab { display: flex; align-items: center; gap: 8px; }

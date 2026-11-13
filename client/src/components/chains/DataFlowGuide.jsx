@@ -3,7 +3,7 @@
  *
  * Single source of truth for the Data Flow explainer, reused by:
  *  - the "?" help drawer in the chain editor toolbar
- *  - Settings → Data Flow
+ *  - Help → Data Flow (ayuda/Ayuda.jsx, 6.0 M8)
  *  - the first-run tour carousel
  *
  * Mirrors StoryFlowGuide so both studios feel consistent. "Data Flow" is the

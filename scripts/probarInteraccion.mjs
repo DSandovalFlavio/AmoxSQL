@@ -379,7 +379,28 @@ async function fase2(app) {
       const vivo = !!document.querySelector('.stg-modal');
       document.querySelector('.stg-close-btn')?.click(); await t.dormir(200);
       return { secciones: nombres.length, vacias, vivo };`);
-    bien('cada sección se abre y pinta', e.secciones >= 10 && !e.vacias.length && e.vivo, e);
+    bien('cada sección se abre y pinta', e.secciones >= 9 && !e.vacias.length && e.vivo, e);
+
+    // Los atajos y las guías salieron de Settings a Help (6.0, M8).
+    console.log('— Help');
+    await app.js(`t.ed().focus();`);
+    await app.tecla('ctrl+shift+/'); await dormir(300);
+    e = await app.js(`
+      for (let i = 0; i < 40 && !document.querySelector('[aria-label="Help"]'); i++) await t.dormir(100);
+      const dialogo = document.querySelector('[aria-label="Help"]');
+      if (!dialogo) return { abierto: false };
+      const nombres = [...dialogo.querySelectorAll('.stg-tab')].map(x => x.innerText.trim());
+      const vacias = [];
+      for (const n of nombres) {
+        [...dialogo.querySelectorAll('.stg-tab')].find(x => x.innerText.trim() === n)?.click();
+        let ok = false;
+        for (let i = 0; i < 40 && !ok; i++) { await t.dormir(100); ok = (dialogo.querySelector('.stg-content-body')?.innerText.trim().length || 0) > 20; }
+        if (!ok) vacias.push(n);
+      }
+      return { abierto: true, nombres, vacias };`);
+    bien('Ctrl+Shift+/ abre Help y cada sección pinta', e.abierto && e.nombres.length === 3 && !e.vacias.length, e);
+    await app.tecla('escape'); await dormir(300);
+    bien('Escape cierra Help', !(await app.js(`return !!document.querySelector('[aria-label="Help"]');`)));
 }
 // ── Fase 3: la ventana emergente ────────────────────────────────────────────
 async function fase3(app) {

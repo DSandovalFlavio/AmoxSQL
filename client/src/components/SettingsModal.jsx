@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { API_BASE as API } from '../api.js';
-import { LuKeyRound, LuX, LuPalette, LuCpu, LuLoader, LuInfo, LuCode, LuKeyboard, LuSettings, LuSparkles, LuFolderOpen, LuCircleCheck, LuCircle, LuPlug, LuGitBranch, LuLayers } from 'react-icons/lu';
+import { LuKeyRound, LuX, LuPalette, LuCpu, LuLoader, LuInfo, LuCode, LuSettings, LuFolderOpen, LuCircleCheck, LuCircle, LuPlug, LuLayers } from 'react-icons/lu';
 import { useToast } from './ToastProvider';
 import { useDialog } from './dialogs/DialogProvider';
 import CredentialsPanel from './CredentialsPanel';
@@ -8,14 +8,11 @@ import WorkspacesPanel from './workspaces/WorkspacesPanel';
 import { useEtiqueta } from '../etiqueta';
 
 // Cada sección vive en settings/ y se carga la primera vez que se abre (6.0, M8).
-const SeccionGuiaStoryFlow = lazy(() => import('./settings/GuiaStoryFlow'));
-const SeccionGuiaDataFlow = lazy(() => import('./settings/GuiaDataFlow'));
 const SeccionApariencia = lazy(() => import('./settings/Apariencia'));
 const SeccionEditor = lazy(() => import('./settings/Editor'));
 const SeccionComportamiento = lazy(() => import('./settings/Comportamiento'));
 const SeccionIA = lazy(() => import('./settings/IA'));
 const SeccionIntegraciones = lazy(() => import('./settings/Integraciones'));
-const SeccionAtajos = lazy(() => import('./settings/Atajos'));
 const SeccionAcercaDe = lazy(() => import('./settings/AcercaDe'));
 
 const TAB_TITLES = {
@@ -26,10 +23,7 @@ const TAB_TITLES = {
     integrations:'Store Integrations',
     credentials: 'Credentials',
     workspace:   'Project',
-    shortcuts:   'Keyboard Shortcuts',
     about:       'About AmoxSQL',
-    storyflow:   'Story Flow',
-    dataflow:    'Data Flow',
     // Legacy aliases so existing initialTab values keep working
     formatter:   'Editor',
     memories:    'AI',
@@ -154,6 +148,8 @@ function SourceControlPanel() {
 }
 
 // Map legacy tab IDs to new IDs + sub-tab to pre-select
+const SECCIONES_DE_AYUDA = ['shortcuts', 'storyflow', 'dataflow'];
+
 const LEGACY_TAB_MAP = {
     formatter:    { tab: 'editor',     sub: 'formatting' },
     memories:     { tab: 'ai',         sub: 'knowledge' },
@@ -279,6 +275,13 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
     // Respond to initialTab prop (e.g. from Ctrl+Shift+/, legacy deep-links)
     useEffect(() => {
         if (isOpen && initialTab) {
+            // Los atajos y las guías ya no son de Settings: un enlace viejo abre Help.
+            if (SECCIONES_DE_AYUDA.includes(initialTab)) {
+                window.dispatchEvent(new CustomEvent('amox_abrir_ayuda', { detail: initialTab }));
+                onTabReset?.();
+                onClose?.();
+                return;
+            }
             const legacy = LEGACY_TAB_MAP[initialTab];
             if (legacy) {
                 setActiveTab(legacy.tab);
@@ -550,11 +553,8 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                         { id: 'credentials',   icon: <LuKeyRound  size={16} />, label: 'Credentials' },
                         { id: 'workspace',     icon: <LuFolderOpen size={16} />, label: 'Project' },
                         { id: 'workspaces',    icon: <LuLayers    size={16} />, label: etiqueta.P },
-                        // ── Help & info ──
+                        // ── Info (la ayuda vive en su propio diálogo, ayuda/Ayuda.jsx) ──
                         { separator: true, id: '_sep_help' },
-                        { id: 'shortcuts',     icon: <LuKeyboard  size={16} />, label: 'Shortcuts' },
-                        { id: 'storyflow',     icon: <LuSparkles  size={16} />, label: 'Story Flow' },
-                        { id: 'dataflow',      icon: <LuGitBranch size={16} />, label: 'Data Flow' },
                         { id: 'about',         icon: <LuInfo      size={16} />, label: 'About AmoxSQL' },
                     ].filter(tab => {
                         if (tab.separator) return !settingsSearch;
@@ -586,16 +586,6 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     </div>
 
                     <div className="stg-content-body" ref={contentRef}>
-
-                        {/* ═══ STORY FLOW ═══ */}
-                        {activeTab === 'storyflow' && (
-                            <Suspense fallback={null}><SeccionGuiaStoryFlow /></Suspense>
-                        )}
-
-                        {/* ═══ DATA FLOW ═══ */}
-                        {activeTab === 'dataflow' && (
-                            <Suspense fallback={null}><SeccionGuiaDataFlow /></Suspense>
-                        )}
 
                         {/* ═══ APPEARANCE ═══ */}
                         {activeTab === 'appearance' && (
@@ -668,11 +658,6 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
 
                         {activeTab === 'workspaces' && (
                             <WorkspacesPanel />
-                        )}
-
-                        {/* ═══ KEYBOARD SHORTCUTS ═══ */}
-                        {activeTab === 'shortcuts' && (
-                            <Suspense fallback={null}><SeccionAtajos /></Suspense>
                         )}
 
                         {/* ═══ ABOUT ═══ */}
