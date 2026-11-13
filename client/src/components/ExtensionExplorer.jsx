@@ -293,7 +293,7 @@ const ExtensionExplorer = () => {
                             }}
                             disabled={!!busyExt}
                             title={`Install "${query.trim()}"`}
-                            className="ext-install-btn"
+                            className="btn-primario btn--peq"
                         >
                             {busyExt === query.trim()
                                 ? <LuLoader size={12} className="ext-spin" />
@@ -498,8 +498,7 @@ const FeaturedCard = ({ feat, busy, onInstall, onLoad, onContextMenu }) => {
                     <button
                         onClick={() => onInstall(feat.name, feat.fromCommunity)}
                         disabled={busy}
-                        className="ext-install-btn"
-                        style={{ fontSize: '11px', padding: '3px 8px' }}
+                        className="btn-secundario btn--peq"
                     >
                         {busy
                             ? <LuLoader size={10} className="ext-spin" />
@@ -513,8 +512,7 @@ const FeaturedCard = ({ feat, busy, onInstall, onLoad, onContextMenu }) => {
                     <button
                         onClick={() => onLoad(feat.name)}
                         disabled={busy}
-                        className="ext-install-btn"
-                        style={{ fontSize: '11px', padding: '3px 8px', background: 'var(--feedback-success-text)' }}
+                        className="btn-secundario btn--peq"
                     >
                         {busy ? <LuLoader size={10} className="ext-spin" /> : <LuPlay size={10} />}
                         Load
@@ -575,8 +573,7 @@ const ExtCard = ({ ext, core, busy, onInstall, onLoad, onContextMenu }) => {
                     <button
                         onClick={() => onInstall(ext.extension_name, !core)}
                         disabled={busy}
-                        className="ext-install-btn"
-                        style={{ fontSize: '11px', padding: '3px 8px' }}
+                        className="btn-secundario btn--peq"
                     >
                         {busy ? <LuLoader size={10} className="ext-spin" /> : <LuDownload size={10} />}
                         Install
@@ -586,8 +583,7 @@ const ExtCard = ({ ext, core, busy, onInstall, onLoad, onContextMenu }) => {
                     <button
                         onClick={() => onLoad(ext.extension_name)}
                         disabled={busy}
-                        className="ext-install-btn"
-                        style={{ fontSize: '11px', padding: '3px 8px', background: 'var(--feedback-success-text)' }}
+                        className="btn-secundario btn--peq"
                     >
                         {busy ? <LuLoader size={10} className="ext-spin" /> : <LuPlay size={10} />}
                         Load

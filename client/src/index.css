@@ -26,4 +26,5 @@
 @import './estilos/22-graficos.css'; /* Story Flow sobre Vega-Lite y los gráficos de un .sql */
 @import './estilos/23-asistente-en-archivos.css'; /* Las propuestas del Assistant sobre Data Flow y el chat más corto */
 @import './estilos/24-seis.css'; /* Lo añadido en la 6.0 */
-@import './estilos/25-utilidades.css'; /* fila, columna, hueco-N, texto-secundario, texto-tenue: lo que antes iba en style={{…}} */
+@import './estilos/25-botones.css'; /* btn-primario, btn-secundario, btn-texto: un primario por vista */
+@import './estilos/26-utilidades.css'; /* fila, columna, hueco-N, texto-secundario, texto-tenue: lo que antes iba en style={{…}} */

@@ -5,7 +5,7 @@
  */
 // Los acentos viven fuera: el inspector del deck necesita la misma lista y no
 // puede importar 97 KB de modal para leer dos arrays.
-import { LuMoon, LuSun } from 'react-icons/lu';
+import { LuMoon, LuSun, LuCheck } from 'react-icons/lu';
 import { VIBRANT_ACCENTS, SOBER_ACCENTS } from '../../accents.js';
 import { Toggle } from './comun';
 
@@ -156,7 +156,7 @@ export default function Apariencia({
                             style={{ background: s.color }}
                             title={s.label}
                         >
-                            {currentAccent === s.id && <span className="stg-swatch-check" style={{ color: '#000' }}>✓</span>}
+                            {currentAccent === s.id && <span className="stg-swatch-check" style={{ color: '#000' }}><LuCheck size={12} /></span>}
                         </div>
                     ))}
                 </div>
@@ -170,7 +170,7 @@ export default function Apariencia({
                             style={{ background: s.color }}
                             title={s.label}
                         >
-                            {currentAccent === s.id && <span className="stg-swatch-check" style={{ color: s.checkColor }}>✓</span>}
+                            {currentAccent === s.id && <span className="stg-swatch-check" style={{ color: s.checkColor }}><LuCheck size={12} /></span>}
                         </div>
                     ))}
                 </div>

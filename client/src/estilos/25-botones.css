@@ -1,0 +1,70 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   BOTONES: tres niveles con nombre (6.0, M9 · D4)
+
+   El relleno de acento se usaba para todo —cada Install de Extensions, Run,
+   Continue, Initialize Project— y cuando todo es primario nada lo es. Tres
+   niveles, y una regla: **un primario por vista** (la acción que se espera;
+   las demás, secundarias o de texto).
+
+     btn-primario    relleno de acento: la acción de la vista
+     btn-secundario  borde, texto normal: las demás acciones con peso
+     btn-texto       sin caja: acciones menores (Cancel, Learn more, Show…)
+     btn--peq        el tamaño compacto de una lista o una tarjeta
+
+   Los botones propios que ya existían (stg-btn--primary, dbt-btn--primary,
+   git-commit-btn…) siguen; lo nuevo usa estos.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.btn-primario,
+.btn-secundario,
+.btn-texto {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: 6px 12px;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast);
+}
+
+.btn-primario {
+  background-color: var(--accent-primary);
+  color: var(--button-text-color);
+}
+/* Su hover (invertir: fondo hundido, texto y contorno de acento) es el de todos
+   los botones rellenos de la app: 19-flujos-reparto.css. */
+
+.btn-secundario {
+  background-color: transparent;
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+.btn-secundario:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background-color: var(--accent-subtle);
+}
+
+.btn-texto {
+  background-color: transparent;
+  color: var(--text-secondary);
+  padding-inline: 6px;
+}
+.btn-texto:hover:not(:disabled) { color: var(--text-primary); background-color: var(--accent-subtle); }
+
+.btn-primario:disabled,
+.btn-secundario:disabled,
+.btn-texto:disabled { opacity: 0.5; cursor: default; }
+
+.btn-primario:focus-visible,
+.btn-secundario:focus-visible,
+.btn-texto:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+
+.btn--peq { padding: 3px 8px; font-size: var(--text-xs); }

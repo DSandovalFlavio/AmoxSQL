@@ -251,7 +251,7 @@ Antes de empezar a escribir CSS para una feature nueva, definir un prefijo corto
 ### 3.2 bis Dónde va el CSS y las utilidades (6.0, M8)
 
 - **Dónde:** `client/src/estilos/NN-<tema>.css`. Una regla nueva va al final del archivo de su tema (`05-resultados.css`, `14-flujos.css`…) o a uno nuevo **al final** de la lista de `index.css`. Nunca se reordena la lista: es la cascada. Un componente con mucho CSS propio puede tener su `.css` al lado (`cuaderno/cuaderno.css`), importado desde el componente.
-- **Sin estilos en línea en lo nuevo.** Lo que se repetía en `style={{…}}` tiene utilidad en `estilos/25-utilidades.css`:
+- **Sin estilos en línea en lo nuevo.** Lo que se repetía en `style={{…}}` tiene utilidad en `estilos/26-utilidades.css`:
 
 | Clase | Qué hace |
 |---|---|
@@ -262,6 +262,13 @@ Antes de empezar a escribir CSS para una feature nueva, definir un prefijo corto
 | `texto-tenue` | `color: var(--text-muted)` |
 
   `style` queda para lo que se calcula al pintar (un ancho arrastrado, una posición, un color que viene de los datos). `scripts/probarEstilosEnLinea.mjs` es un trinquete: falla si el número de `style={{` del cliente sube. Los viejos se quitan al tocar cada componente, y entonces se baja su `TECHO`.
+
+### 3.2 ter Botones, texto y color (6.0, M9)
+
+- **Tres niveles de botón** (`estilos/25-botones.css`): `btn-primario` (relleno de acento), `btn-secundario` (borde), `btn-texto` (sin caja); `btn--peq` para listas y tarjetas. **Un primario por vista**: la acción que se espera. En una lista con un botón por fila (Install en Extensions), los de las filas son secundarios. El hover del primario es el de todos los botones rellenos (invertir), en `19-flujos-reparto.css`.
+- **Texto: 11 px como mínimo** en todo el cliente (`scripts/probarTamanoMinimo.mjs`). Sólo se libran las miniaturas de Settings y la bienvenida.
+- **Contraste con margen:** en los temas claros `--text-tertiary` ≥ 5,0 y `--text-disabled` ≥ 3,3 sobre la peor superficie (`scripts/checkThemeContrast.cjs`). Cada acento, en los dos modos, ≥ 4,5 como texto y, en claro, con blanco encima: un acento que no lo cumpla no entra.
+- **Acentos:** los ocho «Vibrant» recorren el círculo cromático (cian, azul, violeta, magenta, rojo, naranja, lima, verde); un id viejo se traduce con `theme.js → migrateAccent` (`scripts/probarAcentos.mjs`).
 
 ### 3.3 Modificadores BEM-Lite
 

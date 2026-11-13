@@ -6,14 +6,17 @@
  * atajos. Con el texto terciario encima, ilegibles en un portátil. El piso es
  * 11 px en todo el CSS del cliente y en los `fontSize` de los componentes; sólo
  * se libran las miniaturas que dibujan una ventana en pequeño (la vista previa
- * de un tema y la del reparto del editor en Settings), que no son texto para leer.
+ * de un tema y la del reparto del editor en Settings), que no son texto para leer,
+ * y la pantalla de bienvenida, que no se toca.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const MIN = 11;
-const EXENTOS = [/^\.stg-theme-preview/, /^\.stg-layout-preview/];
+// La bienvenida (`.ws-*`) no se toca: es la única pantalla que el autor dejó
+// fuera de toda revisión (salvo «Needs attention»).
+const EXENTOS = [/^\.stg-theme-preview/, /^\.stg-layout-preview/, /^\.ws-/];
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(RAIZ, 'client', 'src');

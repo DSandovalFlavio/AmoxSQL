@@ -467,7 +467,7 @@ export default function IA({
                     </button>
                     {saveMessage && (
                         <span className={`stg-save-msg stg-save-msg--${saveMessage.type}`}>
-                            {saveMessage.type === 'success' ? '✓' : '×'} {saveMessage.text}
+                            {saveMessage.type === 'success' ? <LuCheck size={12} /> : <LuX size={12} />} {saveMessage.text}
                         </span>
                     )}
                 </div>

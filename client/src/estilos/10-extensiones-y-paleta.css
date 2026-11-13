@@ -26,32 +26,6 @@
   align-items: center;
 }
 
-.ext-install-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  font-size: 11px;
-  font-weight: var(--weight-semibold);
-  background-color: var(--accent-primary);
-  color: var(--surface-base);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: opacity var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.ext-install-btn:hover {
-  opacity: 0.85;
-}
-
-.ext-install-btn:disabled {
-  opacity: 0.5;
-  cursor: wait;
-}
-
 .ext-stats-bar {
   padding: 4px 12px 8px;
   display: flex;
