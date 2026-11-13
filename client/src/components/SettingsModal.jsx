@@ -6,6 +6,8 @@ import { useDialog } from './dialogs/DialogProvider';
 import CredentialsPanel from './CredentialsPanel';
 import WorkspacesPanel from './workspaces/WorkspacesPanel';
 import { useEtiqueta } from '../etiqueta';
+import { useApariencia } from '../shell/Apariencia.jsx';
+import { modeClassFor } from '../theme.js';
 import { emitir } from '../eventos.js';
 
 // Cada sección vive en settings/ y se carga la primera vez que se abre (6.0, M8).
@@ -159,8 +161,20 @@ const LEGACY_TAB_MAP = {
     gallery:      { tab: 'appearance', sub: null },
 };
 
-const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAccent, onAccentChange,
-    accentL = null, effectiveAccentL = 0.73, isLightMode = false, onAccentLChange, glowCorner = 'tl', onGlowCornerChange, glowStrength = 30, onGlowStrengthChange, currentInterfaceFont = 'manrope', onInterfaceFontChange, currentLayout, onLayoutChange, editorSettings = {}, onEditorSettingsChange, initialTab, onTabReset, uiZoomLevel = 1.0, onUiZoomChange }) => {
+const SettingsModal = ({ isOpen, onClose, initialTab, onTabReset }) => {
+    // La apariencia se lee de su proveedor (shell/Apariencia.jsx, 6.0 M8); los
+    // nombres locales son los de antes, cuando llegaba por props desde App.
+    const {
+        theme: currentTheme, setTheme: onThemeChange,
+        accentColor: currentAccent, handleAccentChange: onAccentChange,
+        accentL, setAccentL: onAccentLChange, effectiveAccentL,
+        glowCorner, setGlowCorner: onGlowCornerChange, glowStrength, setGlowStrength: onGlowStrengthChange,
+        interfaceFont: currentInterfaceFont, setInterfaceFont: onInterfaceFontChange,
+        editorLayout: currentLayout, setEditorLayout: onLayoutChange,
+        mergedEditorSettings: editorSettings, cambiarEditorSettings: onEditorSettingsChange,
+        uiZoomLevel, setUiZoomLevel: onUiZoomChange,
+    } = useApariencia();
+    const isLightMode = modeClassFor(currentTheme) === 'mode-light';
     const [activeTab, setActiveTab] = useState('appearance');
     const [editorSubTab, setEditorSubTab]   = useState('general');
     const [aiSubTab,     setAiSubTab]       = useState('models');

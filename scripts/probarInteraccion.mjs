@@ -381,6 +381,23 @@ async function fase2(app) {
       return { secciones: nombres.length, vacias, vivo };`);
     bien('cada sección se abre y pinta', e.secciones >= 9 && !e.vacias.length && e.vivo, e);
 
+    // La apariencia vive en su proveedor (shell/Apariencia.jsx, 6.0 M8): elegir
+    // un tema en Settings lo aplica al documento y lo guarda.
+    e = await app.js(`
+      window.dispatchEvent(new CustomEvent('amox_abrir_ajustes', { detail: 'appearance' }));
+      let cartas = [];
+      for (let i = 0; i < 40 && !cartas.length; i++) { await t.dormir(100); cartas = [...document.querySelectorAll('.stg-theme-card')]; }
+      const antes = localStorage.getItem('amoxsql-theme');
+      const carta = (txt) => cartas.find(c => c.innerText.includes(txt));
+      carta('Amox Light')?.click(); await t.dormir(300);
+      const claro = { modo: document.body.classList.contains('mode-light'), guardado: localStorage.getItem('amoxsql-theme'), activa: !!document.querySelector('.stg-theme-card--active')?.innerText.includes('Amox Light') };
+      carta('Amox Dark')?.click(); await t.dormir(300);
+      const oscuro = { modo: document.body.classList.contains('mode-dark'), guardado: localStorage.getItem('amoxsql-theme') };
+      if (antes && antes !== oscuro.guardado) { carta(antes)?.click(); }
+      document.querySelector('.stg-close-btn')?.click(); await t.dormir(200);
+      return { cartas: cartas.length, claro, oscuro };`);
+    bien('elegir un tema en Settings lo aplica y lo guarda', e.cartas >= 10 && e.claro.modo && e.claro.guardado === 'amoxlight' && e.claro.activa && e.oscuro.modo && e.oscuro.guardado === 'amoxdark', e);
+
     // Los atajos y las guías salieron de Settings a Help (6.0, M8).
     console.log('— Help');
     await app.js(`t.ed().focus();`);
