@@ -12,6 +12,7 @@
  * before being interpolated into SQL strings (DuckDB Neo's systemQuery does not
  * accept bind parameters).
  */
+const registrador = require('../registrador');
 const crypto = require('crypto');
 const { s, j, n } = require('./_sqlHelpers');
 
@@ -146,7 +147,7 @@ class AiPersistence {
                     try { await aiLane(dbManager).systemQuery(`ROLLBACK`); } catch {}
                     // Column already exists — safe to ignore
                     if (!err.message?.includes('already exists') && !err.message?.includes('duplicate')) {
-                        console.error(`[AI Persistence] Migration warning for column ${col.name}:`, err.message);
+                        registrador.error(`[AI Persistence] Migration warning for column ${col.name}:`, err.message);
                     }
                 }
             }
@@ -240,9 +241,9 @@ class AiPersistence {
                 )
             `);
 
-            console.log('[AI Persistence] Schema amoxsql_ai initialized.');
+            registrador.info('[AI Persistence] Schema amoxsql_ai initialized.');
         } catch (err) {
-            console.warn('[AI Persistence] Schema init warning:', err.message);
+            registrador.aviso('[AI Persistence] Schema init warning:', err.message);
         }
     }
 
@@ -652,14 +653,14 @@ class AiPersistence {
             conditions.push(`(c.title ILIKE ${s(likeVal)} OR c.session_name ILIKE ${s(likeVal)})`);
         }
 
+        // El conteo va en una subconsulta: con `c.*` y un GROUP BY de columnas escritas a
+        // mano, cada columna que añadía una migración (context_objects…) rompía la lista
+        // («must appear in the GROUP BY clause»), y Deep Dive no enseñaba sus sesiones.
         const query = `
-            SELECT c.*, COUNT(a.id) AS artifact_count
+            SELECT c.*,
+                   (SELECT COUNT(*) FROM amoxsql_ai.session_artifacts a WHERE a.conversation_id = c.id) AS artifact_count
             FROM amoxsql_ai.conversations c
-            LEFT JOIN amoxsql_ai.session_artifacts a ON a.conversation_id = c.id
             WHERE ${conditions.join(' AND ')}
-            GROUP BY c.id, c.title, c.mode, c.is_starred, c.provider, c.model,
-                     c.created_at, c.updated_at, c.file_path, c.session_name,
-                     c.description, c.archived
             ORDER BY c.updated_at DESC
             LIMIT ${n(limit)}${offset > 0 ? ` OFFSET ${n(offset)}` : ''}
         `;
