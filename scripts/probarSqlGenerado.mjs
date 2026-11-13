@@ -136,6 +136,29 @@ try {
     const juntar = ex.buildNodeSql({ id: 'm', type: 'merge_tables', config: { mergeMode: 'union_all' } }, [fuenteSql, fuenteSql], 'guarda.sqlchain', {}, P);
     if (revisar('merge_tables', juntar)) { try { await con.run(juntar); comprobar('merge_tables: el SQL equivalente corre', true); } catch (e) { comprobar('merge_tables: el SQL equivalente corre', false, e.message.split('\n')[0]); } }
 
+    // 6.0 (M7): cada paso de server/flujos/pasos.js se define una vez. Lo que se ejecuta
+    // y el SQL equivalente son el mismo SELECT (con otro prefijo si el paso es una vista).
+    {
+        const { PASOS: definidos } = require(path.join(RAIZ, 'server/flujos/pasos.js'));
+        const cuerpo = (s) => String(s || '').replace(/^CREATE OR REPLACE (?:TEMP )?(?:TABLE|VIEW) "[^"]+" AS /, '');
+        const distintos = [];
+        for (const tipo of Object.keys(definidos)) {
+            const config = PASOS[tipo];
+            if (!config) { distintos.push(`${tipo} (sin configuración en la guarda)`); continue; }
+            const nodo = { id: `u_${tipo}`, type: tipo, config };
+            const exportado = ex.buildNodeSql(nodo, [ex.outputToQuery({ table: 'ventas' })], 'guarda.sqlchain', {}, P);
+            const corrido = [];
+            const falso = { query: async (q) => { corrido.push(q); return [{ cnt: 0 }]; } };
+            await ex.executeNode(nodo, falso, P, [{ table: 'ventas' }], { chainFile: 'guarda.sqlchain' });
+            const principal = corrido.find(q => /^CREATE OR REPLACE/.test(q));
+            if (cuerpo(principal) !== cuerpo(exportado)) distintos.push(tipo);
+        }
+        comprobar(`los ${Object.keys(definidos).length} pasos definidos una vez: lo que corre = lo que se exporta`, !distintos.length, distintos.join(', '));
+        // Antes divergían: un operador desconocido era «=» al correr y quedaba tal cual al exportar.
+        const raro = ex.buildNodeSql({ id: 'r', type: 'filter', config: { conditions: [{ column: 'region', operator: '<>', value: 'sur' }] } }, [fuenteSql], 'guarda.sqlchain', {}, P);
+        comprobar('  un operador desconocido del filtro se exporta como se ejecuta', /"region" = 'sur'/.test(raro), raro);
+    }
+
     console.log('\nData Flow: el proceso de verdad, con el motor de la app');
     const { startServer } = require(path.join(RAIZ, 'server/index.js'));
     const baseCentral = require(path.join(RAIZ, 'server/central/BaseCentral.js'));

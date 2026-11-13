@@ -54,6 +54,7 @@ const DERIVED_NODE_TYPES = new Set([
  * reshapes (natural materialization points), type_cast (EXCLUDE fallback path).
  * A view-eligible node still materializes as a TABLE when it has fan-out > 1.
  */
+const { PASOS } = require('./flujos/pasos');
 const VIEW_ELIGIBLE_NODE_TYPES = new Set([
     'filter', 'select_columns', 'add_column', 'clean', 'date_ops',
 ]);
@@ -729,6 +730,10 @@ class ChainExecutor extends EventEmitter {
         const src0 = sources[0];
         const fromSrc = src0 ? `(${src0})` : '(SELECT NULL::VARCHAR AS no_input /* connect an upstream node */)';
 
+        // Los pasos definidos una vez (server/flujos/pasos.js): el mismo SQL que corre.
+        const paso = PASOS[node.type];
+        if (paso) return paso.falta(config) ? null : `CREATE OR REPLACE TABLE "${out}" AS ${paso.select(config, fromSrc, this)}`;
+
         switch (node.type) {
             case 'sql_inline':
                 return config.query || null;
@@ -821,77 +826,6 @@ class ChainExecutor extends EventEmitter {
                 const jon = jkeys.length ? jkeys.map(k => `_left."${k.left}" = _right."${k.right}"`).join(' AND ') : `_left."?" = _right."?"`;
                 return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM (${sources[0]}) AS _left ${jt} JOIN (${sources[1]}) AS _right ON ${jon}`;
             }
-            case 'filter': {
-                const conds = config.conditions || [];
-                if (!conds.length) return null;
-                const connector = config.connector || 'AND';
-                const where = conds.map(c => {
-                    const col = `"${c.column}"`;
-                    switch (c.operator) {
-                        case 'IS NULL': return `${col} IS NULL`;
-                        case 'IS NOT NULL': return `${col} IS NOT NULL`;
-                        case '>': case '>=': case '<': case '<=': return `${col} ${c.operator} ${this.filterValueLiteral(c.value)}`;
-                        case 'LIKE': return `${col} LIKE '${(c.value || '').replace(/'/g, "''")}'`;
-                        case 'NOT LIKE': return `${col} NOT LIKE '${(c.value || '').replace(/'/g, "''")}'`;
-                        case 'IN': { const vals = (c.value || '').split(',').map(v => `'${v.trim().replace(/'/g, "''")}'`).join(', '); return `${col} IN (${vals})`; }
-                        case 'BETWEEN': return `${col} BETWEEN ${this.filterValueLiteral(c.value)} AND ${this.filterValueLiteral(c.value2)}`;
-                        default: return `${col} ${c.operator || '='} '${(c.value || '').replace(/'/g, "''")}'`;
-                    }
-                }).join(` ${connector} `);
-                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM ${fromSrc} AS _src WHERE ${where}`;
-            }
-            case 'group_aggregate': {
-                const groups = config.groupColumns || [];
-                const aggs = config.aggregations || [];
-                if (!aggs.length) return null;
-                const parts = [
-                    ...groups.map(g => `"${g}"`),
-                    ...aggs.map(a => this.aggExpr(a)),
-                ];
-                const gb = groups.length ? ` GROUP BY ${groups.map(g => `"${g}"`).join(', ')}` : '';
-                const having = (config.having && config.having.trim()) ? ` HAVING ${config.having.trim()}` : '';
-                return `CREATE OR REPLACE TABLE "${out}" AS SELECT ${parts.join(', ')} FROM ${fromSrc} AS _src${gb}${having}`;
-            }
-            case 'select_columns': {
-                const cols = config.columns || [];
-                if (!cols.length) return null;
-                const exprs = cols.map(c => (c.alias && c.alias !== c.name) ? `"${c.name}" AS "${c.alias}"` : `"${c.name}"`);
-                return `CREATE OR REPLACE TABLE "${out}" AS SELECT ${exprs.join(', ')} FROM ${fromSrc} AS _src`;
-            }
-            case 'deduplicate': {
-                const keys = config.keyColumns || [];
-                if (!keys.length) return `CREATE OR REPLACE TABLE "${out}" AS SELECT DISTINCT * FROM ${fromSrc} AS _src`;
-                const part = keys.map(k => `"${k}"`).join(', ');
-                const order = config.keep === 'last' ? 'DESC' : 'ASC';
-                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * EXCLUDE (_rn, _orden) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY ${part} ORDER BY _orden ${order}) AS _rn FROM (SELECT *, row_number() OVER () AS _orden FROM ${fromSrc} AS _src0) AS _src) WHERE _rn = 1`;
-            }
-            case 'add_column': {
-                const cols = config.newColumns || [];
-                if (!cols.length) return null;
-                const exprs = cols.map(c => `(${c.expression}) AS "${c.name}"`);
-                return `CREATE OR REPLACE TABLE "${out}" AS SELECT *, ${exprs.join(', ')} FROM ${fromSrc} AS _src`;
-            }
-            case 'sort': {
-                const s = config.sortColumns || [];
-                if (!s.length) return null;
-                const ob = s.map(c => `"${c.column}" ${c.direction || 'ASC'}`).join(', ');
-                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM ${fromSrc} AS _src ORDER BY ${ob}`;
-            }
-            case 'sample': {
-                const v = parseInt(config.sampleValue) || 100;
-                if (config.sampleType === 'percent') return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM ${fromSrc} AS _src USING SAMPLE ${Math.min(v, 100)}%`;
-                if (config.sampleType === 'stratified' && config.strataColumn) return `CREATE OR REPLACE TABLE "${out}" AS SELECT * EXCLUDE (_rn, _azar) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY "${config.strataColumn}" ORDER BY _azar) AS _rn FROM (SELECT *, random() AS _azar FROM ${fromSrc} AS _src0) AS _src) WHERE _rn <= ${v}`;
-                return `CREATE OR REPLACE TABLE "${out}" AS SELECT * FROM ${fromSrc} AS _src LIMIT ${v}`;
-            }
-            case 'pivot': {
-                if (!config.groupColumn || !config.pivotColumn || !config.valueColumn) return null;
-                return `CREATE OR REPLACE TABLE "${out}" AS PIVOT ${fromSrc} ON "${config.pivotColumn}" USING ${config.aggFunc || 'SUM'}("${config.valueColumn}") GROUP BY "${config.groupColumn}"`;
-            }
-            case 'unpivot': {
-                const vc = (config.valueColumns || []).map(c => `"${c}"`).join(', ');
-                if (!vc) return null;
-                return `CREATE OR REPLACE TABLE "${out}" AS UNPIVOT ${fromSrc} ON ${vc} INTO NAME "${config.nameColumn || 'variable'}" VALUE "${config.valueColumn || 'value'}"`;
-            }
             case 'type_cast': {
                 const casts = config.casts || [];
                 if (!casts.length) return null;
@@ -900,29 +834,8 @@ class ChainExecutor extends EventEmitter {
                 // DuckDB requires EXCLUDE attached to the star, then the new expressions.
                 return `CREATE OR REPLACE TABLE "${out}" AS SELECT * EXCLUDE (${ex}), ${ce.join(', ')} FROM ${fromSrc} AS _src`;
             }
-            case 'window_functions': {
-                const ws = config.windows || [];
-                if (!ws.length) return null;
-                const we = ws.map(w => {
-                    const pb = (w.partitionBy && w.partitionBy.length) ? `PARTITION BY ${w.partitionBy.map(c => `"${c}"`).join(', ')}` : '';
-                    const ob = (w.orderBy && w.orderBy.length) ? `ORDER BY ${w.orderBy.map(c => `"${c}"`).join(', ')}` : '';
-                    const over = `OVER (${[pb, ob].filter(Boolean).join(' ')})`;
-                    const col = (w.column && w.column !== '*') ? `"${w.column}"` : (w.column === '*' ? '*' : '');
-                    const fn = ['ROW_NUMBER', 'RANK', 'DENSE_RANK', 'NTILE'].includes(w.func) ? `${w.func}()` : (col ? `${w.func}(${col})` : `${w.func}()`);
-                    return `${fn} ${over} AS "${w.alias || String(w.func || '').toLowerCase()}"`;
-                });
-                return `CREATE OR REPLACE TABLE "${out}" AS SELECT *, ${we.join(', ')} FROM ${fromSrc} AS _src`;
-            }
             case 'clean':
                 return `-- clean/replace: column transforms resolved from the live schema at run time — not inlined`;
-            case 'date_ops':
-                return (config.operations || []).length
-                    ? `CREATE OR REPLACE TABLE "${out}" AS ${this.dateOpsSelect(config, fromSrc)}`
-                    : null;
-            case 'flatten':
-                return config.column
-                    ? `CREATE OR REPLACE TABLE "${out}" AS ${this.flattenSelect(config, fromSrc)}`
-                    : null;
             case 'bucket_read': {
                 const bf = config.format || 'parquet';
                 const breader = bf === 'csv' ? `read_csv('${literalSql(config.uri || '')}', auto_detect=true, header=true)` : bf === 'json' ? `read_json_auto('${literalSql(config.uri || '')}')` : `read_parquet('${literalSql(config.uri || '')}')`;
@@ -1225,6 +1138,35 @@ class ChainExecutor extends EventEmitter {
 
     // --- Node Execution ---
 
+    /**
+     * Corre uno de los pasos de server/flujos/pasos.js: su entrada (el paso de arriba o
+     * `config.sourceTable`), lo que le falte, la tabla o vista (`materializeTarget` para
+     * los que pueden ser vista), el conteo y el resumen. Lo mismo que hacía cada caso de
+     * executeNode, ahora una vez.
+     */
+    async ejecutarPaso(paso, node, config, dbManager, upstreamOutputs, ctx, chainFile) {
+        const targetTable = this.physName(chainFile, node.id);
+        let sourceQuery = '';
+        if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
+        if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
+        if (!sourceQuery) throw new Error(paso.sinEntrada);
+        const falta = paso.falta(config);
+        if (falta) throw new Error(falta);
+        const prefijo = VIEW_ELIGIBLE_NODE_TYPES.has(node.type)
+            ? await this.materializeTarget(dbManager, node, ctx, targetTable)
+            : `CREATE OR REPLACE TABLE "${targetTable}"`;
+        const sql = `${prefijo} AS ${paso.select(config, `(${sourceQuery})`, this)}`;
+        await dbManager.query(sql);
+        if (paso.despues) await paso.despues(targetTable, dbManager);
+        const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
+        const rowCount = countResult[0]?.cnt || 0;
+        return {
+            sql,
+            resultType: 'table_created',
+            resultSummary: { table: targetTable, rowCount, ...(paso.resumen ? paso.resumen(config) : {}) },
+        };
+    }
+
     async executeNode(node, dbManager, projectPath, upstreamOutputs = [], ctx = {}) {
         const { type } = node;
         const chainFile = ctx.chainFile || '';
@@ -1237,6 +1179,9 @@ class ChainExecutor extends EventEmitter {
         let sql = '';
         let resultType = 'unknown';
         let resultSummary = {};
+
+        // Los pasos definidos una vez (server/flujos/pasos.js).
+        if (PASOS[type]) return this.ejecutarPaso(PASOS[type], node, config, dbManager, upstreamOutputs, ctx, chainFile);
 
         switch (type) {
             case 'sql_file': {
@@ -1705,288 +1650,6 @@ class ChainExecutor extends EventEmitter {
                 break;
             }
 
-            case 'filter': {
-                const targetTable = this.physName(chainFile, node.id);
-                const conditions = config.conditions || [];
-
-                // Resolve source from upstream or config
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) {
-                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                }
-                if (!sourceQuery && config.sourceTable) {
-                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                }
-                if (!sourceQuery) {
-                    throw new Error('Filter node: no upstream data source connected and no source table specified');
-                }
-
-                if (conditions.length === 0) {
-                    throw new Error('Filter node: at least one filter condition is required');
-                }
-
-                const connector = config.connector || 'AND';
-                const whereClauses = conditions.map(c => {
-                    const col = `"${c.column}"`;
-                    switch (c.operator) {
-                        case '=': return `${col} = '${(c.value || '').replace(/'/g, "''")}'`;
-                        case '!=': return `${col} != '${(c.value || '').replace(/'/g, "''")}'`;
-                        case '>': return `${col} > ${this.filterValueLiteral(c.value)}`;
-                        case '>=': return `${col} >= ${this.filterValueLiteral(c.value)}`;
-                        case '<': return `${col} < ${this.filterValueLiteral(c.value)}`;
-                        case '<=': return `${col} <= ${this.filterValueLiteral(c.value)}`;
-                        case 'LIKE': return `${col} LIKE '${(c.value || '').replace(/'/g, "''")}'`;
-                        case 'NOT LIKE': return `${col} NOT LIKE '${(c.value || '').replace(/'/g, "''")}'`;
-                        case 'IS NULL': return `${col} IS NULL`;
-                        case 'IS NOT NULL': return `${col} IS NOT NULL`;
-                        case 'IN': {
-                            const vals = (c.value || '').split(',').map(v => `'${v.trim().replace(/'/g, "''")}'`).join(', ');
-                            return `${col} IN (${vals})`;
-                        }
-                        case 'BETWEEN': return `${col} BETWEEN ${this.filterValueLiteral(c.value)} AND ${this.filterValueLiteral(c.value2)}`;
-                        default: return `${col} = '${(c.value || '').replace(/'/g, "''")}'`;
-                    }
-                });
-
-                const whereStr = whereClauses.join(` ${connector} `);
-                const mp = await this.materializeTarget(dbManager, node, ctx, targetTable);
-                sql = `${mp} AS SELECT * FROM (${sourceQuery}) AS _src WHERE ${whereStr}`;
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                const rowCount = countResult[0]?.cnt || 0;
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount, conditionCount: conditions.length };
-                break;
-            }
-
-            case 'group_aggregate': {
-                const targetTable = this.physName(chainFile, node.id);
-                const groupColumns = config.groupColumns || [];
-                const aggregations = config.aggregations || [];
-
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) {
-                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                }
-                if (!sourceQuery && config.sourceTable) {
-                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                }
-                if (!sourceQuery) {
-                    throw new Error('Group/Aggregate node: no upstream data source connected');
-                }
-                if (aggregations.length === 0) {
-                    throw new Error('Group/Aggregate node: at least one aggregation is required');
-                }
-
-                const selectParts = [];
-                for (const col of groupColumns) {
-                    selectParts.push(`"${col}"`);
-                }
-                for (const agg of aggregations) {
-                    selectParts.push(this.aggExpr(agg));
-                }
-
-                const groupByStr = groupColumns.length > 0
-                    ? ` GROUP BY ${groupColumns.map(c => `"${c}"`).join(', ')}`
-                    : '';
-                const havingStr = (config.having && config.having.trim()) ? ` HAVING ${config.having.trim()}` : '';
-
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT ${selectParts.join(', ')} FROM (${sourceQuery}) AS _src${groupByStr}${havingStr}`;
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                const rowCount = countResult[0]?.cnt || 0;
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount };
-                break;
-            }
-
-            case 'select_columns': {
-                const targetTable = this.physName(chainFile, node.id);
-                const columns = config.columns || [];
-
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) {
-                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                }
-                if (!sourceQuery && config.sourceTable) {
-                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                }
-                if (!sourceQuery) {
-                    throw new Error('Select Columns node: no upstream data source connected');
-                }
-                if (columns.length === 0) {
-                    throw new Error('Select Columns node: at least one column must be selected');
-                }
-
-                const colExprs = columns.map(c => {
-                    if (c.alias && c.alias !== c.name) {
-                        return `"${c.name}" AS "${c.alias}"`;
-                    }
-                    return `"${c.name}"`;
-                });
-
-                const mp = await this.materializeTarget(dbManager, node, ctx, targetTable);
-                sql = `${mp} AS SELECT ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                const rowCount = countResult[0]?.cnt || 0;
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount, columnCount: columns.length };
-                break;
-            }
-
-            case 'deduplicate': {
-                const targetTable = this.physName(chainFile, node.id);
-                const keyColumns = config.keyColumns || [];
-                const keepPolicy = config.keep || 'first';
-
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) {
-                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                }
-                if (!sourceQuery && config.sourceTable) {
-                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                }
-                if (!sourceQuery) {
-                    throw new Error('Deduplicate node: no upstream data source connected');
-                }
-
-                if (keyColumns.length === 0) {
-                    // Deduplicate all columns
-                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT DISTINCT * FROM (${sourceQuery}) AS _src`;
-                } else {
-                    const partitionBy = keyColumns.map(c => `"${c}"`).join(', ');
-                    const order = keepPolicy === 'last' ? 'DESC' : 'ASC';
-                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * EXCLUDE (_rn, _orden) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY ${partitionBy} ORDER BY _orden ${order}) AS _rn FROM (SELECT *, row_number() OVER () AS _orden FROM (${sourceQuery}) AS _src0) AS _src) WHERE _rn = 1`;
-                }
-                await dbManager.query(sql);
-                // Remove helper column if present
-                try { await dbManager.query(`ALTER TABLE "${targetTable}" DROP COLUMN IF EXISTS _rn`); } catch {}
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                const rowCount = countResult[0]?.cnt || 0;
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount };
-                break;
-            }
-
-            case 'add_column': {
-                const targetTable = this.physName(chainFile, node.id);
-                const newColumns = config.newColumns || [];
-
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) {
-                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                }
-                if (!sourceQuery && config.sourceTable) {
-                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                }
-                if (!sourceQuery) {
-                    throw new Error('Add Column node: no upstream data source connected');
-                }
-                if (newColumns.length === 0) {
-                    throw new Error('Add Column node: at least one column definition is required');
-                }
-
-                const colExprs = newColumns.map(c => `(${c.expression}) AS "${c.name}"`);
-                const mp = await this.materializeTarget(dbManager, node, ctx, targetTable);
-                sql = `${mp} AS SELECT *, ${colExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                const rowCount = countResult[0]?.cnt || 0;
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount, addedColumns: newColumns.length };
-                break;
-            }
-
-            case 'sort': {
-                const targetTable = this.physName(chainFile, node.id);
-                const sortColumns = config.sortColumns || [];
-
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) {
-                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                }
-                if (!sourceQuery && config.sourceTable) {
-                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                }
-                if (!sourceQuery) {
-                    throw new Error('Sort node: no upstream data source connected');
-                }
-                if (sortColumns.length === 0) {
-                    throw new Error('Sort node: at least one sort column is required');
-                }
-
-                const orderParts = sortColumns.map(c => `"${c.column}" ${c.direction || 'ASC'}`);
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src ORDER BY ${orderParts.join(', ')}`;
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                const rowCount = countResult[0]?.cnt || 0;
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount };
-                break;
-            }
-
-            case 'sample': {
-                const targetTable = this.physName(chainFile, node.id);
-                const sampleType = config.sampleType || 'rows';
-                const sampleValue = parseInt(config.sampleValue) || 100;
-
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) {
-                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                }
-                if (!sourceQuery && config.sourceTable) {
-                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                }
-                if (!sourceQuery) {
-                    throw new Error('Sample node: no upstream data source connected');
-                }
-
-                if (sampleType === 'percent') {
-                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src USING SAMPLE ${Math.min(sampleValue, 100)}%`;
-                } else if (sampleType === 'stratified' && config.strataColumn) {
-                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * EXCLUDE (_rn, _azar) FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY "${config.strataColumn}" ORDER BY _azar) AS _rn FROM (SELECT *, random() AS _azar FROM (${sourceQuery}) AS _src0) AS _src) WHERE _rn <= ${sampleValue}`;
-                } else {
-                    sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT * FROM (${sourceQuery}) AS _src LIMIT ${sampleValue}`;
-                }
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                const rowCount = countResult[0]?.cnt || 0;
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount, sampleType, sampleValue };
-                break;
-            }
-
-            case 'pivot': {
-                const targetTable = this.physName(chainFile, node.id);
-                const groupColumn = config.groupColumn || '';
-                const pivotColumn = config.pivotColumn || '';
-                const valueColumn = config.valueColumn || '';
-                const aggFunc = config.aggFunc || 'SUM';
-
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) {
-                    sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                }
-                if (!sourceQuery && config.sourceTable) {
-                    sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                }
-                if (!sourceQuery) {
-                    throw new Error('Pivot node: no upstream data source connected');
-                }
-                if (!groupColumn || !pivotColumn || !valueColumn) {
-                    throw new Error('Pivot node: group column, pivot column, and value column are all required');
-                }
-
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS PIVOT (${sourceQuery}) ON "${pivotColumn}" USING ${aggFunc}("${valueColumn}") GROUP BY "${groupColumn}"`;
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                const rowCount = countResult[0]?.cnt || 0;
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount };
-                break;
-            }
-
             case 'rename_table': {
                 let sourceTable = '';
                 if (upstreamOutputs.length > 0) {
@@ -2042,61 +1705,6 @@ class ChainExecutor extends EventEmitter {
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
                 resultType = 'table_created';
                 resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0, castsApplied: casts.length };
-                break;
-            }
-
-            case 'window_functions': {
-                const targetTable = this.physName(chainFile, node.id);
-                const windows = config.windows || [];
-
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                if (!sourceQuery) throw new Error('Window Functions node: no upstream data source connected');
-                if (windows.length === 0) throw new Error('Window Functions node: at least one window function is required');
-
-                const windowExprs = windows.map(w => {
-                    const partBy = w.partitionBy && w.partitionBy.length > 0
-                        ? `PARTITION BY ${w.partitionBy.map(c => `"${c}"`).join(', ')}`
-                        : '';
-                    const orderBy = w.orderBy && w.orderBy.length > 0
-                        ? `ORDER BY ${w.orderBy.map(c => `"${c}"`).join(', ')}`
-                        : '';
-                    const over = `OVER (${[partBy, orderBy].filter(Boolean).join(' ')})`;
-                    const col = w.column && w.column !== '*' ? `"${w.column}"` : (w.column === '*' ? '*' : '');
-                    const func = ['ROW_NUMBER', 'RANK', 'DENSE_RANK', 'NTILE'].includes(w.func)
-                        ? `${w.func}()`
-                        : col ? `${w.func}(${col})` : `${w.func}()`;
-                    return `${func} ${over} AS "${w.alias || w.func.toLowerCase()}"`;
-                });
-
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS SELECT *, ${windowExprs.join(', ')} FROM (${sourceQuery}) AS _src`;
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0 };
-                break;
-            }
-
-            case 'unpivot': {
-                const targetTable = this.physName(chainFile, node.id);
-                const idColumns = config.idColumns || [];
-                const valueColumns = config.valueColumns || [];
-                const nameColumn = config.nameColumn || 'variable';
-                const valueColumn = config.valueColumn || 'value';
-
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                if (!sourceQuery) throw new Error('Unpivot node: no upstream data source connected');
-                if (valueColumns.length === 0) throw new Error('Unpivot node: at least one value column is required');
-
-                const valCols = valueColumns.map(c => `"${c}"`).join(', ');
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS UNPIVOT (${sourceQuery}) ON ${valCols} INTO NAME "${nameColumn}" VALUE "${valueColumn}"`;
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0 };
                 break;
             }
 
@@ -2226,38 +1834,6 @@ class ChainExecutor extends EventEmitter {
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
                 resultType = 'table_created';
                 resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0, opsApplied: operations.length };
-                break;
-            }
-
-            case 'date_ops': {
-                const targetTable = this.physName(chainFile, node.id);
-                const operations = config.operations || [];
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                if (!sourceQuery) throw new Error('Date/Time node: no upstream data source connected');
-                if (operations.length === 0) throw new Error('Date/Time node: at least one operation is required');
-                const mp = await this.materializeTarget(dbManager, node, ctx, targetTable);
-                sql = `${mp} AS ${this.dateOpsSelect(config, `(${sourceQuery})`)}`;
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0, opsApplied: operations.length };
-                break;
-            }
-
-            case 'flatten': {
-                const targetTable = this.physName(chainFile, node.id);
-                let sourceQuery = '';
-                if (upstreamOutputs.length > 0) sourceQuery = this.outputToQuery(upstreamOutputs[0]);
-                if (!sourceQuery && config.sourceTable) sourceQuery = `SELECT * FROM "${config.sourceTable}"`;
-                if (!sourceQuery) throw new Error('Flatten node: no upstream data source connected');
-                if (!config.column) throw new Error('Flatten node: a source column is required');
-                sql = `CREATE OR REPLACE TABLE "${targetTable}" AS ${this.flattenSelect(config, `(${sourceQuery})`)}`;
-                await dbManager.query(sql);
-                const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${targetTable}"`);
-                resultType = 'table_created';
-                resultSummary = { table: targetTable, rowCount: countResult[0]?.cnt || 0 };
                 break;
             }
 
