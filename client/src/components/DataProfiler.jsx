@@ -573,7 +573,7 @@ const DataProfiler = ({ data, isActive, query }) => {
                     { label: 'Findings', value: findings.length, tone: sevCounts.critical ? 'critical' : sevCounts.warning ? 'warning' : 'good' },
                 ].map((s, i) => (
                     <div key={i} style={{ ...card, padding: '12px 14px' }}>
-                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', marginBottom: '4px' }}>{s.label}</div>
+                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', marginBottom: '4px' }}>{s.label}</div>
                         <div style={{ fontSize: '20px', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: s.tone === 'critical' ? 'var(--color-error)' : s.tone === 'warning' ? 'var(--color-warning)' : 'var(--text-primary)' }}>{s.value}</div>
                     </div>
                 ))}
@@ -603,7 +603,7 @@ const DataProfiler = ({ data, isActive, query }) => {
                                         : <LuTriangleAlert size={15} style={{ color: c, flexShrink: 0, marginTop: '1px' }} />}
                                     <div style={{ minWidth: 0 }}>
                                         <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                            <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: c }}>{SEV[f.severity].label}</span>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: c }}>{SEV[f.severity].label}</span>
                                             {f.title}{f.column && <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}> · {f.column}</span>}
                                         </div>
                                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.45 }}>{f.detail}</div>
@@ -618,7 +618,7 @@ const DataProfiler = ({ data, isActive, query }) => {
             {/* Columns overview (compact, expandable) */}
             <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>Columns ({profile.length})</div>
             <div style={{ ...card, overflow: 'hidden', marginBottom: '18px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '16px 1.6fr 110px 80px 1fr 80px 16px', gap: '12px', alignItems: 'center', padding: '8px 13px', borderBottom: '1px solid var(--border-subtle)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', background: 'var(--panel-bg)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '16px 1.6fr 110px 80px 1fr 80px 16px', gap: '12px', alignItems: 'center', padding: '8px 13px', borderBottom: '1px solid var(--border-subtle)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', background: 'var(--panel-bg)' }}>
                     <span />
                     <span>Column</span>
                     <span>Type</span>

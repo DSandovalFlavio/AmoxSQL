@@ -167,7 +167,7 @@
   background: rgba(255, 255, 255, 0.07);
   color: var(--text-tertiary);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
 }
 
 .mode-light .wtb-omnibox-kbd { background: rgba(0, 0, 0, 0.07); }
@@ -176,14 +176,14 @@
   margin-left: auto;
   flex: none;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   color: var(--text-disabled);
 }
 
 /* ── Workspace Widget (center of title bar) ── */
 
 .wtb-mode-badge {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: var(--weight-semibold);
   padding: 0px 4px;
   border-radius: 3px;
@@ -239,7 +239,7 @@
 }
 
 .wtb-dropdown-section-label {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: var(--weight-semibold);
   color: var(--text-tertiary);
   text-transform: uppercase;
@@ -275,9 +275,9 @@
 }
 
 .wtb-dropdown-current-db .wtb-mode-badge {
-  font-size: 8px;
+  font-size: 11px;
   padding: 0 3px;
-  line-height: 12px;
+  line-height: 14px;
 }
 
 .wtb-dropdown-divider {

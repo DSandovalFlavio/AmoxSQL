@@ -273,7 +273,7 @@ const ChartTypeSelector = memo(({ currentType, onTypeChange }) => {
                             style={{
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                 padding: '4px 6px', cursor: 'pointer',
-                                fontSize: '10px', color: hasActiveType ? 'var(--accent-color-user)' : 'var(--text-tertiary)',
+                                fontSize: '11px', color: hasActiveType ? 'var(--accent-color-user)' : 'var(--text-tertiary)',
                                 fontWeight: hasActiveType ? '600' : '500',
                                 textTransform: 'uppercase', letterSpacing: '0.3px',
                                 borderRadius: '4px',
@@ -283,7 +283,7 @@ const ChartTypeSelector = memo(({ currentType, onTypeChange }) => {
                         >
                             <span>{category.label}</span>
                             <span style={{
-                                fontSize: '8px', transition: 'transform 0.2s',
+                                fontSize: '11px', transition: 'transform 0.2s',
                                 transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
                             }}>▼</span>
                         </div>
@@ -321,7 +321,7 @@ const ChartTypeSelector = memo(({ currentType, onTypeChange }) => {
                                         >
                                             <ChartIcon type={type.key} size={24} />
                                             <span style={{
-                                                fontSize: '9px', fontWeight: '500',
+                                                fontSize: '11px', fontWeight: '500',
                                                 lineHeight: 1.1, textAlign: 'center',
                                                 whiteSpace: 'nowrap', overflow: 'hidden',
                                                 textOverflow: 'ellipsis', maxWidth: '100%'

@@ -86,7 +86,7 @@ const Combobox = ({ value = '', onChange, options = [], placeholder, className, 
                         }}>{o.value}</span>
                         {o.hint && (
                             <span style={{
-                                flexShrink: 0, fontSize: 10, color: 'var(--text-muted)',
+                                flexShrink: 0, fontSize: 11, color: 'var(--text-muted)',
                                 fontFamily: 'var(--font-mono)', opacity: 0.8,
                             }}>{o.hint}</span>
                         )}

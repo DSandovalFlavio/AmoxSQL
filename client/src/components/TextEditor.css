@@ -23,7 +23,7 @@
     border-bottom: 1px solid var(--border-subtle);
     background: var(--surface-raised);
     color: var(--text-tertiary);
-    font-size: 10.5px;
+    font-size: 11px;
     /* Sin envolver: con un nombre de archivo largo, una franja de dos filas
        movería el editor hacia abajo cada vez que cambias de pestaña. */
     white-space: nowrap;

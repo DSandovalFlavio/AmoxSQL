@@ -248,8 +248,8 @@ const FormatPanel = memo(({ state, setField, finalSeriesKeys, columns: columnas 
             )}
             {cap.combo && (
                 <Section title="Combo">
-                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '6px' }}>Which series are lines — the rest are bars.</div>
-                    {(finalSeriesKeys || []).length < 2 && <div style={{ fontSize: '10px', color: 'var(--text-disabled)' }}>Pick at least 2 values in Data.</div>}
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '6px' }}>Which series are lines — the rest are bars.</div>
+                    {(finalSeriesKeys || []).length < 2 && <div style={{ fontSize: '11px', color: 'var(--text-disabled)' }}>Pick at least 2 values in Data.</div>}
                     {(finalSeriesKeys || []).map(key => (
                         <Toggle key={key} label={key} checked={lineasCombo.includes(key)} onChange={() => alternarCombo(key)} />
                     ))}

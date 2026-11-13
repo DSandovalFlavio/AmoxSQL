@@ -643,7 +643,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                         <span className="dbt-env-version">{envStatus.conda ? `v${envStatus.condaVersion}` : 'Not found'}</span>
                                     </div>
                                     {envStatus.conda && envStatus.condaPath && envStatus.condaPath !== 'conda' && (
-                                        <div style={{ paddingLeft: '14px', fontSize: '10px', color: 'var(--text-tertiary)', wordBreak: 'break-all', display: 'flex', gap: 4, alignItems: 'flex-start' }}>
+                                        <div style={{ paddingLeft: '14px', fontSize: '11px', color: 'var(--text-tertiary)', wordBreak: 'break-all', display: 'flex', gap: 4, alignItems: 'flex-start' }}>
                                             <LuTriangleAlert size={11} style={{ flexShrink: 0, marginTop: 1 }} /> <span>Not in PATH — found at: {envStatus.condaPath}</span>
                                         </div>
                                     )}
@@ -665,7 +665,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                             <label style={{ margin: 0 }}>Environments</label>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                 {envCacheTime && (
-                                                    <span style={{ fontSize: '9px', color: 'var(--text-tertiary)' }}>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                                                         {new Date(envCacheTime).toLocaleDateString()}
                                                     </span>
                                                 )}

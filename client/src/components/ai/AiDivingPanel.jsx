@@ -49,7 +49,7 @@ function DeepDiveModelHint({ provider, model }) {
     return (
         <span
             title="Deep Dive runs multi-step analyses that reward a stronger model. This one will work, but a local model ≥25B (e.g. qwen3.5:27b, gemma4:26b) or a cloud model gives noticeably deeper analysis. Smaller models shine in the editor Assistant."
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-tertiary)', cursor: 'default' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-tertiary)', cursor: 'default' }}
         >
             <LuLightbulb size={11} style={{ color: 'var(--warning, #e0a030)' }} />
             <span>small model for Deep Dive</span>

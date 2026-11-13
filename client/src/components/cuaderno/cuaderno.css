@@ -769,7 +769,7 @@ button.cdn-vista:hover { background: var(--hover-bg); }
     border-radius: 7px;
     background: var(--accent-primary);
     color: var(--surface-base);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: var(--weight-semibold, 600);
 }
 
@@ -786,7 +786,7 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 }
 .cdn-param-huerfano {
     font-family: var(--font-sans, inherit);
-    font-size: 10px;
+    font-size: 11px;
     color: var(--text-disabled);
     border: 1px dashed var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -868,7 +868,7 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 /* ── Las propuestas del Assistant en el cuaderno (plan del Assistant, E3) ── */
 .cdn-propuesta { margin: 6px 0 10px; display: flex; flex-direction: column; gap: 4px; }
 .cdn-propuesta .ai-edit-proposal { margin-top: 0; border-color: var(--accent-primary); }
-.cdn-propuesta-etq, .cdn-fantasma-etq { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent-primary); }
+.cdn-propuesta-etq, .cdn-fantasma-etq { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent-primary); }
 .cdn-fila--fantasma { margin: 8px 0; }
 .cdn-fantasma { position: relative; border: 1.5px dashed var(--accent-primary); border-radius: var(--radius-md, 8px); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--surface-base); }
 .cdn-fantasma-cab { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }

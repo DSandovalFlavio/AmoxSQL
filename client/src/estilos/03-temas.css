@@ -695,8 +695,8 @@
   /* ── Text: slate tones, never pure black (calibrated ≥ AA floors) ── */
   --text-primary:   #262d3c;   /* deep slate — ≥10:1 on all surfaces */
   --text-secondary: #495366;   /* medium slate — ≥5.5:1 */
-  --text-tertiary:  oklch(0.501 0.032 267.2);   /* ≈ #5B6376 (era #5d6578, 4.44:1) */
-  --text-disabled:  oklch(0.593 0.027 263.3);   /* ≈ #767E8F (era #a3acbd, 1.74:1) */
+  --text-tertiary:  oklch(0.476 0.032 267.2);   /* 6.0 M9: 5.08:1 en la peor superficie (era L 0.501, 4.56) */
+  --text-disabled:  oklch(0.572 0.027 263.3);   /* 6.0 M9: 3.37:1 (era L 0.593, 3.09) */
 
   /* ── Accent: muted indigo — complements cool greys ── */
   --accent-primary: oklch(0.507 0.103 270.1);   /* ≈ #4E61A0 (era #5568a8, 4.07:1) */
@@ -792,8 +792,8 @@
   /* Cool blue-grey ink, three real tiers (≥10 / ≥5.5 / ≥4 :1) */
   --text-primary:   #1c2530;
   --text-secondary: #41505e;
-  --text-tertiary:  oklch(0.519 0.030 243.1);   /* ≈ #5A6B79 (era #5e6f7d, 4.33:1) */
-  --text-disabled:  oklch(0.615 0.021 245.7);   /* ≈ #7B8691 (era #9aa6b1, 2.07:1) */
+  --text-tertiary:  oklch(0.496 0.030 243.1);   /* 6.0 M9: 5.07:1 en la peor superficie (era L 0.519, 4.59) */
+  --text-disabled:  oklch(0.594 0.021 245.7);   /* 6.0 M9: 3.37:1 (era L 0.615, 3.09) */
 
   /* Brand teal default lives in .theme-amoxlight:not([class*="accent-"]) below,
      so a user-picked accent (via the light ramps) overrides it. */
@@ -892,8 +892,8 @@
   /* Violet ink, three real tiers */
   --text-primary:   #241a3d;   /* Sterling text */
   --text-secondary: #5c5178;   /* Sterling muted — 6.02:1 con el pozo aclarado */
-  --text-tertiary:  oklch(0.524 0.066 297.1);   /* ≈ #6E628C (era #7d719c, 3.31:1) */
-  --text-disabled:  oklch(0.619 0.054 297.4);   /* ≈ #897FA3 (era #a99fc4, 2.07:1) */
+  --text-tertiary:  oklch(0.502 0.066 297.1);   /* 6.0 M9: 5.07:1 en la peor superficie (era L 0.524, 4.61) */
+  --text-disabled:  oklch(0.598 0.054 297.4);   /* 6.0 M9: 3.37:1 (era L 0.619, 3.09) */
 
   /* Sterling's light "period" violet is the DEFAULT accent — the rule lives
      in .theme-sterlinglight:not([class*="accent-"]) so a user pick overrides. */

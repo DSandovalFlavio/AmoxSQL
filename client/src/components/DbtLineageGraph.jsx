@@ -211,7 +211,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                 <button className="dbt-icon-btn" onClick={() => setZoom(z => Math.min(3, z + 0.15))} title="Zoom In"><LuZoomIn size={14} /></button>
                 <button className="dbt-icon-btn" onClick={() => setZoom(z => Math.max(0.2, z - 0.15))} title="Zoom Out"><LuZoomOut size={14} /></button>
                 <button className="dbt-icon-btn" onClick={resetView} title="Reset View"><LuMaximize2 size={14} /></button>
-                <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
                     {data.nodes.length} nodes · {data.edges.length} edges · {Math.round(zoom * 100)}%
                 </span>
                 <button className="dbt-icon-btn" onClick={fetchManifest} title="Refresh"><LuRefreshCw size={13} /></button>
@@ -358,17 +358,17 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                             pointerEvents: 'none',
                         }}>
                             <div style={{ fontWeight: '600', marginBottom: '4px' }}>{node.name}</div>
-                            <div style={{ color: 'var(--text-tertiary)', fontSize: '10px' }}>
+                            <div style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>
                                 {node.resourceType}{node.materialized ? ` · ${node.materialized}` : ''}
                                 {node.schema ? ` · ${node.schema}` : ''}
                             </div>
                             {node.description && (
-                                <div style={{ marginTop: '4px', color: 'var(--text-secondary)', fontSize: '10px' }}>
+                                <div style={{ marginTop: '4px', color: 'var(--text-secondary)', fontSize: '11px' }}>
                                     {node.description.slice(0, 120)}
                                 </div>
                             )}
                             {node.path && (
-                                <div style={{ marginTop: '4px', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: 'var(--accent-primary)' }}>
+                                <div style={{ marginTop: '4px', fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: 'var(--accent-primary)' }}>
                                     {node.path}
                                 </div>
                             )}
@@ -447,7 +447,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                 <div style={{
                     position: 'absolute', top: '8px', right: '8px',
                     display: 'flex', gap: '8px', flexWrap: 'wrap',
-                    fontSize: '9px', color: 'var(--text-tertiary)',
+                    fontSize: '11px', color: 'var(--text-tertiary)',
                 }}>
                     {Object.entries(TYPE_COLORS).map(([type, colors]) => (
                         <span key={type} style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>

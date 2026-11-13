@@ -1185,7 +1185,7 @@ const DataVisualizer = memo(({ data, tipos = null, isReportMode = false, lectura
                     {(() => {
                         const cur = TABS.find(t => t.key === activeTab);
                         return cur?.hint ? (
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '-4px 0 10px 0', fontStyle: 'italic' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '-4px 0 10px 0', fontStyle: 'italic' }}>
                                 {cur.hint}
                             </div>
                         ) : null;
@@ -1432,7 +1432,7 @@ const DataVisualizer = memo(({ data, tipos = null, isReportMode = false, lectura
                             <button type="button" className="sf-en-motor-cancelar" onClick={() => setSinTotales(sqlMotor)}>Cancel</button>
                         </span>
                     )}
-                    <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Size</span>
+                    <span style={{ fontSize: '11px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Size</span>
                     <div style={{ display: 'flex', gap: '3px' }}>
                         {CANVAS_SIZES.map(c => (
                             <button key={c.label} onClick={() => setField('canvasSize', c.label)}
@@ -1445,7 +1445,7 @@ const DataVisualizer = memo(({ data, tipos = null, isReportMode = false, lectura
                         ))}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginLeft: 'auto' }}>
-                        <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Zoom</span>
+                        <span style={{ fontSize: '11px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Zoom</span>
                         <input type="range" min={40} max={220} step={5}
                             value={Math.round(zoomEfectivo * 100)}
                             onChange={e => setZoom(Number(e.target.value) / 100)}

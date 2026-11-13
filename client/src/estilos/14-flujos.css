@@ -155,11 +155,11 @@
   display: flex;
   align-items: center;
   gap: 3px;
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .chain-node-duration {
-  font-size: 9px;
+  font-size: 11px;
   opacity: 0.7;
   font-family: var(--font-sans);
 }
@@ -175,7 +175,7 @@
 }
 
 .chain-node-description {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
@@ -184,7 +184,7 @@
 }
 
 .chain-node-config-summary {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-secondary);
   font-family: var(--font-sans);
   white-space: nowrap;
@@ -206,14 +206,14 @@
 }
 
 .chain-node-result-type {
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-success-text);
   text-transform: uppercase;
 }
 
 .chain-node-result-detail {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-tertiary);
   font-family: var(--font-sans);
 }
@@ -225,7 +225,7 @@
   gap: 3px;
   padding: 1px 5px;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.2px;
@@ -243,7 +243,7 @@
   padding: 4px 6px;
   background: var(--color-error-bg);
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--color-error-text);
 }
 
@@ -457,7 +457,7 @@
 }
 
 .chain-typepicker-cat {
-  font-size: 9.5px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-tertiary);
@@ -613,7 +613,7 @@
 .node-doc-io-out { color: var(--color-success-text); flex-shrink: 0; }
 
 .node-doc-io-label {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -631,7 +631,7 @@
 }
 
 .node-doc-section-title {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -821,7 +821,7 @@
 }
 
 .chain-config-hint {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-tertiary);
   line-height: 1.4;
   margin: 0;
@@ -841,7 +841,7 @@
 }
 
 .chain-config-optional {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-tertiary);
   font-weight: 400;
 }
@@ -902,7 +902,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   font-family: var(--font-mono, monospace);
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
@@ -918,7 +918,7 @@
   flex: 1;
   min-width: 0;
   padding: 4px 6px !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
 }
 
 .chain-config-select-sm {
@@ -926,7 +926,7 @@
   width: auto;
   min-width: 60px;
   padding: 4px 6px !important;
-  font-size: 10px !important;
+  font-size: 11px !important;
 }
 
 .chain-config-add-btn {
@@ -938,7 +938,7 @@
   border: 1px dashed var(--border-default);
   border-radius: 4px;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
   margin-top: 4px;
@@ -1010,7 +1010,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: 3px;
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: 11px;
   cursor: pointer;
   transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
 }
@@ -1025,7 +1025,7 @@
   margin: 0;
   padding: 8px 10px;
   font-family: 'Cascadia Code', 'Fira Code', monospace;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.5;
   color: var(--text-secondary);
   background: var(--surface-base);
@@ -1037,7 +1037,7 @@
 
 .chain-config-sql-preview-empty {
   padding: 8px 10px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-tertiary);
   font-style: italic;
 }
@@ -1106,7 +1106,7 @@
 }
 
 .chain-inspector-pinned-tag {
-  font-size: 9px;
+  font-size: 11px;
   color: var(--accent-primary);
   border: 1px solid var(--accent-primary);
   border-radius: 3px;
@@ -1181,7 +1181,7 @@
 
 .chain-inspector-schema-section label {
   display: block;
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-tertiary);
@@ -1205,7 +1205,7 @@
 
 .chain-inspector-schema-type {
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: 11px;
   flex-shrink: 0;
 }
 
@@ -1317,7 +1317,7 @@
 
 .chain-history-run-mode {
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: 11px;
   padding: 1px 5px;
   background: var(--surface-inset);
   border-radius: 3px;
@@ -1325,20 +1325,20 @@
 
 .chain-history-run-count {
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
 }
 
 .chain-history-run-duration {
   color: var(--text-tertiary);
-  font-size: 10px;
+  font-size: 11px;
   font-family: 'JetBrains Mono', monospace;
 }
 
 .chain-history-run-legacy {
   padding: 0 5px;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-tertiary);
@@ -1373,7 +1373,7 @@
   align-items: center;
   gap: 6px;
   padding: 4px 6px;
-  font-size: 10px;
+  font-size: 11px;
   border-radius: 4px;
 }
 
@@ -1391,23 +1391,23 @@
 
 .chain-history-node-type {
   color: var(--text-disabled);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .chain-history-node-duration {
   color: var(--text-tertiary);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .chain-history-node-result {
   color: var(--color-success-text);
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .chain-history-node-error {
   color: var(--color-error-text);
-  font-size: 9px;
+  font-size: 11px;
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1586,7 +1586,7 @@
 }
 
 .chain-log-count {
-  font-size: 10px;
+  font-size: 11px;
   background: var(--surface-overlay);
   color: var(--text-muted);
   padding: 1px 5px;
@@ -1692,7 +1692,7 @@
 
 .chain-log-time {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
   min-width: 78px;
 }
@@ -1704,7 +1704,7 @@
 
 .chain-log-node-label {
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -1715,7 +1715,7 @@
 
 .chain-log-sql {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   white-space: pre-wrap;
 }
 

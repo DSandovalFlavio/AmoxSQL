@@ -33,7 +33,7 @@
 .sf-codigo { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
 .sf-codigo-franja { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-muted); }
 .sf-codigo-idioma {
-  font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
   color: var(--accent-primary); background: var(--accent-muted);
   padding: 2px 6px; border-radius: var(--radius-sm);
 }
@@ -53,7 +53,7 @@
   font-size: 11px; line-height: 1.45; color: var(--text-muted);
   min-height: 32px;
 }
-.sf-codigo-pie code { font-family: var(--font-mono); font-size: 10.5px; }
+.sf-codigo-pie code { font-family: var(--font-mono); font-size: 11px; }
 .sf-codigo-pie--error { color: var(--color-error); }
 .sf-codigo-pie > span { overflow-wrap: anywhere; }
 
@@ -100,12 +100,12 @@
     background: none; border: 0; text-decoration: underline;
 }
 .sf-en-motor {
-  font-size: 10px; letter-spacing: .04em; color: var(--accent-primary);
+  font-size: 11px; letter-spacing: .04em; color: var(--accent-primary);
   background: var(--accent-muted); border-radius: var(--radius-sm); padding: 2px 7px;
 }
 .sf-linea-extra { background: color-mix(in oklch, #f5a524 12%, transparent); }
 .sf-linea-extra-margen { background: #f5a524; width: 3px !important; margin-left: 3px; }
-.sf-aviso-lista { margin: 0 0 7px; padding-left: 16px; font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted); }
+.sf-aviso-lista { margin: 0 0 7px; padding-left: 16px; font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
 .sf-aviso-lista li { overflow-wrap: anywhere; }
 .sf-cabecera-btn {
   background: transparent; border: 1px solid var(--border-color); color: var(--text-muted);
@@ -116,7 +116,7 @@
 .sf-sugerencia { margin-top: 8px; padding: 7px 8px; border: 1px solid var(--border-default); border-left: 3px solid var(--accent-primary); border-radius: 5px; background: var(--surface-overlay); display: flex; flex-direction: column; gap: 5px; font-size: 11px; }
 .sf-sugerencia-cab { display: flex; align-items: center; gap: 4px; color: var(--accent-primary); font-weight: 600; }
 .sf-sugerencia-fila { display: flex; flex-direction: column; gap: 1px; }
-.sf-sugerencia-clave { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; }
+.sf-sugerencia-clave { color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
 .sf-sugerencia-valor { color: var(--text-primary); line-height: 1.35; }
 .sf-sugerencia-acciones { display: flex; justify-content: flex-end; gap: 5px; font-size: 11px; }
 /* E4: Assist en la cabecera de Story Flow. */

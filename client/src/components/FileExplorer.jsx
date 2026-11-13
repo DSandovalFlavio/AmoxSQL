@@ -1050,7 +1050,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                         </span>
                                     )}
                                     {(editorSettings?.showFileSizes ?? true) && file.sizeBytes != null && (
-                                        <span className="fe-meta" style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '6px', flexShrink: 0 }}>
+                                        <span className="fe-meta" style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px', flexShrink: 0 }}>
                                             {formatBytes(file.sizeBytes)}
                                         </span>
                                     )}
@@ -1064,7 +1064,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                     {file.mtimeMs != null && (
                                         <span
                                             className="fe-meta"
-                                            style={{ fontSize: '10px', color: 'var(--text-disabled)', marginLeft: '6px', flexShrink: 0 }}
+                                            style={{ fontSize: '11px', color: 'var(--text-disabled)', marginLeft: '6px', flexShrink: 0 }}
                                             title={new Date(file.mtimeMs).toLocaleString()}
                                         >
                                             {haceCuanto(file.mtimeMs)}
@@ -1098,7 +1098,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                     justifyContent: 'space-between',
                                 }}>
                                     <span>{groupLabel}</span>
-                                    <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 500 }}>{groupItems.length}</span>
+                                    <span style={{ fontSize: '11px', opacity: 0.6, fontWeight: 500 }}>{groupItems.length}</span>
                                 </div>
                                 {groupItems.map(renderFileItem)}
                             </div>

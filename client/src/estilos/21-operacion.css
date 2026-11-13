@@ -58,13 +58,13 @@
 }
 .xls-hoja-num {
   min-width: 16px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
 .xls-hoja-de {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-tertiary);
   padding-left: 20px;
 }
@@ -88,7 +88,7 @@
   border: 0;
   padding: 0;
   color: var(--accent-primary);
-  font-size: 10px;
+  font-size: 11px;
   cursor: pointer;
 }
 .xls-enlace:hover { text-decoration: underline; }
@@ -222,7 +222,7 @@
   align-items: center;
 }
 .cvp-fila--cab span {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -274,7 +274,7 @@
 .lote-parar:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
 .lote-campo { display: flex; flex-direction: column; gap: 4px; }
 .lote-campo > span {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -633,7 +633,7 @@
 .fej-estado--mal > svg { color: var(--color-error-text); }
 .fej-estado--curso > svg { color: var(--accent-primary); }
 .fej-datos { margin: 0; display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 6px 12px; font-size: 12px; }
-.fej-datos dt { color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; font-size: 10px; padding-top: 2px; }
+.fej-datos dt { color: var(--text-tertiary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; font-size: 11px; padding-top: 2px; }
 .fej-datos dd { margin: 0; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
 .fej-params { display: flex; flex-wrap: wrap; gap: 4px; }
 .fej-params code { font-family: var(--font-mono); background: var(--surface-inset); padding: 1px 6px; border-radius: 4px; }
@@ -807,7 +807,7 @@
 .opx-tabla { width: 100%; border-collapse: collapse; font-size: 12px; }
 .opx-tabla th {
   text-align: left;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -850,7 +850,7 @@
 /* ── 5.13 (Dec-45): «Needs attention» ─────────────────────────────────────── */
 .atn { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 10px; border: 1px solid color-mix(in oklch, var(--color-error) 35%, var(--border-subtle)); background: color-mix(in oklch, var(--color-error-bg) 55%, var(--surface-raised, var(--panel-bg))); }
 .atn-cab { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-error-text); }
-.atn-cuenta { min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--color-error); color: var(--text-on-accent, #fff); font-size: 10.5px; text-align: center; letter-spacing: 0; }
+.atn-cuenta { min-width: 18px; padding: 0 5px; border-radius: 9px; background: var(--color-error); color: var(--text-on-accent, #fff); font-size: 11px; text-align: center; letter-spacing: 0; }
 .atn-todas { margin-left: auto; border: none; background: none; padding: 0; font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-secondary); cursor: pointer; }
 .atn-todas:hover { color: var(--text-primary); text-decoration: underline; }
 .atn-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
@@ -962,7 +962,7 @@
 .otp-nombre { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .otp-tabla { padding-left: 18px; }
 .otp-elegir { min-width: 260px; max-width: 360px; }
-.otp-elegir-titulo { padding: 6px 12px 4px; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+.otp-elegir-titulo { padding: 6px 12px 4px; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
 .otp-elegir-nada { padding: 6px 12px 8px; font-size: 12px; color: var(--text-secondary); }
 .otp-elegir-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .otp-elegir-meta { font-size: 11px; color: var(--text-secondary); max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -984,7 +984,7 @@
 .cpe-pestana--mas svg { color: var(--color-success-text); }
 .cpe-pestana--menos svg { color: var(--color-error-text, var(--color-warning-text)); }
 .cpe-cambio { background: color-mix(in srgb, var(--color-warning-text) 12%, transparent); }
-.cpe-antes { display: block; font-size: 10px; color: var(--text-secondary); text-decoration: line-through; }
+.cpe-antes { display: block; font-size: 11px; color: var(--text-secondary); text-decoration: line-through; }
 
 /* ── What changed en un proceso (5.14, J9) ──────────────────────────────── */
 .cdp-card { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 48px); display: flex; flex-direction: column; }

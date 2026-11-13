@@ -82,7 +82,7 @@
 }
 
 .chain-config-surface-type {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-tertiary);
 }
 
@@ -241,7 +241,7 @@
 
 .chain-bb-zoom {
   padding: 0 3px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
@@ -325,7 +325,7 @@
    edita lo dice la pestaña del archivo, asi que aqui solo va el estudio. */
 .chain-bb-studio {
   padding-left: 4px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -383,7 +383,7 @@
   flex: none;
   padding: 0 4px;
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -399,7 +399,7 @@
 
 .chain-bb-menu-title {
   padding: 6px 8px 4px;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-tertiary);
@@ -424,7 +424,7 @@
 }
 
 .chain-bb-base-text small {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.35;
   color: var(--text-tertiary);
 }
@@ -433,7 +433,7 @@
   margin: 4px 4px 2px;
   padding: 6px 6px 2px;
   border-top: 1px solid var(--border-subtle);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.4;
   color: var(--text-tertiary);
   overflow-wrap: anywhere;
@@ -449,7 +449,7 @@
 .chain-inspector-tab {
   padding: 2px 7px;
   border-radius: 5px;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-tertiary);
 }
 
@@ -475,7 +475,7 @@
 .chain-inspector-headgap { margin-left: auto; }
 
 .chain-inspector-rows {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }

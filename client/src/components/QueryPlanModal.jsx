@@ -21,7 +21,7 @@ const fmtBytes = (b) => {
 
 const Metric = ({ label, value }) => (
     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
         <span style={{ fontSize: '13px', color: 'var(--text-active)', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{value}</span>
     </div>
 );
@@ -54,7 +54,7 @@ const PhaseBar = ({ plan, metrics }) => {
                     <div key={i} style={{ width: `${(s.v / tot) * 100}%`, background: s.c }} title={`${s.label}: ${fmtMs(s.v)}`} />
                 ))}
             </div>
-            <div style={{ display: 'flex', gap: '16px', fontSize: '10px', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: 'var(--text-muted)' }}>
                 {segs.map((s, i) => (
                     <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{ width: 8, height: 8, background: s.c, borderRadius: 2 }} />

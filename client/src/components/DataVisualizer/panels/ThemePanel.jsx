@@ -67,7 +67,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                 <div style={{ maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
                     {Array.isArray(brandColors) && brandColors.length > 0 && (
                         <div style={{ marginBottom: '8px' }}>
-                            <span title="The palette of this project's brand" style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
+                            <span title="The palette of this project's brand" style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>
                                 Brand
                             </span>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '3px' }}>
@@ -86,7 +86,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                                     href="https://github.com/LaMatemaga/sterling"
                                     onClick={openSterling}
                                     title={group.title}
-                                    style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--accent-color-user)', letterSpacing: '0.3px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}
+                                    style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--accent-color-user)', letterSpacing: '0.3px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '3px', cursor: 'pointer' }}
                                 >
                                     {group.label}
                                     <LuExternalLink size={9} />
@@ -94,13 +94,13 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                             ) : (
                                 <span
                                     title={group.title || group.purpose}
-                                    style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}
+                                    style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}
                                 >
                                     {group.label}
                                 </span>
                             )}
                             {group.purpose && (
-                                <div style={{ fontSize: '9px', color: 'var(--text-tertiary, var(--text-muted))', marginTop: '1px', lineHeight: 1.3 }}>
+                                <div style={{ fontSize: '11px', color: 'var(--text-tertiary, var(--text-muted))', marginTop: '1px', lineHeight: 1.3 }}>
                                     {group.purpose}
                                 </div>
                             )}
@@ -136,7 +136,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                                         })}
                                     />
                                     <span style={{
-                                        fontSize: '10px', color: 'var(--text-secondary)',
+                                        fontSize: '11px', color: 'var(--text-secondary)',
                                         textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap'
                                     }} title={key}>{key}</span>
                                 </div>
@@ -153,7 +153,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                             return (
                                 <div key={key} style={{ marginBottom: '8px' }}>
                                     <label style={{
-                                        display: 'block', fontSize: '10px', color: 'var(--text-secondary)',
+                                        display: 'block', fontSize: '11px', color: 'var(--text-secondary)',
                                         marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
                                     }}>{key}</label>
                                     <div style={{ display: 'flex', gap: '5px' }}>
@@ -177,7 +177,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                                                 style={{
                                                     flex: 1, backgroundColor: 'var(--input-bg)',
                                                     color: 'var(--text-active)', border: '1px solid var(--border-color)',
-                                                    fontSize: '10px', borderRadius: '3px',
+                                                    fontSize: '11px', borderRadius: '3px',
                                                 }}
                                             >
                                                 <option value="solid">Solid</option>
@@ -250,7 +250,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                             color={customBgColor || 'var(--surface-base)'}
                             onChange={v => setField('customBgColor', v)}
                         />
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Custom Background</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Custom Background</span>
                     </div>
                 )}
             
@@ -275,7 +275,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                             color={cardStyle.gradientTo || '#0f1015'}
                             onChange={v => setField('cardStyle', { ...cardStyle, gradientTo: v })}
                         />
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>From → To</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>From → To</span>
                     </div>
                 )}
                 <div style={{ height: '8px' }} />
@@ -296,7 +296,7 @@ const ThemePanel = memo(({ state, setField, activeColors, seriesKeys, donutData 
                             color={borderColor || 'var(--border-color)'}
                             onChange={v => setField('borderColor', v)}
                         />
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Border Color</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Border Color</span>
                     </div>
                 )}
                         </Section>

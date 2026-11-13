@@ -79,7 +79,7 @@ const SkillsPanel = () => {
                     <LuZap size={28} style={{ color: 'var(--text-muted)', marginBottom: 8 }} />
                     <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>No skills found.</p>
                     <p style={{ margin: '4px 0 0', fontSize: 11, color: 'var(--text-tertiary)' }}>
-                        Add skill files to <code style={{ fontSize: 10 }}>agent/skills/</code> in your project.
+                        Add skill files to <code style={{ fontSize: 11 }}>agent/skills/</code> in your project.
                     </p>
                 </div>
             ) : (
@@ -101,7 +101,7 @@ const SkillsPanel = () => {
                                         <span style={{ fontWeight: 600, fontSize: 12, color: 'var(--text-primary)' }}>
                                             {skill.name}
                                         </span>
-                                        <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'monospace', marginLeft: 'auto', flexShrink: 0 }}>
+                                        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace', marginLeft: 'auto', flexShrink: 0 }}>
                                             {skill.id}
                                         </span>
                                     </div>
@@ -115,7 +115,7 @@ const SkillsPanel = () => {
                                                 <span
                                                     key={kw}
                                                     style={{
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         padding: '1px 6px',
                                                         borderRadius: 3,
                                                         background: 'var(--surface-overlay)',
@@ -127,7 +127,7 @@ const SkillsPanel = () => {
                                                 </span>
                                             ))}
                                             {skill.keywords.length > 8 && (
-                                                <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>
+                                                <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
                                                     +{skill.keywords.length - 8} more
                                                 </span>
                                             )}
@@ -169,7 +169,7 @@ const SkillsPanel = () => {
             )}
 
             <p style={{ margin: '12px 4px 0', fontSize: 11, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>
-                Skills guide the AI agent with specialized workflows. Add or edit SKILL.md files in <code style={{ fontSize: 10 }}>agent/skills/</code> to customize behavior.
+                Skills guide the AI agent with specialized workflows. Add or edit SKILL.md files in <code style={{ fontSize: 11 }}>agent/skills/</code> to customize behavior.
             </p>
         </div>
     );

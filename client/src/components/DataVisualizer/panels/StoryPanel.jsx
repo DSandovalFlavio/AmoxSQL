@@ -137,7 +137,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                         defaultValue={takeaway} rows={3}
                         style={{ ...panelStyles.input, resize: 'vertical', fontFamily: 'inherit' }} />
                 </div>
-                <div style={{ fontSize: '9px', color: 'var(--text-disabled)', marginBottom: '6px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-disabled)', marginBottom: '6px' }}>
                     Tip: wrap text in **asterisks** to emphasize it in the accent color (title, subtitle & takeaway).
                 </div>
 
@@ -175,7 +175,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                 </div>
 
                 {storyError && (
-                    <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--color-error, #e05555)', padding: '4px 6px', background: 'var(--surface-raised)', borderRadius: '3px' }}>
+                    <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--color-error, #e05555)', padding: '4px 6px', background: 'var(--surface-raised)', borderRadius: '3px' }}>
                         {storyError}
                     </div>
                 )}
@@ -205,7 +205,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                     checked={!!titleMark}
                     onChange={v => setField('titleMark', v)}
                 />
-                <div style={{ fontSize: '9px', color: 'var(--text-disabled)', margin: '2px 0 8px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-disabled)', margin: '2px 0 8px' }}>
                     Adds a period after the title in the accent color. Write the title without a final dot.
                 </div>
                 <Toggle
@@ -223,7 +223,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                             onBlur={e => setField('signature', { ...signature, author: e.target.value })}
                             style={panelStyles.input}
                         />
-                        <div style={{ fontSize: '9px', color: 'var(--text-disabled)', marginTop: '3px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-disabled)', marginTop: '3px' }}>
                             Shows “{signature.author ? `Made by ${signature.author} with AmoxSQL` : 'Made with AmoxSQL'}” in the caption.
                         </div>
                     </div>
@@ -340,7 +340,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                                 color={highlightConfig.color}
                                 onChange={val => setField('highlightConfig', { ...highlightConfig, color: val })}
                             />
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Highlight Color</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Highlight Color</span>
                         </div>
                     )}
                 </Section>
@@ -418,7 +418,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                             color={refLine.color}
                             onChange={v => setField('refLine', { ...refLine, color: v })}
                         />
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Color</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Color</span>
                     </div>
                 </Section>
             )}
@@ -439,7 +439,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                         color={refArea.color}
                         onChange={v => setField('refArea', { ...refArea, color: v })}
                     />
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Area Color</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Area Color</span>
                 </div>
             </Section>
             )}
@@ -474,7 +474,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                                 color={trendLine.color}
                                 onChange={v => setField('trendLine', { ...trendLine, color: v })}
                             />
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Trend Color</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Trend Color</span>
                         </div>
                     )}
                 </Section>
@@ -488,14 +488,14 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                         <button onClick={() => addAnnotation('box')} style={addBtnStyle}>+ Box</button>
                     </div>
                     {(!annotations || annotations.length === 0) && (
-                        <div style={{ fontSize: '10px', color: 'var(--text-disabled)' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-disabled)' }}>
                             Mark a point (Text) or a region (Box) on the chart.
                         </div>
                     )}
                     {(annotations || []).map((a, i) => (
                         <div key={a.id || i} style={{ border: '1px solid var(--border-color)', borderRadius: '5px', padding: '6px', marginBottom: '6px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>{a.type}</span>
+                                <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.3px' }}>{a.type}</span>
                                 <button onClick={() => removeAnnotation(i)} title="Remove"
                                     style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '12px', lineHeight: 1 }}>✕</button>
                             </div>
@@ -522,7 +522,7 @@ const StoryPanel = memo(({ state, setField, onGenerateStory, xValues = [] }) => 
                             )}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <SimpleColorPicker color={a.color} onChange={v => updateAnnotation(i, 'color', v)} />
-                                <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Color</span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Color</span>
                             </div>
                         </div>
                     ))}

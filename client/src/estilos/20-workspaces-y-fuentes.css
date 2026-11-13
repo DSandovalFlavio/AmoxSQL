@@ -290,7 +290,7 @@
   height: 18px;
   padding: 0 7px;
   border-radius: 9px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
   white-space: nowrap;
   color: var(--feedback-success-text, var(--text-secondary));
@@ -405,7 +405,7 @@
 
 .wsx-contexto-archivo small {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -520,7 +520,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 12px 6px 16px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -669,7 +669,7 @@
   align-items: center;
   gap: 6px;
   margin: 22px 0 9px;
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -810,7 +810,7 @@
 .wsv-caja { padding: 4px 6px; border-radius: 10px; border: 1px solid var(--border-subtle); background: var(--surface-raised); overflow-x: auto; }
 
 .wsv-tabla { width: 100%; border-collapse: collapse; font-family: var(--font-sans); font-size: 12.6px; }
-.wsv-tabla th { padding: 6px 10px 8px; border-bottom: 1px solid var(--border-default); text-align: left; font-size: 10.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
+.wsv-tabla th { padding: 6px 10px 8px; border-bottom: 1px solid var(--border-default); text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-tertiary); }
 .wsv-tabla td { padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); color: var(--text-secondary); vertical-align: middle; }
 .wsv-tabla tr:last-child td { border-bottom: 0; }
 .wsv-tabla td b { color: var(--text-primary); font-weight: 600; }
@@ -964,7 +964,7 @@
   text-overflow: ellipsis;
 }
 .fnt-vista-tabla th { position: sticky; top: 0; background: var(--surface-raised); color: var(--text-primary); font-weight: 600; }
-.fnt-vista-tabla th small { display: block; font-weight: 400; color: var(--text-tertiary); font-family: var(--font-mono); font-size: 10px; }
+.fnt-vista-tabla th small { display: block; font-weight: 400; color: var(--text-tertiary); font-family: var(--font-mono); font-size: 11px; }
 .fnt-vista-tabla td { color: var(--text-secondary); font-family: var(--font-mono); }
 .fnt-nulo { color: var(--text-tertiary); font-style: italic; }
 
@@ -983,7 +983,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   color: var(--text-tertiary);
   background: var(--surface-overlay);
@@ -1025,7 +1025,7 @@
 .xsr-ayuda code { font-family: var(--font-mono); font-size: 11px; color: var(--accent-primary); }
 .xsr-estado { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-tertiary); padding: 8px 0; }
 .xsr-estado--mal { color: var(--feedback-error-text); }
-.xsr-pie { font-size: 10.5px; color: var(--text-tertiary); }
+.xsr-pie { font-size: 11px; color: var(--text-tertiary); }
 
 .xsr-hoja {
   max-height: 260px;
@@ -1060,7 +1060,7 @@
   border: none;
   background: none;
   color: var(--text-tertiary);
-  font-size: 10.5px;
+  font-size: 11px;
   font-family: var(--font-mono);
   cursor: pointer;
 }
@@ -1185,8 +1185,8 @@
 .lago-version-msj { color: var(--text-primary); }
 .lago-version-cambios { color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lago-version-tabla { display: flex; align-items: center; gap: 4px; }
-.lago-version-tabla span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-family: var(--font-mono, monospace); font-size: 10px; }
-.lago-version-tabla button { padding: 1px 6px; font-size: 10px; border-radius: 4px; border: 1px solid var(--border-subtle); background: transparent; color: var(--text-secondary); cursor: pointer; }
+.lago-version-tabla span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-family: var(--font-mono, monospace); font-size: 11px; }
+.lago-version-tabla button { padding: 1px 6px; font-size: 11px; border-radius: 4px; border: 1px solid var(--border-subtle); background: transparent; color: var(--text-secondary); cursor: pointer; }
 .lago-version-tabla button:hover { color: var(--text-primary); border-color: var(--accent-primary); }
 .lago-modal { width: min(520px, calc(100vw - 32px)); }
 .lago-texto { margin: 0 0 12px; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
@@ -1214,7 +1214,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-tertiary);
 }
 .db-column-row--desc .db-column-left { min-width: 0; }

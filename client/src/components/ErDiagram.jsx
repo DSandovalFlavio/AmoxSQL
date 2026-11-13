@@ -204,7 +204,7 @@ const ErDiagram = ({ onCreateTab, schema }) => {
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
                 <LuDatabase size={28} style={{ marginBottom: '8px' }} />
                 <p style={{ fontSize: '12px' }}>No tables found in the current database.</p>
-                <p style={{ fontSize: '10px', marginTop: '4px' }}>Create some tables first, then refresh.</p>
+                <p style={{ fontSize: '11px', marginTop: '4px' }}>Create some tables first, then refresh.</p>
                 <button className="dbt-btn dbt-btn--ghost" onClick={fetchSchema} style={{ marginTop: '8px' }}>
                     <LuRefreshCw size={13} /> Refresh
                 </button>
@@ -223,7 +223,7 @@ const ErDiagram = ({ onCreateTab, schema }) => {
                 <button className="dbt-icon-btn" onClick={() => setZoom(z => Math.min(3, z + 0.15))} title="Zoom In"><LuZoomIn size={14} /></button>
                 <button className="dbt-icon-btn" onClick={() => setZoom(z => Math.max(0.15, z - 0.15))} title="Zoom Out"><LuZoomOut size={14} /></button>
                 <button className="dbt-icon-btn" onClick={resetView} title="Reset View"><LuMaximize2 size={14} /></button>
-                <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
                     {tables.length} tables · {fkEdges.length} relations · {Math.round(zoom * 100)}%
                 </span>
                 {selectedTable && (
@@ -402,21 +402,21 @@ const ErDiagram = ({ onCreateTab, schema }) => {
                         }}>
                             <div style={{ fontWeight: '600', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 {table.type === 'VIEW' ? <LuEye size={12} /> : <LuTable size={12} />} {table.name}
-                                <span style={{ fontSize: '9px', color: 'var(--text-tertiary)', fontWeight: '400' }}>
+                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', fontWeight: '400' }}>
                                     ({table.type})
                                 </span>
                             </div>
-                            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginBottom: '6px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginBottom: '6px' }}>
                                 {table.columns.length} columns
                                 {table.columns.some(c => c.isPK) && ` · ${table.columns.filter(c => c.isPK).length} PK`}
                                 {table.columns.some(c => c.fk) && ` · ${table.columns.filter(c => c.fk).length} FK`}
                             </div>
                             <div style={{ display: 'flex', gap: '4px' }}>
-                                <button className="dbt-btn dbt-btn--ghost" onClick={handleCopyDDL} style={{ fontSize: '10px', padding: '3px 8px' }}>
+                                <button className="dbt-btn dbt-btn--ghost" onClick={handleCopyDDL} style={{ fontSize: '11px', padding: '3px 8px' }}>
                                     {copied ? <LuCheck size={10} /> : <LuCopy size={10} />} Copy DDL
                                 </button>
                                 {onCreateTab && (
-                                    <button className="dbt-btn dbt-btn--ghost" onClick={handleOpenDDL} style={{ fontSize: '10px', padding: '3px 8px' }}>
+                                    <button className="dbt-btn dbt-btn--ghost" onClick={handleOpenDDL} style={{ fontSize: '11px', padding: '3px 8px' }}>
                                         <LuDatabase size={10} /> Open in Editor
                                     </button>
                                 )}

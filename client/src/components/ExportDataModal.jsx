@@ -194,7 +194,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                                 {extensions[format]}
                             </div>
                         </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
                             File will be saved in your project folder.
                         </div>
                     </div>
@@ -226,7 +226,7 @@ const ExportDataModal = ({ isOpen, onClose, query, currentDb }) => {
                                     border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 10px', fontSize: '12px', outline: 'none', fontFamily: 'monospace'
                                 }}
                             />
-                            <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px' }}>
                                 Ensure your credentials are set in Settings &gt; Cloud Storage
                             </div>
                         </div>

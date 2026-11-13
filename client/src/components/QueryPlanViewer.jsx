@@ -206,16 +206,16 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true, total = 0, slowest = nu
                     onClick={() => hasChildren && setExpanded(!expanded)}
                 >
                     {hasChildren && (
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{expanded ? '▼' : '▶'}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{expanded ? '▼' : '▶'}</span>
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                         <span style={{ fontWeight: 600, color: 'var(--text-active)', fontSize: '13px' }}>{friendly(node.name)}</span>
                         {friendly(node.name) !== node.name && (
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.02em' }}>{node.name}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', letterSpacing: '0.02em' }}>{node.name}</span>
                         )}
                     </div>
                     {isBottleneck && (
-                        <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-error)', border: '1px solid color-mix(in srgb, var(--color-error) 50%, transparent)', borderRadius: '4px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-error)', border: '1px solid color-mix(in srgb, var(--color-error) 50%, transparent)', borderRadius: '4px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                             slowest
                         </span>
                     )}
@@ -231,7 +231,7 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true, total = 0, slowest = nu
                 </div>
 
                 {badEstimate && (
-                    <div style={{ marginTop: '5px', fontSize: '10px', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ marginTop: '5px', fontSize: '11px', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <LuTriangleAlert size={11} />
                         Off estimate: the optimizer expected ~{fmtRows(estRows)} rows, got {fmtRows(realRows)}.
                     </div>

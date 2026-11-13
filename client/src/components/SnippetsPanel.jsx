@@ -240,14 +240,14 @@ const SnippetsPanel = ({ onInsert }) => {
                                 onClick={() => toggleCategory(cat.category)}
                                 style={{
                                     padding: '10px 14px 4px', display: 'flex', alignItems: 'center', gap: '6px',
-                                    cursor: 'pointer', fontSize: '10px', fontWeight: 600,
+                                    cursor: 'pointer', fontSize: '11px', fontWeight: 600,
                                     color: 'var(--text-disabled)', textTransform: 'uppercase', letterSpacing: '0.5px',
                                 }}
                             >
                                 {isExpanded ? <LuChevronDown size={10} /> : <LuChevronRight size={10} />}
                                 {cat.category}
                                 <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle)' }} />
-                                <span style={{ fontSize: '9px', color: 'var(--text-disabled)' }}>{cat.snippets.length}</span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-disabled)' }}>{cat.snippets.length}</span>
                             </div>
                             {isExpanded && cat.snippets.map((snip, idx) => (
                                 <div
@@ -283,7 +283,7 @@ const SnippetsPanel = ({ onInsert }) => {
                                         </div>
                                     </div>
                                     {snip.description && (
-                                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', paddingLeft: '18px' }}>{snip.description}</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', paddingLeft: '18px' }}>{snip.description}</span>
                                     )}
                                 </div>
                             ))}

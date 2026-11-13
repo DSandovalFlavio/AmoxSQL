@@ -19,14 +19,16 @@ const {
 } = require('./lib/themeTokens.cjs');
 
 // ── Pisos y rangos ──────────────────────────────────────────────────────────
-// text-tertiary en claro va a 4.5 (AA de texto normal). En oscuro se queda en
-// 3.0: es una decisión asumida — sobre fondo oscuro el ojo se adapta distinto.
-// text-disabled SOLO se mide en claro; en oscuro va en 1.7–2.4 a propósito.
+// text-tertiary en claro va a 5.0: AA de texto normal (4.5) CON MARGEN — los
+// tres temas claros quedaban en 4.56–4.61, y un retoque de superficie los tiraba
+// (6.0, M9). En oscuro se queda en 3.0: es una decisión asumida — sobre fondo
+// oscuro el ojo se adapta distinto. text-disabled SOLO se mide en claro, con
+// piso 3.3 (era 3.0 y quedaban en 3.09); en oscuro va en 1.7–2.4 a propósito.
 const floorsFor = (theme) => ({
     'text-primary': 10,
     'text-secondary': 5.5,
-    'text-tertiary': LIGHT.has(theme) ? 4.5 : 3.0,
-    'text-disabled': 3.0,
+    'text-tertiary': LIGHT.has(theme) ? 5.0 : 3.0,
+    'text-disabled': 3.3,
 });
 const textsFor = (theme) => LIGHT.has(theme)
     ? ['text-primary', 'text-secondary', 'text-tertiary', 'text-disabled']

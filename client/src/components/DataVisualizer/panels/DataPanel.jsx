@@ -70,7 +70,7 @@ const DataPanel = memo(({ state, columns, isDateColumn, setField, onYAxisChange 
                             </div>
                         )}
                         {cap.mancuerna && yAxisKeys.length !== 2 && (
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>Pick exactly two values: the dumbbell joins them.</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Pick exactly two values: the dumbbell joins them.</div>
                         )}
                     </div>
                 )}
