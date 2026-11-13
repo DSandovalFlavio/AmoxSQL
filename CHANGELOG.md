@@ -41,6 +41,8 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 - Una ruta con apóstrofo ya no rompe (ni altera) el SQL de importar, Data Flow o el modo sin herramientas.
 
 ### Arreglado
+- **Deep Dive vuelve a listar sus sesiones.** La lista daba un error del motor («must appear in the GROUP BY clause») en cuanto la tabla de conversaciones tenía las columnas que añadieron versiones posteriores.
+- **Abrir un proyecto grande en una carpeta sincronizada ya no deja la app esperando:** el índice de archivos, el árbol de carpetas, buscar los gráficos de una consulta y lo que sigue a un renombre recorrían el proyecto sin soltar el servidor.
 - **El plan de ejecución** lee el formato de DuckDB 2 (con E/S, grupos de filas y las fases del planificador) y ya no deja el perfilado encendido en la conexión. Ya no dice «sin filtro» cuando el `WHERE` va dentro del scan.
 - **Una descarga contra un servidor caído tardaba 67 s en fallar** con DuckDB 2 (reintentaba nueve veces con espera creciente). Ahora 3,7 s; los reintentos largos de lo programado siguen igual.
 - **Data Flow:** la muestra estratificada fallaba con DuckDB 2; **Deduplicate** con columnas clave no corría (ni en la 5.x) y dejaba una columna `_rn`; **Unpivot** de varias columnas no corría (ni en la 5.x); un paso sin entrada creaba una columna sin tipo.
@@ -58,6 +60,7 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 ### Interno
 - `@duckdb/node-api` fijado a `2.0.0-r.1` (Dec-62). `server/planDeEjecucion.js` (Dec-65), `server/esquemas.js` (esquemas anidados por `schema_oid`), `client/src/utils/lambdas.js`, `motor.js` con `http_retry_backoff`. Guardas nuevas: `probarPlanDeEjecucion`, `probarSqlGenerado` (Dec-66: todo el SQL que escribe AmoxSQL contra el motor), `probarEsquemasAnidados`, `probarLagoDeLaCinco`, `probarLambdas`. Fixtures de los dos motores en `scripts/fixtures/planDeEjecucion/` y bases escritas por 1.5.6 en `scripts/fixtures/motor/`.
 - **Las pruebas con un comando** (M6): `pnpm test` corre todas las suites `scripts/probar*.mjs`, cada una en su proceso y con un `AMOXSQL_HOME` temporal; `pnpm test:rapidas`, las 28 que no cargan el motor (marca `@suite rapida`, comprobada: corren con `scripts/lib/sinMotor.mjs`, que hace fallar cualquier carga del motor), en unos segundos; `pnpm test:app`, la prueba en Electron real. `--solo <texto>`, `--log <carpeta>` y `--sondear` (qué suites podrían ser rápidas). El workflow `.github/workflows/pruebas.yml` corre las rápidas en cada PR y todas, sin bloquear, en Windows.
+- **El servidor por partes** (M7): `server/index.js` pasa de 7 672 a ~670 líneas; las ~300 rutas viven en doce archivos de `server/api/` (una familia cada uno, ninguna URL cambia), con lo compartido en `server/api/compartido.js`. Los doce pasos de transformación de Data Flow se definen una vez (`server/flujos/pasos.js`): lo que corre y el «SQL equivalente» que se exporta ya no pueden separarse. El servidor escribe con nivel y hora (`server/registrador.js`, `AMOXSQL_LOG=error|aviso|info|depurar`). Guardas nuevas: `probarRutasDeArchivos`, `probarRegistrador`, `probarSesionesDeepDive`.
 
 ---
 
