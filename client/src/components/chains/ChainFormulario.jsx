@@ -13,6 +13,7 @@ import {
     LuLoader, LuPencil, LuPlay, LuCalendarClock,
 } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
+import { emitir } from '../../eventos.js';
 
 const hoy = () => {
     const d = new Date();
@@ -172,7 +173,7 @@ const ChainFormulario = ({ chainDefinition, filePath, siempreFormulario, onSiemp
                             <p className="cf-leidos">Read: {resumen.leidos.map(l => l.paso).join(', ')}.</p>
                         )}
                         {resumen.runId && (
-                            <button type="button" className="cf-boton cf-detalle" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId: resumen.runId } }))}>
+                            <button type="button" className="cf-boton cf-detalle" onClick={() => emitir('amox_abrir_ejecucion', { runId: resumen.runId })}>
                                 Details: each step and how long it took
                             </button>
                         )}

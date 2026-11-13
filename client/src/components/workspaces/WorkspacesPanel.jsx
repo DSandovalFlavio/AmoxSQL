@@ -15,6 +15,7 @@ import {
 import { useEtiqueta, elegirEtiqueta, formas, CLAVES } from '../../etiqueta';
 import { listarWorkspaces, crearWorkspace, actualizarWorkspace, archivarWorkspace, COLORES, iniciales } from './api';
 import ContextoWorkspace from './ContextoWorkspace';
+import { emitir } from '../../eventos.js';
 
 function Muestras({ valor, onChange }) {
     return (
@@ -207,7 +208,7 @@ export default function WorkspacesPanel() {
         try { await fn(); setEditando(null); } catch (err) { setError(err.message); }
         cargar();
         // La vista de workspaces de la bienvenida puede estar detrás: que se ponga al día.
-        window.dispatchEvent(new CustomEvent('amox_workspaces_cambiaron'));
+        emitir('amox_workspaces_cambiaron');
     };
 
     return (

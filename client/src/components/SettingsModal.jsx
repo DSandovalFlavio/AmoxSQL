@@ -6,6 +6,7 @@ import { useDialog } from './dialogs/DialogProvider';
 import CredentialsPanel from './CredentialsPanel';
 import WorkspacesPanel from './workspaces/WorkspacesPanel';
 import { useEtiqueta } from '../etiqueta';
+import { emitir } from '../eventos.js';
 
 // Cada sección vive en settings/ y se carga la primera vez que se abre (6.0, M8).
 const SeccionApariencia = lazy(() => import('./settings/Apariencia'));
@@ -57,7 +58,7 @@ function WorkspaceSettingsPanel() {
                 body: JSON.stringify({ folders: missing }),
             });
             await reload();
-            window.dispatchEvent(new Event('amox_files_changed'));
+            emitir('amox_files_changed');
             toast.success('Missing folders created successfully');
         } catch (err) {
             console.error(err);
@@ -114,7 +115,7 @@ function WorkspaceSettingsPanel() {
                 <div style={{ marginTop: 8 }}>
                     <button
                         className="stg-btn"
-                        onClick={() => window.dispatchEvent(new CustomEvent('amox_open_workspace_wizard'))}
+                        onClick={() => emitir('amox_open_workspace_wizard')}
                     >
                         Open Project Setup
                     </button>
@@ -277,7 +278,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
         if (isOpen && initialTab) {
             // Los atajos y las guías ya no son de Settings: un enlace viejo abre Help.
             if (SECCIONES_DE_AYUDA.includes(initialTab)) {
-                window.dispatchEvent(new CustomEvent('amox_abrir_ayuda', { detail: initialTab }));
+                emitir('amox_abrir_ayuda', initialTab);
                 onTabReset?.();
                 onClose?.();
                 return;
@@ -360,7 +361,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
         try {
             await fetch(`${API}/api/functions/refresh`, { method: 'POST' });
             fetchCatalogStats();
-            window.dispatchEvent(new Event('amox_catalog_refreshed'));
+            emitir('amox_catalog_refreshed');
         } catch (err) { console.error(err); }
         finally { setIsRefreshingCatalog(false); }
     };
@@ -418,7 +419,7 @@ const SettingsModal = ({ isOpen, onClose, currentTheme, onThemeChange, currentAc
                     duckdbDocsUpdate, duckdbDocsIntervalDays,
                 })
             });
-            window.dispatchEvent(new Event('amox_settings_updated'));
+            emitir('amox_settings_updated');
             setSaveMessage({ type: 'success', text: 'Settings saved successfully' });
             setTimeout(() => setSaveMessage(null), 3000);
         } catch (err) {

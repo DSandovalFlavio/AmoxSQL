@@ -37,6 +37,7 @@ import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import { atajosGlobalesEnMonaco } from '../utils/atajosEnMonaco.js';
 import { splitSqlStatements } from '../utils/sqlSplitter';
 import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
+import { emitir } from '../eventos.js';
 
 const nombreDe = (ruta) => (ruta || '').split(/[/\\]/).pop();
 const carpetaDe = (ruta) => { const p = (ruta || '').replace(/\\/g, '/'); const i = p.lastIndexOf('/'); return i > 0 ? p.slice(0, i) : ''; };
@@ -291,7 +292,7 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
 
     /** Una pregunta sobre el gráfico, al panel. */
     const asistir = useCallback((accion) => {
-        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+        emitir('amox_asistir', { accion, tabId });
     }, [tabId]);
 
     // Aceptar: los paneles entran por el estado de Story Flow (como si los tocara el
@@ -300,7 +301,7 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
         if (!esDeGrafico(resultado)) return { error: 'This proposal is not for a chart.' };
         if (!alDia.current.data?.length) return { error: 'Run the chart\'s query first: the chart is drawn from its result.' };
         if (resultado.objetivo.tipo === 'spec') {
-            window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { tabId, spec: resultado.spec } }));
+            emitir('amox_update_chart_config', { tabId, spec: resultado.spec });
             toast.info('Applied the Vega-Lite spec. Save to keep it.');
             return { ok: true };
         }
@@ -310,7 +311,7 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
         if (errores.length) return { error: errores.join(' ') };
         const nuevos = aplicarCambios(actual, cambios);
         const soloLosQueCambian = Object.fromEntries(Object.keys(cambios).map(k => [k, nuevos[k]]));
-        window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { tabId, changes: soloLosQueCambian } }));
+        emitir('amox_update_chart_config', { tabId, changes: soloLosQueCambian });
         toast.info(`Applied: ${describirCambios(resultado).join(' · ')}. Save to keep it.`);
         return { ok: true };
     }), [tabId, toast]);
@@ -354,7 +355,7 @@ const AmoxvisPane = ({ tab, onSave, onOpenAsSql, onConfigChange, onCreateNew, on
         // Solo cambió la consulta (el gráfico siguió a su .sql): ya se redibujó.
         if (mismoGrafico(tab.content, escribirAmoxvis({ ...avisado, query: nuevo.query || '' }))) return;
         ultimoConfigRef.current = nuevo;
-        window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { tabId, reemplazar: nuevo } }));
+        emitir('amox_update_chart_config', { tabId, reemplazar: nuevo });
         if ((nuevo.query || '') !== currentQuery) { setCurrentQuery(nuevo.query || ''); if (nuevo.query) executeQuery(nuevo.query); }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tab.content]);

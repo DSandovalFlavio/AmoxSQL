@@ -1,3 +1,4 @@
+import { emitir } from '../eventos.js';
 /**
  * **Lo que una pestaña recuerda mientras no la miras** (Dec-82, Dec-83).
  *
@@ -58,7 +59,7 @@ export function fijarFoco(tabId, foco) {
     focos.set(tabId, foco);
     const clave = (f) => (f?.seleccion ? `${f.seleccion.desde}-${f.seleccion.hasta}` : '');
     if (clave(antes) !== clave(foco)) {
-        window.dispatchEvent(new CustomEvent('amox_foco', { detail: { tabId, seleccion: foco?.seleccion ? { desde: foco.seleccion.desde, hasta: foco.seleccion.hasta } : null } }));
+        emitir('amox_foco', { tabId, seleccion: foco?.seleccion ? { desde: foco.seleccion.desde, hasta: foco.seleccion.hasta } : null });
     }
 }
 /**

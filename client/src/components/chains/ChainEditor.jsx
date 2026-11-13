@@ -54,6 +54,7 @@ import { fijarProveedorDeFoco, fijarAplicador } from '../../utils/memoriaDePesta
 import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
 import { esDePasos, vigenteEnFlujo, clasificar, fundirPasos, posicionesNuevas, describirPasos } from '../ai/archivos/flujo.js';
 import AntesYPropuesta from '../ai/revision/AntesYPropuesta.jsx';
+import { emitir } from '../../eventos.js';
 
 const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave, tabId = null }) => {
     const toast = useToast();
@@ -706,7 +707,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave, tab
 
     /** Una pregunta sobre el flujo o un paso, al panel (X8: la barra de abajo es el Assistant). */
     const asistir = useCallback((detalle) => {
-        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { tabId, ...detalle } }));
+        emitir('amox_asistir', { tabId, ...detalle });
     }, [tabId]);
 
     const onNodeDragStart = useCallback(() => { isDraggingRef.current = true; }, []);

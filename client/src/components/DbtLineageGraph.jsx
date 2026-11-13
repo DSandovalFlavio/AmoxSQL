@@ -3,6 +3,7 @@ import { LuRefreshCw, LuLoader, LuCircleAlert, LuZoomIn, LuZoomOut, LuMaximize2 
 import { API_BASE as _API } from '../api.js';
 import useCorrerDbt from './dbt/useCorrerDbt';
 import { LuPlay, LuChevronsLeft, LuFileCode, LuTable, LuX, LuCheck, LuTriangleAlert } from 'react-icons/lu';
+import { emitir } from '../eventos.js';
 const API = `${_API}/api`;
 
 const NODE_W = 180;
@@ -112,7 +113,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
             const r = await fetch(`${API}/dbt/linaje/filas-de-test`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ test: id }) });
             const d = await r.json();
             if (!r.ok) throw new Error(d.error);
-            window.dispatchEvent(new CustomEvent('amox_nueva_consulta', { detail: { sql: `-- Rows that fail ${d.nombre}\n${d.sql}`, ejecutar: true } }));
+            emitir('amox_nueva_consulta', { sql: `-- Rows that fail ${d.nombre}\n${d.sql}`, ejecutar: true });
         } catch (e) { alert(e.message); }
     };
 
@@ -435,7 +436,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                             {dbt.resumen && (
                                 <div className={`lin-panel-resumen lin-panel-resumen--${dbt.resumen.estado}`}>
                                     <span>{dbt.resumen.linea}</span>
-                                    {dbt.resumen.runId && <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId: dbt.resumen.runId } }))}>Details</button>}
+                                    {dbt.resumen.runId && <button type="button" onClick={() => emitir('amox_abrir_ejecucion', { runId: dbt.resumen.runId })}>Details</button>}
                                 </div>
                             )}
                         </div>

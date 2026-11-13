@@ -11,6 +11,7 @@ import TabWithSubTabs from '../settings/TabWithSubTabs';
 import MemoriesPanel from '../ai/MemoriesPanel';
 import SkillsPanel from '../ai/SkillsPanel';
 import { Toggle, valorVisible, indicacion } from './comun';
+import { emitir } from '../../eventos.js';
 
 const RECOMMENDED_MODELS = [
     // ── Edge / Lightweight ──
@@ -98,7 +99,7 @@ function AiContextTab() {
                 body: JSON.stringify({ files: selectedFiles }),
             });
             await reload();
-            window.dispatchEvent(new Event('amox_files_changed'));
+            emitir('amox_files_changed');
         } finally {
             setCreating(false);
         }

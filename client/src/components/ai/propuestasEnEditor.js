@@ -1,3 +1,4 @@
+import { emitir } from '../../eventos.js';
 /**
  * **El puente entre el chat y el editor** (plan del Assistant, E2).
  *
@@ -41,5 +42,5 @@ export function suscribirPropuestas(ruta, fn) {
 
 /** «Review» en el chat: el editor que la tenga la enseña. */
 export function pedirRevision(toolCallId) {
-    window.dispatchEvent(new CustomEvent('amox_revisar_propuesta', { detail: { toolCallId } }));
+    emitir('amox_revisar_propuesta', { toolCallId });
 }

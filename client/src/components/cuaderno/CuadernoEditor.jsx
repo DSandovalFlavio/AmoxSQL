@@ -60,6 +60,7 @@ import { fijarProveedorDeFoco, fijarAplicador } from '../../utils/memoriaDePesta
 import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
 import { estructuraDeCuaderno, ubicarCelda, aplicarACeldas, esDeCelda, describirCelda } from '../ai/archivos/cuaderno.js';
 import { RevisionDeCelda, CeldaFantasma } from './PropuestaEnCuaderno.jsx';
+import { emitir } from '../../eventos.js';
 
 const idNuevo = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
@@ -428,7 +429,7 @@ const CuadernoEditor = ({
     const asistirCelda = useCallback((id, accion) => {
         alDia.current = { ...alDia.current, seleccionada: id };
         setSeleccionada(id);
-        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+        emitir('amox_asistir', { accion, tabId });
     }, [tabId]);
 
     /**

@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LuCircleAlert, LuTriangleAlert, LuRotateCcw, LuX, LuArrowRight } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
+import { emitir } from '../../eventos.js';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, { method: metodo, headers: cuerpo ? { 'Content-Type': 'application/json' } : undefined, body: cuerpo ? JSON.stringify(cuerpo) : undefined });
@@ -34,7 +35,7 @@ function haceCuanto(iso) {
 const ORIGEN = { programada: 'Scheduled', linea_de_comandos: 'Command line', lote: 'Run for each' };
 
 /** Avisa a quien enseñe «Needs attention» (y al botón de Operations) de que cambió. */
-export const avisarAtencion = () => window.dispatchEvent(new CustomEvent('amox_atencion_cambio'));
+export const avisarAtencion = () => emitir('amox_atencion_cambio');
 
 /** Dar por vistas unas ejecuciones (al abrir su ficha, o «Dismiss»). */
 export const marcarVistas = (ids) => pedir('POST', '/api/operacion/atencion/vista', { ids }).then(avisarAtencion).catch(() => {});
@@ -60,14 +61,14 @@ export default function Atencion({ workspaceId = null, mostrarGrupo = true, clas
     if (!lista.length) return null;
 
     const abrir = (x) => {
-        window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId: x.id } }));
+        emitir('amox_abrir_ejecucion', { runId: x.id });
         marcarVistas([x.id]);
     };
     const repetir = async (x) => {
         setRepitiendo(x.id);
         try {
             const r = await pedir('POST', `/api/ejecuciones/${encodeURIComponent(x.id)}/repetir`);
-            if (r?.runId) window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId: r.runId } }));
+            if (r?.runId) emitir('amox_abrir_ejecucion', { runId: r.runId });
         } catch { /* la ficha lo dirá si se abre */ }
         finally { setRepitiendo(null); cargar(); avisarAtencion(); }
     };
@@ -112,7 +113,7 @@ export default function Atencion({ workspaceId = null, mostrarGrupo = true, clas
                 ))}
             </ul>
             {lista.length > 8 && (
-                <button type="button" className="atn-mas" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_operacion'))}>
+                <button type="button" className="atn-mas" onClick={() => emitir('amox_abrir_operacion')}>
                     {lista.length - 8} more in Operations
                 </button>
             )}

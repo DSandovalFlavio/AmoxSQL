@@ -10,6 +10,7 @@
 import { useEffect } from 'react';
 import { LuX, LuChartBarBig } from 'react-icons/lu';
 import ChartGallery from './ChartGallery';
+import { emitir } from '../eventos.js';
 
 export default function ChartGalleryModal({ isOpen, onClose }) {
     // Close on Escape
@@ -44,9 +45,7 @@ export default function ChartGalleryModal({ isOpen, onClose }) {
                     <ChartGallery
                         onOpenChart={(chartPath) => {
                             onClose();
-                            window.dispatchEvent(new CustomEvent('amox_open_gallery_chart', {
-                                detail: { chartPath }
-                            }));
+                            emitir('amox_open_gallery_chart', { chartPath });
                         }}
                     />
                 </div>

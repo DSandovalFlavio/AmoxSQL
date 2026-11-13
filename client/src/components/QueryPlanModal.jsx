@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { LuSparkles } from 'react-icons/lu';
 import QueryPlanViewer from './QueryPlanViewer';
 import { useEscape } from '../hooks/useEscape';
+import { emitir } from '../eventos.js';
 
 const fmtMs = (s) => {
     if (s == null) return '—';
@@ -124,7 +125,7 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query, mode = 'analyze', metric
             ? `Total latency: ${fmtMs(metrics.latency)} · rows returned: ${metrics.rowsReturned} · rows scanned: ${metrics.rowsScanned} · peak memory: ${fmtBytes(metrics.peakMemory)}${metrics.rowGroupsToScan > 0 ? ` · row groups read: ${metrics.rowGroupsScanned} of ${metrics.rowGroupsToScan}` : ''}\n`
             : '';
         const prompt = `Optimize this DuckDB SQL query. Below is the query and its ${mode === 'analyze' ? 'actual (EXPLAIN ANALYZE)' : 'estimated'} execution plan.\n\nQuery:\n\`\`\`sql\n${query}\n\`\`\`\n\nExecution plan:\n\`\`\`\n${head}${summary}\n\`\`\`\n\nSuggest concrete optimizations (query rewrites, predicate pushdown / filters, sorting & limits, join order) and briefly explain why each helps.`;
-        window.dispatchEvent(new CustomEvent('amox_ai_prompt', { detail: { prompt } }));
+        emitir('amox_ai_prompt', { prompt });
         if (onClose) onClose();
     };
 

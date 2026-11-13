@@ -66,6 +66,7 @@ import './index.css';
 import PopoutResultsPage from './components/PopoutResultsPage';
 import { escribirAmoxvis } from './components/DataVisualizer/vega/figura';
 import { focoDe } from './utils/memoriaDePestana';
+import { emitir } from './eventos.js';
 
 // App Phases
 const PHASE = {
@@ -551,7 +552,7 @@ function App() {
         const conSeleccion = info?.id && focoDe(info.id)?.seleccion;
         if (conSeleccion) {
           setShowAiSidebar(true);
-          window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion: 'preguntar', tabId: info.id } }));
+          emitir('amox_asistir', { accion: 'preguntar', tabId: info.id });
         } else {
           setShowAiSidebar(v => !v);
         }
@@ -670,7 +671,7 @@ function App() {
   const handleActivateSkill = useCallback((skillId) => {
     setShowAiSidebar(true);
     setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('amox_activate_skill', { detail: { skillId } }));
+      emitir('amox_activate_skill', { skillId });
     }, 100);
   }, [setShowAiSidebar]);
 
@@ -944,7 +945,7 @@ function App() {
         // abrir, no a mitad de una carga. Sin esperar: no retrasa la apertura.
         requisitosQueFaltan().then(f => { if (f) toast.warning(describirFaltantes(f)); });
         // Su workspace (B1): WorkspacesHost mira el enlace y, si toca, pregunta.
-        window.dispatchEvent(new CustomEvent('amox_proyecto_abierto', { detail: data.path }));
+        emitir('amox_proyecto_abierto', data.path);
 
         // Save to recent projects
         try {
@@ -979,7 +980,7 @@ function App() {
     // Reset everything to Welcome State
     setAppPhase(PHASE.WELCOME);
     setProjectPath('');
-    window.dispatchEvent(new CustomEvent('amox_proyecto_cerrado'));
+    emitir('amox_proyecto_cerrado');
   }, []);
 
 

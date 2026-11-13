@@ -9,6 +9,7 @@
  * completado de Monaco, que vive fuera de React).
  */
 import { API_BASE } from '../api.js';
+import { emitir } from '../eventos.js';
 
 export const TIPOS = [
     { id: 'texto', label: 'Text' },
@@ -21,7 +22,7 @@ export const etiquetaDeTipo = (t) => TIPOS.find(x => x.id === t)?.label || 'Text
 
 const publicar = (variables) => {
     window.__amoxVariables = variables;
-    window.dispatchEvent(new CustomEvent('amox_variables', { detail: { variables } }));
+    emitir('amox_variables', { variables });
 };
 
 export async function cargarVariables() {

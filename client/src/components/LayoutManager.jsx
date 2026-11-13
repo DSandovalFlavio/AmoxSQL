@@ -29,6 +29,7 @@ import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
 import { olvidarPestanas, editorDe, focoDe, aplicadorDe } from '../utils/memoriaDePestana';
 import { aplicarRango, describirRango } from './ai/archivos/rango.js';
 import { cargarVariables, guardarVariables, aBarra, deBarra } from '../utils/variablesProyecto';
+import { emitir } from '../eventos.js';
 
 /**
  * Un .sql se abre con el gráfico que tenía la última vez (Dec-79): la vista
@@ -1219,7 +1220,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     const d = await w.json().catch(() => ({}));
                     if (abierta) updateTab(pane, abierta.id, { content: cambiado, firma: d.firma || null, dirty: false });
                 }
-                if (abierta) window.dispatchEvent(new CustomEvent('amox_consulta_seguida', { detail: { path: rutaGrafico, consulta: sigue.consulta } }));
+                if (abierta) emitir('amox_consulta_seguida', { path: rutaGrafico, consulta: sigue.consulta });
                 seguidos++;
             } catch { /* un gráfico que no se pudo seguir avisa al abrirse */ }
         }
@@ -1846,7 +1847,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             });
             // The mounted DataVisualizer of this tab merges the changes into its
             // state via setFields (keeps auto-detected axes; no defaults reset).
-            window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { changes, tabId: tab.id } }));
+            emitir('amox_update_chart_config', { changes, tabId: tab.id });
             toast.info('Assist updated the chart of this query');
         },
 

@@ -21,6 +21,7 @@ import {
 } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { useEtiqueta } from '../../etiqueta';
+import { emitir } from '../../eventos.js';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, { method: metodo, headers: cuerpo ? { 'Content-Type': 'application/json' } : undefined, body: cuerpo ? JSON.stringify(cuerpo) : undefined });
@@ -33,7 +34,7 @@ const ORIGEN = { interfaz: 'Data Flow', linea_de_comandos: 'Command line', lote:
 const local = (t) => (t ? new Date(String(t).replace(' ', 'T')) : null);
 const hora = (d) => (d ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '');
 const diaHora = (d) => (d ? d.toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
-const abrirEjecucion = (runId) => window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId } }));
+const abrirEjecucion = (runId) => emitir('amox_abrir_ejecucion', { runId });
 
 function Estado({ estado }) {
     const t = { ok: 'finished', fallo: 'failed', en_curso: 'running', interrumpida: 'interrupted', pausada: 'paused', cancelada: 'cancelled' }[estado] || estado;
@@ -298,7 +299,7 @@ export function BotonOperacion() {
     if (!c?.hay) return null;
     return (
         <button type="button" className={`opx-boton${c.mal ? ' opx-boton--mal' : ''}`} title={c.mal ? `${c.mal} run${c.mal === 1 ? '' : 's'} need${c.mal === 1 ? 's' : ''} attention` : `${c.total} scheduled today`}
-            onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_operacion'))}>
+            onClick={() => emitir('amox_abrir_operacion')}>
             {c.mal ? <LuCircleAlert size={13} /> : <LuCalendarClock size={13} />}
             <span>{c.total}</span>
         </button>

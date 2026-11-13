@@ -17,6 +17,7 @@ import { API_BASE } from '../api.js';
 import { ESTADOS } from './workspaces/VistaWorkspaces';
 import { marcarVistas } from './operacion/Atencion';
 import { useEscape } from '../hooks/useEscape';
+import { emitir } from '../eventos.js';
 
 const ESTADO = Object.fromEntries(ESTADOS.map(([k, t]) => [k, t]));
 
@@ -49,7 +50,7 @@ function entrega(fecha) {
 }
 
 const abrirFicha = (runId) => {
-    window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId } }));
+    emitir('amox_abrir_ejecucion', { runId });
     marcarVistas([runId]);
 };
 

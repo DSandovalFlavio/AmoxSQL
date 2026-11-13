@@ -5,6 +5,7 @@
  */
 import { LuGitBranch } from 'react-icons/lu';
 import { DataFlowGuide } from '../chains/DataFlowGuide';
+import { emitir } from '../../eventos.js';
 
 export default function GuiaDataFlow() {
     return (
@@ -12,7 +13,7 @@ export default function GuiaDataFlow() {
             <DataFlowGuide />
             <div style={{ marginTop: '18px' }}>
                 <button
-                    onClick={() => { try { localStorage.removeItem('amoxsql-dataflow-tour-seen'); } catch (e) {} window.dispatchEvent(new CustomEvent('amox_replay_dataflow_tour')); }}
+                    onClick={() => { try { localStorage.removeItem('amoxsql-dataflow-tour-seen'); } catch (e) {} emitir('amox_replay_dataflow_tour'); }}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: 'var(--accent-color-user, #5E6AD2)', color: 'var(--button-text-color, #fff)', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
                 >
                     <LuGitBranch size={14} /> Replay tour

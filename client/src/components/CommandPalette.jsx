@@ -9,6 +9,7 @@ import {
 } from 'react-icons/lu';
 import { TOURS, openTour } from './onboarding/tourRegistry';
 import { isLightTheme } from '../theme';
+import { emitir } from '../eventos.js';
 
 /**
  * Puntua una coincidencia. Empezar por lo escrito vale mas que contenerlo, y
@@ -350,7 +351,7 @@ export function buildDefaultActions({
         { id: 'settings', label: 'Open Settings', category: 'Settings', icon: LuSettings, shortcut: 'Ctrl+,', action: () => setIsSettingsOpen(true) },
         // Any dark theme goes to the house light one and back (not only Obsidian: since 6.0 the default is Amox Dark).
         { id: 'toggle-theme', label: isLightTheme(theme) ? 'Switch to Dark Theme' : 'Switch to Light Theme', category: 'Settings', icon: isLightTheme(theme) ? LuMoon : LuSun, action: () => setTheme(isLightTheme(theme) ? 'amoxdark' : 'amoxlight') },
-        { id: 'shortcuts', label: 'Show Keyboard Shortcuts', category: 'Help & Tours', icon: LuKeyboard, shortcut: 'Ctrl+Shift+/', action: () => window.dispatchEvent(new CustomEvent('amox_abrir_ayuda', { detail: 'shortcuts' })) },
+        { id: 'shortcuts', label: 'Show Keyboard Shortcuts', category: 'Help & Tours', icon: LuKeyboard, shortcut: 'Ctrl+Shift+/', action: () => emitir('amox_abrir_ayuda', 'shortcuts') },
 
         // View / Appearance
         { id: 'zoom-in', label: 'Zoom In UI', category: 'View', icon: LuSearch, shortcut: 'Ctrl+=', action: () => setUiZoomLevel?.(prev => Math.min(prev + 0.1, 2.0)) },
@@ -365,8 +366,8 @@ export function buildDefaultActions({
         // wired), duplicating 'Show DBT Studio'. Re-add with a real action if needed.
 
         // Help & Tours — the guides (Help, 6.0 M8) and replay any onboarding tour from anywhere
-        { id: 'guia-storyflow', label: 'Guide: Story Flow', category: 'Help & Tours', icon: LuLifeBuoy, action: () => window.dispatchEvent(new CustomEvent('amox_abrir_ayuda', { detail: 'storyflow' })) },
-        { id: 'guia-dataflow', label: 'Guide: Data Flow', category: 'Help & Tours', icon: LuLifeBuoy, action: () => window.dispatchEvent(new CustomEvent('amox_abrir_ayuda', { detail: 'dataflow' })) },
+        { id: 'guia-storyflow', label: 'Guide: Story Flow', category: 'Help & Tours', icon: LuLifeBuoy, action: () => emitir('amox_abrir_ayuda', 'storyflow') },
+        { id: 'guia-dataflow', label: 'Guide: Data Flow', category: 'Help & Tours', icon: LuLifeBuoy, action: () => emitir('amox_abrir_ayuda', 'dataflow') },
         ...TOURS.map((t) => ({
             id: `tour-${t.id}`,
             label: `Tour: ${t.brandLabel}`,

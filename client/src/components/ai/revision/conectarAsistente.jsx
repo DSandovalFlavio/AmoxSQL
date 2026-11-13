@@ -4,6 +4,7 @@ import { crearRevision } from './RevisionEnMonaco.jsx';
 import { focoDeEditor, seleccionConBarra } from '../archivos/index.js';
 import { fijarFoco } from '../../../utils/memoriaDePestana.js';
 import { suscribirPropuestas } from '../propuestasEnEditor.js';
+import { emitir } from '../../../eventos.js';
 
 /**
  * **El Assistant en un editor por líneas** (plan del Assistant, E2): `.sql` y texto.
@@ -56,7 +57,7 @@ export function conectarAsistente(editor, monaco, obtener) {
     const accionar = (accion) => {
         const { tabId } = obtener() || {};
         guardarFoco();
-        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+        emitir('amox_asistir', { accion, tabId });
         if (accion !== 'preguntar') ocultarBarra();
     };
     const pintarBarra = (tipo) => {

@@ -46,6 +46,7 @@ import AntesYPropuesta from '../ai/revision/AntesYPropuesta.jsx';
 import { useDialog } from '../dialogs/DialogProvider';
 import { useToast } from '../ToastProvider';
 import './diagram.css';
+import { emitir } from '../../eventos.js';
 
 const AVISO_MOVER = 'amoxsql-diagram-aviso-mover';
 
@@ -409,10 +410,10 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                 confirmLabel: 'Draw',
             });
             if (!v || !String(v).trim()) return;
-            window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { tabId, pregunta: `Draw this diagram: ${String(v).trim()}` } }));
+            emitir('amox_asistir', { tabId, pregunta: `Draw this diagram: ${String(v).trim()}` });
             return;
         }
-        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+        emitir('amox_asistir', { accion, tabId });
     }, [dialog, tabId]);
     const [menuAsistir, setMenuAsistir] = useState(false);
     useEffect(() => {
@@ -510,7 +511,7 @@ const DiagramEditor = ({ content, onChange, onSave, onRequestSaveAs, theme, file
                                         <LuExpand size={12} /> Expand this step <span>into the steps it is made of</span>
                                     </button>
                                 )}
-                                <button type="button" onClick={() => { setMenuAsistir(false); window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { tabId, pregunta: 'What is missing from this diagram?' } })); }}>
+                                <button type="button" onClick={() => { setMenuAsistir(false); emitir('amox_asistir', { tabId, pregunta: 'What is missing from this diagram?' }); }}>
                                     <LuCircleHelp size={12} /> What is missing?
                                 </button>
                             </div>

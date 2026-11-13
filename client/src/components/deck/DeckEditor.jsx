@@ -53,6 +53,7 @@ import { useToast } from '../ToastProvider';
 import { slideTitle } from '../../utils/deckTemplates';
 import '../MarkdownEditor.css';
 import './deck.css';
+import { emitir } from '../../eventos.js';
 
 // El lienzo no es configurable: 16:9 y nada más. Cada reparto del contrato
 // visual (docs/dev/sistema_deck.html) está calculado sobre 1600 x 900, y
@@ -373,7 +374,7 @@ const DeckEditor = ({
 
     /** Una pregunta sobre la lámina activa, al panel. */
     const asistir = useCallback((accion) => {
-        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+        emitir('amox_asistir', { accion, tabId });
     }, [tabId]);
 
     // Aceptar: con el historial del Studio (Ctrl+Z lo deshace), cambiando solo esa lámina.

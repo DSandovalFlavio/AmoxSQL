@@ -21,6 +21,7 @@ import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
 
 import { API_BASE as API } from '../../api.js';
+import { emitir } from '../../eventos.js';
 
 // Remembers the transcript scroll position per conversation so switching tabs
 // (e.g. opening a chart in Story Flow and coming back) doesn't reset to the top.
@@ -255,7 +256,7 @@ const AiDivingPanel = ({
     const raizRef = useRef(null);
     useEffect(() => {
         const ancho = raizRef.current?.getBoundingClientRect().width || 0;
-        if (ancho > 0 && ancho < 860) window.dispatchEvent(new Event('amox_plegar_barra_lateral'));
+        if (ancho > 0 && ancho < 860) emitir('amox_plegar_barra_lateral');
     }, []);
 
     // ─── Auto-select escalated conversation on mount ───
@@ -314,7 +315,7 @@ const AiDivingPanel = ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title: name }),
             });
-            window.dispatchEvent(new Event('amox_conversation_created'));
+            emitir('amox_conversation_created');
         } catch (err) {
             console.error('Failed to update session name:', err);
         }
@@ -327,7 +328,7 @@ const AiDivingPanel = ({
     useEffect(() => {
         onEsperaChange?.(esperando);
         if (conversationId) {
-            window.dispatchEvent(new CustomEvent('amox_deep_dive_espera', { detail: { conversationId, espera: esperando } }));
+            emitir('amox_deep_dive_espera', { conversationId, espera: esperando });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [esperando, conversationId]);
@@ -385,7 +386,7 @@ const AiDivingPanel = ({
                             body: JSON.stringify({ type, name, data: tc.result }),
                         });
                         // Nudge the inventory panel to refetch its artifact list.
-                        window.dispatchEvent(new Event('amox_artifacts_changed'));
+                        emitir('amox_artifacts_changed');
                     } catch (err) {
                         console.error('Failed to auto-create artifact:', err);
                     }
@@ -393,7 +394,7 @@ const AiDivingPanel = ({
 
                 // Notebooks: refresh the file tree and open the file on first creation.
                 if (tc.toolName === 'build_notebook') {
-                    window.dispatchEvent(new Event('amox_files_changed'));
+                    emitir('amox_files_changed');
                     if (onOpenFile && tc.result.path) onOpenFile(tc.result.path);
                 }
             }
@@ -766,7 +767,7 @@ const AiDivingPanel = ({
             });
             const rutaDeck = `reports/${base}.amoxdeck`;
             await post('/api/file', { path: rutaDeck, content: deck });
-            window.dispatchEvent(new Event('amox_files_changed'));
+            emitir('amox_files_changed');
             onOpenFile?.(rutaDeck);
             toast.success(`Saved ${rutaDeck}, with ${graficos.size} ${graficos.size === 1 ? 'chart' : 'charts'}. Export it to PowerPoint or Word from Report Flow.`);
         } catch (err) {

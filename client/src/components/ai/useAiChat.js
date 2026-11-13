@@ -3,6 +3,7 @@ import { marcarPropuestas, conEstado, estadoDe, esArchivoNuevo } from './propues
 import { API_BASE as API } from '../../api.js';
 import { migrateTheme } from '../../theme.js';
 import { guardarBorrador, leerBorrador, borrarBorrador } from '../../utils/borradorDeAnalisis';
+import { emitir } from '../../eventos.js';
 
 /** Stable client-side message id (survives the streaming→historical handoff). */
 function genId() {
@@ -340,7 +341,7 @@ export default function useAiChat({
             if (res.ok) {
                 const conv = await res.json();
                 setConversationId(conv.id);
-                window.dispatchEvent(new CustomEvent('amox_conversation_created', { detail: { id: conv.id } }));
+                emitir('amox_conversation_created', { id: conv.id });
                 return conv.id;
             }
         } catch (err) {
@@ -858,7 +859,7 @@ export default function useAiChat({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ defaultModel: currentModel, modelPerMode: { [mode]: currentModel } }),
             }).then(() => {
-                window.dispatchEvent(new Event('amox_settings_updated'));
+                emitir('amox_settings_updated');
             }).catch(() => {});
 
         } catch (e) {

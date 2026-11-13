@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { API_BASE } from '../../api.js';
+import { emitir } from '../../eventos.js';
 
 /**
  * Correr un comando de dbt desde cualquier pantalla (5.12): lee la salida, se queda
@@ -46,7 +47,7 @@ export default function useCorrerDbt({ alTerminar } = {}) {
                     if (d.type === 'resumen') { r = d.resumen; setResumen(d.resumen); }
                 }
             }
-            window.dispatchEvent(new Event('amox_dbt_cambio'));
+            emitir('amox_dbt_cambio');
             alTerminar?.(r);
         } catch (e) {
             if (e.name !== 'AbortError') setError(e.message);

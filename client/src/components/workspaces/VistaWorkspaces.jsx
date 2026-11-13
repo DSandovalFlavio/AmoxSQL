@@ -27,6 +27,7 @@ import Atencion from '../operacion/Atencion';
 import DesdePaquete from '../paquete/DesdePaquete';
 import VistaOperacion from '../operacion/VistaOperacion';
 import { useEscape } from '../../hooks/useEscape';
+import { emitir } from '../../eventos.js';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, {
@@ -229,7 +230,7 @@ export default function VistaWorkspaces({ onVolver, onAbrir, inicial = null }) {
     }, [actual, datos]);
 
     const avisar = (t) => { setAviso(t); setTimeout(() => setAviso(null), 4000); };
-    const ajustes = () => window.dispatchEvent(new CustomEvent('amox_abrir_ajustes', { detail: 'workspaces' }));
+    const ajustes = () => emitir('amox_abrir_ajustes', 'workspaces');
     const enlazar = async (ruta, workspaceId) => {
         try { await pedir('PUT', '/api/proyectos-enlace', { ruta, workspaceId }); cargar(); }
         catch (err) { avisar(err.message); }

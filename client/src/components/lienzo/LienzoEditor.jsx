@@ -56,6 +56,7 @@ import { PUNTOS_DE_FOTO } from '../../utils/lienzoFile.js';
 
 const DataVisualizer = lazy(() => import('../DataVisualizer'));
 import './lienzo.css';
+import { emitir } from '../../eventos.js';
 
 const TIPOS_DE_NODO = {
     source: TarjetaDatos, query: TarjetaDatos, note: TarjetaNota, text: TarjetaTexto, frame: TarjetaMarco,
@@ -348,10 +349,10 @@ function Interior({ content, onChange, theme, editorSettings, isActive, filePath
                 confirmLabel: 'Ask',
             });
             if (!v || !String(v).trim()) return;
-            window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { tabId, pregunta: `Answer this with cards on the canvas (one propose_change per card): ${String(v).trim()}` } }));
+            emitir('amox_asistir', { tabId, pregunta: `Answer this with cards on the canvas (one propose_change per card): ${String(v).trim()}` });
             return;
         }
-        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+        emitir('amox_asistir', { accion, tabId });
     }, [dialog, tabId]);
     const [menuAsistir, setMenuAsistir] = useState(false);
 

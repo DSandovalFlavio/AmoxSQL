@@ -29,6 +29,9 @@ const CLIENTE = path.join(RAIZ, 'client', 'src');
 const PERMITIDOS = [
     // El aviso de la actualización (5.4): habla de la palabra vieja a propósito.
     ['components/workspaces/EleccionEtiqueta.jsx', 'Your workspaces are now called'],
+    // El catálogo de eventos (6.0, M8) nombra componentes, no es texto de la interfaz.
+    ['eventos.js', 'VistaWorkspaces'],
+    ['eventos.js', 'FuentesDelWorkspace'],
 ];
 
 function archivos(dir) {

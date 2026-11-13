@@ -14,6 +14,7 @@ import { LuCalendarClock } from 'react-icons/lu';
 // 5.12 (I10): programar un comando de dbt con el diálogo de la 5.11.
 const ChainProgramar = lazy(() => import('./chains/ChainProgramar'));
 import { API_BASE as _API } from '../api.js';
+import { emitir } from '../eventos.js';
 const API = `${_API}/api`;
 
 const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
@@ -519,7 +520,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
         }
         corteRef.current = null;
         setExecRunning(false);
-        window.dispatchEvent(new Event('amox_dbt_cambio'));
+        emitir('amox_dbt_cambio');
     };
 
     // --- Quick Actions ---
@@ -1168,7 +1169,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
                                         {execResumen.estado === 'ok' ? <LuCheck size={13} /> : <LuCircleAlert size={13} />}
                                         <span>{execResumen.linea}</span>
                                         {execResumen.runId && (
-                                            <button className="dbt-btn dbt-btn--ghost" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId: execResumen.runId } }))}>Details</button>
+                                            <button className="dbt-btn dbt-btn--ghost" onClick={() => emitir('amox_abrir_ejecucion', { runId: execResumen.runId })}>Details</button>
                                         )}
                                     </div>
                                 )}

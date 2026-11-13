@@ -8,6 +8,7 @@ import {
 import { useModalA11y } from '../hooks/useModalA11y';
 import FiguraVega from './DataVisualizer/vega/FiguraVega';
 import { papelDe, CORREO } from '../utils/columnas';
+import { emitir } from '../eventos.js';
 
 /**
  * DataProfiler — storytelling-driven EDA report for a query result.
@@ -450,7 +451,7 @@ const DataProfiler = ({ data, isActive, query }) => {
         const fLines = findings.map((f) => `- [${f.severity}] ${f.title}${f.column ? ` (${f.column})` : ''}: ${f.detail}`).join('\n');
         const cLines = profile.map((c) => `- ${c.column} (${c.semantic.label}): ${fmt(c.uniqueCount)} distinct, ${c.nullPct}% null`).join('\n');
         const prompt = `Here is an automated profile of my query result. Write a short, plain-language narrative: what story does this data tell, what should I watch out for, and what's worth exploring next? Be concise.\n\nSummary: ${headline}\n\nFindings:\n${fLines || '(none)'}\n\nColumns (${profile.length}):\n${cLines}\n\nQuery:\n\`\`\`sql\n${query}\n\`\`\``;
-        window.dispatchEvent(new CustomEvent('amox_ai_prompt', { detail: { prompt } }));
+        emitir('amox_ai_prompt', { prompt });
     };
 
     const buildReportHtml = () => {
@@ -511,9 +512,7 @@ const DataProfiler = ({ data, isActive, query }) => {
             chartQuery = `SELECT ${qn} AS ${qn}, COUNT(*) AS count\nFROM (${src}) AS __amox_src\nWHERE ${qn} IS NOT NULL\nGROUP BY ${qn}\nORDER BY count DESC\nLIMIT 20`;
             config = { chartType: 'bar', xAxisKey: name, yAxisKeys: ['count'] };
         }
-        window.dispatchEvent(new CustomEvent('amox_create_chart', {
-            detail: { title: `${name} distribution`, query: chartQuery, config },
-        }));
+        emitir('amox_create_chart', { title: `${name} distribution`, query: chartQuery, config });
     };
 
     return (
