@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * Deep Dive: lo que se puede comprobar sin un modelo (plan UX, entrega 1).
  *

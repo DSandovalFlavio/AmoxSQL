@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * El flujo entre un `.sql` y sus gráficos (Dec-79–81):
  *   - el gráfico de un `.sql` se recuerda con el archivo (`server/borradores.js`);

@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * La palabra «Project» (B7), fase 5 del plan de la 5.9.
  *

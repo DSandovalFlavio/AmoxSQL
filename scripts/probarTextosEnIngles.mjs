@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * La interfaz está en inglés (6.0, M1; auditoría F8).
  *

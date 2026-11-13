@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * La herramienta `display_chart` del asistente (5.17): los tipos nuevos y el
  * Vega-Lite escrito por el modelo, que se compila en el servidor.

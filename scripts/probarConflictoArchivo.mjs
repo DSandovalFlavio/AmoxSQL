@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * Ejercita `utils/conflictoArchivo.js` — qué hacer cuando un archivo cambia por
  * fuera.

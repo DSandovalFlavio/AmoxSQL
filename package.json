@@ -14,6 +14,9 @@
     "client:dev": "cd client && pnpm dev",
     "client:build": "cd client && pnpm build",
     "dist": "pnpm run client:build && electron-builder",
+    "test": "node scripts/correrSuites.mjs",
+    "test:rapidas": "node scripts/correrSuites.mjs --rapidas",
+    "test:app": "node scripts/probarInteraccion.mjs",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

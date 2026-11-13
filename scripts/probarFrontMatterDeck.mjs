@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * Ejercita `setFrontMatterKeys` — el escritor del front-matter de un deck.
  *

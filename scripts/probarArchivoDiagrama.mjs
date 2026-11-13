@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * Ejercita `diagram/diagramFile.js` y `diagram/diagramGraph.js`.
  *

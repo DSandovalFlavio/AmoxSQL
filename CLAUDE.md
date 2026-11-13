@@ -27,10 +27,10 @@ Electron Shell
 ├── electron/preload.js       — Context bridge (electronAPI)
 ├── client/                   — React 19 SPA (Vite 7)
 │   ├── src/App.jsx           — Root component, phase management
-│   ├── src/components/       — 64+ components
+│   ├── src/components/       — ~245 .jsx files
 │   └── src/utils/            — HTML report gen, notebook parser
 └── server/                   — Express 5 backend (port 3001)
-    ├── index.js              — 70+ REST endpoints (~2300 lines)
+    ├── index.js              — ~300 REST endpoints (~7 700 lines)
     ├── DatabaseManager.js    — DuckDB Neo API connection
     ├── AiManager.js          — AI provider abstraction
     └── ai/                   — AI subsystem (tools, prompts, memory, persistence)
@@ -55,11 +55,15 @@ pnpm start             # Dev: concurrently runs Vite, waits on :5173, then launc
 pnpm client:dev        # Frontend only (Vite on port 5173)
 pnpm client:build      # Production build → client/dist/
 pnpm dist              # client:build + electron-builder (NSIS installer, Windows)
+pnpm test             # every suite scripts/probar*.mjs, each in its own process with a temp AMOXSQL_HOME (~6 min)
+pnpm test:rapidas     # only the suites marked `@suite rapida` (no engine, seconds) — what CI runs on every PR
+pnpm test -- --solo dbt   # suites whose name contains «dbt»; --log <dir> keeps each suite's output
+pnpm test:app         # the real-Electron test (scripts/probarInteraccion.mjs; starts Vite on 5173 if needed)
 ```
 
 **Package manager: pnpm 11+ (obligatorio).** No usar `npm install` ni `yarn`. pnpm 11 aplica `minimumReleaseAge=1440` (cuarentena de 24h para versiones recién publicadas) y allowlist explícita de scripts de instalación — defensa contra ataques tipo Shai‑Hulud / TeamPCP. Config en `pnpm-workspace.yaml` (raíz y `client/`).
 
-**No test, lint, or typecheck scripts exist** in `package.json` — don't claim to have run them. If you change code, verify by running the app and exercising the affected UI path.
+**Tests (6.0, M6):** `scripts/correrSuites.mjs` runs the suites; there is no lint or typecheck script — don't claim to have run one. A suite is a plain `scripts/probar<Something>.mjs` that exits non-zero on failure. Mark it `// @suite rapida` on its first lines only if it never loads the engine: `--rapidas` runs those with `scripts/lib/sinMotor.mjs`, which makes any `@duckdb/*` import fail, and `pnpm test -- --sondear` lists which suites could carry the mark. **Never** run a suite or `server/index.js` without a temporary `AMOXSQL_HOME` (the runner sets one): the real `~/.amoxsql/amoxsql.duckdb` gets migrated. CI: `.github/workflows/pruebas.yml` (fast suites required; the full run on Windows, not blocking). Suites don't replace running the app and exercising the affected UI path.
 
 The `postinstall` hook runs `electron-builder install-app-deps` to rebuild native modules (notably `@duckdb/node-api`) against Electron's Node ABI. If DuckDB fails to load after `pnpm install`, re-run `pnpm run postinstall`.
 
@@ -68,16 +72,18 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 ## Project Structure — Key Files
 
 ### Frontend (client/src/components/)
-- `App.jsx` (44KB) — Root, phases: WELCOME → SELECTING_DB → IDE
-- `SqlEditor.jsx` (57KB) — Monaco editor, autocomplete, CTE debug
+- `App.jsx` (92KB) — Root, phases: WELCOME → SELECTING_DB → IDE. The activity bar shows **groups**, not panels (6.0, M3): `GRUPO_DE_PANEL` maps each panel id (unchanged) to Files · Data (explorer + Extensions) · Library (tabs `PESTANAS_BIBLIOTECA`) · Assistant · Deep Dive · dbt · Git; dbt and Git only appear when the project has them. Open a panel with `mostrarPanel(id)`
+- `SqlEditor.jsx` (66KB) — Monaco editor, autocomplete, CTE debug
 - `cuaderno/` — **the notebook**, rebuilt: `CuadernoEditor.jsx` (container), `Celda.jsx` / `CeldaTexto.jsx` (fixed-height cells), `PantallaCompleta.jsx` (one cell, whole tab), `Barra.jsx` (right sidebar: outline, live views, parameters), plus the pure halves `claves.js`, `vistasVivas.js`, `grafo.js` and `exportar.js`. Each SQL cell leaves a temp view named after the cell; `grafo.js` derives dependencies from what each cell reads and drives «Actualizar»
 - `lienzo/` — **the Canvas** (5.15, Dec-54–61): `LienzoEditor.jsx` (container on `@xyflow/react`, the same canvas library as Data Flow), `Tarjetas.jsx` (Source, Query, Chart, Number, Note, Text, Frame; what belongs to ONE card arrives in node `data`, the context only carries actions — with results in the context every run repainted every card), and the pure halves `grafoLienzo.js` (arrows deduced from what each query reads via `celdaSql`/`cuaderno/grafo.js`, labels, rename, refresh order, `sqlDeVisual`) and `salidas.js` (self-contained SQL with upstream cards as CTEs; to Report Flow, notebook, Data Flow, SQL). Each data card runs through `/api/cuaderno/celda` and leaves a TEMP view named after it; a Source of a table is named `<table>_src`; canvas cards only read
-- `ResultsTable.jsx` (38KB) — Paginated results with sort/filter
+- `ResultsTable.jsx` (64KB) — Paginated results with sort/filter; one-row toolbar with **Save / Share ▾** (its menu is `position: fixed`: `.ep-results` clips with `overflow: hidden`)
 - `DataVisualizer/` — **"Story Flow"**, the data-visualization section (official name): 17 chart types organized in a 6-stage flow (Type → Data → Format → Style → Story → Export), with storytelling layer (annotations, takeaway, emphasis), bundled fonts, an in-app guide + first-run tour (`StoryFlowGuide.jsx`). Since 5.16 (plan `docs/dev/plan_graficos_vega_lite.md`, Dec-69–76) the figure is **Vega-Lite**: `vega/deStoryFlow.js` (pure: panel state → Vega-Lite spec; aggregation is a spec transform and only for the types that need it; the treemap is a Vega spec), `vega/figura.js` (the ONLY place that reads/writes `.amoxvis`: `leerAmoxvis` / `escribirAmoxvis`; inside the app a chart is still the flat object of panel keys + `query`/`source` + `modo`/`spec`), `vega/FiguraVega.jsx` + `motor.js` (compile with the theme, data by name `dataset`, numeric strings from DuckDB → numbers, the last good figure stays on error), `vega/tema.js` (a Vega-Lite `config` built from the CSS tokens at draw time — never saved), `vega/codigo.js` (Dec-77, **the code is in charge**: `spec = aplicar(deStoryFlow(panels), extras)`; editing the code runs `asimilarCodigo` — lenses put back into the panels what they can show, the rest becomes `extras`, a patch keyed by the named layers `amox_*`, stored in the panel state and in `usermeta.amoxsql.interfaz.extras`; the file carries a fingerprint so an outside edit is re-assimilated), `vega/ubicar.js` (marks the extras' lines in amber), `vega/EditorCodigo.jsx` (the **Panels | Code** view switch with the Vega-Lite schema; **Add layer…** from `vega/capas.js`), `panels/capacidades.js` (the ONE table of what each type supports; every panel reads it), `vega/agregar.js` (5.18: when the result was cut at the row limit and the type sums by X, the same aggregation runs in DuckDB over the whole query — the spec doesn't change), `vega/salida.js` (5.18: Vega-Lite with data, the `dataset` template, the Python script; AmoxSQL's `amoxNumero` format is translated to d3 on the way out). 5.17 types: `histogram`, `boxplot`, `errorbar`, `slope`; highlights `below`/`above`/`range`; ref/goal lines accept `mean`/`median`. The assistant's `display_chart` (`server/ai/tools.js`) also takes `vega_lite`, compiled and column-checked on the server (`scripts/probarGraficoIA.mjs`). The card (title, takeaway, KPI, signature) stays HTML around the figure. `scripts/probarGraficos.mjs` checks every type, layer, the gallery and the file round trip. **A `.sql` and its charts (Dec-79–81):** the chart on a `.sql` result is a view of the query, remembered with the file in `.amoxsql/borradores/graficos.json` (`server/borradores.js`, `utils/borradorGrafico.js`; `EditorPane` mounts each tab's results with `ResultadosDePestana`, keyed by tab, config taken once at mount); **Save as chart…** writes a `.amoxvis` linked by `origen`; `AmoxvisPane.jsx` is one document per tab (breadcrumb `x.sql › x.amoxvis` or *Own query*, the query edited in place, **Move to a .sql file…**); saving a `.sql` makes its linked charts follow their query (`utils/seguirConsulta.js`, `/api/file` with `devolverAnterior`), renaming it updates their `origen` (`acompanarRenombre`); `mismoGrafico` keeps a chart from opening dirty (`scripts/probarFlujoGrafico.mjs`)
-- `DataProfiler.jsx` (30KB) — Statistical profiling
-- `AiSidebar.jsx` (36KB) — AI chat assistant
+- `DataProfiler.jsx` (46KB) — Statistical profiling; column roles from `utils/columnas.js` `papelDe`
+- `utils/columnas.js` — **What each result column is** (6.0, M2/R3): the default chart axes and type, the Profiler's roles and Deep Dive's suggested questions all read it. The name rules are ONE file, `server/compartido/papelesDeColumna.json` (the server `require`s it; the client imports it `with { type: 'json' }`, Vite's `server.fs.allow` includes that folder)
+- `ai/AiAssistantPanel.jsx` — the Assistant (chat). `AiSidebar.jsx` is dead code (plan M8)
+- Tours: only `getting-started` opens by itself; any other is offered as a one-line hint with `ofrecerTour(id)` (`onboarding/tourRegistry`), never `openTour` on first use
 - `ai/AiDivingPanel.jsx` — **Deep Dive**, read as a report (plan `docs/dev/plan_ux_deep_dive.md`): `ai/informeDeepDive.js` (pure: turns → episodes = question · answer · one section per plan step, in order) feeds `ai/deepDive/InformeDeepDive.jsx` (the reading column), `IndiceDeepDive.jsx` (the plan as an index + deliverables) and `ComoLoObtuve.jsx` ("How I got this": queries, rows and reasoning on demand). A run is saved as ONE assistant message; each tool call carries `textOffset` (where in the prose it happened) so the prose can be split per step — keep it when touching `useAiChat`. The analyst's questions sit above the composer (`DecisionDelAnalista.jsx`). `scripts/probarDeepDive.mjs`
-- `SettingsModal.jsx` (97KB) — Full settings UI
+- `SettingsModal.jsx` (189KB) — Full settings UI
 - `LayoutManager.jsx` — Split-pane layout with tabs
 - `EditorPane.jsx` — Editor container, detects .sqlnb for notebook mode
 - `DatabaseExplorer.jsx` — Schema browser
@@ -90,9 +96,10 @@ The `postinstall` hook runs `electron-builder install-app-deps` to rebuild nativ
 - **Large results and background work** (Tanda 2 of that plan): every row-returning statement is capped (`applyRowLimit`, `TOPE_FILAS`/`TOPE_BYTES` in `server/_sqlUtils.js`, also with Max Rows at 0); `DatabaseManager._leerPorLotes` converts by chunks and `responderFilas` sends JSON in slices, so the server keeps answering and Stop arrives. `registrarConsulta(qid, res, { deFondo })` registers a cancelable query; tracked queries take turns per lane (`_porTurno`), so `isRunning` is the truth and a cancelled one never starts. Background work (`/api/profile`, chart totals with `deFondo: true`) yields to anything you run (`cancelarLoDeFondo`). `FalloDeInterfaz.jsx` + `vigilarVentana` (`electron/main.js`) bring a dead window back to the session (`?reanudar=1`). `scripts/medirArchivosGrandes.mjs` measures all of it
 
 ### Backend (server/)
-- `index.js` (88KB) — All REST endpoints
-- `DatabaseManager.js` (10KB) — DuckDB connection lifecycle. The user DB is attached as `user_db` — unless it has views that name its catalog by the file's name (what dbt and the engine itself write: `"tienda"."main"."x"`), then it is attached under that name (`_ajustarAlias`, also after `recuperar()`). Code must read `dbManager.alias`, never assume `user_db`. `ponerSesion(clave, sentencias)` (5.13): statements every connection needs (TEMP macros are per connection and there are several lanes), applied to the existing lanes and to every lane opened later, also after an engine restart
-- `AiManager.js` (14KB) — Provider management (Ollama, Gemini, Anthropic, OpenAI, Vertex) + legacy `generateQuery()` and the tool-loop `chat()`
+- `index.js` (335KB) — All REST endpoints (to be split by family in plan M7). Only AmoxSQL's own window may call it: `puerta.js` (6.0, M0) — listens on 127.0.0.1 only, rejects any `Origin` that isn't the app's (or Vite's in dev) and any `Host` that isn't localhost (DNS rebinding)
+- **6.0 (DuckDB 2.0)**: `formatoDeBase.js` (Upgrade a 5.x database to the new format; the copy stays as `*.before-6.duckdb`), `esquemas.js` (nested schemas keep their full path), `variables.js` (project variables read with `$name`, `.amoxsql/variables.json`), `planDeEjecucion.js` (DuckDB 2's EXPLAIN JSON for the plan viewer), `ai/costoDeConsulta.js` (the Assistant checks the estimated plan before running)
+- `DatabaseManager.js` (42KB) — DuckDB connection lifecycle. The user DB is attached as `user_db` — unless it has views that name its catalog by the file's name (what dbt and the engine itself write: `"tienda"."main"."x"`), then it is attached under that name (`_ajustarAlias`, also after `recuperar()`). Code must read `dbManager.alias`, never assume `user_db`. `ponerSesion(clave, sentencias)` (5.13): statements every connection needs (TEMP macros are per connection and there are several lanes), applied to the existing lanes and to every lane opened later, also after an engine restart
+- `AiManager.js` (43KB) — Provider management (Ollama, Gemini, Anthropic, OpenAI, Vertex) + legacy `generateQuery()` and the tool-loop `chat()`
 - `ai/agenticLoop.js` — Main tool-calling loop (drives multi-step AI turns)
 - `ai/tools.js` — AI tool definitions (execute_sql, list_tables, describe_table, display_chart, suggest_followups)
 - `ai/tools_planner.js` — Tool set for the experimental planner mode (`experimental.planner` in config)

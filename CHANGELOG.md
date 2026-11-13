@@ -57,6 +57,7 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 
 ### Interno
 - `@duckdb/node-api` fijado a `2.0.0-r.1` (Dec-62). `server/planDeEjecucion.js` (Dec-65), `server/esquemas.js` (esquemas anidados por `schema_oid`), `client/src/utils/lambdas.js`, `motor.js` con `http_retry_backoff`. Guardas nuevas: `probarPlanDeEjecucion`, `probarSqlGenerado` (Dec-66: todo el SQL que escribe AmoxSQL contra el motor), `probarEsquemasAnidados`, `probarLagoDeLaCinco`, `probarLambdas`. Fixtures de los dos motores en `scripts/fixtures/planDeEjecucion/` y bases escritas por 1.5.6 en `scripts/fixtures/motor/`.
+- **Las pruebas con un comando** (M6): `pnpm test` corre todas las suites `scripts/probar*.mjs`, cada una en su proceso y con un `AMOXSQL_HOME` temporal; `pnpm test:rapidas`, las 28 que no cargan el motor (marca `@suite rapida`, comprobada: corren con `scripts/lib/sinMotor.mjs`, que hace fallar cualquier carga del motor), en unos segundos; `pnpm test:app`, la prueba en Electron real. `--solo <texto>`, `--log <carpeta>` y `--sondear` (qué suites podrían ser rápidas). El workflow `.github/workflows/pruebas.yml` corre las rápidas en cada PR y todas, sin bloquear, en Windows.
 
 ---
 
