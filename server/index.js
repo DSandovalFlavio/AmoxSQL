@@ -324,175 +324,6 @@ app.get('/api/project/folder-defs', (req, res) => {
 /* ─── Git ─── */
 const gitManager = require('./git/gitManager');
 
-app.get('/api/git/available', async (req, res) => {
-    try {
-        const available = await gitManager.isGitAvailable();
-        res.json({ available });
-    } catch (err) {
-        res.json({ available: false });
-    }
-});
-
-app.get('/api/git/status', async (req, res) => {
-    try {
-        const isRepo = await gitManager.isRepo(ROOT_DIR);
-        if (!isRepo) return res.json({ isRepo: false });
-        const status = await gitManager.getStatus(ROOT_DIR);
-        res.json({ isRepo: true, ...status });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/git/init', async (req, res) => {
-    try {
-        const result = await gitManager.initRepo(ROOT_DIR);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/git/stage', async (req, res) => {
-    const { files } = req.body;
-    if (!Array.isArray(files) || files.length === 0)
-        return res.status(400).json({ error: 'files array required' });
-    try {
-        const result = await gitManager.stageFiles(ROOT_DIR, files);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/git/unstage', async (req, res) => {
-    const { files } = req.body;
-    if (!Array.isArray(files) || files.length === 0)
-        return res.status(400).json({ error: 'files array required' });
-    try {
-        const result = await gitManager.unstageFiles(ROOT_DIR, files);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/git/commit', async (req, res) => {
-    const { message, amend } = req.body;
-    if (!amend && !message) return res.status(400).json({ error: 'message required' });
-    try {
-        const result = await gitManager.commit(ROOT_DIR, message, { amend: !!amend });
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.get('/api/git/diff', async (req, res) => {
-    const { file, staged } = req.query;
-    if (!file) return res.status(400).json({ error: 'file param required' });
-    try {
-        const result = await gitManager.getDiff(ROOT_DIR, file, staged === 'true');
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.get('/api/git/log', async (req, res) => {
-    const limit = parseInt(req.query.limit, 10) || 50;
-    try {
-        const isRepo = await gitManager.isRepo(ROOT_DIR);
-        if (!isRepo) return res.json({ commits: [] });
-        const result = await gitManager.getLog(ROOT_DIR, limit);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.get('/api/git/branches', async (req, res) => {
-    try {
-        const isRepo = await gitManager.isRepo(ROOT_DIR);
-        if (!isRepo) return res.json({ current: null, branches: [] });
-        const result = await gitManager.getBranches(ROOT_DIR);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/git/branch', async (req, res) => {
-    const { name, checkout = true } = req.body;
-    if (!name) return res.status(400).json({ error: 'name required' });
-    try {
-        const result = await gitManager.createBranch(ROOT_DIR, name, checkout);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/git/checkout', async (req, res) => {
-    const { branch } = req.body;
-    if (!branch) return res.status(400).json({ error: 'branch required' });
-    try {
-        const result = await gitManager.checkoutBranch(ROOT_DIR, branch);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/git/discard', async (req, res) => {
-    const { files } = req.body;
-    if (!Array.isArray(files) || files.length === 0)
-        return res.status(400).json({ error: 'files array required' });
-    try {
-        const result = await gitManager.discardChanges(ROOT_DIR, files);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/git/branch/delete', async (req, res) => {
-    const { name, force = false } = req.body;
-    if (!name) return res.status(400).json({ error: 'name required' });
-    try {
-        const result = await gitManager.deleteBranch(ROOT_DIR, name, force);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/git/stash', async (req, res) => {
-    try {
-        const result = await gitManager.stash(ROOT_DIR, req.body.message);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.post('/api/git/stash/pop', async (req, res) => {
-    try {
-        const result = await gitManager.stashPop(ROOT_DIR);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.get('/api/git/stash/list', async (req, res) => {
-    try {
-        const result = await gitManager.getStashList(ROOT_DIR);
-        res.json(result);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
 
 /* ─── AI Context folder status & setup ─── */
 app.get('/api/ai/context-status', async (req, res) => {
@@ -3936,31 +3767,6 @@ app.post('/api/file/copy', (req, res) => {
     }
 });
 
-/* --- Add to .gitignore --- */
-app.post('/api/git/ignore', (req, res) => {
-    const { pattern } = req.body;
-    if (!pattern) return res.status(400).json({ error: 'pattern is required' });
-
-    const gitignorePath = path.join(ROOT_DIR, '.gitignore');
-
-    try {
-        let content = '';
-        if (fs.existsSync(gitignorePath)) {
-            content = fs.readFileSync(gitignorePath, 'utf8');
-        }
-        // Check if pattern already present
-        const lines = content.split(/\r?\n/);
-        if (lines.some(line => line.trim() === pattern.trim())) {
-            return res.json({ success: true, alreadyExists: true });
-        }
-        // Append with newline safety
-        const separator = content.length > 0 && !content.endsWith('\n') ? '\n' : '';
-        fs.writeFileSync(gitignorePath, content + separator + pattern.trim() + '\n', 'utf8');
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: 'Failed to update .gitignore', details: err.message });
-    }
-});
 
 /* --- Reveal in OS File Explorer --- */
 app.post('/api/file/reveal', (req, res) => {
@@ -7531,6 +7337,17 @@ app.post('/api/shutdown', async (_req, res) => {
     // Give the response time to flush, then exit.
     setTimeout(() => process.exit(0), 200);
 });
+
+// ── Las rutas, por familias (server/api/, 6.0 M7) ──
+// Lo que index.js comparte con cada familia de rutas: funciones y valores (fijos)
+// y, con getter, el estado que cambia en marcha (el proyecto abierto, sus cachés).
+// Se llena ANTES de cargar las rutas, que lo leen al cargarse.
+const compartido = require('./api/compartido');
+Object.defineProperties(compartido, {
+    ROOT_DIR: { get: () => ROOT_DIR, enumerable: true },
+});
+app.use(require('./api/git'));
+// ── fin de las rutas por familias ──
 
 // Lo último antes de arrancar: el atrapa-todo de producción responde 404 a
 // cualquier /api que no conozca, así que toda ruta registrada DESPUÉS quedaba
