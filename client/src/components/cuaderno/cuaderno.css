@@ -80,7 +80,7 @@
     border-bottom: 1px solid var(--border-subtle);
     margin-bottom: var(--space-2);
 }
-.cdn-doc-txt { min-width: 0; flex: 1; }
+.cdn-doc-txt { min-width: 0; flex: 1 1 260px; }
 .cdn-doc-titulo,
 .cdn-doc-desc {
     display: block;
@@ -93,6 +93,8 @@
     color: var(--text-primary);
 }
 .cdn-doc-titulo {
+    resize: none;
+    overflow: hidden;
     font-size: 26px;
     font-weight: var(--weight-bold, 700);
     letter-spacing: -0.02em;
@@ -109,7 +111,7 @@
 }
 .cdn-doc-titulo::placeholder { color: var(--text-disabled); }
 .cdn-doc-desc::placeholder { color: var(--text-disabled); font-style: italic; }
-.cdn-doc-acciones { display: flex; align-items: center; gap: 7px; flex: none; padding-top: 4px; }
+.cdn-doc-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 7px; flex: 0 1 auto; padding-top: 4px; }
 
 /* ── una fila del documento: canalón + contenido ────────────────────────── */
 .cdn-fila {

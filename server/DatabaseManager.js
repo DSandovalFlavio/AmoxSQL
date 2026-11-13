@@ -716,12 +716,9 @@ class DatabaseManager {
         const lane = options.lane || 'main';
         const connection = await this._ensureLane(lane);
 
-        // Log it (fire & forget logic inside)
-        // Only log if we have an attached DB (implicit check in _logQuery)
-        // And ensure we don't cause infinite text loop
-        if (sql && !sql.includes('amox_query_history')) {
-            this._logQuery(sql);
-        }
+        // 6.0 (M1, F3): al historial va sólo lo que pide quien llama (lo que el usuario
+        // ejecutó, con su texto), no todo lo que pasa por el motor.
+        if (options.historial) this._logQuery(options.historial);
 
         try {
             // Neo API: run() returns a result with reader-style methods.
@@ -745,9 +742,8 @@ class DatabaseManager {
         const lane = options.lane || 'main';
         const connection = await this._ensureLane(lane);
 
-        if (sql && !sql.includes('amox_query_history')) {
-            this._logQuery(sql);
-        }
+        // 6.0 (M1, F3): ver query().
+        if (options.historial) this._logQuery(options.historial);
 
         try {
             const reader = await this._porTurno(lane, options, () => connection.run(sql));

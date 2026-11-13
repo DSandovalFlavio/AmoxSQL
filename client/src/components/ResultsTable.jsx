@@ -6,6 +6,7 @@ import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFi
 const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
 import ArbolJson from './ArbolJson';
+import { formatearNumero } from '../utils/formatoCelda';
 import DataVisualizer from './DataVisualizer';
 import DataProfiler from './DataProfiler';
 import { useToast } from './ToastProvider';
@@ -548,20 +549,17 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
         }
     };
 
-    const formatValue = (val) => {
+    const formatValue = (val, col) => {
         try {
             if (val === null || val === undefined) return <span className="rt-null">NULL</span>;
 
-            if (typeof val === 'number') {
-                if (Number.isInteger(val)) {
-                    return val.toLocaleString();
-                }
-                const formatted = val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 4 });
-                return (
-                    <span title={String(val)} className="rt-float">
-                        {formatted}
-                    </span>
-                );
+            // 6.0 (M1, F5): por el tipo de la columna; un DECIMAL o un BIGINT llegan como
+            // texto y se veían sin separador de miles al lado de un DOUBLE que sí lo tenía.
+            const numero = formatearNumero(val, types?.[col]);
+            if (numero !== null) {
+                return typeof val === 'number' && !Number.isInteger(val)
+                    ? <span title={String(val)} className="rt-float">{numero}</span>
+                    : numero;
             }
 
             if (typeof val === 'string') {
@@ -710,7 +708,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                         setCompareOpen(true);
                                     }}
                                     aria-label="Compare with the other pane"
-                                    title="Compara estos resultados con los del otro panel"
+                                    title="Compare these results with the other pane"
                                 >
                                     <LuGitCompare size={12} /> Comparar con el otro panel
                                 </button>
@@ -753,7 +751,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                     <LuExternalLink size={12} /> Pop-out
                                 </button>
                             )}
-                            <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)} aria-label="Save query as a table" title="Materializa la query completa como tabla/vista (no solo las filas mostradas)">
+                            <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)} aria-label="Save query as a table" title="Save the whole query as a table or view (not only the rows shown)">
                                 <LuSave size={12} /> Save as table…
                             </button>
                             <div className="toolbar-dropdown">
@@ -801,7 +799,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                 </button>
                                 {showExportMenu && (
                                     <div className="toolbar-dropdown-menu" style={{ right: 0, left: 'auto' }}>
-                                        <div className="rt-dropdown-subtext">Las filas cargadas en esta tabla</div>
+                                        <div className="rt-dropdown-subtext">The rows loaded in this table</div>
                                         {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={13} />, fn: handleExportCsv, action: 'exportCSV' },
                                         { label: 'Export JSON', icon: <LuFileJson size={13} />, fn: handleExportJson, action: 'exportJSON' },
                                         { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={13} />, fn: handleCopyClipboard, action: 'copy' },
@@ -905,7 +903,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                                 <button
                                                     className={`rt-th-pin${isPinned ? ' active' : ''}`}
                                                     onClick={(e) => { e.stopPropagation(); togglePin(col); }}
-                                                    title={isPinned ? 'Desfijar columna' : 'Fijar columna'}
+                                                    title={isPinned ? 'Unpin column' : 'Pin column'}
                                                     aria-label={isPinned ? `Unpin column ${col}` : `Pin column ${col}`}
                                                     aria-pressed={isPinned}
                                                 >
@@ -986,7 +984,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                                         : String(val ?? '');
                                                 }}
                                             >
-                                                {formatValue(row ? row[col] : null)}
+                                                {formatValue(row ? row[col] : null, col)}
                                             </td>
                                         ))}
                                     </tr>
@@ -1062,8 +1060,8 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                     <div className="column-context-menu-separator" />
                     <div className="column-context-menu-item" onClick={() => { togglePin(contextMenu.column); setContextMenu(null); }}>
                         {pinnedColumns.includes(contextMenu.column)
-                            ? <><LuPinOff size={13} /> Desfijar columna</>
-                            : <><LuPin size={13} /> Fijar columna</>}
+                            ? <><LuPinOff size={13} /> Unpin column</>
+                            : <><LuPin size={13} /> Pin column</>}
                     </div>
                     <div className="column-context-menu-separator" />
                     <div className="column-context-menu-item" onClick={() => { setSortConfig({ key: contextMenu.column, direction: 'asc' }); setContextMenu(null); }}>
@@ -1092,8 +1090,8 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                             <span className="rt-cell-peek-len">{cellPeek.text.length.toLocaleString()} chars</span>
                             <button
                                 className="rt-cell-peek-btn"
-                                onClick={() => { navigator.clipboard.writeText(cellPeek.text); toast.info('Contenido copiado'); }}
-                                title="Copiar contenido"
+                                onClick={() => { navigator.clipboard.writeText(cellPeek.text); toast.info('Copied'); }}
+                                title="Copy content"
                                 aria-label="Copy cell content"
                             >
                                 <LuClipboardCopy size={12} />
@@ -1101,7 +1099,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                             <button
                                 className="rt-cell-peek-btn"
                                 onClick={() => setCellPeek(null)}
-                                title="Cerrar (Esc)"
+                                title="Close (Esc)"
                                 aria-label="Close"
                             >
                                 <LuX size={12} />

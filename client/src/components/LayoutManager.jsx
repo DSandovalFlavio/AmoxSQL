@@ -645,7 +645,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // Una pestaña fijada no se cierra por accidente. Es la mitad de la
         // pareja: fijar protege lo que importa, reabrir rescata lo demas.
         if (cerrando?.fijada) {
-            stateRef.current.toast.info(`${cerrando.name} esta fijada. Quitale la chincheta para cerrarla.`);
+            stateRef.current.toast.info(`${cerrando.name} is pinned. Unpin it to close it.`);
             return;
         }
         if (cerrando?.path) {
@@ -799,7 +799,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     const response = await fetch(`${API_BASE}/api/query`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query: stmt.raw, queryId: qid, limit: rowLimit }),
+                        body: JSON.stringify({ query: stmt.raw, queryId: qid, limit: rowLimit, historial: true }),
                         signal: controller.signal,
                     });
                     data = await response.json();
@@ -923,7 +923,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: rowLimit }),
+                body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: rowLimit, historial: true }),
                 signal,
             });
             const data = await response.json();
@@ -997,7 +997,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
          * aviso les pisaría la suya.
          */
         if (tab.type === 'texto') {
-            toast.info(`${tab.name} no es un archivo que se ejecute.`);
+            toast.info(`${tab.name} is not a file that runs.`);
         }
     }, [getActiveTab, executeQuery, toast]);
 
@@ -1025,7 +1025,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         try {
             const lectura = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(tab.procedencia.archivo)}`);
-            if (!lectura.ok) throw new Error('no se pudo leer el documento');
+            if (!lectura.ok) throw new Error('could not read the document');
             const { content: markdown } = await lectura.json();
 
             const r = fusionar(markdown, tab.procedencia, mermaid, { forzar });
@@ -1036,7 +1036,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: tab.procedencia.archivo, content: r.contenido }),
             });
-            if (!escritura.ok) throw new Error('no se pudo escribir el documento');
+            if (!escritura.ok) throw new Error('could not write the document');
 
             // El ancla se renueva con lo que acabamos de escribir: a partir de
             // ahora «como estaba cuando lo abrí» es esto.
@@ -1047,7 +1047,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             if (!isSilent) toast.success(r.movido ? 'Saved (the diagram had moved)' : 'Saved');
             return { ok: true };
         } catch (e) {
-            if (!isSilent) toast.error(`Error al guardar: ${e.message}`);
+            if (!isSilent) toast.error(`Could not save: ${e.message}`);
             return { ok: false, motivo: 'error', mensaje: e.message };
         }
     }, [findTabPane, updateTab]);
@@ -1108,7 +1108,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 if (tab.path) clearDraft(tab.path);
                 toast.info(`${nombre}: brought in the version from disk.`);
             } catch (e) {
-                toast.error(`No se pudo leer el archivo: ${e.message}`);
+                toast.error(`Could not read the file: ${e.message}`);
             }
             return;
         }
@@ -1633,7 +1633,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 if (datos.error) throw new Error(datos.error);
                 await openFileRef.current(ultima.path, datos.content, ultima.type, { firma: datos.firma }, ultima.pane);
             } catch (e) {
-                toast.error(`No se pudo reabrir ${ultima.name}: ${e.message}`);
+                toast.error(`Could not reopen ${ultima.name}: ${e.message}`);
             }
         },
 

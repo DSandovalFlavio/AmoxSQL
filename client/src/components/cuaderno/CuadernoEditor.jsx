@@ -622,6 +622,7 @@ const CuadernoEditor = ({
                     preparacion,
                     lector,
                     vista,
+                    historial: texto,
                     // Que va a dejar puesto: el servidor lo necesita para saber
                     // si hay que relevar un objeto temporal del otro tipo.
                     deja,
@@ -951,12 +952,17 @@ const CuadernoEditor = ({
                     celda. */}
                 <div className="cdn-doc">
                     <div className="cdn-doc-txt">
-                        <input
+                        {/* 6.0 (M1, F4): un `textarea` como la descripción, para que un
+                            título largo pase a dos líneas en vez de cortarse («Ventas 20»). */}
+                        <textarea
                             className="cdn-doc-titulo"
+                            rows={1}
                             value={doc.meta?.titulo || ''}
                             readOnly={lectura}
                             placeholder={lectura ? '' : 'Untitled'}
-                            onChange={(e) => cambiarMeta('titulo', e.target.value)}
+                            onChange={(e) => cambiarMeta('titulo', e.target.value.replace(/\s*[\r\n]+\s*/g, ' '))}
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                            ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
                         />
                         {/* Un `textarea` y no un `input`: una descripción larga
                             en un input se corta a media palabra, y lo único que

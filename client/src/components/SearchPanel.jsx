@@ -105,7 +105,7 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
                     className="sp-input"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Texto a buscar…"
+                    placeholder="Text to find…"
                     spellCheck={false}
                     autoComplete="off"
                 />
@@ -118,7 +118,7 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
                     onClick={() => setScope('fuente')}
                     title="Queries, documents, notebooks, chains and charts"
                 >
-                    Fuente
+                    Source
                 </button>
                 <button
                     className={`sp-ambito-btn${scope === 'todo' ? ' active' : ''}`}
@@ -127,7 +127,7 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
                         ? `Includes ${datos.n} data files (${(datos.bytes / MB).toFixed(0)} MB). It will be noticeably slower.`
                         : 'Also includes the plain-text data files'}
                 >
-                    <LuDatabase size={11} /> + datos
+                    <LuDatabase size={11} /> + data
                 </button>
             </div>
 
@@ -135,8 +135,8 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
                 <div className="sp-aviso">
                     <LuTriangleAlert size={12} />
                     <span>
-                        Incluyendo {datos.n} archivos de datos ({(datos.bytes / MB).toFixed(0)} MB).
-                        Los binarios y lo que pase de 2 MB se siguen saltando.
+                        Including {datos.n} data files ({(datos.bytes / MB).toFixed(0)} MB).
+                        Binary files and anything over 2 MB are still skipped.
                     </span>
                 </div>
             )}
@@ -144,22 +144,22 @@ export default function SearchPanel({ onOpenFile, projectPath }) {
             {error && (
                 <div className="sp-aviso error">
                     <LuTriangleAlert size={12} />
-                    <span>No se pudo buscar: {error}</span>
+                    <span>Could not search: {error}</span>
                 </div>
             )}
 
             {res && !error && (
                 <div className="sp-resumen">
                     {res.hits.length === 0
-                        ? <>Sin coincidencias en {res.archivos} archivos</>
-                        : <>{res.hits.length}{res.truncado ? '+' : ''} en {grupos.length} archivos · {res.ms} ms</>}
+                        ? <>No matches in {res.archivos} files</>
+                        : <>{res.hits.length}{res.truncado ? '+' : ''} in {grupos.length} files · {res.ms} ms</>}
                 </div>
             )}
 
             {res?.truncado && (
                 <div className="sp-aviso">
                     <LuInfo size={12} />
-                    <span>Se muestran los primeros {res.hits.length}. Afina la búsqueda para verlos todos.</span>
+                    <span>Showing the first {res.hits.length}. Narrow the search to see them all.</span>
                 </div>
             )}
 

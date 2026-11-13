@@ -8,6 +8,8 @@ export function DialogProvider({ children }) {
     const resolverRef = useRef(null);
     const inputRef = useRef(null);
     const [inputValue, setInputValue] = useState('');
+    // 6.0 (M1, F10): lo que dice la validación, a la vista (antes se ignoraba en silencio).
+    const [errorPrompt, setErrorPrompt] = useState(null);
     const [checkboxChecked, setCheckboxChecked] = useState(false);
 
     const close = useCallback((value) => {
@@ -15,6 +17,7 @@ export function DialogProvider({ children }) {
         resolverRef.current = null;
         setDialog(null);
         setInputValue('');
+        setErrorPrompt(null);
         setCheckboxChecked(false);
         if (resolve) resolve(value);
     }, []);
@@ -94,10 +97,9 @@ export function DialogProvider({ children }) {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 close(cancelValue(dialog));
-            } else if (e.key === 'Enter' && dialog.kind === 'prompt') {
-                e.preventDefault();
-                submitPrompt();
             }
+            // Enter en un prompt lo atiende el propio campo (F10): este manejador se
+            // registra una vez por diálogo y vería el valor vacío del primer render.
         };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
@@ -109,8 +111,9 @@ export function DialogProvider({ children }) {
         if (!trimmed) return;
         if (dialog.validate) {
             const err = dialog.validate(trimmed);
-            if (err) return;
+            if (err) { setErrorPrompt(err); return; }
         }
+        setErrorPrompt(null);
         close(trimmed);
     };
 
@@ -186,7 +189,11 @@ export function DialogProvider({ children }) {
                                 type="text"
                                 value={inputValue}
                                 placeholder={dialog.placeholder}
-                                onChange={(e) => setInputValue(e.target.value)}
+                                onChange={(e) => { setInputValue(e.target.value); setErrorPrompt(null); }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); e.stopPropagation(); submitPrompt(); }
+                                }}
+                                aria-invalid={!!errorPrompt}
                                 style={{
                                     width: '100%',
                                     padding: '8px 10px',
@@ -197,9 +204,12 @@ export function DialogProvider({ children }) {
                                     fontSize: '13px',
                                     fontFamily: 'inherit',
                                     outline: 'none',
-                                    marginBottom: '14px',
+                                    marginBottom: errorPrompt ? '6px' : '14px',
                                 }}
                             />
+                        )}
+                        {dialog.kind === 'prompt' && errorPrompt && (
+                            <p role="alert" style={{ margin: '0 0 12px', fontSize: '12px', color: 'var(--color-error)' }}>{errorPrompt}</p>
                         )}
 
                         {dialog.kind === 'choose' && (

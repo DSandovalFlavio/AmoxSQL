@@ -17,9 +17,9 @@ import {
 } from 'react-icons/lu';
 
 const FILTERS = [
-    { id: 'pendientes', label: 'Pendientes' },
-    { id: 'todas', label: 'Todas' },
-    { id: 'vencidas', label: 'Vencidas' },
+    { id: 'pendientes', label: 'Open' },
+    { id: 'todas', label: 'All' },
+    { id: 'vencidas', label: 'Overdue' },
 ];
 
 /** Hoy en ISO corto y local, para comparar con `vence:` sin cruzar zonas. */
@@ -85,7 +85,7 @@ export default function TasksPanel({ onOpenFile, currentPath, reloadToken = 0, e
             {!embebido && (
                 <div className="mde-tasks-head">
                     <LuInbox size={13} />
-                    <span>Pendientes del proyecto</span>
+                    <span>Project tasks</span>
                     <span className="mde-tasks-count">{loading ? '…' : cuenta}</span>
                     <button className="mde-tasks-reload" title="Volver a escanear" onClick={load} disabled={loading}>
                         {loading ? <LuLoaderCircle size={12} className="mde-spin" /> : <LuRefreshCw size={12} />}

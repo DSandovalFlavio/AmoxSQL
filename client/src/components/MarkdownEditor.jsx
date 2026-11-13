@@ -87,9 +87,9 @@ function insertSnippet(editor, snippet) {
 // La vista lleva etiqueta, no solo icono: un lapiz y un ojo no dicen por si
 // solos que uno escribe markdown y el otro lo ensena compuesto.
 const VIEW_MODES = [
-    { id: 'edit', Icon: LuPencilLine, label: 'Escribir', title: 'Solo el documento (Ctrl+Shift+V rota)' },
-    { id: 'split', Icon: LuColumns2, label: 'Dividido', title: 'Markdown y vista previa (Ctrl+Shift+V rota)' },
-    { id: 'preview', Icon: LuEye, label: 'Leer', title: 'Solo la vista previa (Ctrl+Shift+V rota)' },
+    { id: 'edit', Icon: LuPencilLine, label: 'Escribir', title: 'Document only (Ctrl+Shift+V cycles)' },
+    { id: 'split', Icon: LuColumns2, label: 'Dividido', title: 'Markdown and preview (Ctrl+Shift+V cycles)' },
+    { id: 'preview', Icon: LuEye, label: 'Leer', title: 'Preview only (Ctrl+Shift+V cycles)' },
 ];
 
 // El catálogo de bloques vive en markdownInsertables y se dibuja en
@@ -147,7 +147,7 @@ const MarkdownEditor = ({
     const abrirDiagrama = useCallback((mermaid, linea) => {
         if (!onAbrirDiagrama) return;
         if (!filePath) {
-            toast.error('Guarda el documento antes de editar su diagrama.');
+            toast.error('Save the document before editing its diagram.');
             return;
         }
         onAbrirDiagrama({
@@ -497,7 +497,7 @@ const MarkdownEditor = ({
         if (!containerRef.current || isExporting) return;
         const cuerpo = containerRef.current.querySelector('.mde-preview-body');
         if (!cuerpo) {
-            toast.warning('Cambia a vista previa o dividida para exportar');
+            toast.warning('Switch to preview or split view to export');
             return;
         }
         if (!window.electronAPI?.exportPdf) {
@@ -541,10 +541,10 @@ const MarkdownEditor = ({
             a.download = `${nombre}.pdf`;
             a.click();
             URL.revokeObjectURL(url);
-            toast.success('PDF exportado con texto seleccionable');
+            toast.success('PDF exported with selectable text');
         } catch (e) {
             console.error('Failed to export PDF', e);
-            toast.error(`No se pudo exportar: ${e.message}`);
+            toast.error(`Could not export: ${e.message}`);
         } finally {
             setIsExporting(false);
         }
@@ -876,10 +876,10 @@ const MarkdownEditor = ({
             if (!guardado.ok) throw new Error((await guardado.json()).error || 'no se pudo escribir');
 
             setTasksToken(t => t + 1);
-            toast.success(`Anotado en ${NOTES_FILE}`);
+            toast.success(`Noted in ${NOTES_FILE}`);
         } catch (e) {
             console.error('Quick capture failed', e);
-            toast.error(`No se pudo anotar: ${e.message}`);
+            toast.error(`Could not add the note: ${e.message}`);
         }
     }, [dialog, toast]);
 
@@ -1158,7 +1158,7 @@ ${snippet}` : snippet);
                 {toolbarVisible && (
                     <div className={`mde-topbar${focusMode ? ' foco' : ''}`}>
                         {railCabe && !showRail && (
-                            <button className="mde-top-icon" title="Mostrar la estructura (Ctrl+Shift+O)" onClick={desplegarRail}>
+                            <button className="mde-top-icon" title="Show the outline (Ctrl+Shift+O)" onClick={desplegarRail}>
                                 <LuPanelLeft size={14} />
                             </button>
                         )}
@@ -1185,8 +1185,8 @@ ${snippet}` : snippet);
                             <>
                                 <span className="mde-topbar-save">
                                     {isDirty && (
-                                        <button className="mde-top-ghost acento" onClick={handleSave} title="Guardar (Ctrl+S)">
-                                            <LuSave size={13} /> Guardar <kbd>Ctrl+S</kbd>
+                                        <button className="mde-top-ghost acento" onClick={handleSave} title="Save (Ctrl+S)">
+                                            <LuSave size={13} /> Save <kbd>Ctrl+S</kbd>
                                         </button>
                                     )}
                                 </span>

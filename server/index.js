@@ -629,12 +629,21 @@ ORDER BY 1, 2;
 app.get('/api/project/scan-dbs', (req, res) => {
     try {
         const files = fs.readdirSync(ROOT_DIR, { withFileTypes: true });
+        // 6.0 (M1, F1): la última base que se usó en el proyecto va primero; los
+        // respaldos de «Upgrade…» (`x.before-6.duckdb`) al final y marcados, para no
+        // abrir la copia vieja sin querer. Un `.wal` no es una base: es su diario.
+        const ultima = PROYECTO_ABIERTO ? (scaffolder.getProjectConfig(ROOT_DIR)?.ultimaBase || null) : null;
+        const esRespaldo = (n) => /\.before-6(-\d+)?\.duckdb$/i.test(n);
+        const rango = (f) => (f.name === ultima ? 0 : f.respaldo ? 2 : 1);
         const dbFiles = files
-            .filter(file => file.isFile() && (file.name.endsWith('.duckdb') || file.name.endsWith('.db') || file.name.endsWith('.wal') || file.name.endsWith('.ducklake') || file.name.endsWith('.ducklake.sqlite')))
+            .filter(file => file.isFile() && (file.name.endsWith('.duckdb') || file.name.endsWith('.db') || file.name.endsWith('.ducklake') || file.name.endsWith('.ducklake.sqlite')))
             .map(file => ({
                 name: file.name,
-                path: file.name // Relative path from root is enough for now
-            }));
+                path: file.name, // Relative path from root is enough for now
+                ...(esRespaldo(file.name) ? { respaldo: true } : {}),
+                ...(file.name === ultima ? { ultima: true } : {}),
+            }))
+            .sort((a, b) => rango(a) - rango(b) || a.name.localeCompare(b.name));
         res.json(dbFiles);
     } catch (err) {
         res.status(500).json({ error: 'Failed to scan for databases', details: err.message });
@@ -695,6 +704,16 @@ app.post('/api/db/connect', async (req, res) => {
             require('./formatoDeBase').recordarAlAbrir(r && fs.existsSync(r) ? r : null);
         } catch { /* sin formato */ }
         await dbManager.connect(dbPath, ROOT_DIR, { readOnly: !!readOnly });
+        // 6.0 (M1, F1): la base que se abre se recuerda en el proyecto: la próxima vez va primero.
+        try {
+            if (PROYECTO_ABIERTO && typeof dbPath === 'string' && dbPath !== ':memory:') {
+                const rel = path.relative(ROOT_DIR, path.resolve(ROOT_DIR, dbPath));
+                if (rel && !rel.startsWith('..') && !path.isAbsolute(rel) && !rel.includes(path.sep)
+                    && scaffolder.getProjectConfig(ROOT_DIR)?.ultimaBase !== rel) {
+                    scaffolder.saveProjectConfig(ROOT_DIR, { ultimaBase: rel });
+                }
+            }
+        } catch { /* recordarla no es crítico */ }
 
         // Initialize AI persistence schema for this project's database.
         // Skipped for DuckLake: the amoxsql_ai / amoxsql_chains bookkeeping
@@ -755,22 +774,24 @@ app.get('/api/db/version', async (req, res) => {
 
 app.get('/api/db/tables', async (req, res) => {
     try {
-        const tables = await dbManager.systemQuery(
-            `SELECT table_catalog, table_schema, table_name, table_type FROM ${esquemas.TABLAS} AS t WHERE ${userTablesWhereClause()} ORDER BY table_schema, table_name`,
+        // 6.0 (M1, F11): una consulta con JOIN, no una por tabla (con 200 tablas eran 201
+        // consultas cada vez que se abría un editor).
+        const filas = await dbManager.systemQuery(
+            `SELECT t.table_catalog, t.table_schema, t.table_name, t.table_type, c.column_name, c.data_type
+             FROM ${esquemas.TABLAS} t
+             LEFT JOIN ${esquemas.COLUMNAS} c
+                    ON c.table_catalog = t.table_catalog AND c.table_schema = t.table_schema AND c.table_name = t.table_name
+             WHERE ${userTablesWhereClause('t.table_schema', 't.table_name')}
+             ORDER BY t.table_schema, t.table_name, c.ordinal_position`,
             { lane: 'meta' }
         );
-
-        const lit = (v) => `'${String(v).replace(/'/g, "''")}'`;
-        const result = [];
-        for (const t of tables) {
-            const columns = await dbManager.systemQuery(
-                `SELECT column_name, data_type FROM ${esquemas.COLUMNAS} AS c WHERE table_catalog = ${lit(t.table_catalog)} AND table_name = ${lit(t.table_name)} AND table_schema = ${lit(t.table_schema)} ORDER BY ordinal_position`,
-                { lane: 'meta' }
-            );
-            result.push({ name: t.table_name, schema: t.table_schema, type: t.table_type, columns });
+        const porTabla = new Map();
+        for (const f of filas) {
+            const k = `${f.table_catalog} ${f.table_schema} ${f.table_name}`;
+            if (!porTabla.has(k)) porTabla.set(k, { name: f.table_name, schema: f.table_schema, type: f.table_type, columns: [] });
+            if (f.column_name) porTabla.get(k).columns.push({ column_name: f.column_name, data_type: f.data_type });
         }
-
-        res.json(result);
+        res.json([...porTabla.values()]);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch tables', details: err.message });
     }
@@ -4124,10 +4145,14 @@ app.post('/api/query', async (req, res) => {
         // puedan leer (sin red, sin credencial): se anotan antes de correr.
         anotarFuentesDelSql(query);
         const start = performance.now();
-        const opciones = { trackId: qid, cancelada: () => registro.cancelada, maxFilas: topeFilas + 1, maxBytes: TOPE_BYTES };
+        // 6.0 (M1, F3): al historial, sólo lo que se ejecuta desde el editor (`historial: true`;
+        // las vistas previas, los totales de un gráfico o un deck también pasan por aquí), con el
+        // texto del usuario —no el envuelto con el tope— y una vez.
+        const opciones = { trackId: qid, cancelada: () => registro.cancelada, maxFilas: topeFilas + 1, maxBytes: TOPE_BYTES, ...(req.body.historial === true && !deFondo ? { historial: query } : {}) };
         let result;
         try {
             result = await dbManager.queryWithMetadata(limitedSql, opciones).catch((err) => {
+                delete opciones.historial;          // un reintento no se apunta dos veces
                 // Interrumpir lo de fondo justo cuando acababa deja el aviso puesto
                 // y se lo lleva la siguiente: la tuya. Se repite una vez.
                 if (cedieron && !registro.cancelada && /Interrupted/i.test(err.message)) {
@@ -4235,7 +4260,7 @@ app.post('/api/query', async (req, res) => {
  * hasta que el aviso se acepta.
  */
 app.post('/api/cuaderno/celda', async (req, res) => {
-    const { preparacion, lector, vista, deja, limit, queryId, aceptarTapado } = req.body;
+    const { preparacion, lector, vista, deja, limit, queryId, aceptarTapado, historial } = req.body;
     if (!lector) return res.status(400).json({ error: 'The reader query is missing' });
     if (baseOcupadaPorDbt(res)) return;
 
@@ -4310,8 +4335,10 @@ app.post('/api/cuaderno/celda', async (req, res) => {
     try {
         const start = performance.now();
         const cancelada = () => registro.cancelada;
-        if (preparacion) await dbManager.queryWithMetadata(preparacion, { trackId: qid, cancelada });
-        const result = await dbManager.queryWithMetadata(lectorLimitado, { trackId: qid, cancelada, maxFilas: topeFilas + 1, maxBytes: TOPE_BYTES });
+        // 6.0 (M1, F3): al historial, el SQL de la celda tal como lo escribió el usuario.
+        const apunte = typeof historial === 'string' && historial.trim() ? { historial } : {};
+        if (preparacion) await dbManager.queryWithMetadata(preparacion, { trackId: qid, cancelada, ...apunte });
+        const result = await dbManager.queryWithMetadata(lectorLimitado, { trackId: qid, cancelada, maxFilas: topeFilas + 1, maxBytes: TOPE_BYTES, ...(preparacion ? {} : apunte) });
         const end = performance.now();
 
         let rows = result.rows;

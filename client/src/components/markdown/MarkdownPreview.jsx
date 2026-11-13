@@ -134,7 +134,7 @@ function MermaidDiagram({ code, theme, onEditar }) {
         <>
             <div className="mde-mermaid-wrap">
                 {editable && (
-                    <button className="mde-mermaid-edit" title="Editar en AmoxDiagram" onClick={onEditar}>
+                    <button className="mde-mermaid-edit" title="Edit in AmoxDiagram" onClick={onEditar}>
                         <LuShare2 size={12} /> Editar
                     </button>
                 )}

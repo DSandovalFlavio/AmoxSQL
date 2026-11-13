@@ -89,7 +89,7 @@ const PopoutResultsPage = () => {
                         <button onClick={() => window.electronAPI?.windowControl?.maximize()} className="control-btn maximize" title="Maximizar">
                             <LuSquare size={10} />
                         </button>
-                        <button onClick={() => window.electronAPI?.windowControl?.close()} className="control-btn close" title="Cerrar">
+                        <button onClick={() => window.electronAPI?.windowControl?.close()} className="control-btn close" title="Close">
                             <LuX size={12} />
                         </button>
                     </span>

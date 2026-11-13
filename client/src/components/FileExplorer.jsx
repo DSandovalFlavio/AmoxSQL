@@ -215,6 +215,9 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
 
             // FILTER: Hide Database files
             data = data.filter(f => !f.name.endsWith('.duckdb') && !f.name.endsWith('.db') && !f.name.endsWith('.ducklake') && !f.name.endsWith('.ducklake.sqlite'));
+            // 6.0 (M1, F7): lo que AmoxSQL escribe para sí junto a los archivos del usuario
+            // (el estado visual de un cuaderno, el diario de una base, una escritura a medias).
+            data = data.filter(f => f.isDirectory || !/(\.sqlnb\.state\.json|\.wal|\.amoxtmp)$/i.test(f.name));
 
             // Sort: directories first, then files
             data.sort((a, b) => {
@@ -246,9 +249,9 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
     const abrirComoTexto = async (file) => {
         if (file.sizeBytes != null && file.sizeBytes > AVISO_TAMANO) {
             const sigue = await confirmAsync({
-                title: 'Es un archivo grande',
-                message: `${file.name} ocupa ${formatBytes(file.sizeBytes)}. Abrirlo puede tardar y dejar el editor lento un rato.`,
-                confirmLabel: 'Abrir igualmente',
+                title: 'This is a large file',
+                message: `${file.name} is ${formatBytes(file.sizeBytes)}. Opening it may take a while and slow the editor down for a bit.`,
+                confirmLabel: 'Open anyway',
                 cancelLabel: 'Cancel',
             });
             if (!sigue) return;
@@ -834,7 +837,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                     <button onClick={() => onNewFile(currentPath, 'amoxcanvas')} title="New Canvas" className="fe-header-btn">
                         <LuLayoutDashboard size={13} />
                     </button>
-                    <button onClick={() => onNewFile(currentPath, 'amoxdiagram')} title="Nuevo diagrama (AmoxDiagram)" className="fe-header-btn">
+                    <button onClick={() => onNewFile(currentPath, 'amoxdiagram')} title="New diagram (AmoxDiagram)" className="fe-header-btn">
                         <LuShare2 size={13} />
                     </button>
                     <button onClick={() => onNewFolder(currentPath)} title="New Folder" className="fe-header-btn">

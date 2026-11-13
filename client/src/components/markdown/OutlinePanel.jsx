@@ -34,14 +34,14 @@ function OutlinePanel({
     return (
         <nav className="mde-rail">
             <div className="mde-rail-head">
-                <span>Estructura</span>
+                <span>Outline</span>
                 {git?.size > 0 && !gitFiable && (
                     <span className="mde-outline-git-off" title="Save the document to see what changed per section">
                         unsaved
                     </span>
                 )}
                 {onPlegar && (
-                    <button className="mde-rail-plegar" title="Ocultar la estructura (Ctrl+Shift+O)" onClick={onPlegar}>
+                    <button className="mde-rail-plegar" title="Hide the outline (Ctrl+Shift+O)" onClick={onPlegar}>
                         <LuChevronLeft size={13} />
                     </button>
                 )}

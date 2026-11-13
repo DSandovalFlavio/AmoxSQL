@@ -91,7 +91,7 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
 
     const handleGenerate = async () => {
         if (!effectiveQuery) {
-            setError('No hay una fuente de datos para exportar.');
+            setError('There is no data source to export.');
             return;
         }
         setLoading(true);
@@ -119,10 +119,10 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
         try {
             await navigator.clipboard.writeText(result.markdown);
             setCopied(true);
-            toast.success('Contexto copiado al portapapeles');
+            toast.success('Context copied to the clipboard');
             setTimeout(() => setCopied(false), 2000);
         } catch {
-            toast.error('No se pudo copiar al portapapeles');
+            toast.error('Could not copy to the clipboard');
         }
     };
 
@@ -171,15 +171,15 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
                 </div>
 
                 <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    Genera un documento de contexto con el schema y muestra de <strong>{sourceLabel}</strong>.
-                    Pégalo en tu asistente de AI junto con la Skill descargable desde Configuración.
+                    Builds a context document with the schema and a sample of <strong>{sourceLabel}</strong>.
+                    Paste it into your AI assistant together with the Skill you can download from Settings.
                 </p>
 
                 {/* Excel sheet selector */}
                 {excelMode && (
                     <div style={{ marginBottom: 14 }}>
                         <label style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, display: 'block', marginBottom: 6 }}>
-                            Hoja de Excel
+                            Excel sheet
                         </label>
                         <select
                             value={selectedSheet}
@@ -224,9 +224,9 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
                             style={{ width: 15, height: 15, cursor: 'pointer' }}
                         />
                         <span>
-                            Incluir perfil estadístico
+                            Include a statistical profile
                             <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 6 }}>
-                                (nulls %, únicos, min/max, top valores)
+                                (nulls %, distinct, min/max, top values)
                             </span>
                         </span>
                     </label>
@@ -300,7 +300,7 @@ const ExportAiContextModal = ({ isOpen, onClose, query: queryProp, fileRef = nul
                                 }}
                             >
                                 <LuDownload size={14} />
-                                Descargar .md
+                                Download .md
                             </button>
                         </div>
                     </div>

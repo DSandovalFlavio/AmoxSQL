@@ -204,9 +204,11 @@ try {
 
     console.log('\nla fuga del historial (5.8)');
     await dbManager.connect(path.join(PROYECTO, 'main.duckdb'), PROYECTO);
-    await dbManager.query(`SET s3_secret_access_key='${SECRETOS.s3Clave}'`).catch(() => {});
-    await dbManager.query(`CREATE OR REPLACE TEMPORARY SECRET fuga (TYPE s3, KEY_ID '${SECRETOS.s3Id}', SECRET '${SECRETOS.s3Clave}')`).catch(() => {});
-    await dbManager.query(`SELECT 42 AS marca_de_la_prueba`);
+    // 6.0 (M1, F3): al historial va lo que el editor pide apuntar (`historial`), con su texto.
+    const apuntar = (sql) => dbManager.query(sql, { historial: sql });
+    await apuntar(`SET s3_secret_access_key='${SECRETOS.s3Clave}'`).catch(() => {});
+    await apuntar(`CREATE OR REPLACE TEMPORARY SECRET fuga (TYPE s3, KEY_ID '${SECRETOS.s3Id}', SECRET '${SECRETOS.s3Clave}')`).catch(() => {});
+    await apuntar(`SELECT 42 AS marca_de_la_prueba`);
     await dbManager.flushQueryHistory();
     const hist = await dbManager.query(`SELECT * FROM amoxsql_ai.query_history`);
     comprobar('una consulta normal sí se registra', JSON.stringify(hist).includes('marca_de_la_prueba'), `${hist.length} filas`);

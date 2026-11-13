@@ -57,14 +57,14 @@ function DocPanel({
             {/* ── De quién es y si vale ── */}
             {meta ? (
                 <div className="mde-panel-grp">
-                    <div className="mde-panel-title"><span>Documento</span></div>
+                    <div className="mde-panel-title"><span>Document</span></div>
                     <DocHeader meta={meta} umbralMeses={umbralMeses} onCambiar={onCambiarMeta} />
                 </div>
             ) : (
                 <div className="mde-panel-grp">
                     <button className="mde-panel-vacio" onClick={onAnadirCabecera}>
                         <LuPlus size={12} />
-                        Añadir dueño y fecha de revisión
+                        Add owner and review date
                     </button>
                 </div>
             )}
@@ -73,7 +73,7 @@ function DocPanel({
             {(tareas.length > 0 || pestana === 'proyecto') && (
                 <div className="mde-panel-grp mde-panel-grp--tareas">
                     <div className="mde-panel-title">
-                        <span>Tareas</span>
+                        <span>Tasks</span>
                         {pestana === 'documento' && tareas.length > 0 && (
                             <span className={`mde-panel-cnt${hechas === tareas.length ? ' ok' : ''}`}>
                                 {hechas}/{tareas.length}
@@ -88,13 +88,13 @@ function DocPanel({
                             className={pestana === 'documento' ? 'on' : ''}
                             onClick={() => setPestana('documento')}
                         >
-                            Este documento
+                            This document
                         </button>
                         <button
                             className={pestana === 'proyecto' ? 'on' : ''}
                             onClick={() => setPestana('proyecto')}
                         >
-                            Proyecto
+                            Project
                         </button>
                     </div>
 

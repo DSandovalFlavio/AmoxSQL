@@ -78,6 +78,11 @@ try {
     q = await post('/api/db/formato/actualizar', {});
     comprobar('  y pedirlo otra vez lo dice', q.status === 400 && /already uses the current format/.test(q.error || ''), JSON.stringify(q));
 
+    console.log('\nel selector de base, después (M1, F1)');
+    const lista = await fetch(`http://127.0.0.1:${port}/api/project/scan-dbs`).then(r => r.json());
+    comprobar('la base de trabajo va primero y el respaldo al final, marcado', lista[0]?.name === 'tienda.duckdb' && lista.at(-1)?.name === 'tienda.before-6.duckdb' && lista.at(-1)?.respaldo === true, JSON.stringify(lista));
+    comprobar('un .wal no se ofrece como base', !lista.some(f => /\.wal$/.test(f.name)), JSON.stringify(lista));
+
     console.log('\nlo que no se actualiza');
     fs.copyFileSync(path.join(RAIZ, 'scripts/fixtures/motor/vistas_con_catalogo_v15.duckdb'), path.join(P, 'otra.duckdb'));
     await post('/api/db/connect', { path: 'otra.duckdb', readOnly: true });

@@ -269,7 +269,7 @@ function App() {
     return window.electronAPI.onDownloadCompleted(({ path: savedPath, filename }) => {
       toast.success(`Guardado: ${filename}`, {
         action: window.electronAPI?.showItemInFolder
-          ? { label: 'Revelar en el explorador', onClick: () => window.electronAPI.showItemInFolder(savedPath) }
+          ? { label: 'Reveal in the explorer', onClick: () => window.electronAPI.showItemInFolder(savedPath) }
           : undefined,
       });
     });
@@ -687,15 +687,15 @@ function App() {
       return;
     }
     const newName = await dialog.promptAsync({
-      title: 'Renombrar archivo',
-      message: `Nuevo nombre para "${meta.name}"`,
+      title: 'Rename file',
+      message: `New name for "${meta.name}"`,
       defaultValue: meta.name,
       validate: (v) => (!v.trim() ? 'The name cannot be empty' : null),
     });
     if (!newName || newName.trim() === meta.name) return;
     const result = await layoutRef.current?.renameTab(tabId, newName.trim());
     if (result && !result.success) {
-      toast.error(`No se pudo renombrar: ${result.error}`);
+      toast.error(`Could not rename: ${result.error}`);
     }
   }, [findTabMeta, dialog, toast]);
 
@@ -941,7 +941,18 @@ function App() {
 
 
   /* --- File Handlers --- */
-  const handleFileOpen = useCallback(async (path) => {
+  // 6.0 (M1, F2): un doble clic llamaba dos veces mientras la primera lectura aún no
+  // había llegado, y el archivo se abría en dos pestañas. La segunda espera a la primera.
+  const abriendoRef = useRef(new Map());
+  const handleFileOpen = useCallback((path) => {
+    const enCurso = abriendoRef.current.get(path);
+    if (enCurso) return enCurso;
+    const promesa = abrirArchivo(path).finally(() => abriendoRef.current.delete(path));
+    abriendoRef.current.set(path, promesa);
+    return promesa;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
+  const abrirArchivo = async (path) => {
     try {
       const response = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(path)}`);
       const data = await response.json();
@@ -967,7 +978,7 @@ function App() {
     } catch (err) {
       toast.error(`Failed to open file: ${err.message}`);
     }
-  }, [toast]);
+  };
 
   const handleFileClick = useCallback((path) => {
     // Ideally this is handled by LayoutManager if it's already open?
@@ -1555,11 +1566,11 @@ function App() {
                 <LuLayoutGrid size={20} />
               </button>
 
-              {/* Execution Chain */}
+              {/* New Data Flow */}
               <button
                 onClick={() => layoutRef.current?.createNew('sqlchain')}
                 className="activity-bar-btn"
-                title="New Execution Chain"
+                title="New Data Flow"
               >
                 <LuLink size={20} />
               </button>
@@ -1807,7 +1818,7 @@ function App() {
                   )}
                   {canReveal && (
                     <div className="column-context-menu-item" onClick={() => handleTabMenuAction('reveal')}>
-                      <LuFolderOpen size={13} /> Revelar en el explorador
+                      <LuFolderOpen size={13} /> Reveal in the explorer
                     </div>
                   )}
                   <div className="column-context-menu-separator" />
@@ -1826,7 +1837,7 @@ function App() {
                   </div>
                   {hasOtherTabs && (
                     <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeOthers')}>
-                      <LuX size={13} /> Cerrar las demás
+                      <LuX size={13} /> Close the others
                     </div>
                   )}
                   {hasTabsToRight && (

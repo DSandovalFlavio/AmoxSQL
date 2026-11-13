@@ -224,8 +224,8 @@ function PanelDeck({ frontMatter, onSetFrontMatter }) {
                     </div>
                 )}
                 <p className="dki-nota dki-nota--tenue">
-                    La paleta del deck manda sobre la que traiga cada `.amoxvis`: si no, dos figuras
-                    guardadas en sesiones distintas discrepan dentro de la misma lámina.
+                    The deck’s palette wins over the one each `.amoxvis` brings: otherwise two figures
+                    saved in different sessions would clash on the same slide.
                 </p>
 
                 <span className="dki-campo-etiqueta">Tone</span>
@@ -352,7 +352,7 @@ const DeckInspector = ({
                     <Grupo titulo="The region">
                         <p className="dki-nota">{region.pista}</p>
                         <p className="dki-nota dki-nota--tenue">
-                            Intro para editarla · Tab para pasar a la siguiente
+                            Enter to edit it · Tab for the next one
                         </p>
                     </Grupo>
                 )}
@@ -374,7 +374,7 @@ const DeckInspector = ({
                         </div>
                         {bloqueAbierto === null && (
                             <p className="dki-nota dki-nota--tenue">
-                                Pulsa uno para editarlo con campos en vez de YAML.
+                                Click one to edit it with fields instead of YAML.
                             </p>
                         )}
                     </Grupo>
@@ -418,9 +418,9 @@ const DeckInspector = ({
                         {chartSrc && (
                             <Grupo titulo="Presentation">
                                 <p className="dki-nota dki-nota--tenue">
-                                    La figura entra sin su tarjeta: la lámina ya es la tarjeta. Se recupera
-                                    con <code>card: true</code> en el bloque, y el interruptor llega con los
-                                    formularios de bloque.
+                                    The figure comes in without its card: the slide already is the card. Bring it back
+                                    with <code>card: true</code> in the block; the switch comes with the
+                                    block forms.
                                 </p>
                             </Grupo>
                         )}

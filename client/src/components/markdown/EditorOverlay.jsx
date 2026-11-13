@@ -244,14 +244,14 @@ export default function EditorOverlay({ editor, content, onWrap, onLineMarker, o
 
             {selBubble && (
                 <div className="mde-overlay mde-bubble" style={{ top: selBubble.top, left: selBubble.left }} onMouseDown={keepFocus}>
-                    <button className="mde-overlay-btn" title="Negrita (Ctrl+B)" onClick={() => onWrap('**')}><LuBold size={13} /></button>
-                    <button className="mde-overlay-btn" title="Cursiva (Ctrl+I)" onClick={() => onWrap('_')}><LuItalic size={13} /></button>
+                    <button className="mde-overlay-btn" title="Bold (Ctrl+B)" onClick={() => onWrap('**')}><LuBold size={13} /></button>
+                    <button className="mde-overlay-btn" title="Italic (Ctrl+I)" onClick={() => onWrap('_')}><LuItalic size={13} /></button>
                     <button className="mde-overlay-btn" title="Tachado" onClick={() => onWrap('~~')}><LuStrikethrough size={13} /></button>
                     <button className="mde-overlay-btn" title="Inline code (Ctrl+E)" onClick={() => onWrap('`')}><LuCode size={13} /></button>
                     <span className="mde-overlay-sep" />
-                    <button className="mde-overlay-btn" title="Enlace (Ctrl+K)" onClick={() => onWrap('link')}><LuLink size={13} /></button>
-                    <button className="mde-overlay-btn" title="Cita" onClick={() => onLineMarker('> ')}><LuQuote size={13} /></button>
-                    <button className="mde-overlay-btn" title="Convertir en tarea (Ctrl+Shift+T)" onClick={() => onLineMarker('- [ ] ')}><LuListTodo size={13} /></button>
+                    <button className="mde-overlay-btn" title="Link (Ctrl+K)" onClick={() => onWrap('link')}><LuLink size={13} /></button>
+                    <button className="mde-overlay-btn" title="Quote" onClick={() => onLineMarker('> ')}><LuQuote size={13} /></button>
+                    <button className="mde-overlay-btn" title="Make it a task (Ctrl+Shift+T)" onClick={() => onLineMarker('- [ ] ')}><LuListTodo size={13} /></button>
                 </div>
             )}
 
@@ -259,20 +259,20 @@ export default function EditorOverlay({ editor, content, onWrap, onLineMarker, o
                 <div className="mde-overlay mde-blockbar" style={{ top: blockBar.top, left: blockBar.left }} onMouseDown={keepFocus}>
                     <button className="mde-overlay-btn wide" title="Add a row below" onClick={() => applyTable('addRowBelow')}><LuPlus size={12} /> Fila</button>
                     <button className="mde-overlay-btn wide" title="Add a column to the right" onClick={() => applyTable('addColRight')}><LuPlus size={12} /> Columna</button>
-                    <button className="mde-overlay-btn" title="Quitar la fila del cursor" onClick={() => applyTable('removeRow')}><LuMinus size={12} /></button>
+                    <button className="mde-overlay-btn" title="Remove the row at the cursor" onClick={() => applyTable('removeRow')}><LuMinus size={12} /></button>
                     <span className="mde-overlay-sep" />
-                    <button className="mde-overlay-btn" title="Alinear a la izquierda" onClick={() => applyTable('align', { align: 'left' })}><LuAlignLeft size={12} /></button>
+                    <button className="mde-overlay-btn" title="Align left" onClick={() => applyTable('align', { align: 'left' })}><LuAlignLeft size={12} /></button>
                     <button className="mde-overlay-btn" title="Centrar" onClick={() => applyTable('align', { align: 'center' })}><LuAlignCenter size={12} /></button>
-                    <button className="mde-overlay-btn" title="Alinear a la derecha" onClick={() => applyTable('align', { align: 'right' })}><LuAlignRight size={12} /></button>
+                    <button className="mde-overlay-btn" title="Align right" onClick={() => applyTable('align', { align: 'right' })}><LuAlignRight size={12} /></button>
                     <span className="mde-overlay-sep" />
-                    <button className="mde-overlay-btn wide" title="Cuadrar las columnas" onClick={() => applyTable('format')}><LuTable size={12} /> Formatear</button>
+                    <button className="mde-overlay-btn wide" title="Align the columns" onClick={() => applyTable('format')}><LuTable size={12} /> Formatear</button>
                 </div>
             )}
 
             {blockBar?.type === 'code' && (
                 <div className="mde-overlay mde-blockbar" style={{ top: blockBar.top, left: blockBar.left }} onMouseDown={keepFocus}>
                     <div className="mde-lang-anchor">
-                        <button className="mde-overlay-btn wide" title="Lenguaje del bloque" onClick={() => setShowLangs(v => !v)}>
+                        <button className="mde-overlay-btn wide" title="Block language" onClick={() => setShowLangs(v => !v)}>
                             {blockBar.lang || 'texto'} <LuChevronDown size={9} />
                         </button>
                         {showLangs && (
@@ -290,8 +290,8 @@ export default function EditorOverlay({ editor, content, onWrap, onLineMarker, o
                         )}
                     </div>
                     <span className="mde-overlay-sep" />
-                    <button className="mde-overlay-btn wide" title="Copiar el contenido del bloque" onClick={copyCode}>
-                        {copied ? <LuCheck size={12} /> : <LuCopy size={12} />} {copied ? 'Copiado' : 'Copiar'}
+                    <button className="mde-overlay-btn wide" title="Copy the block’s content" onClick={copyCode}>
+                        {copied ? <LuCheck size={12} /> : <LuCopy size={12} />} {copied ? 'Copied' : 'Copy'}
                     </button>
                 </div>
             )}

@@ -29,8 +29,8 @@ import { seccionesDeAtajos } from '../utils/atajos';
 
 const RECOMMENDED_MODELS = [
     // ── Edge / Lightweight ──
-    { id: 'gemma4:e2b', label: 'Gemma 4 E2B', size: '~1.6GB', desc: 'Tool calling nativo en 2B. Ideal para empezar.', tier: 'medium', isNew: true },
-    { id: 'qwen3.5:2b', label: 'Qwen 3.5 (2B)', size: '~1.5GB', desc: 'Ultra ligero con contexto de 32K.', tier: 'low' },
+    { id: 'gemma4:e2b', label: 'Gemma 4 E2B', size: '~1.6GB', desc: 'Native tool calling in 2B. A good place to start.', tier: 'medium', isNew: true },
+    { id: 'qwen3.5:2b', label: 'Qwen 3.5 (2B)', size: '~1.5GB', desc: 'Ultra light, with a 32K context.', tier: 'low' },
     
     // ── Balanced ──
     { id: 'gemma4:e4b', label: 'Gemma 4 E4B', size: '~2.8GB', desc: 'A perfect balance: tool calling + audio + vision.', tier: 'medium', isNew: true },
