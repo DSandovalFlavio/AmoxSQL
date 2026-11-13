@@ -7,6 +7,8 @@
  */
 const fs = require('fs');
 const path = require('path');
+// Un texto dentro de comillas simples de SQL (una ruta con apóstrofo no rompe la consulta; M0, S2).
+const literalSql = (s) => String(s ?? '').replace(/'/g, "''");
 const EventEmitter = require('events');
 const chainPersistence = require('./ChainPersistence');
 const aiManager = require('./AiManager');
@@ -663,7 +665,7 @@ class ChainExecutor extends EventEmitter {
             try {
                 try { await dbManager.query('DROP SECRET IF EXISTS __amox_gsheet'); } catch {}
                 const saPath = gs.serviceAccountKeyPath.replace(/\\/g, '/');
-                await dbManager.query(`CREATE SECRET __amox_gsheet (TYPE gsheet, PROVIDER key_file, FILEPATH '${saPath}')`);
+                await dbManager.query(`CREATE SECRET __amox_gsheet (TYPE gsheet, PROVIDER key_file, FILEPATH '${literalSql(saPath)}')`);
             } catch (e) { if (!String(e.message || '').includes('already exists')) throw e; }
         }
     }
@@ -773,9 +775,9 @@ class ChainExecutor extends EventEmitter {
                 const pattern = config.filePattern || '*.csv';
                 const ext = pattern.replace('*.', '').toLowerCase();
                 let reader;
-                if (ext === 'parquet') reader = `read_parquet('${fp}/${pattern}', union_by_name=true, filename=true)`;
-                else if (ext === 'json' || ext === 'jsonl') reader = `read_json_auto('${fp}/${pattern}', union_by_name=true, filename=true)`;
-                else reader = `read_csv('${fp}/${pattern}', auto_detect=true, header=true, union_by_name=true, filename=true)`;
+                if (ext === 'parquet') reader = `read_parquet('${literalSql(fp)}/${literalSql(pattern)}', union_by_name=true, filename=true)`;
+                else if (ext === 'json' || ext === 'jsonl') reader = `read_json_auto('${literalSql(fp)}/${literalSql(pattern)}', union_by_name=true, filename=true)`;
+                else reader = `read_csv('${literalSql(fp)}/${literalSql(pattern)}', auto_detect=true, header=true, union_by_name=true, filename=true)`;
                 return `CREATE OR REPLACE TABLE "${tbl}" AS ${conArchivo(reader)}`;
             }
             case 'http_fetch': {
@@ -923,7 +925,7 @@ class ChainExecutor extends EventEmitter {
                     : null;
             case 'bucket_read': {
                 const bf = config.format || 'parquet';
-                const breader = bf === 'csv' ? `read_csv('${config.uri || ''}', auto_detect=true, header=true)` : bf === 'json' ? `read_json_auto('${config.uri || ''}')` : `read_parquet('${config.uri || ''}')`;
+                const breader = bf === 'csv' ? `read_csv('${literalSql(config.uri || '')}', auto_detect=true, header=true)` : bf === 'json' ? `read_json_auto('${literalSql(config.uri || '')}')` : `read_parquet('${literalSql(config.uri || '')}')`;
                 return `-- cloud credentials applied at run time (httpfs)\nCREATE OR REPLACE TABLE "${config.tableName || 'cloud_data'}" AS SELECT * FROM ${breader}`;
             }
             case 'gsheet_read': {
@@ -1408,18 +1410,18 @@ class ChainExecutor extends EventEmitter {
                 if (!fs.existsSync(sourcePath)) throw new Error(`Import File: file not found — ${config.sourcePath}`);
 
                 if (fileType === 'csv' || fileType === 'tsv') {
-                    const delimOpt = fileType === 'tsv' ? `delim='\\t'` : `delim='${delimiter}'`;
+                    const delimOpt = fileType === 'tsv' ? `delim='\\t'` : `delim='${literalSql(delimiter)}'`;
                     const skipOpt = skipRows > 0 ? `, skip=${skipRows}` : '';
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${sourcePath}', auto_detect=true, header=true, ${delimOpt}${skipOpt})`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${literalSql(sourcePath)}', auto_detect=true, header=true, ${delimOpt}${skipOpt})`;
                 } else if (fileType === 'parquet') {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_parquet('${sourcePath}')`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_parquet('${literalSql(sourcePath)}')`;
                 } else if (fileType === 'json' || fileType === 'jsonl') {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_json_auto('${sourcePath}')`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_json_auto('${literalSql(sourcePath)}')`;
                 } else if (fileType === 'xlsx' || fileType === 'excel') {
                     excel.comprobarLibro(sourcePath);
                     sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${excel.sqlDeLectura(sourcePath, this.opcionesExcel({ ...config, sheetName }, projectPath, sourcePath))}`;
                 } else {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${sourcePath}', auto_detect=true)`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM read_csv('${literalSql(sourcePath)}', auto_detect=true)`;
                 }
 
                 await dbManager.query(sql);
@@ -1447,11 +1449,11 @@ class ChainExecutor extends EventEmitter {
                 if (!fs.existsSync(folderPath)) throw new Error(`Import Folder: folder not found — ${config.folderPath}`);
 
                 if (ext === 'parquet') {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${conArchivo(`read_parquet('${folderPath}/${pattern}', union_by_name=true, filename=true)`)}`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${conArchivo(`read_parquet('${literalSql(folderPath)}/${literalSql(pattern)}', union_by_name=true, filename=true)`)}`;
                 } else if (ext === 'json' || ext === 'jsonl') {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${conArchivo(`read_json_auto('${folderPath}/${pattern}', union_by_name=true, filename=true)`)}`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${conArchivo(`read_json_auto('${literalSql(folderPath)}/${literalSql(pattern)}', union_by_name=true, filename=true)`)}`;
                 } else {
-                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${conArchivo(`read_csv('${folderPath}/${pattern}', auto_detect=true, header=true, union_by_name=true, filename=true)`)}`;
+                    sql = `CREATE OR REPLACE TABLE "${tableName}" AS ${conArchivo(`read_csv('${literalSql(folderPath)}/${literalSql(pattern)}', auto_detect=true, header=true, union_by_name=true, filename=true)`)}`;
                 }
 
                 await dbManager.query(sql);
@@ -1500,10 +1502,10 @@ class ChainExecutor extends EventEmitter {
 
                 if (format === 'csv') {
                     const delimOpt = delimiter !== ',' ? `, SEPARATOR '${delimiter}'` : '';
-                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT CSV, HEADER${delimOpt}${partOpt})`;
+                    sql = `COPY (${query}) TO '${literalSql(outputPath)}' (FORMAT CSV, HEADER${delimOpt}${partOpt})`;
                 } else if (format === 'parquet') {
                     const comprOpt = compression ? `, COMPRESSION ${compression.toUpperCase()}` : '';
-                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT PARQUET${comprOpt}${partOpt})`;
+                    sql = `COPY (${query}) TO '${literalSql(outputPath)}' (FORMAT PARQUET${comprOpt}${partOpt})`;
                 } else if ((format === 'xlsx' || format === 'excel') && !isCloud) {
                     // 5.11 (D3): el libro lo escribe AmoxSQL, con formato y sin
                     // cargar la extensión espacial.
@@ -1515,11 +1517,11 @@ class ChainExecutor extends EventEmitter {
                     break;
                 } else if (format === 'xlsx' || format === 'excel') {
                     await this.ensureSpatialExtension(dbManager);
-                    sql = `COPY (${query}) TO '${outputPath}' WITH (FORMAT GDAL, DRIVER 'xlsx')`;
+                    sql = `COPY (${query}) TO '${literalSql(outputPath)}' WITH (FORMAT GDAL, DRIVER 'xlsx')`;
                 } else if (format === 'json') {
-                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT JSON${partOpt})`;
+                    sql = `COPY (${query}) TO '${literalSql(outputPath)}' (FORMAT JSON${partOpt})`;
                 } else {
-                    sql = `COPY (${query}) TO '${outputPath}' (FORMAT CSV, HEADER${partOpt})`;
+                    sql = `COPY (${query}) TO '${literalSql(outputPath)}' (FORMAT CSV, HEADER${partOpt})`;
                 }
 
                 // 5.14 (F3): un archivo local que se reemplaza (no una carpeta
@@ -2130,9 +2132,9 @@ class ChainExecutor extends EventEmitter {
                 const fmt = config.format || 'parquet';
                 if (!uri) throw new Error('Cloud Bucket node: a URI (s3:// or gs://) is required');
                 await this.prepareCloud(dbManager, config.provider || (uri.startsWith('gs://') ? 'gcs' : 's3'));
-                const reader = fmt === 'csv' ? `read_csv('${uri}', auto_detect=true, header=true)`
-                    : fmt === 'json' ? `read_json_auto('${uri}')`
-                    : `read_parquet('${uri}')`;
+                const reader = fmt === 'csv' ? `read_csv('${literalSql(uri)}', auto_detect=true, header=true)`
+                    : fmt === 'json' ? `read_json_auto('${literalSql(uri)}')`
+                    : `read_parquet('${literalSql(uri)}')`;
                 sql = `CREATE OR REPLACE TABLE "${tableName}" AS SELECT * FROM ${reader}`;
                 await dbManager.query(sql);
                 const countResult = await dbManager.query(`SELECT COUNT(*) as cnt FROM "${tableName}"`);

@@ -8,4 +8,5 @@
 // without touching the session of the running app.
 const devPort = import.meta.env.DEV ? Number(new URLSearchParams(window.location.search).get('apiPort')) || null : null;
 const port = window.electronAPI?.serverPort ?? devPort ?? 3001;
-export const API_BASE = `http://localhost:${port}`;
+// 127.0.0.1, no «localhost»: el servidor escucha sólo ahí (6.0, M0) y así no se intenta antes IPv6.
+export const API_BASE = `http://127.0.0.1:${port}`;

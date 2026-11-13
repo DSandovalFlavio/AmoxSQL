@@ -433,7 +433,7 @@ async function shutdownServer() {
         return;
     }
     try {
-        await fetch(`http://localhost:${actualServerPort}/api/shutdown`, {
+        await fetch(`http://127.0.0.1:${actualServerPort}/api/shutdown`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             signal: AbortSignal.timeout(4000),

@@ -44,7 +44,7 @@ function generateVirtualName(filename) {
     
     // Return e.g. "read_csv_auto('dataset.csv')"
     // This looks like a valid table to the LLM and creates correct syntax in the markdown text
-    return `${readFn}('${filename}')`;
+    return `${readFn}('${String(filename).replace(/'/g, "''")}')`;
 }
 
 /**
@@ -100,7 +100,7 @@ function buildVirtualMapping(files, tables) {
 
             virtualMap.set(vName, {
                 type: 'file',
-                realRef: `${readFn}('${f.path}')`,
+                realRef: `${readFn}('${String(f.path).replace(/'/g, "''")}')`,
                 name: f.name,
                 readFn,
                 path: f.path,

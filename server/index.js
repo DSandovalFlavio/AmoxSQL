@@ -119,7 +119,10 @@ function userTablesWhereClause(schemaCol = 'table_schema', nameCol = 'table_name
     return `${schemaCol} NOT IN (${schemaList}) AND ${prefixClauses} AND ${chainArtifactClause} AND ${duckLakeMetaClause} AND ${fuentesClause}${hermanosClause} AND NOT (${schemaCol} = 'main' AND ${nameCol} IN (${tableList}))`;
 }
 
-app.use(cors());
+// 6.0 (M0, auditoría S1): el servidor es de la ventana de AmoxSQL y de nadie más.
+const puerta = require('./puerta');
+app.use(puerta.puerta);
+app.use(cors(puerta.opcionesCors));
 app.use(express.json({ limit: '50mb' }));
 
 // FIX: Handle BigInt serialization for JSON
@@ -934,7 +937,7 @@ app.get('/api/db/file-schema', async (req, res) => {
         let fullSourcePath = path.isAbsolute(filePath) ? filePath : path.join(ROOT_DIR, filePath);
         fullSourcePath = fullSourcePath.replace(/\\/g, '/');
 
-        const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`, { lane: 'meta' });
+        const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath.replace(/'/g, "''")}'`, { lane: 'meta' });
         res.json(describe);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch file schema', details: err.message });
@@ -1129,15 +1132,15 @@ app.post('/api/db/import', async (req, res) => {
             const lit = fullSourcePath.replace(/'/g, "''");
             await dbManager.systemQuery(`CREATE OR REPLACE TABLE ${target} AS SELECT json::VARIANT AS datos FROM read_json_objects('${lit}', format = 'auto')`);
         } else if (cleanColumns) {
-            const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath}'`);
+            const describe = await dbManager.systemQuery(`DESCRIBE SELECT * FROM '${fullSourcePath.replace(/'/g, "''")}'`);
             const selectParts = describe.map(col => {
                 const oldName = col.column_name;
                 const newName = oldName.trim().replace(/\s+/g, '_');
                 return `"${oldName}" AS "${newName}"`;
             }).join(', ');
-            await dbManager.systemQuery(`CREATE OR REPLACE TABLE ${target} AS SELECT ${selectParts} FROM '${fullSourcePath}'`);
+            await dbManager.systemQuery(`CREATE OR REPLACE TABLE ${target} AS SELECT ${selectParts} FROM '${fullSourcePath.replace(/'/g, "''")}'`);
         } else {
-            await dbManager.systemQuery(`CREATE OR REPLACE TABLE ${target} AS SELECT * FROM '${fullSourcePath}'`);
+            await dbManager.systemQuery(`CREATE OR REPLACE TABLE ${target} AS SELECT * FROM '${fullSourcePath.replace(/'/g, "''")}'`);
         }
         // De dónde salió (C5): el archivo, su tamaño y su fecha, en el comentario de la tabla.
         await procedencia.anotar(dbManager, target, { origen: 'importar', archivos: procedencia.expandir(fullSourcePath) });
@@ -7588,7 +7591,8 @@ const startServer = (preferredPort = 3001) => {
         // Un intento de escucha. 'error' queda enganchado antes que nada, y los
         // dos manejadores se excluyen: el que gane desengancha al otro.
         const attempt = (port, onError) => {
-            const server = app.listen(port);
+            // Sólo localhost: otra máquina de la red no llega (M0).
+            const server = app.listen(port, puerta.DIRECCION);
             const fail = (err) => { server.removeListener('listening', ok); onError(err); };
             const ok = () => { server.removeListener('error', fail); ready(server); };
             server.once('error', fail);
