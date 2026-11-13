@@ -6,6 +6,7 @@
  * cargar este archivo); el estado que cambia en marcha se lee como `ctx.X`.
  */
 
+const registrador = require('../registrador');
 const express = require('express');
 const fs = require('fs');
 const baseCentral      = require('../central/BaseCentral');
@@ -106,7 +107,7 @@ rutas.get('/api/settings/gemini/models', async (req, res) => {
             headers: { 'x-goog-api-key': apiKey },
         });
         if (!response.ok) {
-            console.error(`Failed to fetch Gemini models: ${response.statusText}`);
+            registrador.error(`Failed to fetch Gemini models: ${response.statusText}`);
             return res.json({ models: defaultModels });
         }
         
@@ -128,7 +129,7 @@ rutas.get('/api/settings/gemini/models', async (req, res) => {
             
         res.json({ models: validModels });
     } catch (err) {
-        console.error("Error fetching Gemini models:", err);
+        registrador.error("Error fetching Gemini models:", err);
         // Fallback gracefully so UI doesn't break
         res.json({ models: [
             { id: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite' },
@@ -211,7 +212,7 @@ async function fetchCloudModels(provider, config) {
             return { models: models.length ? models : fallback, source: models.length ? 'api' : 'fallback' };
         }
     } catch (err) {
-        console.error(`[Models] ${provider} discovery failed:`, err.message);
+        registrador.error(`[Models] ${provider} discovery failed:`, err.message);
         return { models: fallback, source: 'fallback', error: err.message };
     }
 
@@ -279,7 +280,7 @@ rutas.get('/api/settings/ollama/models', async (req, res) => {
         const models = await ollamaClient.list();
         res.json(models);
     } catch (err) {
-        console.error("Failed to list Ollama models", err);
+        registrador.error("Failed to list Ollama models", err);
         // Do not throw full 500 if Ollama isn't running, return empty so UI doesn't break
         res.json({ models: [] });
     }
@@ -334,7 +335,7 @@ rutas.get('/api/settings/ollama/models-enriched', async (req, res) => {
 
         res.json({ models: enriched });
     } catch (err) {
-        console.error("Failed to list enriched Ollama models", err);
+        registrador.error("Failed to list enriched Ollama models", err);
         res.json({ models: [] });
     }
 });
@@ -360,7 +361,7 @@ rutas.post('/api/settings/ollama/pull', async (req, res) => {
         res.write(`data: {"status":"success"}\n\n`);
         res.end();
     } catch (err) {
-        console.error("Ollama pull failed", err);
+        registrador.error("Ollama pull failed", err);
         res.write(`data: {"error": "${err.message}"}\n\n`);
         res.end();
     }

@@ -6,6 +6,7 @@
  * cargar este archivo); el estado que cambia en marcha se lee como `ctx.X`.
  */
 
+const registrador = require('../registrador');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -84,10 +85,10 @@ rutas.post('/api/project/open', async (req, res) => {
         // El vigilante mira UNA raiz: al cambiar de proyecto hay que rearmarlo,
         // o seguiria avisando de los archivos del proyecto anterior.
         rearmarVigilante();
-        console.log(`Project root changed to: ${ctx.ROOT_DIR}`);
+        registrador.info(`Project root changed to: ${ctx.ROOT_DIR}`);
         res.json({ success: true, path: ctx.ROOT_DIR });
     } catch (err) {
-        console.error("Failed to change directory", err);
+        registrador.error("Failed to change directory", err);
         res.status(500).json({ error: 'Failed to change directory', details: err.message });
     }
 });

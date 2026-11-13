@@ -1,3 +1,4 @@
+const registrador = require('../registrador');
 const fs = require('fs');
 const path = require('path');
 
@@ -79,7 +80,7 @@ async function readSkillsDir(skillsDir, builtin = false) {
                 builtin,
             });
         } catch (err) {
-            console.warn(`[AI Skills] Error reading skill ${entry.name}:`, err.message);
+            registrador.aviso(`[AI Skills] Error reading skill ${entry.name}:`, err.message);
         }
     }
 
@@ -111,7 +112,7 @@ async function loadBuiltinSkills() {
     try {
         builtinCache = await readSkillsDir(getBuiltinSkillsDir(), true);
     } catch (err) {
-        console.warn('[AI Skills] Error loading built-in skills:', err.message);
+        registrador.aviso('[AI Skills] Error loading built-in skills:', err.message);
         builtinCache = [];
     }
     return builtinCache;
@@ -153,7 +154,7 @@ async function skillsDeCarpeta(skillsDir) {
         cache.set(skillsDir, { skills, mtime: dirStat.mtimeMs });
         return skills;
     } catch (err) {
-        console.warn('[AI Skills] Error loading skills:', err.message);
+        registrador.aviso('[AI Skills] Error loading skills:', err.message);
         return [];
     }
 }

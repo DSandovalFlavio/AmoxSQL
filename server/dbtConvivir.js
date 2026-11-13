@@ -14,6 +14,7 @@
  * versión del motor): no hace falta soltar nada. Con catálogo en un archivo
  * DuckDB —lo que crea AmoxSQL hoy— hay un solo escritor y recibe el mismo trato.
  */
+const registrador = require('./registrador');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -117,11 +118,11 @@ async function antesDeDbt(dbManager, raiz, comando) {
         extras = (filas || []).filter(d => d.nombre !== dbManager.alias && bases.some(b => igual(b, d.path)));
     } catch { /* sin motor: nada que soltar */ }
     for (const d of extras) {
-        try { await dbManager.query(`DETACH "${String(d.nombre).replace(/"/g, '""')}"`); } catch (e) { console.warn('[dbt] No se pudo soltar', d.nombre, e.message); }
+        try { await dbManager.query(`DETACH "${String(d.nombre).replace(/"/g, '""')}"`); } catch (e) { registrador.aviso('[dbt] No se pudo soltar', d.nombre, e.message); }
     }
     const devolverExtras = async () => {
         for (const d of extras) {
-            try { await dbManager.query(`ATTACH IF NOT EXISTS '${String(d.path).replace(/'/g, "''")}' AS "${String(d.nombre).replace(/"/g, '""')}"${d.readonly ? ' (READ_ONLY)' : ''}`); } catch (e) { console.warn('[dbt] No se pudo volver a adjuntar', d.nombre, e.message); }
+            try { await dbManager.query(`ATTACH IF NOT EXISTS '${String(d.path).replace(/'/g, "''")}' AS "${String(d.nombre).replace(/"/g, '""')}"${d.readonly ? ' (READ_ONLY)' : ''}`); } catch (e) { registrador.aviso('[dbt] No se pudo volver a adjuntar', d.nombre, e.message); }
         }
     };
 

@@ -1,3 +1,4 @@
+const registrador = require('../registrador');
 const { generateObject } = require('ai');
 const { z } = require('zod');
 const aiPersistence = require('./persistence');
@@ -51,7 +52,7 @@ If there are no facts or rules to extract, return empty arrays. DO NOT make thin
         await saveMemories(result.object, dbManager);
 
     } catch (err) {
-        console.warn(`[AI Memory] generateObject failed (${err.message}). Attempting fallback with generateText...`);
+        registrador.aviso(`[AI Memory] generateObject failed (${err.message}). Attempting fallback with generateText...`);
         
         // Fallback for models without reliable structured output
         try {
@@ -79,7 +80,7 @@ Respond EXCLUSIVELY with valid JSON matching this schema:
             await saveMemories(memories, dbManager);
             
         } catch (fallbackErr) {
-            console.warn('[AI Memory] Fallback also failed:', fallbackErr.message);
+            registrador.aviso('[AI Memory] Fallback also failed:', fallbackErr.message);
         }
     }
 }
@@ -107,7 +108,7 @@ async function saveMemories(memories, dbManager) {
     }
 
     if (savedCount > 0) {
-        console.log(`[AI Memory] Saved ${savedCount} explicit memories.`);
+        registrador.info(`[AI Memory] Saved ${savedCount} explicit memories.`);
     }
 }
 

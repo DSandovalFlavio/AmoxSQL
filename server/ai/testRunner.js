@@ -6,6 +6,7 @@
  *
  * Test files live in: <project>/agent/tests/*.yaml
  */
+const registrador = require('../registrador');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
@@ -43,12 +44,12 @@ async function loadTests(projectPath) {
                     max_execution_time: parsed.max_execution_time || 30000,
                 });
             } catch (err) {
-                console.warn(`[AI Tests] Error parsing ${fileName}:`, err.message);
+                registrador.aviso(`[AI Tests] Error parsing ${fileName}:`, err.message);
             }
         }
         return tests;
     } catch (err) {
-        console.warn('[AI Tests] Error loading tests:', err.message);
+        registrador.aviso('[AI Tests] Error loading tests:', err.message);
         return [];
     }
 }
@@ -154,10 +155,10 @@ async function runAllTests(projectPath, aiManager, dbManager) {
 
     const results = [];
     for (const test of tests) {
-        console.log(`[AI Tests] Running: ${test.name}`);
+        registrador.info(`[AI Tests] Running: ${test.name}`);
         const result = await runTest(test, aiManager, dbManager);
         results.push(result);
-        console.log(`[AI Tests] ${result.pass ? 'PASS' : 'FAIL'}: ${test.name} (${result.duration}ms)`);
+        registrador.info(`[AI Tests] ${result.pass ? 'PASS' : 'FAIL'}: ${test.name} (${result.duration}ms)`);
     }
 
     const passed = results.filter(r => r.pass).length;

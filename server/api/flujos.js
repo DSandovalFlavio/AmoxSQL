@@ -6,6 +6,7 @@
  * cargar este archivo); el estado que cambia en marcha se lee como `ctx.X`.
  */
 
+const registrador = require('../registrador');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -77,7 +78,7 @@ rutas.post('/api/chains/run', async (req, res) => {
         res.json(result);
     } catch (err) {
         if (err instanceof parametros.ErrorDeParametro) return res.status(400).json({ error: err.message, parametro: err.nombre });
-        console.error('[Chains] Run error:', err);
+        registrador.error('[Chains] Run error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -539,7 +540,7 @@ rutas.post('/api/chains/ai/generate', async (req, res) => {
         });
         res.json(result);
     } catch (err) {
-        console.error('[Chains AI] generate error:', err);
+        registrador.error('[Chains AI] generate error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -547,7 +548,7 @@ rutas.post('/api/chains/ai/generate', async (req, res) => {
 function anotarCredencialesDeCadena(definicion) {
     if (!ctx.PROYECTO_ABIERTO) return;
     try { manifiesto.anotarDesdeCadena(ctx.ROOT_DIR, definicion); }
-    catch (e) { console.warn('[Manifiesto] No se pudieron anotar las credenciales:', e.message); }
+    catch (e) { registrador.aviso('[Manifiesto] No se pudieron anotar las credenciales:', e.message); }
     // Y las fuentes con nombre que usa: por sus nodos Source y por su SQL.
     for (const n of definicion?.nodes || []) {
         if (n?.type === 'fuente' && n.config?.fuente) anotarFuentesDelSql(`fuentes."${n.config.fuente}"`);

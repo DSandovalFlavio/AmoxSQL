@@ -6,6 +6,7 @@
  * cargar este archivo); el estado que cambia en marcha se lee como `ctx.X`.
  */
 
+const registrador = require('../registrador');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -126,7 +127,7 @@ rutas.get('/api/dbt/manifest', async (req, res) => {
 
         res.json({ available: true, exists: true, models, sources, nodes, edges });
     } catch (err) {
-        console.error('[dbt] Error reading manifest:', err);
+        registrador.error('[dbt] Error reading manifest:', err);
         res.status(500).json({ available: false, exists: true, error: err.message });
     }
 });
@@ -337,7 +338,7 @@ rutas.post('/api/dbt/init', (req, res) => {
         const r = dbtProyecto.crear(ctx.ROOT_DIR, { nombre: projectName, perfil: profileName });
         res.json({ success: true, message: `DBT project "${r.nombre}" initialized with an example in each layer.`, createdFiles: r.creados });
     } catch (err) {
-        console.error('DBT Init Error:', err);
+        registrador.error('DBT Init Error:', err);
         res.status(500).json({ error: err.message });
     }
 });

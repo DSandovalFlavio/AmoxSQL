@@ -1,4 +1,5 @@
 'use strict';
+const registrador = require('../registrador');
 
 /**
  * AmoxSQL AI — Context-as-Code Loader
@@ -259,7 +260,7 @@ async function loadContextDir(contextDir) {
         return hasContent ? ctx : null;
 
     } catch (err) {
-        console.warn('[ContextLoader] Failed to load project context:', err.message);
+        registrador.aviso('[ContextLoader] Failed to load project context:', err.message);
         return null;
     }
 }

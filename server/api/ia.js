@@ -6,6 +6,7 @@
  * cargar este archivo); el estado que cambia en marcha se lee como `compartido.X`.
  */
 
+const registrador = require('../registrador');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -195,11 +196,11 @@ rutas.post('/api/ai/warmup', async (req, res) => {
             return res.status(502).json({ error: `Ollama warmup failed: ${resp.status} ${text}`.trim() });
         }
         const json = await resp.json().catch(() => ({}));
-        console.log(`[AI Warmup] ${model} | num_ctx=${rt.numCtx} | loaded (${json.done_reason || 'load'})`);
+        registrador.info(`[AI Warmup] ${model} | num_ctx=${rt.numCtx} | loaded (${json.done_reason || 'load'})`);
         res.json({ success: true, model, numCtx: rt.numCtx });
     } catch (err) {
         // Warmup is best-effort; report but don't treat as fatal client-side.
-        console.warn(`[AI Warmup] ${model} failed:`, err.message);
+        registrador.aviso(`[AI Warmup] ${model} failed:`, err.message);
         res.status(502).json({ error: err.message });
     }
 });
@@ -247,7 +248,7 @@ rutas.post('/api/ai/query-objects', async (req, res) => {
         const objects = await resolveQueryObjects(query, dbManager, allNames);
         res.json({ objects });
     } catch (err) {
-        console.warn('[AI Query Objects]', err.message);
+        registrador.aviso('[AI Query Objects]', err.message);
         res.json({ objects: [] });
     }
 });
@@ -257,7 +258,7 @@ rutas.post('/api/ai/init', async (req, res) => {
         await aiManager.initialize();
         res.json({ success: true, message: "Initialization complete" });
     } catch (err) {
-        console.error("[API] AI Init failed", err);
+        registrador.error("[API] AI Init failed", err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -292,10 +293,10 @@ rutas.post('/api/ai/duckdb-docs/refresh', async (req, res) => {
     _duckdbDocsRefreshing = true;
     try {
         const duckdbDocs = require('../ai/duckdbDocs');
-        const status = await duckdbDocs.refresh(msg => console.log('[DuckDB Docs]', msg));
+        const status = await duckdbDocs.refresh(msg => registrador.info('[DuckDB Docs]', msg));
         res.json({ success: true, ...status });
     } catch (err) {
-        console.error('[DuckDB Docs] Manual refresh failed:', err.message);
+        registrador.error('[DuckDB Docs] Manual refresh failed:', err.message);
         res.status(502).json({ error: `No se pudo actualizar: ${err.message}` });
     } finally {
         _duckdbDocsRefreshing = false;
@@ -353,7 +354,7 @@ async function buildFileContext(contextFiles) {
             else if (ext === '.xlsx' || ext === '.xls') readFn = 'read_xlsx';
             
             const queryRef = `${readFn}('${fullPath}')`;
-            console.log(`[AI File Context] Loading schema for: ${queryRef}`);
+            registrador.info(`[AI File Context] Loading schema for: ${queryRef}`);
             
             const cols = await dbManager.systemQuery(`DESCRIBE SELECT * FROM ${queryRef}`);
 
@@ -378,7 +379,7 @@ async function buildFileContext(contextFiles) {
                 rowCount,
             });
         } catch (err) {
-            console.warn(`[AI File Context] 🛑 Failed to load schema for ${file.name}:`, err.message);
+            registrador.aviso(`[AI File Context] 🛑 Failed to load schema for ${file.name}:`, err.message);
             fileContexts.push({ name: file.name, path: file.path, columns: [], sampleRows: [], rowCount: null });
         }
     }
@@ -451,7 +452,7 @@ async function buildAssistantQueryContext(currentQuery, filePath = null, fileTyp
     try {
         if (esSql) objs = await resolveQueryObjects(currentQuery, dbManager, allNames);
     } catch (e) {
-        console.warn('[AI Assistant Ctx] resolveQueryObjects failed:', e.message);
+        registrador.aviso('[AI Assistant Ctx] resolveQueryObjects failed:', e.message);
     }
     const tables = objs.filter(o => o.kind === 'table')
         .map(o => ({ name: o.label, columns: o.columns, rows: '?' }));
@@ -494,7 +495,7 @@ async function registerLiveResultCache(currentResult, conversationId) {
             aiPersistence.pruneQueryCache(dbManager, conversationId, 100).catch(() => {});
         }
     } catch (e) {
-        console.warn('[AI] live result cache failed:', e.message);
+        registrador.aviso('[AI] live result cache failed:', e.message);
     }
 }
 
@@ -552,7 +553,7 @@ rutas.post('/api/ai/chat', async (req, res) => {
 
         res.json(result);
     } catch (err) {
-        console.error('[API] AI Chat error:', err);
+        registrador.error('[API] AI Chat error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -580,7 +581,7 @@ rutas.post('/api/ai/chart-story', async (req, res) => {
         if (story.error) return res.status(422).json({ error: story.error });
         return res.json(story);
     } catch (err) {
-        console.error('[chart-story]', err.message);
+        registrador.error('[chart-story]', err.message);
         return res.status(500).json({ error: err.message });
     }
 });
@@ -626,7 +627,7 @@ rutas.post('/api/ai/chat/stream', async (req, res) => {
 
     // Log assistant context for debugging
     if (mode === 'assistant') {
-        console.log(`[AI Assistant Context] filePath=${filePath || 'none'} | fileType=${fileType || 'none'} | hasQuery=${!!currentQuery} | hasResult=${!!currentResult} | hasChart=${!!currentChartConfig}`);
+        registrador.info(`[AI Assistant Context] filePath=${filePath || 'none'} | fileType=${fileType || 'none'} | hasQuery=${!!currentQuery} | hasResult=${!!currentResult} | hasChart=${!!currentChartConfig}`);
     }
 
     // Set up SSE headers
@@ -729,7 +730,7 @@ rutas.post('/api/ai/chat/stream', async (req, res) => {
 
         if (profile.tier === 'low') {
             // ── Prompt-Only Mode for low-tier models ──
-            console.log(`[API] Using prompt-only mode for ${resolvedModel} (tier: low)`);
+            registrador.info(`[API] Using prompt-only mode for ${resolvedModel} (tier: low)`);
 
             for await (const event of aiManager.promptOnlyStreamChat(chatOptions)) {
                 if (res.closed) break;
@@ -741,7 +742,7 @@ rutas.post('/api/ai/chat/stream', async (req, res) => {
 
         } else if (plannerActive) {
             // ── Agentic Loop (experimental.planner=true, diving mode) ──
-            console.log(`[API] Using agentic loop for ${resolvedModel} (tier: ${profile.tier})`);
+            registrador.info(`[API] Using agentic loop for ${resolvedModel} (tier: ${profile.tier})`);
 
             // Stop on the client closes the request; a quota wait inside the loop
             // must end then too (F9), not keep the run alive in the background.
@@ -749,7 +750,7 @@ rutas.post('/api/ai/chat/stream', async (req, res) => {
             res.on('close', () => corte.abort());
             for await (const event of aiManager.streamChatAgentic({ ...chatOptions, abortSignal: corte.signal })) {
                 if (res.closed) {
-                    console.log('[AI AgenticLoop] Client disconnected, stopping.');
+                    registrador.info('[AI AgenticLoop] Client disconnected, stopping.');
                     break;
                 }
                 res.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -764,7 +765,7 @@ rutas.post('/api/ai/chat/stream', async (req, res) => {
 
             for await (const part of result.fullStream) {
                 if (res.closed) {
-                    console.log('[AI FULLSTREAM] Client disconnected, stopping stream.');
+                    registrador.info('[AI FULLSTREAM] Client disconnected, stopping stream.');
                     break;
                 }
 
@@ -786,13 +787,13 @@ rutas.post('/api/ai/chat/stream', async (req, res) => {
                     const toolResult = part.output ?? part.result ?? { error: 'Tool returned no result' };
                     const toolArgs   = part.input  ?? part.args  ?? {};
                     if (toolResult.error) {
-                        console.error(`[AI Tool Error] ${part.toolName}:`, toolResult.error);
+                        registrador.error(`[AI Tool Error] ${part.toolName}:`, toolResult.error);
                     }
                     res.write(`data: ${JSON.stringify({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId, result: toolResult, args: toolArgs })}\n\n`);
                 } else if (part.type === 'tool-error') {
                     const errorMsg = part.error?.message || String(part.error || 'Unknown tool error');
                     const toolArgs = part.input ?? part.args ?? {};
-                    console.error(`[AI Tool Error] ${part.toolName}: ${errorMsg}`);
+                    registrador.error(`[AI Tool Error] ${part.toolName}: ${errorMsg}`);
                     res.write(`data: ${JSON.stringify({ type: 'tool-result', toolName: part.toolName, toolCallId: part.toolCallId, result: { error: errorMsg }, args: toolArgs })}\n\n`);
                 } else if (part.type === 'step-finish') {
                     res.write(`data: ${JSON.stringify({ type: 'step-finish' })}\n\n`);
@@ -809,7 +810,7 @@ rutas.post('/api/ai/chat/stream', async (req, res) => {
             res.end();
         }
     } catch (err) {
-        console.error('[API] AI Stream error:', err);
+        registrador.error('[API] AI Stream error:', err);
         if (!res.headersSent) {
             res.status(500).json({ error: err.message });
         } else {
@@ -839,7 +840,7 @@ rutas.get('/api/ai/conversations', async (req, res) => {
         });
         res.json(conversations);
     } catch (err) {
-        console.error('[API] List conversations error:', err);
+        registrador.error('[API] List conversations error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -856,7 +857,7 @@ rutas.get('/api/ai/conversations/by-file', async (req, res) => {
         const conversations = await aiPersistence.getConversationsByFile(dbManager, filePath);
         res.json(conversations);
     } catch (err) {
-        console.error('[API] Get conversations by file error:', err);
+        registrador.error('[API] Get conversations by file error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -872,7 +873,7 @@ rutas.get('/api/ai/conversations/:id', async (req, res) => {
         }
         res.json(conversation);
     } catch (err) {
-        console.error('[API] Get conversation error:', err);
+        registrador.error('[API] Get conversation error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -886,7 +887,7 @@ rutas.post('/api/ai/conversations', async (req, res) => {
         const conversation = await aiPersistence.createConversation(dbManager, req.body);
         res.json(conversation);
     } catch (err) {
-        console.error('[API] Create conversation error:', err);
+        registrador.error('[API] Create conversation error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -899,7 +900,7 @@ rutas.delete('/api/ai/conversations/:id', async (req, res) => {
         const result = await aiPersistence.deleteConversation(dbManager, req.params.id);
         res.json(result);
     } catch (err) {
-        console.error('[API] Delete conversation error:', err);
+        registrador.error('[API] Delete conversation error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -912,7 +913,7 @@ rutas.put('/api/ai/conversations/:id/star', async (req, res) => {
         const result = await aiPersistence.toggleStar(dbManager, req.params.id);
         res.json(result);
     } catch (err) {
-        console.error('[API] Toggle star error:', err);
+        registrador.error('[API] Toggle star error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -929,7 +930,7 @@ rutas.put('/api/ai/conversations/:id/title', async (req, res) => {
         const result = await aiPersistence.updateTitle(dbManager, req.params.id, title);
         res.json(result);
     } catch (err) {
-        console.error('[API] Update title error:', err);
+        registrador.error('[API] Update title error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -986,7 +987,7 @@ rutas.post('/api/ai/conversations/:id/messages', async (req, res) => {
         });
         res.json(message);
     } catch (err) {
-        console.error('[API] Add message error:', err);
+        registrador.error('[API] Add message error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1006,7 +1007,7 @@ rutas.post('/api/ai/conversations/:id/propuestas/:toolCallId', async (req, res) 
         const guardada = await aiPersistence.setEstadoPropuesta(dbManager, req.params.id, req.params.toolCallId, estado);
         res.json({ guardada });
     } catch (err) {
-        console.error('[API] Proposal state error:', err);
+        registrador.error('[API] Proposal state error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1039,7 +1040,7 @@ rutas.post('/api/ai/propuestas/crear-archivo', async (req, res) => {
         if (err.code === 'EEXIST') {
             return res.status(409).json({ error: `${normalizada.split(path.sep).join('/')} already exists. Nothing was written.`, existe: true });
         }
-        console.error('[API] Create proposed file error:', err);
+        registrador.error('[API] Create proposed file error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1058,7 +1059,7 @@ rutas.post('/api/ai/conversations/:id/query-results', async (req, res) => {
         });
         res.json(result);
     } catch (err) {
-        console.error('[API] Save query result error:', err);
+        registrador.error('[API] Save query result error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1077,7 +1078,7 @@ rutas.post('/api/ai/conversations/:id/chart-configs', async (req, res) => {
         });
         res.json(result);
     } catch (err) {
-        console.error('[API] Save chart config error:', err);
+        registrador.error('[API] Save chart config error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1095,7 +1096,7 @@ rutas.put('/api/ai/conversations/:id/title/auto', async (req, res) => {
         const result = await aiPersistence.updateTitle(dbManager, req.params.id, title);
         res.json(result);
     } catch (err) {
-        console.error('[API] Auto title error:', err);
+        registrador.error('[API] Auto title error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1112,7 +1113,7 @@ rutas.get('/api/ai/skills', async (req, res) => {
         if (scope) skills = skills.filter(s => (s.scope || 'analysis') === scope);
         res.json(skills.map(s => ({ id: s.id, name: s.name, description: s.description, scope: s.scope || 'analysis', keywords: s.keywords || [], fileName: s.fileName || '' })));
     } catch (err) {
-        console.error('[API] Load skills error:', err);
+        registrador.error('[API] Load skills error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1126,7 +1127,7 @@ rutas.get('/api/ai/skills/:id', async (req, res) => {
         if (!skill) return res.status(404).json({ error: 'Skill not found' });
         res.json(skill);
     } catch (err) {
-        console.error('[API] Get skill error:', err);
+        registrador.error('[API] Get skill error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1144,7 +1145,7 @@ rutas.put('/api/ai/conversations/:id/session-name', async (req, res) => {
         const result = await aiPersistence.updateSessionName(dbManager, req.params.id, sessionName);
         res.json(result);
     } catch (err) {
-        console.error('[API] Update session name error:', err);
+        registrador.error('[API] Update session name error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1160,7 +1161,7 @@ rutas.put('/api/ai/conversations/:id/context-objects', async (req, res) => {
         const result = await aiPersistence.updateContextObjects(dbManager, req.params.id, contextObjects);
         res.json(result);
     } catch (err) {
-        console.error('[API] Update context objects error:', err);
+        registrador.error('[API] Update context objects error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1181,7 +1182,7 @@ rutas.get('/api/ai/sessions', async (req, res) => {
         });
         res.json(sessions);
     } catch (err) {
-        console.error('[API] List diving sessions error:', err);
+        registrador.error('[API] List diving sessions error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1194,7 +1195,7 @@ rutas.get('/api/ai/sessions/:id/artifacts', async (req, res) => {
         const artifacts = await aiPersistence.getArtifacts(dbManager, req.params.id);
         res.json(artifacts);
     } catch (err) {
-        console.error('[API] Get session artifacts error:', err);
+        registrador.error('[API] Get session artifacts error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1217,7 +1218,7 @@ rutas.post('/api/ai/sessions/:id/artifacts', async (req, res) => {
         });
         res.json(artifact);
     } catch (err) {
-        console.error('[API] Create artifact error:', err);
+        registrador.error('[API] Create artifact error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1230,7 +1231,7 @@ rutas.delete('/api/ai/sessions/:id/artifacts/:artifactId', async (req, res) => {
         const result = await aiPersistence.deleteArtifact(dbManager, req.params.artifactId);
         res.json(result);
     } catch (err) {
-        console.error('[API] Delete artifact error:', err);
+        registrador.error('[API] Delete artifact error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1245,7 +1246,7 @@ rutas.get('/api/ai/memories', async (req, res) => {
         const memories = await aiPersistence.getMemories(dbManager);
         res.json(memories);
     } catch (err) {
-        console.error('[API] Get memories error:', err);
+        registrador.error('[API] Get memories error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1258,7 +1259,7 @@ rutas.delete('/api/ai/memories/:id', async (req, res) => {
         const result = await aiPersistence.deleteMemory(dbManager, req.params.id);
         res.json(result);
     } catch (err) {
-        console.error('[API] Delete memory error:', err);
+        registrador.error('[API] Delete memory error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1274,7 +1275,7 @@ rutas.put('/api/ai/memories/:id', async (req, res) => {
         const result = await aiPersistence.updateMemory(dbManager, req.params.id, { content, category });
         res.json(result);
     } catch (err) {
-        console.error('[API] Update memory error:', err);
+        registrador.error('[API] Update memory error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1296,7 +1297,7 @@ rutas.get('/api/ai/vault', async (req, res) => {
         });
         res.json(entries);
     } catch (err) {
-        console.error('[API] List vault entries error:', err);
+        registrador.error('[API] List vault entries error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1312,7 +1313,7 @@ rutas.post('/api/ai/vault', async (req, res) => {
         const entry = await aiPersistence.saveToVault(dbManager, req.body);
         res.json(entry);
     } catch (err) {
-        console.error('[API] Save to vault error:', err);
+        registrador.error('[API] Save to vault error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1326,7 +1327,7 @@ rutas.put('/api/ai/vault/:id', async (req, res) => {
         const result = await aiPersistence.updateVaultEntry(dbManager, req.params.id, req.body);
         res.json(result);
     } catch (err) {
-        console.error('[API] Update vault entry error:', err);
+        registrador.error('[API] Update vault entry error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1339,7 +1340,7 @@ rutas.delete('/api/ai/vault/:id', async (req, res) => {
         const result = await aiPersistence.deleteVaultEntry(dbManager, req.params.id);
         res.json(result);
     } catch (err) {
-        console.error('[API] Delete vault entry error:', err);
+        registrador.error('[API] Delete vault entry error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1364,7 +1365,7 @@ rutas.get('/api/ai/query-cache/:queryId', async (req, res) => {
             createdAt:     cached.created_at,
         });
     } catch (err) {
-        console.error('[API] query-cache fetch error:', err);
+        registrador.error('[API] query-cache fetch error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1379,7 +1380,7 @@ rutas.get('/api/ai/tests', async (req, res) => {
         const tests = await aiTestRunner.loadTests(compartido.ROOT_DIR);
         res.json(tests);
     } catch (err) {
-        console.error('[API] Load tests error:', err);
+        registrador.error('[API] Load tests error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1404,7 +1405,7 @@ rutas.post('/api/ai/tests/run', async (req, res) => {
             res.json(summary);
         }
     } catch (err) {
-        console.error('[API] Run tests error:', err);
+        registrador.error('[API] Run tests error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -1510,7 +1511,7 @@ ${sampleTable}
         res.json({ markdown, rowCount, columnCount: columns.length, estimatedBytes });
 
     } catch (err) {
-        console.error('[export-context]', err);
+        registrador.error('[export-context]', err);
         res.status(500).json({ error: err.message });
     }
 });

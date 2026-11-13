@@ -1,3 +1,4 @@
+const registrador = require('./registrador');
 const { DuckDBInstance } = require('@duckdb/node-api');
 const { crearInstancia } = require('./motor');
 const path = require('path');
@@ -75,7 +76,7 @@ class DatabaseManager {
     }
 
     async _doInitSystem() {
-        console.log("[DB Manager] _initSystem (Neo) called.");
+        registrador.info("[DB Manager] _initSystem (Neo) called.");
         try {
             // New API: explicit create; every lane connects to the SAME instance
             this.instance = await crearInstancia(':memory:');
@@ -85,7 +86,7 @@ class DatabaseManager {
             }
             this.attachedPath = null;
             this.isDuckLake = false;
-            console.log("[DB Manager] System DB initialized (Neo Client, lanes: " + LANES.join(', ') + ").");
+            registrador.info("[DB Manager] System DB initialized (Neo Client, lanes: " + LANES.join(', ') + ").");
 
             // Lo que vive en memoria de la instancia (el catalogo de fuentes) se
             // pierde con ella: quien lo monta lo vuelve a montar. Sin esperar,
@@ -95,7 +96,7 @@ class DatabaseManager {
             // Las extensiones NO se recargan aqui: las arranca connect() cuando ya
             // ha terminado con la conexion. Ver warmExtensions().
         } catch (e) {
-            console.error("[DB Manager] FATAL: Could not init system DB", e);
+            registrador.error("[DB Manager] FATAL: Could not init system DB", e);
         }
     }
 
@@ -120,7 +121,7 @@ class DatabaseManager {
         for (const [k, sentencias] of this._sesion) {
             if (claves && !claves.includes(k)) continue;
             for (const s of sentencias) {
-                try { await conn.run(s); } catch (e) { console.warn(`[DB Manager] sesión (${k}):`, String(e.message || e).split('\n')[0]); }
+                try { await conn.run(s); } catch (e) { registrador.aviso(`[DB Manager] sesión (${k}):`, String(e.message || e).split('\n')[0]); }
             }
         }
     }
@@ -164,7 +165,7 @@ class DatabaseManager {
             try {
                 await conn.run(`LOAD ${name}`);
             } catch (e) {
-                console.warn(`[DB Manager] Could not restore extension '${name}':`, e?.message || e);
+                registrador.aviso(`[DB Manager] Could not restore extension '${name}':`, e?.message || e);
             }
         }
     }
@@ -205,7 +206,7 @@ class DatabaseManager {
      */
     warmExtensions() {
         this.extensionsReady = this.restoreExtensions()
-            .catch(e => console.warn('[DB Manager] Extension restore warning:', e?.message || e));
+            .catch(e => registrador.aviso('[DB Manager] Extension restore warning:', e?.message || e));
         return this.extensionsReady;
     }
 
@@ -282,7 +283,7 @@ class DatabaseManager {
      */
     async reinitializeSystem() {
         if (this._reinitInFlight) {
-            console.log("[DB Manager] HARD RESET ya en curso — se reutiliza el que hay.");
+            registrador.info("[DB Manager] HARD RESET ya en curso — se reutiliza el que hay.");
             return this._reinitInFlight;
         }
         this._reinitInFlight = this._doReinitializeSystem()
@@ -291,7 +292,7 @@ class DatabaseManager {
     }
 
     async _doReinitializeSystem() {
-        console.log("[DB Manager] HARD RESET REQUESTED.");
+        registrador.info("[DB Manager] HARD RESET REQUESTED.");
 
         // Las extensiones pueden estarse cargando por detras sobre la conexion
         // 'main' (ver warmExtensions). Desmontarla con esos LOAD EN VUELO mata el
@@ -311,10 +312,10 @@ class DatabaseManager {
         // PASO NUEVO: Intentar cerrar lo que estaba abierto antes de reiniciar
         if (this.connections.main) {
             try {
-                console.log("[DB Manager] Cleaning up previous connection...");
+                registrador.info("[DB Manager] Cleaning up previous connection...");
                 await this.close(); // Reutilizamos tu método close para hacer DETACH
             } catch (e) {
-                console.warn("[DB Manager] Warning during cleanup:", e);
+                registrador.aviso("[DB Manager] Warning during cleanup:", e);
             }
         }
 
@@ -334,7 +335,7 @@ class DatabaseManager {
         this.instance = null;
 
         await this._initSystem();
-        console.log("[DB Manager] Engine re-initialized.");
+        registrador.info("[DB Manager] Engine re-initialized.");
     }
 
     /**
@@ -370,7 +371,7 @@ class DatabaseManager {
     }
 
     async connect(dbPath, rootDir, options = {}) {
-        console.log(`[DB Manager] Request to attach: ${dbPath}`);
+        registrador.info(`[DB Manager] Request to attach: ${dbPath}`);
         // Una sesion nueva olvida lo que estuviera prestado (dbt): no se recupera.
         this.prestada = null;
         this.alias = 'user_db';
@@ -394,7 +395,7 @@ class DatabaseManager {
         // no se parecia al de una sesion en memoria recien abierta.
         if (fullPath === ':memory:') return;
 
-        console.log(`[DB Manager] Request to attach: ${fullPath}`);
+        registrador.info(`[DB Manager] Request to attach: ${fullPath}`);
 
         // 3. Attach new
         try {
@@ -422,12 +423,12 @@ class DatabaseManager {
                         this.rememberExtension('sqlite');
                     }
                 } catch (extErr) {
-                    console.warn('[DB Manager] ducklake extension install/load warning:', extErr?.message || extErr);
+                    registrador.aviso('[DB Manager] ducklake extension install/load warning:', extErr?.message || extErr);
                 }
             }
 
             const attachSql = this._buildAttachSql(fullPath, isDuckLake, options);
-            console.log(`[DB Manager] Attaching: ${attachSql}`);
+            registrador.info(`[DB Manager] Attaching: ${attachSql}`);
 
             // Execute SQL ATTACH — instance-wide, visible to every lane
             try {
@@ -438,7 +439,7 @@ class DatabaseManager {
                 // los datos de donde se creó. Si `<lago>.files` está al lado, son esos
                 // datos: se abre con ellos. OVERRIDE_DATA_PATH no escribe en el catálogo.
                 if (!isDuckLake || !/does not match existing data path/i.test(e?.message || '') || !fs.existsSync(`${fullPath}.files`)) throw e;
-                console.warn('[DB Manager] The lake moved: opening it with the data folder next to it.');
+                registrador.aviso('[DB Manager] The lake moved: opening it with the data folder next to it.');
                 await this.query(attachSql.replace(/\)$/, ', OVERRIDE_DATA_PATH true)'));
             }
             if (!isDuckLake) await this._ajustarAlias(fullPath, options);
@@ -455,7 +456,7 @@ class DatabaseManager {
                 await this.connections[lane].run(`USE ${this.alias}`);
             }
 
-            console.log("[DB Manager] Attach successful.");
+            registrador.info("[DB Manager] Attach successful.");
 
             // --- QUERY HISTORY INITIALIZATION (RW ONLY) ---
             // Skipped for DuckLake: writing the amoxsql_ai bookkeeping schema
@@ -466,7 +467,7 @@ class DatabaseManager {
             }
 
         } catch (e) {
-            console.error("[DB Manager] Attach failed:", e);
+            registrador.error("[DB Manager] Attach failed:", e);
             await this.reinitializeSystem();
             // Una base escrita por un motor más nuevo que el de AmoxSQL (en la 5.x,
             // las de DuckDB 2; en la 6.0, las de un DuckDB que aún no existe).
@@ -521,7 +522,7 @@ class DatabaseManager {
         await this._rawQuery(`DETACH ${this.alias}`);
         this.alias = nombre;
         await this._rawQuery(this._buildAttachSql(fullPath, false, options));
-        console.log(`[DB Manager] ${hay} view(s) name the catalog «${nombre}»: attached as ${this.alias}.`);
+        registrador.info(`[DB Manager] ${hay} view(s) name the catalog «${nombre}»: attached as ${this.alias}.`);
     }
 
     async _initHistory() {
@@ -538,21 +539,21 @@ class DatabaseManager {
                     "SELECT count(*) as cnt FROM information_schema.tables WHERE table_schema='main' AND table_name='amox_query_history'"
                 );
                 if (oldExists[0]?.cnt > 0) {
-                    console.log('[DB Manager] Migrating amox_query_history → amoxsql_ai.query_history...');
+                    registrador.info('[DB Manager] Migrating amox_query_history → amoxsql_ai.query_history...');
                     await this.query(`INSERT INTO amoxsql_ai.query_history SELECT * FROM main.amox_query_history`);
                     await this.query(`DROP TABLE main.amox_query_history`);
-                    console.log('[DB Manager] Migration complete.');
+                    registrador.info('[DB Manager] Migration complete.');
                 }
             } catch (migErr) {
-                console.warn('[DB Manager] History migration skipped:', migErr.message);
+                registrador.aviso('[DB Manager] History migration skipped:', migErr.message);
             }
 
             // Prune old records (> 30 days)
             await this.query(`DELETE FROM amoxsql_ai.query_history WHERE executed_at < CURRENT_DATE - INTERVAL '30 days'`);
             await this._tacharSecretosDelHistorial();
-            console.log("[DB Manager] Query History initialized and pruned.");
+            registrador.info("[DB Manager] Query History initialized and pruned.");
         } catch (e) {
-            console.warn("[DB Manager] Failed to init history table:", e.message);
+            registrador.aviso("[DB Manager] Failed to init history table:", e.message);
         }
     }
 
@@ -584,10 +585,10 @@ class DatabaseManager {
                  SET query = regexp_replace(regexp_replace(query, '${enSet}', '\\1''***''', 'gi'), '${enCreate}', '\\1''***''', 'gi')
                  WHERE regexp_matches(query, '${enSet}', 'i') OR regexp_matches(query, '${enCreate}', 'i')`
             );
-            console.log(`[DB Manager] Historial: ${n} entrada(s) con un secreto en claro, tachadas.`);
+            registrador.info(`[DB Manager] Historial: ${n} entrada(s) con un secreto en claro, tachadas.`);
             return n;
         } catch (e) {
-            console.warn('[DB Manager] No se pudo revisar el historial en busca de secretos:', e.message);
+            registrador.aviso('[DB Manager] No se pudo revisar el historial en busca de secretos:', e.message);
             return 0;
         }
     }
@@ -802,7 +803,7 @@ class DatabaseManager {
         await this.flushQueryHistory().catch(() => {});
 
         try {
-            console.log("[DB Manager] Switching to system context before detaching...");
+            registrador.info("[DB Manager] Switching to system context before detaching...");
             // PASO CRÍTICO: "Bajarse de la escalera".
             // Cambiamos a la memoria interna antes de intentar soltar la base de datos externa.
             // `USE` es por conexión: hay que bajarse en TODOS los carriles, o el
@@ -831,16 +832,16 @@ class DatabaseManager {
                 // Si no tiene archivo o es :memory:, ignorar
                 if (!file || file === ':memory:') continue;
 
-                console.log(`[DB Manager] Detaching database: ${name}`);
+                registrador.info(`[DB Manager] Detaching database: ${name}`);
                 try {
                     await this._rawQuery(`DETACH ${name}`);
-                    console.log(`[DB Manager] ${name} detached successfully.`);
+                    registrador.info(`[DB Manager] ${name} detached successfully.`);
                 } catch (e) {
-                    console.error(`[DB Manager] Failed to detach ${name}:`, e.message);
+                    registrador.error(`[DB Manager] Failed to detach ${name}:`, e.message);
                 }
             }
         } catch (e) {
-            console.error("[DB Manager] Error during close execution:", e);
+            registrador.error("[DB Manager] Error during close execution:", e);
         }
 
         this.attachedPath = null;
@@ -865,7 +866,7 @@ class DatabaseManager {
         };
         await this.close();
         this.prestada = prestada;
-        console.log(`[DB Manager] Base prestada a ${quien}: ${prestada.ruta}`);
+        registrador.info(`[DB Manager] Base prestada a ${quien}: ${prestada.ruta}`);
         return prestada;
     }
 
@@ -888,7 +889,7 @@ class DatabaseManager {
                 await this._ensureLane(lane);
                 await this.connections[lane].run(`USE ${this.alias}`);
             }
-            console.log(`[DB Manager] Base recuperada: ${p.ruta}`);
+            registrador.info(`[DB Manager] Base recuperada: ${p.ruta}`);
         } finally {
             this.prestada = null;
         }

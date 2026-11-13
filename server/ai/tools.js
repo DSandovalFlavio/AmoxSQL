@@ -6,6 +6,7 @@
  *   - dbManager: the DuckDB database manager instance
  *   - queryResults: Map<string, object> — accumulated query results for chart references
  */
+const registrador = require('../registrador');
 const { z } = require('zod');
 const { tool } = require('ai');
 const fs = require('fs');
@@ -162,7 +163,7 @@ function createTools(context) {
                             if (conversationId) {
                                 aiPersistence.pruneQueryCache(dbManager, conversationId, 100).catch(() => {});
                             }
-                        }).catch(e => console.warn('[Tools] query_cache write failed:', e.message));
+                        }).catch(e => registrador.aviso('[Tools] query_cache write failed:', e.message));
                     }
 
                     const joinWarning = await analyzeJoin(query, allRows.length, db);

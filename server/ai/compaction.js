@@ -1,3 +1,4 @@
+const registrador = require('../registrador');
 const { generateText } = require('ai');
 const { getModelProfile, getModelContextWindow } = require('./modelProfiles');
 
@@ -107,7 +108,7 @@ async function compactContext(model, messages, maxTokensOverride, modelName) {
         return messages;
     }
 
-    console.log(`[AI Compaction] Context ~${estimatedTokens} tokens exceeds threshold ${threshold}. Model context: ${contextWindow}. Compacting...`);
+    registrador.info(`[AI Compaction] Context ~${estimatedTokens} tokens exceeds threshold ${threshold}. Model context: ${contextWindow}. Compacting...`);
 
     // Step 1: Clean up tool results in older messages
     const cleanedOlder = cleanToolResults(olderMessages);
@@ -123,7 +124,7 @@ async function compactContext(model, messages, maxTokensOverride, modelName) {
 
     // If cleaning was enough, return cleaned version
     if (cleanedTokens < threshold) {
-        console.log(`[AI Compaction] Tool result cleanup sufficient. Reduced to ~${cleanedTokens} tokens.`);
+        registrador.info(`[AI Compaction] Tool result cleanup sufficient. Reduced to ~${cleanedTokens} tokens.`);
         return [...cleanedOlder, ...latestMessages];
     }
 
@@ -153,11 +154,11 @@ ${cleanedTranscript}
             ...latestMessages,
         ];
 
-        console.log(`[AI Compaction] Compacted to ~${estimateTokens(summary)} tokens summary.`);
+        registrador.info(`[AI Compaction] Compacted to ~${estimateTokens(summary)} tokens summary.`);
         return compactedMessages;
 
     } catch (err) {
-        console.warn('[AI Compaction] Failed to compact messages:', err.message);
+        registrador.aviso('[AI Compaction] Failed to compact messages:', err.message);
         // Fallback: truncate to last half
         return messages.slice(-Math.max(6, Math.floor(messages.length / 2)));
     }

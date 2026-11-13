@@ -6,6 +6,7 @@
  * cargar este archivo); el estado que cambia en marcha se lee como `ctx.X`.
  */
 
+const registrador = require('../registrador');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -56,7 +57,7 @@ rutas.get('/api/files/list', (req, res) => {
 
         res.json(result);
     } catch (err) {
-        console.error("List files failed:", err);
+        registrador.error("List files failed:", err);
         res.status(500).json({ error: 'Failed to list files', details: err.message });
     }
 });
@@ -125,7 +126,7 @@ rutas.get('/api/files/inspect-columns', async (req, res) => {
                     );
                     sheetsWithColumns[s] = desc.map(c => ({ name: c.column_name, type: c.column_type || c.data_type }));
                 } catch (e) {
-                    console.warn(`[inspect-columns] Failed to describe Excel sheet '${s}':`, e.message);
+                    registrador.aviso(`[inspect-columns] Failed to describe Excel sheet '${s}':`, e.message);
                     sheetsWithColumns[s] = [];
                 }
             }
@@ -142,7 +143,7 @@ rutas.get('/api/files/inspect-columns', async (req, res) => {
             res.json({ columns });
         }
     } catch (err) {
-        console.error('[inspect-columns] Error:', err);
+        registrador.error('[inspect-columns] Error:', err);
         res.status(500).json({ error: 'Failed to inspect columns', details: err.message });
     }
 });
@@ -327,7 +328,7 @@ rutas.post('/api/file', async (req, res) => {
  * un archivo que ya no existía. Nunca impide el renombre.
  */
 async function acompanarRenombre(fullOld, fullNew) {
-    try { borradores.mover(ctx.ROOT_DIR, fullOld, fullNew); } catch (e) { console.warn('[borradores] move:', e.message); }
+    try { borradores.mover(ctx.ROOT_DIR, fullOld, fullNew); } catch (e) { registrador.aviso('[borradores] move:', e.message); }
     const rel = (p) => path.relative(ctx.ROOT_DIR, p).replace(/\\/g, '/');
     const viejo = rel(fullOld), nuevo = rel(fullNew);
     if (!viejo || viejo.startsWith('..')) return;
@@ -349,7 +350,7 @@ async function acompanarRenombre(fullOld, fullNew) {
             if (cambiado) await fs.promises.writeFile(full, cambiado, 'utf8');
         }
     } catch (e) {
-        console.warn('[amoxvis] rename follow-up:', e.message);
+        registrador.aviso('[amoxvis] rename follow-up:', e.message);
     }
 }
 
@@ -484,7 +485,7 @@ rutas.post('/api/file/reveal', (req, res) => {
 
     exec(cmd, (err) => {
         if (err) {
-            console.error('[API] Reveal in explorer failed:', err);
+            registrador.error('[API] Reveal in explorer failed:', err);
             return res.status(500).json({ error: 'Failed to open file explorer' });
         }
         res.json({ success: true });
@@ -616,7 +617,7 @@ rutas.post('/api/files/write-binary', async (req, res) => {
         await fs.promises.writeFile(fullPath, Buffer.from(b64, 'base64'));
         res.json({ success: true, path: relPath.replace(/\\/g, '/') });
     } catch (err) {
-        console.error('[write-binary]', err);
+        registrador.error('[write-binary]', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -685,7 +686,7 @@ rutas.get('/api/search', (req, res) => {
             limit: Math.min(1000, parseInt(limit, 10) || 500),
         }));
     } catch (err) {
-        console.error('Search failed:', err.message);
+        registrador.error('Search failed:', err.message);
         res.status(500).json({ error: 'Search failed', details: err.message });
     }
 });

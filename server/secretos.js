@@ -31,6 +31,7 @@
  * memoria: lo que guarda es ilegible en cuanto el proceso termina, así que no
  * puede pasar por un llavero de verdad sin que se note.
  */
+const registrador = require('./registrador');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -252,7 +253,7 @@ async function precargar() {
             // Otro usuario de Windows, o una base copiada de otra máquina: el
             // llavero del sistema no puede abrir lo que cifró otro.
             ilegibles.add(f.nombre);
-            console.warn(`[Secretos] No se puede descifrar «${f.nombre}»: ${e.message}`);
+            registrador.aviso(`[Secretos] No se puede descifrar «${f.nombre}»: ${e.message}`);
         }
     }
     return { cargadas: cache.size, ilegibles: [...ilegibles] };
@@ -269,14 +270,14 @@ async function iniciar(config) {
     try { ok = await proveedor.disponible(); } catch { ok = false; }
     if (!ok) {
         _modo = 'texto';
-        console.warn('[Secretos] El llavero del sistema no está disponible: se sigue como en la 5.8, con config.json.');
+        registrador.aviso('[Secretos] El llavero del sistema no está disponible: se sigue como en la 5.8, con config.json.');
         return { modo: _modo };
     }
     _modo = 'llavero';
     const migracion = await migrarDesdeConfig(config);
     const carga = await precargar();
     const purga = await purgarTextoPlano();
-    console.log(`[Secretos] Llavero listo: ${carga.cargadas} credencial(es)` +
+    registrador.info(`[Secretos] Llavero listo: ${carga.cargadas} credencial(es)` +
         (migracion.copiadas.length ? `, ${migracion.copiadas.length} copiada(s) desde config.json` : '') +
         (carga.ilegibles.length ? `, ${carga.ilegibles.length} ilegible(s)` : '') +
         (purga.borradas.length ? `, ${purga.borradas.length} borrada(s) de config.json` : '') + '.');

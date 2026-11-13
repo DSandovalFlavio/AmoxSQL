@@ -14,6 +14,7 @@
  * explorador de dónde vino una tabla, se le cuenta a la IA, y se avisa si el
  * archivo cambió después de cargarlo (4.4).
  */
+const registrador = require('./registrador');
 const fs = require('fs');
 const path = require('path');
 
@@ -121,7 +122,7 @@ async function anotar(db, referencia, { origen, archivos = [], fuente = null, ho
         await q(`COMMENT ON TABLE ${referencia} IS ${lit(componer(p))}`);
         return p;
     } catch (e) {
-        console.warn('[Procedencia] No se pudo anotar:', e?.message || e);
+        registrador.aviso('[Procedencia] No se pudo anotar:', e?.message || e);
         return null;
     }
 }

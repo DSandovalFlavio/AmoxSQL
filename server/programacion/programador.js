@@ -11,6 +11,7 @@
  *     dice al proceso principal a qué hora es la próxima, y él reescribe la
  *     tarea si el usuario la activó.
  */
+const registrador = require('../registrador');
 const fs = require('fs');
 const path = require('path');
 const baseCentral = require('../central/BaseCentral');
@@ -132,7 +133,7 @@ async function alLlegar(fuentesLlegadas, proyecto) {
         clearTimeout(estado.esperas.get(prog.id));
         estado.esperas.set(prog.id, setTimeout(() => {
             estado.esperas.delete(prog.id);
-            correrOcurrencia(prog, new Date().toISOString(), { origen: 'al_llegar' }).catch(e => console.warn('[Programador] Al llegar:', e.message));
+            correrOcurrencia(prog, new Date().toISOString(), { origen: 'al_llegar' }).catch(e => registrador.aviso('[Programador] Al llegar:', e.message));
         }, estado.esperaLlegadaMs));
     }
     return tocan.map(p => p.id);
@@ -156,7 +157,7 @@ function arrancar({ cadaMs = 60000, ...config } = {}) {
     parar();
     const primera = async () => {
         for (let i = 0; i < 100 && !baseCentral.estaAbierta(); i++) await new Promise(r => setTimeout(r, 200));
-        try { estado.alAbrir = { ...(await tick()), cuando: new Date().toISOString() }; } catch (e) { console.warn('[Programador] Primer tick:', e.message); }
+        try { estado.alAbrir = { ...(await tick()), cuando: new Date().toISOString() }; } catch (e) { registrador.aviso('[Programador] Primer tick:', e.message); }
     };
     setTimeout(primera, 3000);
     // Cada minuto, en el segundo 1 del minuto y no a los 60 s de abrir la
@@ -166,7 +167,7 @@ function arrancar({ cadaMs = 60000, ...config } = {}) {
     const siguiente = () => {
         const ms = cadaMs === 60000 ? 60000 - (Date.now() % 60000) + 1000 : cadaMs;
         estado.reloj = setTimeout(() => {
-            tick().catch(e => console.warn('[Programador] Tick:', e.message));
+            tick().catch(e => registrador.aviso('[Programador] Tick:', e.message));
             if (estado.reloj) siguiente();
         }, ms);
         if (estado.reloj.unref) estado.reloj.unref();

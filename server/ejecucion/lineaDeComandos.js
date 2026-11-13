@@ -19,6 +19,7 @@
  *   o el proceso. El 2 y el 4 los decide el proceso principal; el 5 también,
  *   pero aquí se vuelve a mirar, porque entre medias pasa tiempo.
  */
+const registrador = require('../registrador');
 const fs = require('fs');
 const path = require('path');
 const chainExecutor = require('../ChainExecutor');
@@ -83,7 +84,7 @@ async function atender(orden, { dbManager, config }) {
             ...extra,
         };
         anotar(`${hora()}  ${codigo === 0 ? 'Finished' : 'Failed'} (exit code ${codigo}) in ${((fin - inicio) / 1000).toFixed(1)} s${extra.mensaje ? ` — ${extra.mensaje}` : ''}`);
-        try { escribirJson(rutaDelResultado(id), resultado); } catch (e) { console.error('[CLI] No se pudo escribir el resultado:', e.message); }
+        try { escribirJson(rutaDelResultado(id), resultado); } catch (e) { registrador.error('[CLI] No se pudo escribir el resultado:', e.message); }
         return resultado;
     };
 
@@ -233,7 +234,7 @@ async function atenderTick(orden, { dbManager }) {
     try {
         fs.appendFileSync(rutaDelRegistro(orden.id), `${hora()}  tick: ${resultado.corridas.length} ran, ${resultado.saltadas.length} skipped${resultado.pausado ? `, paused until ${resultado.pausado}` : ''}\n`);
     } catch { /* sin registro */ }
-    try { escribirJson(rutaDelResultado(orden.id), resultado); } catch (e) { console.error('[CLI] No se pudo escribir el resultado:', e.message); }
+    try { escribirJson(rutaDelResultado(orden.id), resultado); } catch (e) { registrador.error('[CLI] No se pudo escribir el resultado:', e.message); }
     return resultado;
 }
 
@@ -262,7 +263,7 @@ async function atenderDbt(orden, { dbManager }) {
         duracionMs: Date.now() - inicio, registro, entregada: !!orden.entregada,
     };
     anotar(`${hora()}  ${r.resumen?.linea || ''}`);
-    try { escribirJson(rutaDelResultado(orden.id), resultado); } catch (e) { console.error('[CLI] No se pudo escribir el resultado:', e.message); }
+    try { escribirJson(rutaDelResultado(orden.id), resultado); } catch (e) { registrador.error('[CLI] No se pudo escribir el resultado:', e.message); }
     return resultado;
 }
 

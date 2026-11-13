@@ -6,6 +6,7 @@
  * cargar este archivo); el estado que cambia en marcha se lee como `ctx.X`.
  */
 
+const registrador = require('../registrador');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -138,7 +139,7 @@ rutas.post('/api/export/cloud', async (req, res) => {
         await dbManager.systemQuery(copyQuery);
         res.json({ success: true, message: `Exported to ${destination}` });
     } catch (err) {
-        console.error('[Cloud Export] Error:', err);
+        registrador.error('[Cloud Export] Error:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -358,7 +359,7 @@ rutas.post('/api/cuaderno/celda', async (req, res) => {
         } catch (err) {
             // Si no se puede mirar el catalogo se sigue: el CREATE dira lo suyo
             // con un error del motor, que es mejor que negarse a ejecutar.
-            console.warn('[cuaderno] no se pudo comprobar el tipo previo:', err.message);
+            registrador.aviso('[cuaderno] no se pudo comprobar el tipo previo:', err.message);
         }
     }
 
@@ -378,7 +379,7 @@ rutas.post('/api/cuaderno/celda', async (req, res) => {
         } catch (err) {
             // Que no se pueda mirar el catalogo no debe impedir trabajar; se
             // sigue sin el aviso, que es lo que pasaba hasta hoy de todos modos.
-            console.warn('[cuaderno] no se pudo comprobar el nombre:', err.message);
+            registrador.aviso('[cuaderno] no se pudo comprobar el nombre:', err.message);
         }
     }
 
@@ -445,7 +446,7 @@ rutas.get('/api/cuaderno/vistas', async (req, res) => {
         `);
         res.json(filas);
     } catch (err) {
-        console.warn('[cuaderno] no se pudieron listar las vistas vivas:', err.message);
+        registrador.aviso('[cuaderno] no se pudieron listar las vistas vivas:', err.message);
         res.json([]);
     }
 });
@@ -730,7 +731,7 @@ rutas.post('/api/export-data', async (req, res) => {
 
         res.json({ success: true, path: filename, rowCount });
     } catch (err) {
-        console.error("Export data failed:", err);
+        registrador.error("Export data failed:", err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -748,7 +749,7 @@ rutas.get('/api/notebook-state', (req, res) => {
         const data = JSON.parse(fs.readFileSync(statePath, 'utf8'));
         res.json(data);
     } catch (err) {
-        console.warn('Failed to read notebook state:', err.message);
+        registrador.aviso('Failed to read notebook state:', err.message);
         res.json(null);
     }
 });
@@ -765,7 +766,7 @@ rutas.post('/api/notebook-state', async (req, res) => {
         await fs.promises.writeFile(statePath, JSON.stringify(state, null, 2), 'utf8');
         res.json({ success: true });
     } catch (err) {
-        console.error('Failed to write notebook state:', err.message);
+        registrador.error('Failed to write notebook state:', err.message);
         res.status(500).json({ error: 'Failed to write state', details: err.message });
     }
 });
@@ -793,7 +794,7 @@ async function anotarMaterializacion(sql) {
             origen: 'fuente', fuente: f.nombre, archivos,
             hoja: f.excel?.hoja || null, hojas: f.excel?.hojas || null, rango: f.excel?.rango || null,
         });
-    } catch (e) { console.warn('[Procedencia] Materialización sin anotar:', e.message); }
+    } catch (e) { registrador.aviso('[Procedencia] Materialización sin anotar:', e.message); }
 }
 
 module.exports = rutas;

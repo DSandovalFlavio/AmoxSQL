@@ -5,6 +5,7 @@
  * Supports full runs, partial runs (from/to a node), and checkpoint pausing.
  * Results are persisted via ChainPersistence.
  */
+const registrador = require('./registrador');
 const fs = require('fs');
 const path = require('path');
 // Un texto dentro de comillas simples de SQL (una ruta con apóstrofo no rompe la consulta; M0, S2).
@@ -1901,7 +1902,7 @@ class ChainExecutor extends EventEmitter {
                         });
                     } catch (err) {
                         // Non-fatal: log but don't fail the chain
-                        console.warn('[Chains] Notification webhook failed:', err.message);
+                        registrador.aviso('[Chains] Notification webhook failed:', err.message);
                     }
                 }
 

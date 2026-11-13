@@ -6,6 +6,7 @@
  * cargar este archivo); el estado que cambia en marcha se lee como `ctx.X`.
  */
 
+const registrador = require('../registrador');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -129,7 +130,7 @@ rutas.post('/api/gsheets/setup', async (req, res) => {
 
         res.json({ success: true, email, message: 'Google Sheets configured successfully.' });
     } catch (err) {
-        console.error('[GSheets] Setup failed:', err);
+        registrador.error('[GSheets] Setup failed:', err);
         res.status(500).json({ error: err.message });
     }
 });
@@ -217,7 +218,7 @@ rutas.post('/api/gsheets/sheets', async (req, res) => {
                 }
             }
         } catch (e) {
-            console.warn('[GSheets] Could not fetch spreadsheet title:', e.message);
+            registrador.aviso('[GSheets] Could not fetch spreadsheet title:', e.message);
         }
 
         // Validate we can actually read it
@@ -285,7 +286,7 @@ rutas.post('/api/gsheets/sheets', async (req, res) => {
 
         res.json(newSheet);
     } catch (err) {
-        console.error('[GSheets] Register failed:', err);
+        registrador.error('[GSheets] Register failed:', err);
         res.status(500).json({ error: `Failed to connect to Google Sheet: ${err.message}` });
     }
 });
@@ -314,7 +315,7 @@ rutas.get('/api/gsheets/preview/:id', async (req, res) => {
         );
         res.json({ rows, sheetName: sheet.name, tab: tab || 'Sheet1' });
     } catch (err) {
-        console.error('[GSheets] Preview failed:', err);
+        registrador.error('[GSheets] Preview failed:', err);
         res.status(500).json({ error: err.message });
     }
 });

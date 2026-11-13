@@ -4,6 +4,7 @@
  * Loaded conditionally by tools.js only when the 'analysis-planning' skill is active.
  * Provides structured multi-step plan tracking with UI progress visibility.
  */
+const registrador = require('../registrador');
 const { z } = require('zod');
 const { tool } = require('ai');
 
@@ -47,7 +48,7 @@ function createPlannerTools({ activePlan, aiPersistence, dbManager, conversation
                 if (aiPersistence && conversationId) {
                     aiPersistence.savePlan(dbManager, {
                         id: planId, conversationId, goal, steps: activePlan.steps,
-                    }).catch(e => console.warn('[Planner] create_plan persist:', e.message));
+                    }).catch(e => registrador.aviso('[Planner] create_plan persist:', e.message));
                 }
 
                 return {
@@ -77,7 +78,7 @@ function createPlannerTools({ activePlan, aiPersistence, dbManager, conversation
                 if (aiPersistence && activePlan.id) {
                     aiPersistence.updatePlan(dbManager, activePlan.id, {
                         steps: activePlan.steps,
-                    }).catch(e => console.warn('[Planner] update_plan persist:', e.message));
+                    }).catch(e => registrador.aviso('[Planner] update_plan persist:', e.message));
                 }
 
                 const remaining = activePlan.steps?.filter(s => s.status === 'pending').length ?? 0;

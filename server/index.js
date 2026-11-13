@@ -3,6 +3,7 @@
  * Copyright (c) 2026 Flavio Sandoval. All rights reserved.
  * Licensed under the AmoxSQL Community License. See LICENSE in the project root.
  */
+const registrador = require('./registrador');
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -46,11 +47,11 @@ const PORT = 3001;
  * entera — si algo queda inconsistente, el rastro esta.
  */
 process.on('unhandledRejection', (reason) => {
-    console.error('[Server] Promesa rechazada sin manejar — el servidor sigue en pie:',
+    registrador.error('[Server] Promesa rechazada sin manejar — el servidor sigue en pie:',
         reason && reason.stack ? reason.stack : reason);
 });
 process.on('uncaughtException', (err) => {
-    console.error('[Server] Excepcion no capturada — el servidor sigue en pie:',
+    registrador.error('[Server] Excepcion no capturada — el servidor sigue en pie:',
         err && err.stack ? err.stack : err);
 });
 
@@ -140,7 +141,7 @@ function addAutoloadExtension(name) {
             aiManager.saveConfig(cfg);
         }
     } catch (e) {
-        console.warn('[Extensions] Could not persist autoload extension:', e.message);
+        registrador.aviso('[Extensions] Could not persist autoload extension:', e.message);
     }
 }
 
@@ -308,7 +309,7 @@ async function buildTableContext(contextTables = null) {
         _tableContextCacheTime = now;
         return tableContexts;
     } catch (err) {
-        console.error('[AI] Failed to build table context:', err);
+        registrador.error('[AI] Failed to build table context:', err);
         return [];
     }
 }
@@ -366,7 +367,7 @@ const conCentral = (fn) => async (req, res) => {
 function anotarExtensionDelProyecto(nombre) {
     if (!PROYECTO_ABIERTO) return;
     try { manifiesto.anotarExtension(ROOT_DIR, nombre); }
-    catch (e) { console.warn('[Manifiesto] No se pudo anotar la extensión:', e.message); }
+    catch (e) { registrador.aviso('[Manifiesto] No se pudo anotar la extensión:', e.message); }
 }
 
 
@@ -391,9 +392,9 @@ function remontarFuentes() {
                 const meta = dbManager.lane('meta');
                 const informe = await fuentes.montar(meta, { raiz });
                 // 5.13 (Dec-41): las medidas del workspace, como macros en cada carril.
-                await medidas.montar(dbManager, raiz).catch(e => console.warn('[Medidas] No se pudieron montar:', e?.message || e));
+                await medidas.montar(dbManager, raiz).catch(e => registrador.aviso('[Medidas] No se pudieron montar:', e?.message || e));
                 // 6.0 (Dec-98): las variables del proyecto, en cada carril (`$nombre`).
-                await variablesDelProyecto.montar(dbManager, raiz).catch(e => console.warn('[Variables] No se pudieron montar:', e?.message || e));
+                await variablesDelProyecto.montar(dbManager, raiz).catch(e => registrador.aviso('[Variables] No se pudieron montar:', e?.message || e));
                 ultimoMontaje = { informe, esquemaHomonimo: raiz ? await fuentes.hayEsquemaHomonimo(meta) : false, en: new Date().toISOString() };
                 invalidateTableContextCache();
                 // C3: vigilar las carpetas de las fuentes de tipo carpeta.
@@ -402,7 +403,7 @@ function remontarFuentes() {
                     alLlegarUnArchivo
                 );
             } catch (e) {
-                console.warn('[Fuentes] No se pudo montar el catálogo:', e?.message || e);
+                registrador.aviso('[Fuentes] No se pudo montar el catálogo:', e?.message || e);
             }
         } while (fuentesOtraVez);
     })().finally(() => { montandoFuentes = null; });
@@ -417,7 +418,7 @@ const oyentesDeLlegadas = new Set();
 function alLlegarUnArchivo(llegada) {
     remontarFuentes().then(() => {
         const aviso = { tipo: 'llegada', fuentes: llegada.fuentes, archivo: llegada.archivo, modificada: llegada.modificada, tamano: llegada.tamano };
-        console.log(`[Fuentes] Llegó ${llegada.archivo} (${llegada.fuentes.join(', ')})`);
+        registrador.info(`[Fuentes] Llegó ${llegada.archivo} (${llegada.fuentes.join(', ')})`);
         for (const f of oyentesDeLlegadas) { try { f(aviso); } catch { /* un oyente roto no tumba a los demás */ } }
         // D8: lo programado «al llegar un archivo» a estas fuentes.
         if (PROYECTO_ABIERTO) require('./programacion/programador').alLlegar(llegada.fuentes, ROOT_DIR).catch(() => {});
@@ -440,7 +441,7 @@ function anotarFuentesDelSql(sql) {
             for (const e of fuentes.extensionesDe(def, def.ubicacion)) manifiesto.anotarExtension(ROOT_DIR, e);
             if (def.credencial) manifiesto.anotarCredencial(ROOT_DIR, def.credencial, `nube`);
         }
-    } catch (e) { console.warn('[Manifiesto] No se pudieron anotar las fuentes:', e.message); }
+    } catch (e) { registrador.aviso('[Manifiesto] No se pudieron anotar las fuentes:', e.message); }
 }
 
 /** Dónde vive lo que se pide: en el proyecto abierto, o en un workspace. */
@@ -484,15 +485,15 @@ app.post('/api/shutdown', async (_req, res) => {
     res.json({ ok: true });
     try {
         await dbManager.close();
-        console.log('[Server] DuckDB connections closed — shutting down.');
+        registrador.info('[Server] DuckDB connections closed — shutting down.');
     } catch (err) {
-        console.error('[Server] Error closing DB on shutdown:', err.message);
+        registrador.error('[Server] Error closing DB on shutdown:', err.message);
     }
     try { await contextoDeEjecucion.soltarTrabajos(); } catch { /* nada que cerrar */ }
     try {
         await baseCentral.cerrar();
     } catch (err) {
-        console.error('[Central] Error al cerrar:', err.message);
+        registrador.error('[Central] Error al cerrar:', err.message);
     }
     // Give the response time to flush, then exit.
     setTimeout(() => process.exit(0), 200);
@@ -543,7 +544,7 @@ if (process.env.NODE_ENV === 'production') {
     // In win-unpacked: resources/app/server/index.js -> resources/app/client/dist
     const clientDistPath = path.join(__dirname, '../client/dist');
 
-    console.log(`[Server] Serving static files from: ${clientDistPath}`);
+    registrador.info(`[Server] Serving static files from: ${clientDistPath}`);
     app.use(express.static(clientDistPath));
 
     // Handle React Routing, return all requests to React app
@@ -580,15 +581,15 @@ const startServer = (preferredPort = 3001) => {
                 return;
             }
             const actualPort = address.port;
-            console.log(`Server running at http://localhost:${actualPort}`);
-            console.log(`Serving files from: ${ROOT_DIR}`);
+            registrador.info(`Server running at http://localhost:${actualPort}`);
+            registrador.info(`Serving files from: ${ROOT_DIR}`);
 
             // Initialize AI schema in the background so DataDiving works without a
             // project connected. Fire-and-forget — do NOT await here, so resolve()
             // se llama de inmediato y el proceso principal recibe el 'ready' sin
             // esperas.
             aiPersistence.initSchema(dbManager).catch(err =>
-                console.warn('[AI] Startup schema init warning (non-fatal):', err.message)
+                registrador.aviso('[AI] Startup schema init warning (non-fatal):', err.message)
             );
 
             // La base de AmoxSQL, igual: en segundo plano. Si no se puede abrir,
@@ -597,7 +598,7 @@ const startServer = (preferredPort = 3001) => {
             // descifra las credenciales a memoria (A1).
             arranque = baseCentral.abrir()
                 .then(() => secretos.iniciar(aiManager.getConfig()))
-                .catch(err => console.warn('[Secretos] Arranque:', err.message));
+                .catch(err => registrador.aviso('[Secretos] Arranque:', err.message));
 
             // Re-activate extensions the user auto-loads. Fire-and-forget igual;
             // dbManager las vuelve a LOADear en cada reconexion una vez sembradas.
@@ -607,9 +608,9 @@ const startServer = (preferredPort = 3001) => {
                     if (names.length === 0) return;
                     names.forEach(n => dbManager.rememberExtension(n));
                     await dbManager.restoreExtensions();
-                    console.log(`[Extensions] Auto-loaded ${names.length}: ${names.join(', ')}`);
+                    registrador.info(`[Extensions] Auto-loaded ${names.length}: ${names.join(', ')}`);
                 } catch (e) {
-                    console.warn('[Extensions] Startup autoload warning (non-fatal):', e.message);
+                    registrador.aviso('[Extensions] Startup autoload warning (non-fatal):', e.message);
                 }
             })();
 
@@ -635,7 +636,7 @@ const startServer = (preferredPort = 3001) => {
             // Puerto ocupado (otra instancia, o cualquier otro programa): que el
             // sistema nos de uno libre. El proceso principal se entera del puerto
             // real por el mensaje 'ready', asi que no hay nada mas que ajustar.
-            console.warn(`[Server] Puerto ${preferredPort} ocupado — se pide uno libre al sistema.`);
+            registrador.aviso(`[Server] Puerto ${preferredPort} ocupado — se pide uno libre al sistema.`);
             attempt(0, reject);
         });
     });
