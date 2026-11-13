@@ -895,3 +895,9 @@
   border-radius: 3px;
 }
 
+
+/* 6.0 (M10 · T12): el linaje vacío ofrece compilar. */
+.dbt-linaje-acciones { justify-content: center; }
+.dbt-linaje-error { margin-top: var(--space-2); color: var(--feedback-error); font-size: var(--text-xs); white-space: pre-wrap; text-align: left; }
+/* 6.0 (M10 · T12): si el entorno elegido no encuentra dbt, se lee entero. */
+.dbt-subtle-text.dbt-entorno-falta { white-space: normal; overflow: visible; text-overflow: clip; color: var(--feedback-warning-text); align-items: flex-start; }

@@ -810,6 +810,12 @@ rutas.put('/api/dbt/proyecto', (req, res) => {
     res.json({ dbt: guardado.dbt });
 });
 
+// 6.0 (M10 · T12): ¿encuentra dbt el entorno elegido del proyecto, y cuál?
+rutas.get('/api/dbt/entorno-comprobar', async (_req, res) => {
+    try { res.json(await dbtCorrer.comprobarEntorno(dbtCorrer.entornoDelProyecto(ctx.ROOT_DIR))); }
+    catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // «Set up dbt…» (Dec-36): el entorno de AmoxSQL, con el mismo motor.
 rutas.get('/api/dbt/entorno-propio', async (_req, res) => {
     try { res.json({ ...dbtEntorno.estado(), pythons: await dbtEntorno.buscarPythons() }); }

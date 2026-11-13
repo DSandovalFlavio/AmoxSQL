@@ -704,6 +704,10 @@
 }
 .seg {
   display: flex;
+  /* 6.0 (M10 · T11): lo que no cabe pasa a otra fila. Con la barra de
+     desplazamiento oculta, DBT Studio enseñaba 3 de sus 6 pestañas sin decir
+     que había más. Donde todo cabe, no cambia nada. */
+  flex-wrap: wrap;
   gap: 2px;
   padding: 3px;
   background: var(--surface-inset);

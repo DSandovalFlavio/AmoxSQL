@@ -177,9 +177,17 @@ const DbtLineageGraph = ({ onFileOpen }) => {
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
                 <LuCircleAlert size={24} style={{ marginBottom: '8px', color: 'var(--color-warning)' }} />
                 <p style={{ fontSize: '12px', marginBottom: '12px' }}>{error}</p>
-                <button className="dbt-btn dbt-btn--ghost" onClick={fetchManifest}>
-                    <LuRefreshCw size={13} /> Retry
-                </button>
+                {/* 6.0 (M10 · T12): sin manifest, compilar desde aquí; al
+                    terminar, amox_dbt_cambio recarga el linaje. */}
+                <div className="fila dbt-linaje-acciones">
+                    <button className="btn-primario btn--peq" onClick={() => dbt.correr('dbt compile')} disabled={!!dbt.ocupado}>
+                        {dbt.ocupado ? <LuLoader size={13} className="dbt-spin" /> : <LuPlay size={13} />} {dbt.ocupado ? 'Compiling…' : 'Compile'}
+                    </button>
+                    <button className="btn-texto btn--peq" onClick={fetchManifest} disabled={!!dbt.ocupado}>
+                        <LuRefreshCw size={13} /> Retry
+                    </button>
+                </div>
+                {dbt.error && <p className="dbt-linaje-error">{dbt.error}</p>}
             </div>
         );
     }

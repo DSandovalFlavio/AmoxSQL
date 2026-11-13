@@ -23,6 +23,13 @@ const EntornoDbt = ({ condaEnvs = [], condaPath = null, valor, onCambio, compact
     const [creando, setCreando] = useState(false);
     const [error, setError] = useState(null);
     const [carpetaPython, setCarpetaPython] = useState(null);   // un entorno de Python por su carpeta
+    // 6.0 (M10 · T12): si el entorno elegido encuentra dbt, y su versión.
+    const [comprobado, setComprobado] = useState(null);   // null · 'mirando' · { encontrado, version, error }
+    const comprobar = useCallback(async () => {
+        setComprobado('mirando');
+        try { setComprobado(await fetch(`${API}/dbt/entorno-comprobar`).then(x => x.json())); }
+        catch { setComprobado(null); }
+    }, []);
 
     const valorDe = (e) => (!e ? null : e.tipo === 'amoxsql' ? 'amoxsql' : e.tipo === 'conda' ? e.nombre : e.tipo === 'python' ? `python:${e.ruta}` : 'none');
 
@@ -37,6 +44,8 @@ const EntornoDbt = ({ condaEnvs = [], condaPath = null, valor, onCambio, compact
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => { cargar(); }, [cargar]);
+    // El de AmoxSQL ya dice si está listo; los demás se comprueban al elegirlos.
+    useEffect(() => { if (!compacto && valor && valor !== 'amoxsql') comprobar(); else setComprobado(null); }, [valor, compacto, comprobar]);
 
     const guardar = async (v) => {
         onCambio?.(v, true);
@@ -49,6 +58,7 @@ const EntornoDbt = ({ condaEnvs = [], condaPath = null, valor, onCambio, compact
             const r = await fetch(`${API}/dbt/proyecto`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entorno }) });
             if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'The environment could not be saved.');
             showToast('dbt environment saved for this project');
+            if (v !== 'amoxsql' && !compacto) comprobar();
         } catch (e) { showToast(e.message, 'error'); }
     };
 
@@ -115,6 +125,13 @@ const EntornoDbt = ({ condaEnvs = [], condaPath = null, valor, onCambio, compact
                         <button className="dbt-btn dbt-btn--primary" style={{ marginTop: 6 }} onClick={abrirMontar}><LuDownload size={12} /> Set up dbt…</button>
                     </span>
                 </div>
+            )}
+            {!compacto && valor !== 'amoxsql' && comprobado && (
+                comprobado === 'mirando'
+                    ? <span className="dbt-subtle-text"><LuLoader size={11} className="dbt-spin" /> Looking for dbt…</span>
+                    : comprobado.encontrado
+                        ? <span className="dbt-subtle-text"><LuCheck size={11} /> {`dbt ${comprobado.version} found`}</span>
+                        : <span className="dbt-subtle-text dbt-entorno-falta"><LuCircleAlert size={11} /> {comprobado.error || 'dbt was not found in this environment.'}</span>
             )}
             {!compacto && valor === 'amoxsql' && propio?.existe && (
                 <span className="dbt-subtle-text"><LuCheck size={11} /> {`dbt ${propio.versiones?.['dbt-core'] || ''} with DuckDB ${motor || ''}, ready`}</span>
