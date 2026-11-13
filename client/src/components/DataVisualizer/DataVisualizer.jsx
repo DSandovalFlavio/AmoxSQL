@@ -54,7 +54,7 @@ import { prepararFilas } from './vega/motor';
 import { temaVega, TOKENS_CLAROS } from './vega/tema';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
 import { StoryFlowGuide } from './StoryFlowGuide';
-import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from '../onboarding/tourRegistry';
 import { perfilarColumnas, ejesPorDefecto, tipoSugerido } from '../../utils/columnas';
 
 // ─── Tab definitions ─────────────────────────────────────────
@@ -538,8 +538,40 @@ const DataVisualizer = memo(({ data, tipos = null, isReportMode = false, lectura
     // mounted with every result, also while the user is looking at the table.
     useEffect(() => {
         if (sinMandos || !isActive) return;
-        if (!hasSeenTour('storyflow')) openTour('storyflow');
+        ofrecerTour('storyflow');
     }, [sinMandos, isActive]);
+
+    /* 6.0 (M5, U7): with little width (the Assistant open beside it), the panels fold
+       to a strip of the stage icons before the figure shrinks: at 1440 px with the
+       sidebar and the Assistant, the figure fell to 42 % on its own. A stage opens
+       its panel ON TOP of the figure; a click outside or Escape folds it again. */
+    const raizRef = useRef(null);
+    const [anchoRaiz, setAnchoRaiz] = useState(0);
+    useEffect(() => {
+        const el = raizRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return undefined;
+        const ro = new ResizeObserver(([e]) => {
+            const w = Math.round(e.contentRect.width);
+            setAnchoRaiz(prev => (Math.abs(prev - w) < 4 ? prev : w));
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+    const estrecho = !sinMandos && lateral === 'paneles' && anchoRaiz > 0 && anchoRaiz < 760;
+    const [encima, setEncima] = useState(false);
+    const panelRef = useRef(null);
+    useEffect(() => { if (!estrecho) setEncima(false); }, [estrecho]);
+    useEffect(() => {
+        if (!encima) return undefined;
+        const fuera = (e) => {
+            if (panelRef.current?.contains(e.target) || e.target.closest?.('.sf-tira')) return;
+            setEncima(false);
+        };
+        const tecla = (e) => { if (e.key === 'Escape') setEncima(false); };
+        document.addEventListener('mousedown', fuera);
+        document.addEventListener('keydown', tecla);
+        return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', tecla); };
+    }, [encima]);
 
     // ── Font family resolution ──
     const fontFamily = useMemo(() => {
@@ -1034,7 +1066,7 @@ const DataVisualizer = memo(({ data, tipos = null, isReportMode = false, lectura
 
     // ─── RENDER ──────────────────────────────────────────────
     return (
-        <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden', position: 'relative', fontFamily }}>
+        <div ref={raizRef} style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden', position: 'relative', fontFamily }}>
             <SaveQueryModal
                 isOpen={isSaveModalOpen}
                 onClose={() => setIsSaveModalOpen(false)}
@@ -1047,10 +1079,26 @@ const DataVisualizer = memo(({ data, tipos = null, isReportMode = false, lectura
             />
 
             {/* ━━━ Controls Panel ━━━ */}
-            {!sinMandos && (
-                <div style={{
+            {estrecho && (
+                <div className="sf-tira" role="tablist" aria-label="Story Flow stages">
+                    {TABS.map(tab => {
+                        const IconComp = tab.icon;
+                        const activo = encima && activeTab === tab.key;
+                        return (
+                            <button key={tab.key} type="button" role="tab" aria-selected={activo} title={tab.title}
+                                className={`sf-tira-btn${activo ? ' sf-tira-btn--activo' : ''}`}
+                                onClick={() => { if (activo) setEncima(false); else { setActiveTab(tab.key); setEncima(true); } }}>
+                                <IconComp size={15} />
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+            {!sinMandos && (!estrecho || encima) && (
+                <div ref={panelRef} style={{
                     width: lateral === 'codigo' ? '440px' : '320px', flexShrink: 0, borderRight: '1px solid var(--border-color)',
                     padding: '12px', overflowY: 'auto',
+                    ...(estrecho ? { position: 'absolute', left: 44, top: 0, bottom: 0, zIndex: 6, maxWidth: 'calc(100% - 44px)', boxShadow: '8px 0 24px rgba(0, 0, 0, 0.3)' } : {}),
                     backgroundColor: 'var(--panel-bg)',
                     display: 'flex', flexDirection: 'column',
                 }}>

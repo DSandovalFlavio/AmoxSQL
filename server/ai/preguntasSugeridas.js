@@ -13,12 +13,15 @@
  * Puro: recibe { metricas, glosario, columnas: [{ tabla, columna, tipo }] }.
  */
 
-const DIMENSIONES = /^(categor|category|segment|region|regi[oó]n|ciudad|city|pa[ií]s|country|canal|channel|familia|family|tipo|type|producto|product|marca|brand|tienda|store|estado|state|cliente|customer|vendedor|seller)/i;
-const NO_DIMENSION = /(^id$|_id$|^id_|direcci|address|archivo|file|email|phone|tel[eé]fono|nombre_completo|descripci|comment|coment|url|hash|uuid)/i;
+// Lo que dice el nombre de una columna: la misma lista que usan el gráfico y el
+// perfil del cliente (6.0, R3; `client/src/utils/columnas.js`).
+const reglas = require('../compartido/papelesDeColumna.json');
+const NO_DIMENSION = new RegExp(reglas.noDimension, 'i');
+const IDENTIFICADOR = new RegExp(reglas.identificador, 'i');
 const ES_FECHA = /^(DATE|TIMESTAMP|TIMESTAMP WITH TIME ZONE|TIMESTAMPTZ|TIMESTAMP_S|TIMESTAMP_MS|TIMESTAMP_NS)/i;
 const ES_NUMERO = /^(DECIMAL|NUMERIC|DOUBLE|FLOAT|REAL|INTEGER|BIGINT|HUGEINT|SMALLINT|INT|UBIGINT|UINTEGER)/i;
 const ES_TEXTO = /^(VARCHAR|TEXT|STRING|CHAR)/i;
-const IMPORTE = /(importe|monto|amount|revenue|venta|sales|total|precio|price|costo|cost|ingreso|income|valor|value)/i;
+const IMPORTE = new RegExp(reglas.importe, 'i');
 
 /** ¿Español o inglés? Lo que más pesa en las descripciones y el glosario. */
 function idiomaDe(texto) {
@@ -33,8 +36,8 @@ const humanoSolo = (nombre) => String(nombre || '').replace(/_/g, ' ').trim();
 // o «el venta total» sería adivinar; «venta total» entre comillas se lee bien.
 const citarCon = { es: (x) => `«${x}»`, en: (x) => `"${x}"` };
 // Mejor dimensión primero: una categoría o región dice más que un producto suelto.
-const ORDEN_DIM = ['categor', 'category', 'segment', 'region', 'regi', 'familia', 'family', 'canal', 'channel', 'pa', 'country', 'ciudad', 'city', 'tipo', 'type', 'marca', 'brand', 'tienda', 'store', 'cliente', 'customer', 'producto', 'product'];
-const rangoDim = (col) => { const c = col.toLowerCase(); const i = ORDEN_DIM.findIndex(p => c.startsWith(p)); return i < 0 ? 99 : i; };
+const ORDEN_DIM = reglas.ordenDimensiones;
+const rangoDim = (col) => { const c = col.toLowerCase(); const i = ORDEN_DIM.findIndex(p => c.startsWith(p) || c.includes(p)); return i < 0 ? 99 : i; };
 
 const T = {
     es: {
@@ -81,7 +84,7 @@ function preguntasSugeridas({ metricas = [], glosario = '', columnas = [] } = {}
     const fecha = colsHechos.find(c => ES_FECHA.test(c.tipo));
     const importe = colsHechos.find(c => ES_NUMERO.test(c.tipo) && IMPORTE.test(c.columna));
     const dimensiones = colsHechos
-        .filter(c => ES_TEXTO.test(c.tipo) && !NO_DIMENSION.test(c.columna))
+        .filter(c => ES_TEXTO.test(c.tipo) && !NO_DIMENSION.test(c.columna) && !IDENTIFICADOR.test(c.columna))
         .sort((a, b) => rangoDim(a.columna) - rangoDim(b.columna));
     const dim = dimensiones[0];
 

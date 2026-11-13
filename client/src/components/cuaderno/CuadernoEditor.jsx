@@ -35,14 +35,14 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     LuPlus, LuFileText, LuSave, LuRefreshCw, LuFileType2, LuPresentation, LuLoaderCircle,
-    LuBookOpen, LuPencil, LuSparkles } from 'react-icons/lu';
+    LuBookOpen, LuPencil, LuSparkles, LuCircleHelp } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { leerCuaderno, escribirCuaderno, indiceDe, tituloDe } from '../../utils/cuadernoFile.js';
 import { analizarCelda } from '../../utils/celdaSql.js';
 import { componerCelda, nombrePorOmision } from '../../utils/vistaDeCelda.js';
 import { useDialog } from '../dialogs/DialogProvider';
 import { useToast } from '../ToastProvider';
-import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from '../onboarding/tourRegistry';
 import Celda from './Celda.jsx';
 import Barra from './Barra.jsx';
 import CeldaTexto from './CeldaTexto.jsx';
@@ -182,7 +182,7 @@ const CuadernoEditor = ({
     // El recorrido de la primera vez lo lanzaba el componente anterior; al
     // retirarlo se quedaba sin quien lo abriera.
     useEffect(() => {
-        if (!hasSeenTour('notebooks')) openTour('notebooks');
+        ofrecerTour('notebooks');
     }, []);
 
     /**
@@ -1049,6 +1049,10 @@ const CuadernoEditor = ({
                                 Assist
                             </button>
                         )}
+                        {/* 6.0 (M4): the notebook tour is offered once; here it is always at hand. */}
+                        <button type="button" className="cdn-btn cdn-btn--icono" onClick={() => openTour('notebooks')} title="How notebooks work (tour)" aria-label="How notebooks work">
+                            <LuCircleHelp size={13} />
+                        </button>
                     </div>
                 </div>
 

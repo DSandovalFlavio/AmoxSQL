@@ -89,7 +89,7 @@ Propone el diagrama entero, pero **como grafo**, nunca como texto mermaid: el ed
 Cuando una consulta falla, junto al mensaje de error aparece **Fix with Assist**. El Asistente ya sabe el error y la consulta: no hace falta pegar nada. Al empezar una conversación con la consulta en error, la primera sugerencia es **Fix the error**.
 
 ### Preguntar por un resultado
-En la barra de resultados de un `.sql`, **Explain** pregunta qué destaca y **Chart it** pide un gráfico de ese resultado.
+En la barra de resultados de un `.sql`, **Explain** pregunta qué destaca; para un gráfico, la pestaña **Chart** tiene su propio botón **Assist** (y «Chart the result» sigue entre las sugerencias de Assist).
 
 ### Aceptar o rechazar una edición
 En un `.sql` o un archivo de texto, el Asistente propone **solo las líneas que cambian**, y el cambio se ve **en el propio editor**: lo que sale, en rojo en su línea; lo que entra, en verde debajo; encima, una barra con **Accept** / **Reject**. Mientras está pendiente, esas líneas no se pueden editar. Si escribes en otra parte del archivo, la propuesta sigue a sus líneas. **Review**, en el chat, te lleva a ella.
@@ -133,7 +133,7 @@ En la barra inferior del chat eliges el **modelo** (ver [Proveedores y modelos](
 | Responder preguntas | Sobre tu query, tus datos o SQL de DuckDB en general |
 | Generar / explicar / optimizar SQL | Escribe o reescribe la query del archivo activo |
 | Proponer ediciones | Cambio con **Accept** / **Reject**; al aceptar carga en el editor sin guardar. Solo la parte que cambia (líneas, una celda, una lámina, unos paneles), revisada donde vive |
-| Preguntar desde el editor | La barra sobre la selección, **Fix with Assist** en un error, **Explain** / **Chart it** en los resultados |
+| Preguntar desde el editor | La barra sobre la selección, **Fix with Assist** en un error, **Explain** en los resultados, **Assist** en su pestaña Chart |
 | Proponer archivos nuevos | Ruta y contenido con **Create**; nunca sobrescribe |
 | Proponer gráficos | Gráfico configurado con **Apply to chart** hacia Story Flow |
 | Citar números | Los valores enlazan a su query de origen ("Source Query") |

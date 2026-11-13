@@ -46,7 +46,7 @@ import ChainLogPanel from './ChainLogPanel';
 import ChainDataPreview from './ChainDataPreview';
 import ChainTemplateGallery from './ChainTemplateGallery';
 import { DataFlowGuide } from './DataFlowGuide';
-import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from '../onboarding/tourRegistry';
 
 import { API_BASE } from '../../api.js';
 import VentanaCambiosDeProceso from '../CambiosDeProceso';
@@ -181,7 +181,7 @@ const ChainEditorInner = ({ content, onChange, filePath, onOpenFile, onSave, tab
     // First-run Data Flow tour. Rendering + replay are owned by the global
     // OnboardingHost via the tour registry.
     useEffect(() => {
-        if (!hasSeenTour('dataflow')) openTour('dataflow');
+        ofrecerTour('dataflow');
     }, []);
 
     // Load SQL files from project

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp, LuCircleHelp, LuChartColumn, LuListChecks, LuLightbulb, LuAtSign, LuTextSelect } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
-import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from '../onboarding/tourRegistry';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import FileConversationList from './FileConversationList';
@@ -257,7 +257,7 @@ const AiAssistantPanel = ({
     // First-run AI modes tour. Rendering + replay are owned by the global
     // OnboardingHost via the tour registry.
     useEffect(() => {
-        if (!hasSeenTour('ai-modes')) openTour('ai-modes');
+        ofrecerTour('ai-modes');
     }, []);
 
     // ─── Cache: filePath → last conversationId per session ───

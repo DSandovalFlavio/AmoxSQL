@@ -22560,3 +22560,36 @@ tr:hover td {
   font: inherit; font-weight: 600; cursor: pointer; padding: 0 2px;
 }
 .sf-sugerido button:hover { text-decoration: underline; }
+
+/* 6.0 (M5, U7): Story Flow folded to its stage icons when there is little width */
+.sf-tira {
+  width: 44px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 0;
+  border-right: 1px solid var(--border-color);
+  background-color: var(--panel-bg);
+}
+.sf-tira-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+.sf-tira-btn:hover { color: var(--text-primary); background: var(--hover-bg); }
+.sf-tira-btn--activo,
+.sf-tira-btn--activo:hover { color: var(--accent-primary); background: var(--accent-subtle); }
+
+/* 6.0 (M5): the results' «Save / Share ▾» menu */
+.rt-menu-guardar { min-width: 230px; }
+.rt-menu-guardar .toolbar-dropdown-item { white-space: nowrap; }

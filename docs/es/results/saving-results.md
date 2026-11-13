@@ -20,7 +20,7 @@ AmoxSQL ofrece varias maneras de conservar o compartir un resultado, y es import
 ## Cómo usarlo
 
 ### 1. Download — las filas que ves (instantáneo)
-En la barra de la [tabla de resultados](results-table.md), el menú **Download ▾** baja **solo las filas cargadas en la tabla** (con tus filtros y orden aplicados), sin volver a consultar el motor:
+En la barra de la [tabla de resultados](results-table.md), el final del menú **Save / Share ▾** baja **solo las filas cargadas en la tabla** (con tus filtros y orden aplicados), sin volver a consultar el motor:
 
 - **Export CSV** — CSV con marca BOM y encabezados.
 - **Export JSON** — todas las filas como JSON.
@@ -32,7 +32,7 @@ El trabajo se hace en un *Web Worker* para no congelar la interfaz. Es la vía m
 El botón **Export** de la barra del [editor](../editor/sql-editor.md) **re-ejecuta la consulta completa** y la escribe a un archivo (CSV, Parquet, Excel) o a un destino en la nube. A diferencia de Download, no se limita a las filas mostradas: exporta **todo** lo que devuelve la query. El detalle está en [Exportar datos](../data/exporting-data.md).
 
 ### 3. Save as table — materializar en la base de datos
-El botón **Save as table…** abre un diálogo para crear un objeto nuevo en DuckDB a partir de la **query completa**:
+**Save / Share › Save as table or view…** abre un diálogo para crear un objeto nuevo en DuckDB a partir de la **query completa**:
 
 1. Escribe un **nombre**.
 2. Elige **Table** (materializa las filas) o **View** (guarda la definición, se recalcula al consultarla).
@@ -41,7 +41,7 @@ El botón **Save as table…** abre un diálogo para crear un objeto nuevo en Du
 Internamente ejecuta `CREATE TABLE|VIEW "nombre" AS <tu query>`.
 
 ### 4. Vault — guardar en el Baúl de análisis
-El botón **Vault** guarda el análisis (título, etiquetas, el SQL y un resumen del resultado) en el **Baúl de análisis**, tu histórico consultable y disponible para la IA. Ver [Baúl de análisis](../ai/analysis-vault.md).
+**Save / Share › Save to Analysis Vault…** guarda el análisis (título, etiquetas, el SQL y un resumen del resultado) en el **Baúl de análisis**, tu histórico consultable y disponible para la IA. Ver [Baúl de análisis](../ai/analysis-vault.md).
 
 ## Referencia
 

@@ -20,7 +20,7 @@ AmoxSQL offers several ways to keep or share a result, and it matters to tell th
 ## How to use it
 
 ### 1. Download — the rows you see (instant)
-In the [results table](results-table.md) bar, the **Download ▾** menu grabs **only the rows loaded in the table** (with your filters and sort applied), without re-querying the engine:
+In the [results table](results-table.md) bar, **Save / Share ▾** ends with the download, which grabs **only the rows loaded in the table** (with your filters and sort applied), without re-querying the engine:
 
 - **Export CSV** — CSV with a BOM mark and headers.
 - **Export JSON** — all rows as JSON.
@@ -32,7 +32,7 @@ The work runs in a *Web Worker* so the UI doesn't freeze. It's the fastest way t
 The **Export** button in the [editor](../editor/sql-editor.md) bar **re-runs the full query** and writes it to a file (CSV, Parquet, Excel) or a cloud destination. Unlike Download, it isn't limited to the shown rows: it exports **everything** the query returns. The details are in [Exporting data](../data/exporting-data.md).
 
 ### 3. Save as table — materialize into the database
-The **Save as table…** button opens a dialog to create a new DuckDB object from the **full query**:
+**Save / Share › Save as table or view…** opens a dialog to create a new DuckDB object from the **full query**:
 
 1. Type a **name**.
 2. Choose **Table** (materializes the rows) or **View** (stores the definition, recomputed when queried).
@@ -41,7 +41,7 @@ The **Save as table…** button opens a dialog to create a new DuckDB object fro
 Under the hood it runs `CREATE TABLE|VIEW "name" AS <your query>`.
 
 ### 4. Vault — save to the Analysis Vault
-The **Vault** button saves the analysis (title, tags, the SQL, and a summary of the result) to the **Analysis Vault**, your searchable history that's also available to the AI. See [Analysis Vault](../ai/analysis-vault.md).
+**Save / Share › Save to Analysis Vault…** saves the analysis (title, tags, the SQL, and a summary of the result) to the **Analysis Vault**, your searchable history that's also available to the AI. See [Analysis Vault](../ai/analysis-vault.md).
 
 ## Reference
 

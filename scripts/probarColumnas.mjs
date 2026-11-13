@@ -85,5 +85,22 @@ r = de([{ datos: { a: 1 } }, { datos: { a: 2 } }]);
 comprobar('una columna VARIANT no rompe', r.p[0].papel === 'texto');
 comprobar('sin filas: vacío', ejesPorDefecto(perfilarColumnas([])).x === '');
 
+// R3: el perfil (Data Profiler) y las preguntas de Deep Dive leen las mismas reglas.
+console.log('\nlas mismas reglas en el perfil y en el servidor (R3)');
+const { papelDe } = await import(pathToFileURL(path.join(RAIZ, 'client/src/utils/columnas.js')).href);
+const desdePerfil = (nombre, o) => papelDe({ nombre, valores: o.n, n: o.n, ...o });
+comprobar('un importe sin dos valores iguales es una medida, no un identificador',
+    desdePerfil('importe', { numerica: true, entera: false, distintos: 5000, n: 5000 }) === 'medida');
+comprobar('un ranking 1..n es un identificador', desdePerfil('lugar', { numerica: true, entera: true, distintos: 10, n: 10, secuencia: true }) === 'identificador');
+comprobar('un año en número es una categoría', desdePerfil('anio', { numerica: true, entera: true, distintos: 3, n: 20000 }) === 'dimension');
+comprobar('una dirección es texto, no una categoría', desdePerfil('direccion', { distintos: 30, n: 20000 }) === 'texto');
+const { preguntasSugeridas } = require(path.join(RAIZ, 'server/ai/preguntasSugeridas.js'));
+const p = preguntasSugeridas({ columnas: [['v', 'fecha', 'DATE'], ['v', 'importe', 'DOUBLE'], ['v', 'cliente_id', 'VARCHAR'], ['v', 'categoria', 'VARCHAR']].map(([tabla, columna, tipo]) => ({ tabla, columna, tipo })) });
+comprobar('el servidor tampoco toma un id por dimensión', p.preguntas.some(q => q.texto.includes('«categoria»') || q.texto.includes('"categoria"')) && !p.preguntas.some(q => /cliente_id/.test(q.texto)), JSON.stringify(p.preguntas));
+const json = JSON.parse(fs.readFileSync(path.join(RAIZ, 'server/compartido/papelesDeColumna.json'), 'utf8'));
+comprobar('la lista vive en un solo sitio', ['identificador', 'importe', 'cantidad', 'cociente', 'periodo', 'noDimension', 'ordenDimensiones'].every(k => json[k])
+    && !/const IMPORTE = \//.test(fs.readFileSync(path.join(RAIZ, 'server/ai/preguntasSugeridas.js'), 'utf8'))
+    && !/const IMPORTE = \//.test(fs.readFileSync(path.join(RAIZ, 'client/src/utils/columnas.js'), 'utf8')));
+
 console.log(`\n${pasadas} pasadas, ${fallos} fallos`);
 process.exit(fallos ? 1 : 0);

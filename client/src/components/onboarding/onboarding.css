@@ -208,3 +208,52 @@
   line-height: var(--leading-relaxed);
 }
 .ob-guide-body p:first-child { margin-top: 0; }
+
+/* 6.0 (M4): a feature's first run offers its tour in one line, without covering
+   anything. Bottom-left, past the activity bar; it stays until taken or dismissed. */
+@keyframes onb-pista-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.onb-pista {
+  position: fixed;
+  left: 66px;
+  bottom: 14px;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(262px, calc(100vw - 90px));   /* over the file list, not over a panel */
+  padding: 7px 8px 7px 12px;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  animation: onb-pista-in var(--duration-base, 180ms) var(--ease-out, ease-out);
+}
+.onb-pista__icono { color: var(--accent-primary); flex-shrink: 0; }
+.onb-pista__texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.onb-pista__tomar {
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  color: var(--accent-primary);
+  background: var(--accent-subtle);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.onb-pista__tomar:hover { background: var(--accent-muted); }
+.onb-pista__cerrar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.onb-pista__cerrar:hover { color: var(--text-primary); background: var(--hover-bg); }

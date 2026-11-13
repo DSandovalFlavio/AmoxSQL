@@ -12,7 +12,8 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Tour } from './Tour';
-import { TOURS, OPEN_TOUR_EVENT, getTour, markTourSeen } from './tourRegistry';
+import { LuX } from 'react-icons/lu';
+import { TOURS, OPEN_TOUR_EVENT, OFRECER_TOUR_EVENT, getTour, markTourSeen, hasSeenTour } from './tourRegistry';
 
 export default function OnboardingHost() {
     const [queue, setQueue] = useState([]);     // array of tour ids; queue[0] is active
@@ -55,7 +56,38 @@ export default function OnboardingHost() {
         });
     }, []);
 
+    // 6.0 (M4): the offered tour — one at a time, the latest; never while a tour is open.
+    const [ofrecido, setOfrecido] = useState(null);
+    const ofrecidosEnSesion = useRef(new Set());
+    useEffect(() => {
+        const alOfrecer = (e) => {
+            const id = e?.detail?.id;
+            if (!getTour(id) || hasSeenTour(id) || ofrecidosEnSesion.current.has(id)) return;
+            ofrecidosEnSesion.current.add(id);
+            setOfrecido(id);
+        };
+        window.addEventListener(OFRECER_TOUR_EVENT, alOfrecer);
+        return () => window.removeEventListener(OFRECER_TOUR_EVENT, alOfrecer);
+    }, []);
+
     const tour = queue[0] ? getTour(queue[0]) : null;
+    const pista = !tour && ofrecido ? getTour(ofrecido) : null;
+    if (pista) {
+        const Icono = pista.brandIcon;
+        return (
+            <div className="onb-pista" role="status">
+                {Icono && <Icono size={14} className="onb-pista__icono" />}
+                <span className="onb-pista__texto">New to {pista.brandLabel}?</span>
+                <button type="button" className="onb-pista__tomar" title={`${pista.steps.length} short steps`} onClick={() => { setOfrecido(null); enqueue(pista.id); }}>
+                    Tour
+                </button>
+                <button type="button" className="onb-pista__cerrar" title="Not now (it stays in Ctrl+K › Tour)"
+                    onClick={() => { markTourSeen(pista.id); setOfrecido(null); }}>
+                    <LuX size={13} />
+                </button>
+            </div>
+        );
+    }
     if (!tour) return null;
 
     return (

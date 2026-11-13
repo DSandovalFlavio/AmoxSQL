@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { LuBot, LuX, LuLoader, LuHourglass, LuPause, LuSquarePen, LuSquare, LuPencil, LuSparkles, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
 import DecisionDelAnalista from './DecisionDelAnalista';
 import { AiModesGuideModal } from './AiModesGuide';
-import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from '../onboarding/tourRegistry';
 import PoliticaIAChip from '../workspaces/PoliticaIAChip';
 import { groupIntoTurns, buildSessionArtifacts } from './deepDiveTurns';
 import { armarInforme, seccionDeConsulta } from './informeDeepDive';
@@ -74,7 +74,7 @@ const AiDivingPanel = ({
 }) => {
     // First-run Deep Dive tour (rendered by the global OnboardingHost)
     useEffect(() => {
-        if (!hasSeenTour('deep-dive')) openTour('deep-dive');
+        ofrecerTour('deep-dive');
     }, []);
 
     const {

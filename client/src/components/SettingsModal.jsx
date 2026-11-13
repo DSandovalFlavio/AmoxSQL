@@ -21,7 +21,7 @@ const valorVisible = (v) => (v === EN_EL_LLAVERO ? '' : (v ?? ''));
 const indicacion = (v, normal) => (v === EN_EL_LLAVERO ? 'Saved in your system keychain — type to replace' : normal);
 import { StoryFlowGuide } from './DataVisualizer/StoryFlowGuide';
 import { DataFlowGuide } from './chains/DataFlowGuide';
-import { openTour, hasSeenTour } from './onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from './onboarding/tourRegistry';
 // Los acentos viven fuera: el inspector del deck necesita la misma lista y no
 // puede importar 97 KB de modal para leer dos arrays.
 import { VIBRANT_ACCENTS, SOBER_ACCENTS } from '../accents.js';
@@ -154,7 +154,7 @@ function AiContextTab() {
 
     // First-run AI Context tour (rendered by the global OnboardingHost)
     React.useEffect(() => {
-        if (!hasSeenTour('ai-context')) openTour('ai-context');
+        ofrecerTour('ai-context');
     }, []);
 
     const reload = React.useCallback(async () => {

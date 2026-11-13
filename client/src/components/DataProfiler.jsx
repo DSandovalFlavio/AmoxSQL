@@ -7,6 +7,7 @@ import {
 } from 'react-icons/lu';
 import { useModalA11y } from '../hooks/useModalA11y';
 import FiguraVega from './DataVisualizer/vega/FiguraVega';
+import { papelDe, CORREO } from '../utils/columnas';
 
 /**
  * DataProfiler — storytelling-driven EDA report for a query result.
@@ -49,18 +50,37 @@ function tipoLegible(t) {
     return x.toLowerCase();
 }
 
+/**
+ * 6.0 (R3): the same roles as the chart's default axes (`utils/columnas.js`), from
+ * the profile's statistics instead of the rows. Before, a column with all-different
+ * values was an «Identifier» — an amount where no two sales match was one — and a
+ * ranking was a «Number». Now an identifier is so by its name or by being a 1..n
+ * sequence; a year or a month number is a Category.
+ */
 function semanticType(col) {
-    const name = (col.column || '').toLowerCase();
+    const name = col.column || '';
     const raw = (col.rawType || '').toUpperCase();
     // 6.0 (O5): a VARIANT (or STRUCT / LIST / MAP) holds nested values, not categories.
     if (raw === 'VARIANT' || /^(STRUCT|MAP)\(|\[\]$/.test(raw)) return { key: 'nested', label: 'Nested', Icon: LuBraces };
-    if (raw.includes('DATE') || raw.includes('TIME')) return { key: 'date', label: 'Date', Icon: LuCalendar };
     if (raw.includes('BOOL')) return { key: 'bool', label: 'Boolean', Icon: LuToggleLeft };
-    const looksUnique = col.uniqueCount > 0 && col.total > 20 && col.uniqueCount >= col.total * 0.98;
-    if (/(^|_)(id|uuid|guid|key)s?$/.test(name) || looksUnique) return { key: 'id', label: 'Identifier', Icon: LuKey };
-    if (col.dtype === 'numeric') return { key: 'number', label: 'Number', Icon: LuHash };
-    if (/mail/.test(name) || (col.emailLike > 0 && col.nonNull > 0 && col.emailLike / col.nonNull > 0.7)) return { key: 'email', label: 'Email', Icon: LuType };
-    if (col.uniqueCount > 0 && col.uniqueCount <= 50) return { key: 'category', label: 'Category', Icon: LuType };
+    const numerica = col.dtype === 'numeric';
+    const entera = numerica && /^(TINYINT|SMALLINT|INTEGER|INT|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT|UHUGEINT)$/.test(raw);
+    const valores = col.nonNull || 0;
+    // A 1..n sequence with no repeats (a ranking, a row number). The distinct count is approximate.
+    const min = Number(col.min), max = Number(col.max);
+    const secuencia = entera && valores >= 3 && Number.isFinite(min) && Number.isFinite(max)
+        && min <= 1 && max - min + 1 === valores && col.uniqueCount >= valores * 0.95;
+    const papel = papelDe({
+        nombre: name, numerica, entera,
+        fecha: !numerica && (raw.includes('DATE') || raw.includes('TIME')),
+        distintos: col.uniqueCount || 0, valores, n: col.total || 0,
+        largo: col.avgLength || 0, secuencia,
+    });
+    if (papel === 'fecha') return { key: 'date', label: 'Date', Icon: LuCalendar };
+    if (papel === 'identificador') return { key: 'id', label: 'Identifier', Icon: LuKey };
+    if (papel === 'medida') return { key: 'number', label: 'Number', Icon: LuHash };
+    if (CORREO.test(name) || (col.emailLike > 0 && valores > 0 && col.emailLike / valores > 0.7)) return { key: 'email', label: 'Email', Icon: LuType };
+    if (papel === 'dimension') return { key: 'category', label: 'Category', Icon: LuType };
     return { key: 'text', label: 'Text', Icon: LuType };
 }
 

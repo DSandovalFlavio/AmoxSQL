@@ -1,7 +1,7 @@
 import { API_BASE } from '../api.js';
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, memo, useDeferredValue, lazy, Suspense } from 'react';
 import { leerResultados, recordarResultados } from '../utils/memoriaDePestana';
-import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuColumns3, LuChevronLeft, LuChevronRight, LuTriangleAlert, LuPin, LuPinOff, LuX, LuSparkles, LuChartColumn } from "react-icons/lu";
+import { LuTable, LuChartBar, LuSearch, LuChevronUp, LuChevronDown, LuSave, LuFileSpreadsheet, LuGauge, LuFileJson, LuClipboardCopy, LuFileDown, LuChevronDown as LuChevDown, LuExternalLink, LuFilter, LuPackage, LuGitCompare, LuLoader, LuColumns3, LuChevronLeft, LuChevronRight, LuTriangleAlert, LuPin, LuPinOff, LuX, LuSparkles, LuChartColumn, LuDatabase } from "react-icons/lu";
 
 const CompareResults = lazy(() => import('./CompareResults'));
 import SaveToDbModal from './SaveToDbModal';
@@ -39,6 +39,30 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
     const [isSaveDbModalOpen, setIsSaveDbModalOpen] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [showVaultPrompt, setShowVaultPrompt] = useState(false);
+    // 6.0 (M5): «Save / Share ▾» — closes on a click outside or Escape.
+    const [menuGuardar, setMenuGuardar] = useState(false);
+    const menuGuardarRef = useRef(null);
+    // The results panel clips what leaves it (overflow: hidden), and it usually sits at the
+    // bottom of the window: the menu is fixed to the window, below the button or above it.
+    const [posMenu, setPosMenu] = useState(null);
+    const abrirMenuGuardar = () => {
+        const r = menuGuardarRef.current?.getBoundingClientRect();
+        if (r) {
+            const arriba = window.innerHeight - r.bottom < 340 && r.top > 340;
+            setPosMenu({ position: 'fixed', right: Math.max(8, window.innerWidth - r.right), left: 'auto', marginTop: 0,
+                ...(arriba ? { top: 'auto', bottom: window.innerHeight - r.top + 4 } : { top: r.bottom + 4, bottom: 'auto' }) });
+        }
+        setShowVaultPrompt(false);
+        setMenuGuardar(v => !v);
+    };
+    useEffect(() => {
+        if (!menuGuardar && !showVaultPrompt) return;
+        const fuera = (e) => { if (!menuGuardarRef.current?.contains(e.target)) { setMenuGuardar(false); setShowVaultPrompt(false); } };
+        const tecla = (e) => { if (e.key === 'Escape') { setMenuGuardar(false); setShowVaultPrompt(false); } };
+        document.addEventListener('mousedown', fuera);
+        document.addEventListener('keydown', tecla);
+        return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', tecla); };
+    }, [menuGuardar, showVaultPrompt]);
     const [vaultTitle, setVaultTitle] = useState('');
     const [vaultTags, setVaultTags] = useState('');
     const [vaultSaving, setVaultSaving] = useState(false);
@@ -460,7 +484,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
             toast.error(`Export failed: ${error.message}`);
         } finally {
             setExportingAction(null);
-            setShowExportMenu(false);
+            setShowExportMenu(false); setMenuGuardar(false);
         }
     };
 
@@ -656,7 +680,7 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                 {truncated && (
                                     <span style={{ marginLeft: 8, color: 'var(--feedback-warning)', fontWeight: 500 }}
                                           title={`Result capped at ${rowLimit?.toLocaleString()} rows, so the window stays responsive. Adjust "Max Rows" in Settings → Editor (there is a safety limit of 1,000,000 rows or 256 MB), use LIMIT or an aggregate in your query, or Export for the full data.`}>
-                                        ⚠ first {rowLimit?.toLocaleString()} rows shown
+                                        <LuTriangleAlert size={11} style={{ verticalAlign: '-1px' }} /> first {rowLimit?.toLocaleString()} rows shown
                                     </span>
                                 )}
                             </span>
@@ -664,17 +688,6 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
 
                         {/* Right Actions */}
                         <div className="rt-toolbar-right">
-                            {/* E2: the result as a door to Assist (only a .sql's results). */}
-                            {onAsistir && (
-                                <>
-                                    <button className="rt-action-btn" style={{ whiteSpace: 'nowrap' }} onClick={() => onAsistir('explicar_resultado')} title="Ask Assist what stands out in this result">
-                                        <LuSparkles size={12} /> Explain
-                                    </button>
-                                    <button className="rt-action-btn" style={{ whiteSpace: 'nowrap' }} onClick={() => onAsistir('graficar')} title="Ask Assist for a chart of this result">
-                                        <LuChartColumn size={12} /> Chart it
-                                    </button>
-                                </>
-                            )}
                             {/* Global Search */}
                             {viewMode === 'table' && (
                                 <div className="rt-search">
@@ -690,76 +703,108 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                     </span>
                                 </div>
                             )}
-
-                            {/* Compare with the other split pane — skips the manual
-                                Store A step entirely: read the other pane's CURRENT
-                                results right now and open the compare modal in one
-                                click. Only worth showing when split is actually on. */}
-                            {splitEnabled && !storedForCompare && (
-                                <button
-                                    className="rt-action-btn"
-                                    onClick={() => {
-                                        const other = onGetOtherPaneResults ? onGetOtherPaneResults() : null;
-                                        if (!other) {
-                                            toast.info('The other pane has no results to compare against yet.');
-                                            return;
-                                        }
-                                        setStoredForCompare(other);
-                                        setCompareOpen(true);
-                                    }}
-                                    aria-label="Compare with the other pane"
-                                    title="Compare these results with the other pane"
-                                >
-                                    <LuGitCompare size={12} /> Comparar con el otro panel
+                            {/* E2: the result as a door to Assist (only a .sql's results). 6.0 (M5):
+                                «Chart it» left — the Chart tab is right there, with its own Assist button
+                                (and «Chart the result» stays among Assist's suggestions). */}
+                            {onAsistir && (
+                                <button className="rt-action-btn" style={{ whiteSpace: 'nowrap' }} onClick={() => onAsistir('explicar_resultado')} title="Ask Assist what stands out in this result">
+                                    <LuSparkles size={12} /> Explain
                                 </button>
                             )}
 
-                            {/* Compare button */}
-                            {!storedForCompare ? (
-                                <button
-                                    className="rt-action-btn"
-                                    onClick={() => { setStoredForCompare({ data: sortedData, label: `Result A (${sortedData.length} rows)` }); toast.info('Snapshot stored. Run another query, then click Compare.'); }}
-                                    aria-label="Store results for comparison"
-                                    title="Store current results for comparison"
-                                >
-                                    <LuGitCompare size={12} /> Store A
-                                </button>
-                            ) : (
+                            {/* A stored result waiting to be compared stays in sight (it is a state, not an action). */}
+                            {storedForCompare && (
                                 <>
                                     <button
                                         className="rt-action-btn rt-action-btn--accent"
                                         onClick={() => setCompareOpen(true)}
                                         aria-label="Compare results"
-                                        title="Compare stored results with current"
+                                        title={`Compare ${storedForCompare.label || 'the stored result'} with this one`}
                                     >
                                         <LuGitCompare size={12} /> Compare
                                     </button>
                                     <button
                                         className="rt-action-btn"
                                         onClick={() => { setStoredForCompare(null); setCompareOpen(false); }}
-                                        title="Clear stored comparison"
+                                        title="Forget the stored result"
                                         aria-label="Clear comparison"
-                                        style={{ fontSize: '10px' }}
                                     >
-                                        ✕
+                                        <LuX size={12} />
                                     </button>
                                 </>
                             )}
 
-                            {onPopout && (
-                                <button className="rt-action-btn" onClick={onPopout} aria-label="Pop out results to separate window">
-                                    <LuExternalLink size={12} /> Pop-out
+                            {/* 6.0 (M5): what you do WITH a result, in one menu. Before: Store A ·
+                                Pop-out · Save as table… · Vault · Download ▾, five buttons in a second row. */}
+                            <div className="toolbar-dropdown" ref={menuGuardarRef}>
+                                <button
+                                    className={`rt-action-btn${menuGuardar || showVaultPrompt ? ' active' : ''}`}
+                                    onClick={abrirMenuGuardar}
+                                    aria-haspopup="menu"
+                                    aria-expanded={menuGuardar}
+                                    title="Save, compare, pop out or download this result"
+                                >
+                                    <LuSave size={12} /> Save / Share <LuChevDown size={11} />
                                 </button>
-                            )}
-                            <button className="rt-action-btn" onClick={() => setIsSaveDbModalOpen(true)} aria-label="Save query as a table" title="Save the whole query as a table or view (not only the rows shown)">
-                                <LuSave size={12} /> Save as table…
-                            </button>
-                            <div className="toolbar-dropdown">
-                                <button className="rt-action-btn" onClick={() => { setVaultTitle(''); setVaultTags(''); setShowVaultPrompt(v => !v); }}>
-                                    <LuPackage size={12} /> Vault
-                                </button>
+                                {menuGuardar && (
+                                    <div className="toolbar-dropdown-menu rt-menu-guardar" role="menu" style={posMenu || { right: 0, left: 'auto' }}>
+                                        <div role="menuitem" className="toolbar-dropdown-item" title="Save the whole query as a table or view (not only the rows shown)"
+                                            onClick={() => { setMenuGuardar(false); setIsSaveDbModalOpen(true); }}>
+                                            <LuDatabase size={13} /> Save as table or view…
+                                        </div>
+                                        <div role="menuitem" className="toolbar-dropdown-item" title="Keep this analysis even if its file goes away"
+                                            onClick={() => { setMenuGuardar(false); setVaultTitle(''); setVaultTags(''); setShowVaultPrompt(true); }}>
+                                            <LuPackage size={13} /> Save to Analysis Vault…
+                                        </div>
+                                        {!storedForCompare && (
+                                            <div role="menuitem" className="toolbar-dropdown-item" title="Keep these rows, run another query, then Compare"
+                                                onClick={() => { setMenuGuardar(false); setStoredForCompare({ data: sortedData, label: `Result A (${sortedData.length} rows)` }); toast.info('Stored. Run another query, then click Compare.'); }}>
+                                                <LuGitCompare size={13} /> Store for comparison
+                                            </div>
+                                        )}
+                                        {/* Compare with the other split pane in one click: reads that pane's current results. */}
+                                        {splitEnabled && !storedForCompare && (
+                                            <div role="menuitem" className="toolbar-dropdown-item" title="Compare these results with the other pane"
+                                                onClick={() => {
+                                                    setMenuGuardar(false);
+                                                    const other = onGetOtherPaneResults ? onGetOtherPaneResults() : null;
+                                                    if (!other) { toast.info('The other pane has no results to compare against yet.'); return; }
+                                                    setStoredForCompare(other);
+                                                    setCompareOpen(true);
+                                                }}>
+                                                <LuGitCompare size={13} /> Compare with the other pane
+                                            </div>
+                                        )}
+                                        {onPopout && (
+                                            <div role="menuitem" className="toolbar-dropdown-item" title="Open these results in their own window"
+                                                onClick={() => { setMenuGuardar(false); onPopout(); }}>
+                                                <LuExternalLink size={13} /> Pop out
+                                            </div>
+                                        )}
+                                        {/* Download: the rows shown in THIS table (in-memory, instant). Full export of
+                                            the whole query lives in the editor toolbar ("Export"): it re-runs the query. */}
+                                        <div className="rt-dropdown-subtext">Download the rows loaded here</div>
+                                        {[{ label: 'CSV', icon: <LuFileSpreadsheet size={13} />, fn: handleExportCsv, action: 'exportCSV' },
+                                        { label: 'JSON', icon: <LuFileJson size={13} />, fn: handleExportJson, action: 'exportJSON' },
+                                        { label: 'Copy to clipboard', icon: <LuClipboardCopy size={13} />, fn: handleCopyClipboard, action: 'copy' },
+                                        ].map(item => {
+                                            const isBusy = exportingAction === item.action;
+                                            return (
+                                                <div
+                                                    key={item.label}
+                                                    role="menuitem"
+                                                    className={`toolbar-dropdown-item${isBusy ? ' rt-exporting' : ''}`}
+                                                    onClick={() => { if (!exportingAction) item.fn(); }}
+                                                    aria-disabled={isBusy}
+                                                >
+                                                    {isBusy ? <LuLoader size={13} className="spin" /> : item.icon} {isBusy ? 'Exporting...' : item.label}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                                 {showVaultPrompt && (
-                                    <div className="toolbar-dropdown-menu vault-save-dropdown">
+                                    <div className="toolbar-dropdown-menu vault-save-dropdown" style={posMenu || { right: 0, left: 'auto' }}>
                                         <div className="vault-save-dropdown-label">Save to Analysis Vault</div>
                                         <input
                                             type="text"
@@ -789,36 +834,6 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                                     </div>
                                 )}
                             </div>
-
-                            {/* Download Dropdown — the rows shown in THIS table (in-memory, instant).
-                                Full export of the whole query lives in the editor toolbar ("Export"),
-                                since it re-runs the query and belongs to the query, not the shown rows. */}
-                            <div className="toolbar-dropdown">
-                                <button className="rt-action-btn" onClick={() => setShowExportMenu(!showExportMenu)}>
-                                    <LuFileDown size={12} /> Download ▾
-                                </button>
-                                {showExportMenu && (
-                                    <div className="toolbar-dropdown-menu" style={{ right: 0, left: 'auto' }}>
-                                        <div className="rt-dropdown-subtext">The rows loaded in this table</div>
-                                        {[{ label: 'Export CSV', icon: <LuFileSpreadsheet size={13} />, fn: handleExportCsv, action: 'exportCSV' },
-                                        { label: 'Export JSON', icon: <LuFileJson size={13} />, fn: handleExportJson, action: 'exportJSON' },
-                                        { label: 'Copy to Clipboard', icon: <LuClipboardCopy size={13} />, fn: handleCopyClipboard, action: 'copy' },
-                                        ].map(item => {
-                                            const isBusy = exportingAction === item.action;
-                                            return (
-                                                <div
-                                                    key={item.label}
-                                                    className={`toolbar-dropdown-item${isBusy ? ' rt-exporting' : ''}`}
-                                                    onClick={() => { if (!exportingAction) item.fn(); }}
-                                                    aria-disabled={isBusy}
-                                                >
-                                                    {isBusy ? <LuLoader size={13} className="spin" /> : item.icon} {isBusy ? 'Exporting...' : item.label}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     </div>
 
@@ -829,13 +844,13 @@ const ResultsTable = ({ data, types, executionTime, query, sourcePath = null, cu
                         <div className="rt-wide-banner">
                             <LuTriangleAlert size={13} />
                             <span>
-                                Resultado muy ancho: {columns.length.toLocaleString()} columnas.
+                                Very wide result: {columns.length.toLocaleString()} columns.
                                 {selectedColumns && selectedColumns.size > 0
-                                    ? ` Mostrando ${visibleColumns.length} seleccionadas.`
-                                    : ` Mostrando columnas ${safeColumnPage * MAX_VISIBLE_COLS + 1}-${Math.min((safeColumnPage + 1) * MAX_VISIBLE_COLS, columns.length)}.`}
+                                    ? ` Showing the ${visibleColumns.length} you picked.`
+                                    : ` Showing columns ${safeColumnPage * MAX_VISIBLE_COLS + 1}-${Math.min((safeColumnPage + 1) * MAX_VISIBLE_COLS, columns.length)}.`}
                             </span>
                             <button className="rt-wide-banner-link" onClick={() => setShowColumnPicker(true)}>
-                                Elegir columnas
+                                Pick columns
                             </button>
                             {!(selectedColumns && selectedColumns.size > 0) && totalColumnPages > 1 && (
                                 <div className="rt-col-paginator">

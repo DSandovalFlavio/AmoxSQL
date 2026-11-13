@@ -21,17 +21,52 @@ const ES_NUMERO_TIPO = /^(DECIMAL|NUMERIC|DOUBLE|FLOAT|REAL|TINYINT|SMALLINT|INT
 const ES_ENTERO_TIPO = /^(TINYINT|SMALLINT|INTEGER|INT|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT|UHUGEINT)$/i;
 const TEXTO_FECHA = /^\d{4}-\d{2}(-\d{2})?([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}(:?\d{2})?)?)?$/;
 
-// Nombres (español e inglés), con los mismos criterios que las preguntas sugeridas de Deep Dive.
-const IDENTIFICADOR = /^(id|uuid|guid|key|clave|codigo|código|code|sku|ean|folio|lugar|rank|ranking|puesto|posici[oó]n|position|pos|orden|order_?num|row_?number|rn|n|num|numero|número|#)$|(^id_|_id$|_key$|_uuid$|_code$|_codigo$)/i;
-const IMPORTE = /(importe|monto|amount|revenue|venta|ventas|sales|total|precio|price|costo|cost|ingreso|income|valor|value|margen|margin|profit|ganancia|gasto|spend|presupuesto|budget|meta|target)/i;
-const CANTIDAD = /(cantidad|unidades|units|qty|quantity|count|conteo|clientes|customers|pedidos|orders|visitas|visits|usuarios|users|clicks?|impresiones|impressions|lineas|líneas|casos|cases)/i;
+// Lo que dice el NOMBRE: una sola lista para el gráfico, el perfil (Data Profiler) y
+// las preguntas sugeridas de Deep Dive en el servidor (R3). JSON para que la lean
+// los dos lados: el servidor con `require`, Vite y Node con el atributo `json`.
+import reglas from '../../../server/compartido/papelesDeColumna.json' with { type: 'json' };
+
+const rx = (fuente) => new RegExp(fuente, 'i');
+const IDENTIFICADOR = rx(reglas.identificador);
+const IMPORTE = rx(reglas.importe);
+const CANTIDAD = rx(reglas.cantidad);
 // Un cociente no se suma: pesa menos como medida principal.
-const COCIENTE = /(_por_|_per_|pct|porcentaje|percent|ratio|tasa|rate|promedio|avg|average|media|mean|ctr|share|participacion)/i;
+const COCIENTE = rx(reglas.cociente);
 // Un periodo con nombre (mes, día, año…) se lee en su orden, no ordenado por valor.
-const PERIODO = /^(fecha|date|dia|día|day|dow|semana|week|mes|month|trimestre|quarter|año|anio|ano|year|periodo|period|hora|hour|ym|yyyymm)(_|$)|(_fecha|_date|_mes|_month|_year|_anio|_dia|_day|_week|_hora|_hour)$/i;
-const NO_DIMENSION = /(direcci|address|archivo|file|email|correo|phone|tel[eé]fono|nombre_completo|full_name|descripci|comment|coment|url|hash|uuid|json|nota|note)/i;
-const ORDEN_DIM = ['categor', 'category', 'segment', 'region', 'regi', 'familia', 'family', 'canal', 'channel', 'tipo', 'type', 'marca', 'brand', 'country', 'estado', 'state', 'ciudad', 'city', 'tienda', 'store', 'producto', 'product', 'campa', 'cliente', 'customer'];
-const rangoDim = (col) => { const c = col.toLowerCase(); const i = ORDEN_DIM.findIndex(p => c.startsWith(p) || c.includes(p)); return i < 0 ? 99 : i; };
+const PERIODO = rx(reglas.periodo);
+const NO_DIMENSION = rx(reglas.noDimension);
+export const CORREO = rx(reglas.correo);
+const ORDEN_DIM = reglas.ordenDimensiones;
+export const rangoDim = (col) => { const c = String(col).toLowerCase(); const i = ORDEN_DIM.findIndex(p => c.startsWith(p) || c.includes(p)); return i < 0 ? 99 : i; };
+
+/**
+ * El papel de una columna a partir de lo que se sabe de ella, venga de unas filas
+ * (el gráfico) o de un perfil ya calculado (Data Profiler):
+ *   { nombre, numerica, entera, fecha, objeto, distintos, valores (no nulos), n (filas), largo (medio), secuencia }
+ */
+export function papelDe({ nombre, numerica, entera, fecha, objeto, distintos = 0, valores = 0, n = 0, largo = 0, secuencia = false }) {
+    const periodo = PERIODO.test(nombre);
+    if (objeto) return 'texto';
+    if (fecha) return 'fecha';
+    if (periodo && (!numerica || (entera && distintos <= 60))) return 'dimension';      // mes, día de la semana, año
+    if (IDENTIFICADOR.test(nombre) || secuencia) return 'identificador';
+    if (numerica) {
+        // Un entero con muy pocos valores (un estado 0/1, un nivel) se lee mejor como categoría.
+        return entera && distintos <= 6 && distintos < n * 0.5 && !IMPORTE.test(nombre) && !CANTIDAD.test(nombre) ? 'dimension' : 'medida';
+    }
+    if (NO_DIMENSION.test(nombre) || largo > 60 || (distintos > 50 && distintos > Math.max(n, valores) * 0.8)) return 'texto';
+    return 'dimension';
+}
+
+/** Cuánto parece la medida principal (la que más, va al eje Y). */
+export function pesoDeMedida(nombre, entera) {
+    let peso = 0;
+    if (IMPORTE.test(nombre)) peso += 3;
+    if (CANTIDAD.test(nombre)) peso += 2;
+    if (!entera) peso += 1;
+    if (COCIENTE.test(nombre)) peso -= 3;
+    return peso;
+}
 
 const esNumeroTexto = (v) => typeof v === 'string' && /^-?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(v.trim());
 const comoNumero = (v) => (typeof v === 'number' ? v : esNumeroTexto(v) ? Number(v) : NaN);
@@ -64,25 +99,8 @@ export function perfilarColumnas(filas, tipos = {}) {
             secuencia = nums.every((x, i) => i === 0 || x - nums[i - 1] === 1) && nums[0] <= 1;
         }
 
-        let papel;
-        if (objeto) papel = 'texto';
-        else if (fecha) papel = 'fecha';
-        else if (periodo && (!numerica || (entera && distintos <= 60))) papel = 'dimension';      // mes, día de la semana, año
-        else if (IDENTIFICADOR.test(nombre) || secuencia) papel = 'identificador';
-        else if (numerica) {
-            // Un entero con muy pocos valores (un estado 0/1, un nivel) se lee mejor como categoría.
-            papel = entera && distintos <= 6 && distintos < n * 0.5 && !IMPORTE.test(nombre) && !CANTIDAD.test(nombre) ? 'dimension' : 'medida';
-        } else if (NO_DIMENSION.test(nombre) || largo > 60 || (distintos > 50 && distintos > n * 0.8)) papel = 'texto';
-        else papel = 'dimension';
-
-        // Cuánto parece la medida principal: el que más, va al eje Y.
-        let pesoMedida = 0;
-        if (papel === 'medida') {
-            if (IMPORTE.test(nombre)) pesoMedida += 3;
-            if (CANTIDAD.test(nombre)) pesoMedida += 2;
-            if (!entera) pesoMedida += 1;
-            if (COCIENTE.test(nombre)) pesoMedida -= 3;
-        }
+        const papel = papelDe({ nombre, numerica, entera, fecha, objeto, distintos, valores: valores.length, n, largo, secuencia });
+        const pesoMedida = papel === 'medida' ? pesoDeMedida(nombre, entera) : 0;
         return {
             nombre, indice, tipo, papel, distintos, numerica, entera,
             // La columna que no se repite en ninguna fila: es lo que agrupa el resultado.
