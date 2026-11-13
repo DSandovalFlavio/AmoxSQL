@@ -1,0 +1,414 @@
+/* ── Memories Panel ── */
+.mem-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.mem-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0 12px;
+}
+
+.mem-panel__refresh-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: 4px;
+  border-radius: var(--radius-sm, 4px);
+  display: flex;
+  align-items: center;
+}
+
+.mem-panel__refresh-btn:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.mem-panel__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.mem-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mem-item {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+  background: var(--surface-raised);
+}
+
+.mem-item__view {
+  padding: 10px 12px;
+  position: relative;
+}
+
+.mem-item__badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: 1px solid;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.mem-item__content {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  padding-right: 48px;
+}
+
+.mem-item__actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.mem-item:hover .mem-item__actions {
+  opacity: 1;
+}
+
+.mem-item__action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px 6px;
+  font-size: 11px;
+}
+
+.mem-item__action-btn:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.mem-item__action-btn--delete:hover {
+  color: var(--color-error-text);
+  border-color: var(--feedback-error-border);
+}
+
+.mem-item__action-btn--save {
+  color: var(--color-success-text);
+  border-color: var(--feedback-success-border);
+}
+
+.mem-item__action-btn--save:hover {
+  background: var(--color-success-bg);
+}
+
+.mem-item__action-btn--cancel {
+  color: var(--text-muted);
+}
+
+.mem-item__edit {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mem-item__category-select {
+  font-size: 11px;
+  padding: 4px 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary);
+  width: fit-content;
+}
+
+.mem-item__textarea {
+  font-size: 12px;
+  padding: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary);
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+}
+
+.mem-item__textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.mem-item__edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Fase 2 — EditorPane History Panel Overlay
+═══════════════════════════════════════════════════════════════════ */
+
+.ep-history-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100%;
+  z-index: 200;
+  background: var(--surface-raised);
+  border-left: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ep-slide-in 0.18s ease-out;
+}
+
+@keyframes ep-slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);   opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Fase 2 — ResultsTable Compare button accent
+═══════════════════════════════════════════════════════════════════ */
+
+.rt-action-btn--accent {
+  color: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
+}
+
+.rt-action-btn--accent:hover {
+  background: var(--accent-primary) !important;
+  color: var(--button-text-color) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Fase 2 — CompareResults Modal (.cr-)
+═══════════════════════════════════════════════════════════════════ */
+
+.cr-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.cr-modal {
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.cr-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.cr-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cr-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.cr-labels {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.cr-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+
+.cr-close-btn:hover {
+  background: var(--surface-raised);
+  color: var(--text-primary);
+}
+
+.cr-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.cr-key-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cr-key-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.cr-key-input {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  min-width: 140px;
+}
+
+.cr-stats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cr-stat-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--cr-section-color, var(--border-color));
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--cr-section-color, var(--text-secondary));
+  transition: background 0.15s;
+}
+
+.cr-stat-btn.active,
+.cr-stat-btn:hover {
+  background: var(--cr-section-color, var(--border-color));
+  color: #fff;
+}
+
+.cr-stat-count {
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.cr-stat-label {
+  font-size: 11px;
+}
+
+.cr-body {
+  flex: 1;
+  overflow: auto;
+  padding: 0;
+}
+
+.cr-mini-table-wrap {
+  overflow: auto;
+  height: 100%;
+}
+
+.cr-mini-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cr-mini-th {
+  padding: 7px 10px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.cr-mini-td {
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border-subtle, var(--border-color));
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cr-mini-row.cr-added td {
+  background: var(--color-success-bg);
+}
+
+.cr-mini-row.cr-removed td {
+  background: var(--color-error-bg);
+}
+
+.cr-mini-row.cr-unchanged td {
+  background: transparent;
+}
+
+.cr-null {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/* Una celda que cambió: el valor de A tachado y el de B al lado. */
+.cr-cambio { color: var(--feedback-warning-text, var(--text-primary)); }
+.cr-cambio s { color: var(--text-tertiary); }
+
+.cr-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Fase 2 — SettingsModal stg-save-btn (used in Formatter section)
+═══════════════════════════════════════════════════════════════════ */
+

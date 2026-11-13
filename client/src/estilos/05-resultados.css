@@ -1,0 +1,699 @@
+/* ═══════════════════════════════════════════════
+   RESULTS TABLE — Linear: clean data grid
+   Minimal borders, clear hierarchy, compact density
+   ═══════════════════════════════════════════════ */
+.rt-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ── Results Toolbar ── */
+.rt-toolbar {
+  padding: 6px 12px;
+  background: var(--surface-base);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.rt-toolbar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rt-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rt-toolbar-right {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ── View Switcher (segmented control) ── */
+.rt-view-switcher {
+  display: flex;
+  background-color: var(--surface-inset);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  gap: 1px;
+}
+
+.rt-view-btn {
+  padding: 3px 10px;
+  border: none;
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  background-color: transparent;
+  color: var(--text-tertiary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.rt-view-btn:hover {
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  border-color: transparent;
+}
+
+.rt-view-btn.active {
+  background-color: var(--accent-primary);
+  color: var(--surface-base);
+  font-weight: var(--weight-semibold);
+}
+
+.rt-view-btn.active:hover {
+  border-color: transparent;
+}
+
+.rt-stats {
+  color: var(--text-disabled);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+/* ── Search Input ── */
+.rt-search {
+  position: relative;
+}
+
+.rt-search-input {
+  background-color: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  padding: 3px 8px 3px 26px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  width: 160px;
+  transition: border-color var(--transition-fast), width var(--transition-base);
+}
+
+.rt-search-input:focus {
+  border-color: var(--accent-primary);
+  width: 200px;
+}
+
+.rt-search-icon {
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-disabled);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+/* ── Action Buttons (small, ghost-style) ── */
+.rt-action-btn {
+  padding: 3px 8px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.rt-action-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+/* ── Pagination Footer (below table) ── */
+.rt-pagination-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 4px 8px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--text-xs);
+  color: var(--text-disabled);
+  flex-shrink: 0;
+}
+
+/* ── Filter button in view switcher ── */
+.rt-filter-btn.active {
+  color: var(--accent-primary);
+  background-color: var(--accent-subtle);
+}
+
+/* ── Wide-result banner + column windowing (results with 100s-1000s of cols) ── */
+.rt-wide-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--feedback-warning-bg);
+  border: 1px solid var(--feedback-warning-border, var(--border-subtle));
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.rt-wide-banner svg {
+  flex-shrink: 0;
+  color: var(--feedback-warning);
+}
+
+.rt-wide-banner-link {
+  background: transparent;
+  border: none;
+  color: var(--accent-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  padding: 2px 4px;
+  text-decoration: underline;
+}
+
+.rt-col-paginator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.rt-col-paginator-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.rt-col-paginator-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--border-default);
+}
+
+.rt-col-paginator-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.rt-column-picker {
+  left: auto;
+  right: 0;
+  width: 260px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rt-column-picker-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.rt-column-picker-actions button {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.rt-column-picker-actions button:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.rt-column-picker-list {
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rt-column-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-mono);
+}
+
+.rt-column-picker-item:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.rt-column-picker-item input[type="checkbox"] {
+  accent-color: var(--accent-primary);
+  flex-shrink: 0;
+}
+
+.rt-column-picker-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rt-pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rt-pagination-btn {
+  padding: 1px 6px;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.rt-pagination-btn:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--border-default);
+}
+
+.rt-pagination-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.rt-page-info {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.rt-page-select {
+  margin-left: 8px;
+  background: var(--surface-inset);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+
+/* ── Content Area ── */
+.rt-content {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.rt-content.report-mode {
+  overflow: visible;
+  border: none;
+}
+
+/* ── Table Grid — Linear: minimal borders ── */
+.rt-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  width: 100%;
+  font-family: var(--font-mono);
+}
+
+.rt-thead {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.rt-th {
+  position: relative;
+  background-color: var(--surface-raised);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-default);
+  border-right: none;
+  min-width: 50px;
+  padding: 5px 8px;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+  text-align: left;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.rt-th-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  gap: 4px;
+}
+
+.rt-th-col {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.rt-th-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+}
+
+.rt-th-type {
+  font-size: var(--text-mini);
+  color: var(--text-disabled);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.rt-th-sort {
+  font-size: var(--text-mini);
+  opacity: 0.6;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* ── Column Resize Handle ── */
+.rt-th-resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: col-resize;
+  background-color: transparent;
+  z-index: 10;
+  transition: background-color 0.1s;
+}
+
+.rt-th-resizer:hover {
+  background-color: var(--accent-muted);
+}
+
+.rt-th-resizer.active {
+  background-color: var(--accent-primary);
+}
+
+/* ── Filter Row ── */
+.rt-filter-cell {
+  padding: 3px 4px;
+  background-color: var(--surface-raised);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rt-filter-input {
+  width: 100%;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-inset);
+  color: var(--text-primary);
+  font-size: var(--text-mini);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.rt-filter-input:focus {
+  border-color: var(--accent-primary);
+}
+
+/* ── Data Cells ── */
+.rt-td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-right: none;
+  font-size: inherit;
+  color: var(--text-secondary);
+}
+
+.rt-td:first-child {
+  color: var(--text-primary);
+}
+
+tr:hover .rt-td {
+  background-color: var(--hover-bg);
+}
+
+/* ── Row-number gutter ── */
+.rt-rownum-th,
+.rt-rownum-td,
+.rt-rownum-filter {
+  width: 54px;
+  min-width: 54px;
+  max-width: 54px;
+  text-align: right;
+  padding-right: 10px;
+}
+
+.rt-rownum-inner {
+  justify-content: flex-end;
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+/* Specificity has to beat `.rt-td:first-child`, which would otherwise paint the
+   gutter with the primary text colour. */
+.rt-td.rt-rownum-td {
+  color: var(--text-disabled);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+/* ── Pinned columns ──
+   Sticky on both edges at once, so a pinned column parks against whichever
+   side it was about to scroll off. Needs an opaque background or the scrolling
+   columns underneath show through. */
+.rt-th--pinned {
+  z-index: 6;
+  background-color: var(--surface-raised);
+}
+
+.rt-td--pinned {
+  z-index: 2;
+  background-color: var(--surface-base);
+}
+
+/* Row hover is a translucent token, so compose it over the opaque base as a
+   background-image instead of replacing background-color. */
+tr:hover .rt-td--pinned {
+  background-image: linear-gradient(var(--hover-bg), var(--hover-bg));
+}
+
+.rt-th--pinned .rt-th-name {
+  color: var(--accent-primary);
+}
+
+/* ── Pin toggle in the column header ── */
+.rt-th-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  color: var(--text-tertiary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.rt-th:hover .rt-th-pin,
+.rt-th-pin:focus-visible,
+.rt-th-pin.active {
+  opacity: 1;
+}
+
+.rt-th-pin:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-bg);
+}
+
+.rt-th-pin.active {
+  color: var(--accent-primary);
+}
+
+/* ── Cell Peek — full value of one cell ── */
+.rt-cell-peek-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+}
+
+.rt-cell-peek {
+  position: fixed;
+  z-index: 99999;
+  width: 440px;
+  max-width: calc(100vw - 16px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.rt-cell-peek-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px 5px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-base);
+}
+
+.rt-cell-peek-col {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.rt-cell-peek-len {
+  flex-shrink: 0;
+  font-size: var(--text-mini);
+  color: var(--text-tertiary);
+}
+
+.rt-cell-peek-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.rt-cell-peek-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.rt-cell-peek-body {
+  width: 100%;
+  height: 220px;
+  resize: vertical;
+  border: none;
+  outline: none;
+  padding: 10px;
+  background: var(--surface-raised);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rt-null {
+  color: var(--text-disabled);
+  font-style: italic;
+}
+
+.rt-float {
+  cursor: help;
+  border-bottom: 1px dotted var(--text-disabled);
+}
+
+.rt-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-disabled);
+}
+
+.rt-no-results {
+  padding: 10px;
+  color: var(--text-tertiary);
+}
+
+/* ── View Panels (Chart/Profile) ── */
+.rt-panel {
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+}
+
+.rt-panel.hidden {
+  display: none;
+}
+
+.rt-panel.visible {
+  display: flex;
+}
+
+.rt-panel.chart {
+  overflow: hidden;
+  min-height: 200px;
+}
+
+.rt-panel.profile {
+  overflow: hidden;
+}
+
+/* ── Export Dropdown sections ── */
+
+.rt-dropdown-subtext {
+  padding: 0 12px 4px;
+  font-size: var(--text-mini);
+  color: var(--text-tertiary);
+  line-height: 1.35;
+  max-width: 280px;
+}
+

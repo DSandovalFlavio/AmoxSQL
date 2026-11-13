@@ -1,0 +1,530 @@
+:root {
+  /* ═══════════════════════════════════════════════════════════════
+     AMOXSQL DESIGN SYSTEM v2.0 — oklch Perceptual Color Engine
+
+     Built on Linear's design principle: perceptually uniform color
+     space ensures equal visual weight across the entire palette.
+     oklch(Lightness Chroma Hue) + color-mix for derived variants.
+
+     • Surfaces: oklch with consistent L steps for elevation
+     • Accent: oklch primary → color-mix auto-derives muted/subtle
+     • Feedback: oklch base → color-mix derives bg/border/text
+     • New: syntax, type, typography, spacing, radius tokens
+     ═══════════════════════════════════════════════════════════════ */
+
+  /* ── Surface Hierarchy (oklch — lowest → highest elevation) ──
+     El croma subió (.006→.012) para que los neutros se lean como elegidos y no
+     como gris puro. Es imperceptible como "color" y perceptible como intención;
+     los temas con superficies en hex (onyx, amoxdark) no se ven afectados. */
+  --surface-base:    oklch(0.145 0.012 270);   /* ≈ #101216 */
+  --surface-raised:  oklch(0.175 0.014 270);   /* ≈ #181A20 */
+  --surface-overlay: oklch(0.195 0.014 270);   /* ≈ #1E2027 */
+  --surface-inset:   oklch(0.160 0.013 270);   /* ≈ #14161B */
+
+  /* Monaco code-editor canvas bg: SIN DEFINIR a proposito, y ahora ningun tema
+     lo define tampoco. El lienzo del editor de cada tema es su propio
+     --surface-base, resuelto en JS via var(--monaco-editor-bg,
+     var(--surface-base)) en monacoTheme.js.
+     Definirlo aqui como var(--surface-base) NO valdria: la sonda lo leeria una
+     sola vez y no se re-resolveria por tema.
+     El token se queda declarado como concepto por si algun dia un tema quiere
+     un lienzo distinto del resto de sus superficies — pero que sea una decision
+     de ESE tema, no un intercambio entre dos. */
+
+  /* ── Border System (opacity-based for consistency) ──
+     `subtle` subió de .06 a .085: sobre una base de L .145 el valor anterior
+     quedaba por debajo del umbral perceptual y las regiones no se distinguían.
+     NOTA: theme-amoxdark mantiene .06 a propósito — ahí la separación es por
+     elevación y no por líneas (ver el comentario en su bloque). */
+  --border-subtle:  rgba(255, 255, 255, 0.085);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong:  rgba(255, 255, 255, 0.16);
+
+  /* ── Text Hierarchy ── */
+  --text-primary:   rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.56);
+  --text-tertiary:  rgba(255, 255, 255, 0.36);
+  --text-disabled:  rgba(255, 255, 255, 0.20);
+
+  /* ── Accent Color ──
+     El acento se declara DESCOMPUESTO en sus tres componentes oklch, no como un
+     color ya compuesto. La composición (--accent-primary) ocurre una sola vez en
+     `body`. Motivo: la luminosidad es un ajuste del usuario, y para poder
+     sobrescribir SOLO la L sin tocar tono ni croma, la L tiene que ser un token
+     propio. Cada clase .accent-* redefine estos tres; la preferencia del usuario
+     se aplica como estilo inline sobre body y gana a la clase.
+
+     Los tokens DERIVADOS (muted/subtle/focus-ring/color-user) y la propia
+     composición NO pueden vivir en :root: una custom property cuyo valor es
+     `var(...)` resuelve en el elemento donde se DECLARA, y :root es <html>,
+     que no lleva la clase de acento. Declararlos ahí los congelaría en el
+     acento por defecto y todos los acentos volverían a verse cian — el bug
+     exacto del PR #70. El único derivador vive en `body`/`.mode-light`.
+
+     Nota: los temas que fijan su propio acento (.theme-nord, .theme-mist, las
+     variantes .theme-amoxlight.accent-*, etc.) siguen declarando --accent-primary
+     directamente. Su especificidad (>= 0-1-0) gana sobre `body` (0-0-1), así que
+     conservan su color afinado a mano y el ajuste de L no les aplica: en claro
+     el acento necesita una L baja para contrastar y forzarla lo rompería. */
+  --acc-l: 0.730;    /* luminosidad — AJUSTABLE por el usuario (.600 – .950) */
+  --acc-c: 0.155;    /* croma */
+  --acc-h: 195;      /* tono — cian por defecto */
+
+  /* ── Interaction States ── */
+  --hover-bg:   rgba(255, 255, 255, 0.06);
+  --active-bg:  rgba(255, 255, 255, 0.10);
+
+  /* ── Shadows (elevation depth) ── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.6);
+
+  /* ── Modal / dropdown scrim (single source; was ~28 rgba(0,0,0,0.6) copies) ── */
+  --overlay-bg: rgba(0, 0, 0, 0.6);
+
+  /* ── Motion System ──
+     Duration scale + easing curves. Single source of truth for all
+     transitions/animations. Desktop app: snappy by default, no librería.
+     Honored app-wide; neutralized under prefers-reduced-motion (see below). */
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);    /* decelerate — enter/reveal */
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);    /* symmetric — move/morph */
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);     /* gentle overshoot — panels */
+
+  --duration-instant: 80ms;    /* hover/active feedback */
+  --duration-fast:    120ms;   /* most micro-interactions */
+  --duration-base:    200ms;   /* panels, dropdowns, tabs */
+  --duration-slow:    320ms;   /* phase changes, large reveals */
+
+  /* ── Transitions (composed motion tokens) ── */
+  --transition-fast: var(--duration-fast) var(--ease-out);
+  --transition-base: var(--duration-base) var(--ease-out);
+  --transition-slow: var(--duration-slow) var(--ease-spring);
+
+  /* ── Feedback Colors ──
+     Solo los colores BASE, que son literales. Los `-bg` y `-border` se derivan
+     con color-mix sobre el base, o sea que llevan var(), y por eso viven en
+     `body`: aqui se congelarian en estos valores oscuros aunque el tema activo
+     declarase otro base. */
+  --feedback-success:        oklch(0.72 0.19 155);
+  --feedback-success-text:   oklch(0.78 0.17 155);
+  --feedback-error:          oklch(0.65 0.22 25);
+  --feedback-error-text:     oklch(0.72 0.18 25);
+  --feedback-warning:        oklch(0.75 0.16 70);
+  --feedback-warning-text:   oklch(0.80 0.14 70);
+  --feedback-info:           oklch(0.65 0.16 250);
+  --feedback-info-text:      oklch(0.72 0.14 250);
+
+  /* ── Syntax Highlighting Tokens (for Monaco & code display) ── */
+  --syntax-keyword:   oklch(0.72 0.12 280);   /* ≈ #9BA1F2 lavender */
+  --syntax-string:    oklch(0.76 0.10 70);    /* ≈ #D4A76A warm gold */
+  --syntax-number:    oklch(0.78 0.11 60);    /* ≈ #E0A86E amber */
+  --syntax-function:  oklch(0.80 0.09 200);   /* ≈ #6EC5D4 teal */
+  --syntax-comment:   oklch(0.46 0.01 270);   /* ≈ #5C5F66 muted gray */
+  --syntax-type:      oklch(0.79 0.12 235);   /* ≈ #4FC1FF sky blue */
+  --syntax-operator:  oklch(0.78 0.06 60);    /* warm neutral */
+  --syntax-variable:  oklch(0.85 0.04 265);   /* light neutral */
+  --syntax-constant:  oklch(0.80 0.10 150);   /* green-cyan */
+
+  /* ── Semantic Status Aliases ──
+     Los ALIAS (--color-*) NO viven aqui: son `var(--feedback-*)`, y una custom
+     property cuyo valor contiene var() resuelve en el elemento donde se DECLARA.
+     :root es <html>, que no lleva la clase del tema, asi que se congelaban en el
+     valor oscuro por defecto. Se declaran en `body`, junto al resto de derivados.
+     Aqui solo queda el color base de "destructivo", que si es un literal. */
+  --color-destructive: oklch(0.63 0.21 25);
+
+  /* ── Lineage / Node Type Colors (oklch) ── */
+  --node-source-bg:     oklch(0.22 0.04 155);
+  --node-source-border: oklch(0.55 0.18 150);
+  --node-source-text:   oklch(0.75 0.18 150);
+  --node-staging-bg:    oklch(0.22 0.04 85);
+  --node-staging-border:oklch(0.65 0.16 85);
+  --node-staging-text:  oklch(0.80 0.14 85);
+  --node-mart-bg:       oklch(0.22 0.04 250);
+  --node-mart-border:   oklch(0.55 0.16 250);
+  --node-mart-text:     oklch(0.75 0.14 250);
+  --node-other-bg:      oklch(0.22 0.04 310);
+  --node-other-border:  oklch(0.55 0.14 310);
+  --node-other-text:    oklch(0.75 0.12 310);
+
+  /* ── File Icon Colors (oklch for consistency) ── */
+  --icon-folder:   oklch(0.75 0.13 80);    /* warm amber */
+  --icon-sql:      oklch(0.75 0.12 250);   /* blue */
+  --icon-notebook: oklch(0.70 0.15 155);   /* green */
+  --icon-csv:      oklch(0.70 0.14 155);   /* green */
+  --icon-json:     oklch(0.75 0.13 80);    /* amber */
+  --icon-md:       oklch(0.65 0.10 250);   /* blue muted */
+  --icon-parquet:  oklch(0.75 0.10 330);   /* pink */
+  --icon-excel:    oklch(0.55 0.14 155);   /* dark green */
+  /* --icon-default va en `body`: es var(--text-tertiary) y aqui se congelaba. */
+
+  /* ── Database Type Color Tokens ── */
+  --type-integer:  oklch(0.87 0.08 230);      /* ≈ #9cdcfe blue */
+  --type-float:    oklch(0.83 0.06 140);      /* ≈ #b5cea8 green */
+  --type-text:     oklch(0.72 0.10 45);       /* ≈ #ce9178 orange */
+  --type-datetime: oklch(0.67 0.12 250);      /* ≈ #569cd6 blue */
+  --type-boolean:  oklch(0.66 0.10 320);      /* ≈ #c586c0 purple */
+  --type-default:  oklch(0.82 0.06 95);       /* ≈ #dcdcaa yellow */
+
+  /* ── Font Families ── */
+  --font-sans:  'Manrope', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:  'JetBrains Mono', 'Consolas', 'Courier New', monospace;
+  --font-display: 'Manrope', 'Inter', system-ui, sans-serif;
+
+  /* ── Font Weight Scale ── */
+  --weight-normal:   400;
+  --weight-medium:   500;
+  --weight-semibold: 600;
+  --weight-bold:     700;
+
+  /* ── Typography Scale ── */
+  --text-2xs:  0.5rem;     /*  8px — badge micro */
+  --text-xxs:  0.5625rem;  /*  9px — tiny labels */
+  --text-mini: 0.625rem;   /* 10px — compact UI, badges */
+  --text-xs:   0.6875rem;  /* 11px — captions, meta */
+  --text-sm:   0.75rem;    /* 12px — secondary UI */
+  --text-base: 0.8125rem;  /* 13px — body default */
+  --text-md:   0.875rem;   /* 14px — inputs, buttons */
+  --text-lg:   1rem;       /* 16px — section titles */
+  --text-xl:   1.25rem;    /* 20px — page headings */
+  --text-2xl:  1.5rem;     /* 24px — hero/display */
+  --text-3xl:  2rem;       /* 32px — splash/welcome */
+  --text-4xl:  2.25rem;    /* 36px — landing hero */
+
+  /* ── Line Heights ── */
+  --leading-tight:  1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  /* ── Letter Spacing ── */
+  --tracking-tight:  -0.01em;
+  --tracking-normal:  0;
+  --tracking-wide:    0.5px;
+  --tracking-wider:   0.8px;
+
+  /* ── Spacing Scale ── */
+  --space-0:  0;
+  --space-px: 1px;
+  --space-1:  0.25rem;   /* 4px */
+  --space-2:  0.5rem;    /* 8px */
+  --space-3:  0.75rem;   /* 12px */
+  --space-4:  1rem;      /* 16px */
+  --space-5:  1.25rem;   /* 20px */
+  --space-6:  1.5rem;    /* 24px */
+  --space-8:  2rem;      /* 32px */
+  --space-10: 2.5rem;    /* 40px */
+  --space-12: 3rem;      /* 48px */
+
+  /* ── Border Radius Scale ── */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   8px;
+  --radius-xl:   12px;
+  --radius-full: 9999px;
+
+  /* ── Window Title Bar (Electron) ── */
+  --titlebar-height: 40px;   /* espacio para el omnibox y aire alrededor de la marca */
+
+  /* Los ALIAS LEGACY (--editor-bg, --panel-bg, --text-color…) tampoco viven
+     aqui: todos son `var(--otro-token)`. Estan en `body`, con el resto de
+     derivados. */
+}
+
+/* ═══════════════════════════════════════════════
+   ACCENT DERIVADOR — the single source for the derived accent tokens.
+   MUST live on `body` (not :root): a custom property whose value references
+   var(--accent-primary) resolves at its DECLARING element. The accent class
+   (.accent-*) and each theme's default-accent rule both sit on <body>, so
+   declaring the derivador on `body` makes it compute against the ACTIVE accent
+   and follow a user's pick. On :root (html) it would freeze on the default hue
+   — the exact bug that made every accent look cyan. `.mode-light` (also on
+   <body>) overrides the washes with softer light values.
+   ═══════════════════════════════════════════════ */
+body {
+  /* Composición única del acento a partir de los tres componentes. Va aquí y no
+     en :root porque body es quien lleva la clase .accent-*. */
+  --accent-primary:    oklch(var(--acc-l) var(--acc-c) var(--acc-h));
+
+  --accent-muted:      color-mix(in oklch, var(--accent-primary) 18%, transparent);
+  --accent-subtle:     color-mix(in oklch, var(--accent-primary) 8%, transparent);
+  --focus-ring:        color-mix(in oklch, var(--accent-primary) 35%, transparent);
+  --accent-color-user: var(--accent-primary);
+
+  /* ── Alias semanticos (275 usos en la app) ──
+     Van AQUI por la misma razon que los derivados del acento: `var()` resuelve
+     donde se declara. En :root se quedaban con el verde/rojo/ambar del tema
+     oscuro por defecto en 11 de los 13 temas — tambien en los oscuros con
+     paleta propia, no solo en los claros. Medido en Amox Light:
+     --color-success daba #00c66d (el verde brillante del oscuro) en vez del
+     #1f7a48 que declara el tema. `body` lleva la clase del tema, asi que aqui
+     cada alias resuelve contra el --feedback-* que de verdad esta activo. */
+  --color-success:      var(--feedback-success);
+  --color-success-bg:   var(--feedback-success-bg);
+  --color-success-text: var(--feedback-success-text);
+  --color-error:        var(--feedback-error);
+  --color-error-bg:     var(--feedback-error-bg);
+  --color-error-text:   var(--feedback-error-text);
+  --color-warning:      var(--feedback-warning);
+  --color-warning-bg:   var(--feedback-warning-bg);
+  --color-warning-text: var(--feedback-warning-text);
+  --color-info:         var(--feedback-info);
+  --color-info-bg:      var(--feedback-info-bg);
+  --color-info-text:    var(--feedback-info-text);
+  --color-destructive-bg:   color-mix(in oklch, var(--color-destructive) 10%, transparent);
+  --color-destructive-text: oklch(0.70 0.18 25);
+
+  /* ── Fondos y bordes de feedback, derivados del color base ──
+     Hoy no rompian nada porque los diez temas los declaraban uno por uno, pero
+     eran la misma trampa esperando: en cuanto un tema declarase solo el color
+     base, el fondo se habria quedado con el del oscuro. */
+  --feedback-success-bg:     color-mix(in oklch, var(--feedback-success) 10%, transparent);
+  --feedback-success-border: color-mix(in oklch, var(--feedback-success) 25%, transparent);
+  --feedback-error-bg:       color-mix(in oklch, var(--feedback-error) 10%, transparent);
+  --feedback-error-border:   color-mix(in oklch, var(--feedback-error) 25%, transparent);
+  --feedback-warning-bg:     color-mix(in oklch, var(--feedback-warning) 10%, transparent);
+  --feedback-warning-border: color-mix(in oklch, var(--feedback-warning) 25%, transparent);
+  --feedback-info-bg:        color-mix(in oklch, var(--feedback-info) 10%, transparent);
+  --feedback-info-border:    color-mix(in oklch, var(--feedback-info) 25%, transparent);
+
+  /* ── ALIAS LEGACY ── compatibilidad con estilos inline
+     (se iran quitando segun los componentes migren a tokens)
+
+     Estaban en :root, y ahi TODOS se congelaban: `--panel-bg: var(--surface-raised)`
+     resolvia contra el surface-raised de <html>, que es el del tema oscuro por
+     defecto. No se notaba porque los diez bloques de tema los redeclaran igual
+     — pero eso es justo lo que hay que dejar de tener que hacer. */
+  --editor-bg: var(--surface-base);
+  --text-color: var(--text-secondary);
+  --text-active: var(--text-primary);
+  --text-muted: var(--text-tertiary);
+  --icon-default: var(--text-tertiary);
+
+  --sidebar-item-active-bg: var(--active-bg);
+  --border-color: var(--border-default);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: var(--surface-base);
+
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --chart-bg: var(--surface-base);
+  --grid-color: var(--border-default);
+  --tooltip-bg: var(--surface-overlay);
+  --table-row-hover: var(--hover-bg);
+
+  /* ── Resplandor del fondo (consumido por .app-container) ──
+     Van AQUÍ y no en :root por la misma razón que los derivados del acento:
+     --glow-strength-2 se deriva de --glow-strength, y una custom property que
+     contiene var() resuelve en el elemento donde se DECLARA. En :root se
+     congelaría en el valor por defecto y la preferencia del usuario (fase 2,
+     que se aplicará como estilo inline sobre body) no llegaría al segundo halo.
+     La fase 2 solo sobrescribe estos valores; .app-container no se toca. */
+  /* -- Degradado del logo, derivado del acento --
+     Los colores oficiales de la marca son #00ECFF (cian, el que manda) y
+     #0068FF (azul). Lo que se conserva NO son esos dos colores sino la RELACION
+     entre ellos, medida en oklch: el segundo stop esta a L -0.293, C +0.092 y
+     H +55.4 grados del primero. Aplicando ese mismo delta al acento activo, el
+     logo cambia de color pero mantiene el degradado tal como esta disenado.
+     Los valores de aqui son el par de marca y solo actuan de respaldo: App.jsx
+     los recalcula sobre body al cambiar el acento, la L o el tema. El calculo
+     vive en JS porque necesita buscar el croma maximo dentro del gamut sRGB
+     para cada tono y rotar el tono hacia el azul por el camino corto — dos
+     cosas que CSS no sabe expresar. Ver utils/logoGradient.js. */
+  --logo-grad-a: #00ECFF;
+  --logo-grad-b: #0068FF;
+
+  --glow-x:  3%;   --glow-y:  -8%;
+  --glow-x2: 26%;  --glow-y2: -4%;
+
+  /* --glow-strength-user es lo que fija el usuario (0%–50%, default 30%); se
+     aplica como estilo inline sobre body. --glow-strength es el valor EFECTIVO,
+     que el modo claro escala. Separarlos evita que la preferencia del usuario
+     pise la corrección de claro y ensucie el fondo. */
+  --glow-strength:   var(--glow-strength-user, 30%);
+  --glow-strength-2: calc(var(--glow-strength) * 0.43);
+
+  /* Bienvenida: halo del lienzo y tinte del panel derecho. En oscuro el panel no
+     se tinta (0%), solo se oscurece; en claro pasa lo contrario. */
+  --ws-glow: 14%;
+  --ws-panel-tint: 0%;
+}
+
+/* ── Esquina del resplandor — AJUSTABLE por el usuario ──
+   Presets de posición, no coordenadas libres. Cada uno fija los cuatro tokens
+   de golpe (el halo secundario acompaña al principal). Van sobre body, que es
+   donde App.jsx estampa la clase.
+   Ojo: las dos opciones inferiores NO tocan la barra de ventana — el resplandor
+   sale por detrás de la barra de estado. Es otro efecto, no un fallo. */
+body.glow-tl { --glow-x:  3%; --glow-y:  -8%;  --glow-x2: 26%; --glow-y2: -4%;  }
+body.glow-tc { --glow-x: 50%; --glow-y:  -8%;  --glow-x2: 28%; --glow-y2: -4%;  }
+body.glow-tr { --glow-x: 97%; --glow-y:  -8%;  --glow-x2: 74%; --glow-y2: -4%;  }
+body.glow-bl { --glow-x:  3%; --glow-y: 108%;  --glow-x2: 26%; --glow-y2: 104%; }
+body.glow-br { --glow-x: 97%; --glow-y: 108%;  --glow-x2: 74%; --glow-y2: 104%; }
+
+/* En claro el resplandor necesita MAS, no menos. Sobre un fondo casi negro un
+   halo funciona anadiendo luz y hay muchisimo margen hacia arriba; sobre una
+   superficie clara ese margen no existe, asi que un acento claro al 12% no
+   produce nada. Lo que se lee en claro no es luz emitida sino un velo de color,
+   y para eso hace falta subir la mezcla — los temas claros ya definen su acento
+   con una L baja, de modo que tinta en vez de blanquear. */
+.mode-light {
+  --glow-strength: calc(var(--glow-strength-user, 30%) * 0.8);
+  --ws-glow: 30%;        /* el halo del lienzo */
+  --ws-panel-tint: 10%;  /* el panel derecho se tinta en vez de solo oscurecerse:
+                            un panel gris no pega con nada, uno tintado se lee
+                            como decision de diseno */
+  --ws-canvas-l: 0.945;  /* medido: a 0.97 el panel quedaba solo un 8% mas oscuro
+                            que la izquierda, contra el 30% que da el oscuro */
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ICONOS — compensacion optica del trazo en tamanos pequenos
+
+   Lucide esta dibujado a 24 px con un trazo de 2 unidades. El trazo se
+   escala con el icono, asi que el grosor que acaba en pantalla es
+   `2 x tamano / 24`: a 24 px son 2 px, pero a 12 px es 1 px justo y a 10 px
+   son 0,83 px — por debajo del pixel, que el navegador resuelve con un gris
+   claro en vez de una linea. De ahi que un icono pequeno no se vea pequeno:
+   se ve DESTENIDO, y a ojo eso se lee como "chico".
+
+   La aplicacion pone casi todos sus iconos entre 10 y 14 px (1.100 iconos,
+   de los cuales ~860 caen en ese rango), asi que el problema es de toda la
+   interfaz y no de una barra concreta. Corregirlo icono a icono serian
+   1.100 ediciones que se desincronizan a la primera; se corrige aqui, una
+   vez, con la regla que faltaba.
+
+   Los valores no son inventados: son los que ya habia elegido a mano quien
+   escribio `strokeWidth={2.4}` a 15 px y `{2.2}` a 16 px — 1,5 px en
+   pantalla. La rampa de abajo extiende ESE criterio a los demas tamanos, y
+   se tope en 2,75 porque mas grosor empieza a cerrar los huecos de los
+   iconos densos (el engranaje de ajustes es el primero en sufrirlo).
+
+   `[stroke-width="2"]` no esta de adorno: limita la regla a los iconos que
+   siguen con el valor de fabrica. Quien haya puesto un grosor a mano —el
+   2,5 del panel de IA, el 1 del icono de 40 px de un estado vacio— decidio
+   algo, y esa decision no se pisa. Tampoco alcanza a los SVG dibujados a
+   mano de la app: ninguno es un <svg> raiz con estos tres atributos.
+
+   Tamano   Antes    Ahora
+   10 px    0,83 px  1,15 px
+   12 px    1,00 px  1,38 px
+   13 px    1,08 px  1,41 px
+   14 px    1,17 px  1,43 px
+   16 px    1,33 px  1,50 px
+   18 px+   1,50 px+ sin tocar — ahi el trazo de fabrica ya es el correcto
+   ═══════════════════════════════════════════════════════════════ */
+/* Un icono nunca se aplasta.
+
+   Un <svg> dentro de un contenedor flex es un item mas y encoge como
+   cualquier otro cuando el sitio no da — y a diferencia del texto, encogerlo
+   no lo reordena: lo DEFORMA. Un glifo de 18 px sale a 8 px de ancho por 18
+   de alto, y eso a ojo no se lee como "aplastado", se lee como "pequeno".
+   Medido sobre la interfaz en marcha: 15 de los 148 iconos montados estaban
+   asi, el peor el de enviar del compositor de IA (18 -> 8 px, un 44 %) y el
+   asa del panel de IA (10 -> 6 px). La barra del pase era otro.
+
+   `viewBox="0 0 24 24"` ademas de los otros dos atributos deja la regla
+   dentro de Lucide y fuera de todo lo demas: ni Recharts, ni Mermaid, ni los
+   SVG dibujados a mano de la casa (el logotipo va ceñido a `70 42 260 260`,
+   los controles de ventana a `0 0 12 12`) entran aqui.
+
+   El efecto secundario es intencionado: donde antes se deformaba el icono,
+   ahora se recorta o se ajusta el texto de al lado. Es el orden correcto —
+   el texto sabe elidirse, un glifo no. */
+svg[stroke="currentColor"][fill="none"][viewBox="0 0 24 24"] {
+  flex-shrink: 0;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="8"],
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="9"],
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="10"],
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="11"],
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="12"] {
+  stroke-width: 2.75;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="13"] {
+  stroke-width: 2.6;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="14"] {
+  stroke-width: 2.45;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="15"] {
+  stroke-width: 2.4;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="16"] {
+  stroke-width: 2.25;
+}
+
+svg[stroke="currentColor"][fill="none"][stroke-width="2"][width="17"] {
+  stroke-width: 2.1;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ACCESSIBILITY — Reduced Motion
+   Honor the OS "reduce motion" setting app-wide. We keep opacity
+   changes (instant) but strip movement and looping animation so the
+   UI stays calm. Looping spinners are slowed rather than frozen so
+   loading states still read as "working".
+   ═══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Keep loaders legible: slow, non-jarring rotation instead of frozen */
+  .amox-spin,
+  [class*="spin"] {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARED SPINNER — single keyframe + utility class
+   Replaces the per-feature spin keyframes (ai-spin, ext-spin, …).
+   Usage: <LuLoader className="amox-spin" /> or compose the keyframe
+   with `animation: spin <dur> linear infinite`.
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.amox-spin {
+  animation: spin 0.9s linear infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOTION UTILITIES — reusable enter animations (tokens only)
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes amox-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes amox-fade-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* IDE shell fades in on mount — smooths the Welcome → IDE handoff */
+.app-enter { animation: amox-fade-in var(--duration-slow) var(--ease-out); }
+
+/* Generic helpers any component can opt into */
+.amox-fade-in { animation: amox-fade-in var(--duration-base) var(--ease-out); }
+
+/* Sidebar keep-alive panels fade in when they become the active tab.
+   Zero-cost otherwise — the panel stays mounted; only re-runs on switch. */
+.sidebar-keepalive--show { animation: amox-fade-in var(--duration-base) var(--ease-out); }
+
+/* Revealed tree children (table columns, schema tables) fade in on expand */
+.tree-reveal { animation: amox-fade-in var(--duration-fast) var(--ease-out); }
+
+/* ── B5: global keyboard-focus ring (accessible, token-driven) ──
+   :where() keeps specificity 0 so any component's own focus style wins;
+   :focus-visible scopes it to keyboard nav, never mouse clicks. */
+:where(button, [role="button"], a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+

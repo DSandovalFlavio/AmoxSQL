@@ -1,0 +1,1041 @@
+/* ═══════════════════════════════════════════════
+   MODE LAYER — light-vs-dark tokens shared by ALL themes of that mode.
+   :root already holds the DARK values (info/nodes/icons), inherited by every
+   dark theme. This block supplies the LIGHT versions to EVERY light theme —
+   cada uno tiene su propia clase de tema, asi que sin esta capa heredarian los
+   valores oscuros (nodos negros, texto de info ilegible). Va antes de los
+   bloques de tema para que un tema pueda seguir pisando un token de modo si de
+   verdad necesita una variante tintada.
+   ═══════════════════════════════════════════════ */
+.mode-light {
+  /* Info feedback — no light theme defined it; all inherited dark blue (~2.4:1) */
+  --feedback-info:        oklch(0.52 0.17 250);
+  --feedback-info-bg:     color-mix(in oklch, var(--feedback-info) 8%, transparent);
+  --feedback-info-border: color-mix(in oklch, var(--feedback-info) 20%, transparent);
+  --feedback-info-text:   oklch(0.48 0.17 250);
+  /* Los --color-info* ya no se repiten aqui: el derivador de `body` los compone
+     contra estos valores, porque .mode-light tambien va en el body. */
+
+  /* Lineage / node type colors — light variants (bg pale, text dark) */
+  --node-source-bg:     oklch(0.95 0.03 155);
+  --node-source-border: oklch(0.55 0.18 150);
+  --node-source-text:   oklch(0.40 0.16 150);
+  --node-staging-bg:    oklch(0.95 0.03 85);
+  --node-staging-border:oklch(0.60 0.16 85);
+  --node-staging-text:  oklch(0.45 0.14 85);
+  --node-mart-bg:       oklch(0.95 0.03 250);
+  --node-mart-border:   oklch(0.55 0.16 250);
+  --node-mart-text:     oklch(0.40 0.14 250);
+  --node-other-bg:      oklch(0.95 0.03 310);
+  --node-other-border:  oklch(0.55 0.14 310);
+  --node-other-text:    oklch(0.40 0.12 310);
+
+  /* File icon colors — darker for legibility on light surfaces */
+  --icon-folder:   oklch(0.60 0.14 80);
+  --icon-sql:      oklch(0.55 0.14 250);
+  --icon-notebook: oklch(0.50 0.16 155);
+  --icon-csv:      oklch(0.50 0.14 155);
+  --icon-json:     oklch(0.60 0.14 80);
+  --icon-md:       oklch(0.50 0.10 250);
+  --icon-parquet:  oklch(0.55 0.12 330);
+  --icon-excel:    oklch(0.42 0.14 155);
+  --icon-default:  var(--text-tertiary);
+
+  /* Accent derivation, light variant. The `body` block derives the DARK washes
+     (18/8/35); light backgrounds need softer washes so the accent tints don't
+     overpower. `.mode-light` also sits on <body>, so it resolves against the
+     active accent just like the base `body` derivador. Accent classes only set
+     --accent-primary; these are the only place the derived washes are declared. */
+  --accent-muted:   color-mix(in oklch, var(--accent-primary) 15%, transparent);
+  --accent-subtle:  color-mix(in oklch, var(--accent-primary) 6%, transparent);
+  --focus-ring:     color-mix(in oklch, var(--accent-primary) 35%, transparent);
+
+  /* ══ PROFUNDIDAD, VELO E INTERACCION ══
+     Los cuatro bloques de abajo estaban escritos como la imagen especular de
+     los del oscuro, con el mismo alfa. Y ese es justo el error: sobre fondo
+     oscuro un efecto funciona AÑADIENDO luz y hay muchisimo margen; sobre papel
+     ese margen no existe. Copiar la receta con el alfa bajado no da sutileza,
+     da nada. Medido: superficies separadas por 1.05, bordes a 1.14 y sombras a
+     0.06 — los tres a la vez, y son los tres que hacen el mismo trabajo. Por eso
+     el modo claro se lee plano.
+
+     Todos se derivan de --text-primary, la tinta del tema. Antes cada bloque de
+     tema escribia su propio rgba a mano y los tres acababan con pesos visuales
+     distintos; derivandolos, un mismo alfa da el mismo resultado en los tres y
+     cada uno conserva su matiz. Ojo: por eso hubo que QUITAR --shadow-*,
+     --hover-bg y --active-bg de los bloques de tema; con la misma especificidad
+     (0-1-0) y estando despues en el archivo, ganaban ellos. */
+
+  /* El velo de los dialogos. :root lo deja en negro al 60 %, que sobre papel
+     manda la app entera a casi-negro y deja el dialogo blanco flotando: es el
+     cambio mas brusco que hay en claro. Al 45 % de la tinta del tema el fondo se
+     apaga lo justo y el dialogo conserva ~3:1 contra el, el piso de contraste no
+     textual. */
+  --overlay-bg: color-mix(in srgb, var(--text-primary) 45%, transparent);
+
+  /* Sombras: en claro son la UNICA pista de profundidad que queda. */
+  --shadow-sm: 0 1px 2px  color-mix(in srgb, var(--text-primary) 10%, transparent);
+  --shadow-md: 0 4px 12px color-mix(in srgb, var(--text-primary) 16%, transparent);
+  --shadow-lg: 0 8px 30px color-mix(in srgb, var(--text-primary) 22%, transparent);
+
+  /* Estados: medidos contra el oscuro (hover 1.14, active 1.30), que es el que
+     ya esta aprobado. Los claros iban en 1.09-1.11 y 1.15-1.20. */
+  --hover-bg:  color-mix(in srgb, var(--text-primary) 7%, transparent);
+  --active-bg: color-mix(in srgb, var(--text-primary) 12.5%, transparent);
+}
+
+/* ═══════════════════════════════════════════════
+   ACCENT PRESETS (oklch — perceptually uniform)
+   Each preset sets ONLY --accent-primary. muted/subtle/focus-ring/color-user are
+   derived ONCE in :root (dark washes) and .mode-light (softer light washes); the
+   color-mix reads var(--accent-primary), which re-resolves per element, so the
+   picked accent flows into every derived token automatically.
+   Presets flow from bright cyan → deep blue.
+   ═══════════════════════════════════════════════ */
+
+.accent-linear {
+  --acc-l: 0.53; --acc-c: 0.14; --acc-h: 277;   /* Linear Blue */     /* Linear Blue */
+}
+
+.accent-islands {
+  --acc-l: 0.650; --acc-c: 0.173; --acc-h: 262.7;   /* Islands Blue (era #548af7) */                  /* Islands Blue — JetBrains Dark */
+}
+
+.accent-amox-2 {
+  --acc-l: 0.89; --acc-c: 0.150; --acc-h: 195;   /* ~ #00F5FF */    /* ≈ #00F5FF */
+}
+
+.accent-amox-3 {
+  --acc-l: 0.88; --acc-c: 0.145; --acc-h: 197;   /* ~ #00ECFF */    /* ≈ #00ECFF */
+}
+
+.accent-amox-4 {
+  --acc-l: 0.85; --acc-c: 0.140; --acc-h: 202;   /* ~ #00DAFF */    /* ≈ #00DAFF */
+}
+
+.accent-amox-5 {
+  --acc-l: 0.82; --acc-c: 0.135; --acc-h: 212;   /* ~ #00C8FF */    /* ≈ #00C8FF */
+}
+
+.accent-amox-6 {
+  --acc-l: 0.77; --acc-c: 0.140; --acc-h: 228;   /* ~ #00B6FF */    /* ≈ #00B6FF */
+}
+
+.accent-amox-7 {
+  --acc-l: 0.72; --acc-c: 0.155; --acc-h: 245;   /* ~ #00A3FF */    /* ≈ #00A3FF */
+}
+
+.accent-amox-8 {
+  --acc-l: 0.66; --acc-c: 0.170; --acc-h: 255;   /* ~ #0090FF */    /* ≈ #0090FF */
+}
+
+.accent-amox-9 {
+  --acc-l: 0.61; --acc-c: 0.190; --acc-h: 262;   /* ~ #007CFF */    /* ≈ #007CFF */
+}
+
+.accent-amox-10 {
+  --acc-l: 0.56; --acc-c: 0.210; --acc-h: 268;   /* ~ #0068FF */    /* ≈ #0068FF */
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: EMBER — suelo frio, codigo calido
+
+   El unico tema de la casa donde el calor vive en la SINTAXIS y no en el fondo.
+   Los otros ocho oscuros pintan el codigo en azules, violetas y verdes; aqui el
+   esqueleto del SQL es coral y lo que se lee todo el dia cambia de temperatura
+   sin que el lienzo deje de ser un gris frio.
+
+   Por que 285° y no el tono vecino: la rampa de superficies es de tono fijo y
+   croma bajo (0,012–0,021), o sea un gris con inclinacion violeta, no un violeta.
+   Ese es el sitio exacto para que un acento a 10° —casi el complementario— salte
+   sin pelearse con el fondo.
+
+   Y por que el lienzo es #16161C y no un peldano mas arriba: a L 0,237 el suelo
+   cae a 0,003 de claridad y 12° de tono de Nord Dark, o sea el MISMO color
+   dentro del ruido, y en el selector saldrian dos filas de gris identico.
+   A 0,203 la distancia sube a 0,031 y 23°, que ya se ve.
+
+   El texto y el peldano #0F0F15 estan derivados en el mismo tono 285°; el resto
+   de valores son de la paleta. Medido: el texto principal contrasta 11,8–14,7
+   segun la superficie, el secundario 6,5–8,1, los nueve papeles de sintaxis
+   entre 4,8 y 12,7, y ninguno baja de AA salvo el comentario (3,4), que es la
+   norma de la casa —Nord da 3,26 y Sterling 2,88— porque un comentario tiene que
+   retroceder.
+   ═══════════════════════════════════════════════ */
+.theme-ember {
+  --surface-base:    #16161c;
+  --surface-raised:  #1a1a23;
+  --surface-overlay: #232530;
+  --surface-inset:   #0f0f15;
+
+  --border-subtle:  rgba(226, 226, 235, 0.07);
+  --border-default: rgba(226, 226, 235, 0.11);
+  --border-strong:  rgba(226, 226, 235, 0.18);
+
+  --text-primary:   #e2e2eb;
+  --text-secondary: #a7a8b7;
+  --text-tertiary:  #6c6f93;
+  --text-disabled:  #4d4d63;
+
+  --hover-bg:   rgba(226, 226, 235, 0.05);
+  --active-bg:  rgba(226, 226, 235, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
+
+  /* El coral de firma vive en .theme-ember:not([class*="accent-"]) mas abajo,
+     para que un acento elegido a mano lo gane —mismo patron que Nord. */
+
+  --feedback-success:      #27d796;
+  --feedback-success-bg:   rgba(39, 215, 150, 0.10);
+  --feedback-success-border: rgba(39, 215, 150, 0.22);
+  --feedback-success-text: #27d796;
+  --feedback-error:        #f43e5c;
+  --feedback-error-bg:     rgba(244, 62, 92, 0.10);
+  --feedback-error-border: rgba(244, 62, 92, 0.22);
+  /* El rojo de la paleta da 4,13 como TEXTO sobre la superficie de modales, que
+     se queda corto. Como marca y borde se queda tal cual; para texto va el mismo
+     tono aclarado, que sube a 5,23. Para eso existe el token -text aparte. */
+  --feedback-error-text:   #fb6574;
+  --feedback-warning:      #fac29a;
+  --feedback-warning-bg:   rgba(250, 194, 154, 0.10);
+  --feedback-warning-border: rgba(250, 194, 154, 0.22);
+  --feedback-warning-text: #fac29a;
+  --feedback-info:         #21bfc2;
+  --feedback-info-bg:      rgba(33, 191, 194, 0.10);
+  --feedback-info-border:  rgba(33, 191, 194, 0.22);
+  --feedback-info-text:    #21bfc2;
+
+  /* Sintaxis: los seis calidos/frios de la paleta, repartidos para que dos
+     papeles vecinos en una consulta nunca compartan tono. El numero se va al
+     violeta a proposito —si fuera otro durazno no se distinguiria de la cadena,
+     y en SQL saber si '2024' lleva comillas importa. Nord hace lo mismo. */
+  --syntax-keyword:  #e95678;   /* coral — SELECT/FROM/WHERE, la firma */
+  --syntax-string:   #fab795;   /* durazno */
+  --syntax-number:   #b877db;   /* violeta — separado de la cadena */
+  --syntax-function: #25b2bc;   /* cian */
+  --syntax-comment:  #6c6f93;   /* el apagado de la paleta */
+  --syntax-type:     #fac29a;   /* durazno claro */
+  --syntax-operator: #f09383;   /* salmon */
+  --syntax-variable: #e2e2eb;
+  --syntax-constant: #27d796;   /* verde — TRUE/FALSE/NULL */
+
+  --type-integer:  #b877db;
+  --type-float:    #25b2bc;
+  --type-text:     #fab795;
+  --type-datetime: #e95678;
+  --type-boolean:  #27d796;
+  --type-default:  #a7a8b7;
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(226, 226, 235, 0.03);
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: DEEP DARK — el negro de verdad
+   El unico tema sin tinte: los siete oscuros de la casa llevan entre 2 y 12 de
+   croma y todos tiran a azul. Aqui los tres canales son iguales, asi que un
+   dato con color es lo unico coloreado de la pantalla.
+   Es el espejo de Mist: alli el editor es la superficie mas CLARA y el cromo se
+   retira hacia abajo; aqui el editor es el negro del fondo y el cromo sube.
+   La elevacion es por luminancia, no por sombra: sobre negro una sombra negra
+   no se ve, asi que las capas se separan subiendo y con un filete algo mas vivo
+   que el de Onyx.
+   ═══════════════════════════════════════════════ */
+.theme-deepdark {
+  /* La escalera, afinada a mano en el banco de grises y medida despues.
+     De donde viene: la primera version iba de #000000 a #1a1a1a, 0,218 de
+     claridad —el DOBLE que el siguiente tema mas estirado (Nord, 0,112) y cuatro
+     veces el de Obsidian (0,050)—. Acababa en un gris mas claro que los paneles
+     de Amox Dark, y sobre un lienzo negro puro cada panel aparecia como un gris
+     salido de la nada en vez de como el mismo material un poco mas alto.
+     Ahora el recorrido es 0,075, el segundo mas apretado de la casa detras de
+     Obsidian. Los tres peldanos visibles caben en 24 unidades hex.
+     El unico valor que NO sale tal cual del ajuste a mano es --surface-raised:
+     el elegido era #040405, que deja el escalon lienzo->panel en 1,012 y no pasa
+     el minimo de 1,02 de checkThemeContrast. #060607 son dos unidades mas y lo
+     sube a 1,024. Se movio el panel y no el lienzo a proposito: el lienzo es la
+     superficie mas grande de la pantalla, o sea la que de verdad se juzgo.
+     A esta profundidad el relleno casi no separa, asi que la estructura la
+     llevan los FILETES. Por eso el borde sutil se afino aparte, al 6 %: sobre un
+     lienzo casi negro eso da 1,099 de contraste, dentro del objetivo 1,08-1,30.
+     Mas alfa aqui no dibuja mejor, subraya. */
+  --surface-base:    #020202;
+  --surface-raised:  #060607;
+  --surface-overlay: #0d0d0f;
+  /* Los huecos donde se escribe quedan al ras del lienzo: a esta profundidad
+     hundirlos mas no se ve, y el filete ya los dibuja. */
+  --surface-inset:   #020202;
+
+  --border-subtle:  rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.13);
+  --border-strong:  rgba(255, 255, 255, 0.20);
+
+  --text-primary:   rgba(255, 255, 255, 0.92);
+  --text-secondary: rgba(255, 255, 255, 0.56);
+  --text-tertiary:  rgba(255, 255, 255, 0.36);
+  --text-disabled:  rgba(255, 255, 255, 0.21);
+
+  --hover-bg:   rgba(255, 255, 255, 0.06);
+  --active-bg:  rgba(255, 255, 255, 0.11);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.60);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.70);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.80);
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(255, 255, 255, 0.04);
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: AMOXDARK — signature brand theme
+   Cool-neutral near-black surfaces with a ~6% cyan tint (so data tables and
+   chart series pop, never tinted) + the AmoxSQL cyan as the ONE saturated
+   accent. Syntax is a cool, low-sat family (Tokyo-Night/Rosé-Pine lineage)
+   that leaves cyan as the exclusive "AmoxSQL action/focus" signature.
+   Elevation is by luminance (base→raised→overlay), not borders.
+   ═══════════════════════════════════════════════ */
+.theme-amoxdark {
+  --surface-base:    #0f141a;   /* cool-carbon, ~6% cyan tint */
+  --surface-raised:  #151b22;   /* +~4% L — panels, sidebar, table header */
+  --surface-overlay: #1c242d;   /* +~4% L — modals, popovers, row hover */
+  --surface-inset:   #0c1014;   /* wells: gutter, inputs, code blocks */
+
+  /* Borders barely visible — separation comes from elevation, not lines */
+  --border-subtle:  rgba(190, 214, 232, 0.06);
+  --border-default: rgba(190, 214, 232, 0.10);
+  --border-strong:  rgba(190, 214, 232, 0.18);
+
+  --text-primary:   #e6edf3;   /* cool off-white, ~15:1 */
+  --text-secondary: #9ba9b8;
+  --text-tertiary:  #6a7a8b;
+  --text-disabled:  #46525f;
+
+  /* Brand cyan default lives in .theme-amoxdark:not([class*="accent-"]) below,
+     so a user-picked accent overrides it (consistent with Nord/Islands). */
+
+  --hover-bg:   rgba(190, 214, 232, 0.05);
+  --active-bg:  rgba(190, 214, 232, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
+
+  /* Feedback — cool-leaning, tuned for the dark surfaces */
+  --feedback-success:        #4ade80;
+  --feedback-success-bg:     rgba(74, 222, 128, 0.10);
+  --feedback-success-border: rgba(74, 222, 128, 0.25);
+  --feedback-success-text:   #6ee79b;
+  --feedback-error:          #f87171;
+  --feedback-error-bg:       rgba(248, 113, 113, 0.10);
+  --feedback-error-border:   rgba(248, 113, 113, 0.25);
+  --feedback-error-text:     #fb9a9a;
+  --feedback-warning:        #fbbf24;
+  --feedback-warning-bg:     rgba(251, 191, 36, 0.10);
+  --feedback-warning-border: rgba(251, 191, 36, 0.25);
+  --feedback-warning-text:   #fcd34d;
+  --feedback-info:           #22d3ee;
+  --feedback-info-bg:        rgba(34, 211, 238, 0.10);
+  --feedback-info-border:    rgba(34, 211, 238, 0.25);
+  --feedback-info-text:      #67e8f9;
+
+  /* Syntax — cool & elegant; cyan is reserved for the accent, so tokens use
+     sky/teal/lavender/blue with a single warm amber for numeric literals. */
+  --syntax-keyword:   #7dd3fc;   /* sky — SELECT/FROM/WHERE (structure, calm) */
+  --syntax-string:    #7ee0c0;   /* teal-mint literals */
+  --syntax-number:    #f0a868;   /* warm amber — numeric literals leap out */
+  --syntax-function:  #c4b5fd;   /* lavender/iris — COUNT/SUM */
+  --syntax-comment:   #546475;   /* muted blue-grey, italic */
+  --syntax-type:      #5ea4e0;   /* medium blue — data types, CAST */
+  --syntax-operator:  #89b4c4;   /* teal-grey, low weight */
+  --syntax-variable:  #e6edf3;   /* = text: columns/identifiers stay neutral */
+  --syntax-constant:  #f0c674;   /* gold — TRUE/FALSE/NULL */
+
+  /* Database types (mirror the syntax family) */
+  --type-integer:  #5ea4e0;
+  --type-float:    #7ee0c0;
+  --type-text:     #f0a868;
+  --type-datetime: #c4b5fd;
+  --type-boolean:  #7dd3fc;
+  --type-default:  #f0c674;
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #04141a;   /* dark text on the bright cyan accent */
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(190, 214, 232, 0.035);
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: STERLING DEEP
+   Superficies propias, ancladas en un gris-violeta de croma bajo (#13131f) y
+   con el acento en lima. La PALETA de Sterling se mantiene donde importa —
+   sintaxis, feedback y tipos de dato— asi que el tema sigue leyendose Sterling
+   aunque el suelo ya no venga de alli. Paleta (MIT) © La Matemaga,
+   https://github.com/LaMatemaga/sterling; las superficies y el acento son
+   nuestros.
+
+   El lima y el gris-violeta no chocan con nada aqui porque este es el unico
+   tema cuyo color de exito ya era TEAL (#5ec9ae) y no verde — Sterling lo
+   necesitaba para no competir con su violeta, y ahora nos sirve para no
+   competir con la lima.
+   ═══════════════════════════════════════════════ */
+.theme-sterlingdeep {
+  /* La escalera entera se rederiva desde el lienzo, conservando los MISMOS
+     saltos de luminosidad que tenia: cambiar solo el fondo dejaba los paneles
+     con el matiz anterior y el tema se partia en dos familias de color.
+     De paso los escalones ganan: sobre un lienzo mas claro el mismo salto de L
+     rinde mas contraste (base->panel pasa de 1.025 a 1.048). */
+  --surface-base:    #13131f;   /* app + editor background */
+  --surface-raised:  #181824;   /* panels, sidebar, table header (reference) */
+  --surface-overlay: #202030;   /* modals, popovers, row hover — elevation */
+  --surface-inset:   #0f0f1a;   /* wells: gutter, inputs, code blocks — deepest */
+
+  /* Very quiet borders — muted grey-violet, low chroma. Rederivados al matiz
+     nuevo reproduciendo el contraste que tenian: 1.13 / 1.24 / 1.56. */
+  --border-subtle:  #1e1f2d;
+  --border-default: #262636;
+  --border-strong:  #35364a;
+
+  --text-primary:   #ede9f5;   /* Sterling text — even higher contrast here */
+  --text-secondary: #a99fc4;   /* Sterling muted */
+  --text-tertiary:  #8b7fa8;
+  --text-disabled:  #5c5178;
+
+  /* El acento lima vive en .theme-sterlingdeep:not([class*="accent-"]) mas
+     abajo, para que un acento elegido por el usuario siga mandando. */
+
+  /* El tinte pasa de lavanda al gris-violeta del lienzo, y el alfa se recalcula
+     contra el fondo nuevo para caer en la misma banda que el resto de oscuros
+     (hover 1.12-1.14, activo 1.22-1.30): sale 1.133 y 1.265. */
+  --hover-bg:   rgba(139, 143, 167, 0.10);
+  --active-bg:  rgba(139, 143, 167, 0.17);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.55);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.75);
+
+  /* Feedback — same Sterling families (teal/coral/amber/blue) */
+  --feedback-success:        #5ec9ae;
+  --feedback-success-bg:     rgba(94, 201, 174, 0.10);
+  --feedback-success-border: rgba(94, 201, 174, 0.22);
+  --feedback-success-text:   #78d8c1;
+  --feedback-error:          #f29a88;
+  --feedback-error-bg:       rgba(242, 154, 136, 0.10);
+  --feedback-error-border:   rgba(242, 154, 136, 0.22);
+  --feedback-error-text:     #f6aa9a;
+  --feedback-warning:        #f2c46d;
+  --feedback-warning-bg:     rgba(242, 196, 109, 0.10);
+  --feedback-warning-border: rgba(242, 196, 109, 0.22);
+  --feedback-warning-text:   #f5cb7c;
+  --feedback-info:           #86a8e8;
+  --feedback-info-bg:        rgba(134, 168, 232, 0.10);
+  --feedback-info-border:    rgba(134, 168, 232, 0.22);
+  --feedback-info-text:      #9bb9ef;
+
+  /* Syntax — the 8 Sterling dark categoricals, one per role */
+  --syntax-keyword:   #b69af2;   /* Violet */
+  --syntax-string:    #5ec9ae;   /* Teal */
+  --syntax-number:    #f2c46d;   /* Amber */
+  --syntax-function:  #86a8e8;   /* Blue */
+  --syntax-comment:   #645980;   /* violet-grey, recedes a touch more */
+  --syntax-type:      #e88bdd;   /* Orchid */
+  --syntax-operator:  #b7c8d1;   /* Payne */
+  --syntax-variable:  #ede9f5;
+  --syntax-constant:  #f29a88;   /* Coral */
+
+  --type-integer:  #86a8e8;
+  --type-float:    #5ec9ae;
+  --type-text:     #f2c46d;
+  --type-datetime: #b69af2;
+  --type-boolean:  #e88bdd;
+  --type-default:  #b7c8d1;
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #13131f;   /* la tinta del propio lienzo sobre la lima */
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(196, 181, 253, 0.03);
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: NORD DARK
+   Nord-inspired polar night, darker variant
+   ═══════════════════════════════════════════════ */
+.theme-nord {
+  --surface-base:    #1a1e25;
+  --surface-raised:  #222833;
+  --surface-overlay: #2e3440;
+  --surface-inset:   #151920;
+
+  --border-subtle:  rgba(216, 222, 233, 0.07);
+  --border-default: rgba(216, 222, 233, 0.11);
+  --border-strong:  rgba(216, 222, 233, 0.18);
+
+  --text-primary:   #d8dee9;
+  --text-secondary: #98a4b3;   /* ≥5.5:1 (was 8d99a8 → 5.11 on raised) */
+  --text-tertiary:  #6f7d8f;   /* ≥3.0:1 dark baseline (was 5d6b7d → 2.72) */
+  --text-disabled:  #434c5e;
+
+  --hover-bg:   rgba(216, 222, 233, 0.05);
+  --active-bg:  rgba(216, 222, 233, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.50);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.60);
+
+  /* Nord frost accent lives in .theme-nord:not([class*="accent-"]) below so a
+     picked accent overrides it (was forced here, ignoring the chosen accent). */
+
+  /* Nord-tuned feedback */
+  --feedback-success:      #a3be8c;
+  --feedback-success-bg:   rgba(163, 190, 140, 0.10);
+  --feedback-success-text: #a3be8c;
+  --feedback-error:        #bf616a;
+  --feedback-error-bg:     rgba(191, 97, 106, 0.10);
+  /* El rojo aurora de Nord (#bf616a) se queda en --feedback-error, que es la
+     marca y el borde: ahi no hace falta 4.5. Como TEXTO daba 3.05 sobre la
+     superficie de modales, asi que aqui va aclarado — mismo tono, mas claro.
+     Es justo para lo que existe el token -text separado del base. */
+  --feedback-error-text:   #d6888f;
+  --feedback-warning:      #ebcb8b;
+  --feedback-warning-bg:   rgba(235, 203, 139, 0.10);
+  --feedback-warning-text: #ebcb8b;
+
+  /* Nord syntax */
+  --syntax-keyword:  #81a1c1;
+  --syntax-string:   #a3be8c;
+  --syntax-number:   #b48ead;
+  --syntax-function: #88c0d0;
+  --syntax-comment:  #616e88;
+  --syntax-type:     #8fbcbb;
+  --syntax-operator: #81a1c1;
+  --syntax-variable: #d8dee9;
+  --syntax-constant: #b48ead;
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(216, 222, 233, 0.03);
+}
+
+/* ═══════════════════════════════════════════════
+   DARK THEME: DARK ISLANDS
+   JetBrains-inspired — neutral gray surfaces, warm
+   keyword tokens, teal numbers, purple types
+   ═══════════════════════════════════════════════ */
+.theme-islands {
+  --surface-base:    #181a1d;
+  --surface-raised:  #1e2024;
+  --surface-overlay: #252729;
+  --surface-inset:   #131517;
+
+  --border-subtle:  rgba(188, 190, 196, 0.07);
+  --border-default: rgba(188, 190, 196, 0.12);
+  --border-strong:  rgba(188, 190, 196, 0.20);
+
+  /* Lifted to the Amox dark floors (was 8.8/4.0/2.1 — below the other darks). */
+  --text-primary:   #cdced4;
+  --text-secondary: #9a9ea6;
+  --text-tertiary:  #7e828a;
+  --text-disabled:  #4a4d53;
+
+  --hover-bg:   rgba(188, 190, 196, 0.06);
+  --active-bg:  rgba(188, 190, 196, 0.10);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.55);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.65);
+
+  /* Islands blue lives in .theme-islands:not([class*="accent-"]) below so a
+     picked accent overrides it. */
+
+  /* Feedback — Islands palette */
+  --feedback-success:        #6aab73;
+  --feedback-success-bg:     rgba(106, 171, 115, 0.10);
+  --feedback-success-border: rgba(106, 171, 115, 0.25);
+  --feedback-success-text:   #6aab73;
+  --feedback-error:          #f75464;
+  --feedback-error-bg:       rgba(247, 84, 100, 0.10);
+  --feedback-error-border:   rgba(247, 84, 100, 0.25);
+  --feedback-error-text:     #f9667a;
+  --feedback-warning:        #e8a33e;
+  --feedback-warning-bg:     rgba(232, 163, 62, 0.10);
+  --feedback-warning-border: rgba(232, 163, 62, 0.25);
+  --feedback-warning-text:   #f0b95e;
+  --feedback-info:           #2aacb8;
+  --feedback-info-bg:        rgba(42, 172, 184, 0.10);
+  --feedback-info-border:    rgba(42, 172, 184, 0.25);
+  --feedback-info-text:      #42c6d2;
+
+  /* Syntax — JetBrains Dark Islands palette */
+  --syntax-keyword:  #cf8e6d;  /* warm orange-tan: keywords, storage */
+  --syntax-string:   #6aab73;  /* soft green */
+  --syntax-number:   #2aacb8;  /* teal-cyan */
+  --syntax-function: #56a8f5;  /* soft blue */
+  --syntax-comment:  #555861;  /* muted gray */
+  --syntax-type:     #c77dbb;  /* soft purple: classes, types */
+  --syntax-operator: #bcbec4;  /* neutral text */
+  --syntax-variable: #bcbec4;  /* plain text */
+  --syntax-constant: #e8a33e;  /* warm yellow */
+
+  --editor-bg: var(--surface-base);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --table-row-hover: rgba(188, 190, 196, 0.04);
+}
+
+/* ═══════════════════════════════════════════════
+   SOBER ACCENT PALETTES
+   Muted, professional tones for dark themes
+   ═══════════════════════════════════════════════ */
+.accent-sage {
+  --acc-l: 0.72; --acc-c: 0.10; --acc-h: 155;   /* Muted sage green */     /* Muted sage green */
+}
+
+.accent-amber {
+  --acc-l: 0.78; --acc-c: 0.12; --acc-h: 75;   /* Warm amber/gold */      /* Warm amber/gold */
+}
+
+.accent-rose {
+  --acc-l: 0.68; --acc-c: 0.14; --acc-h: 15;   /* Muted rose/coral */      /* Muted rose/coral */
+}
+
+.accent-lavender {
+  --acc-l: 0.70; --acc-c: 0.12; --acc-h: 300;   /* Soft lavender/purple */     /* Soft lavender/purple */
+}
+
+.accent-steel {
+  --acc-l: 0.68; --acc-c: 0.06; --acc-h: 250;   /* Cool steel blue-grey */     /* Cool steel blue-grey */
+}
+
+.accent-copper {
+  --acc-l: 0.72; --acc-c: 0.10; --acc-h: 50;   /* Warm copper/terracotta */      /* Warm copper/terracotta */
+}
+
+/* ═══════════════════════════════════════════════
+   THEME DEFAULT ACCENTS
+   nord/islands ship a built-in accent. It must apply ONLY when the user
+   hasn't picked one — otherwise (accent class present) the picked accent
+   wins. `:not([class*="accent-"])` scopes the default cleanly; before this,
+   the theme's accent-primary (later in the file) overrode every accent pick.
+   ═══════════════════════════════════════════════ */
+.theme-nord:not([class*="accent-"]) {
+  --accent-primary: #81a1c1;
+}
+.theme-ember:not([class*="accent-"]) {
+  --accent-primary: #e95678;
+}
+.theme-islands:not([class*="accent-"]) {
+  --accent-primary: #548af7;
+}
+/* Amox signature themes: their brand accent (cyan/teal) is the DEFAULT, but a
+   user-picked accent overrides it — same behavior as every other theme. */
+.theme-amoxdark:not([class*="accent-"]) {
+  --accent-primary: #22d3ee;
+}
+.theme-amoxlight:not([class*="accent-"]) {
+  /* El teal de marca, bajado lo justo para llegar a 4.5:1 como texto sobre las
+     cuatro superficies del tema: estaba en 4.05 sobre --surface-inset. */
+  --accent-primary: oklch(0.515 0.092 209.7);   /* ≈ #007584 (era #0a7d8c) */
+}
+/* Sterling themes ship the Sterling "period" accent by default (overridable).
+   Values from Sterling (MIT) © La Matemaga. */
+.theme-sterlingdeep:not([class*="accent-"]) {
+  --accent-primary: #b6f09c;   /* lima — 13.97 sobre el lienzo, 13.33 sobre panel */
+}
+.theme-sterlinglight:not([class*="accent-"]) {
+  /* Mismo tono y croma que el violeta de Sterling, bajado a la banda legible:
+     como texto daba 3.50:1 sobre --surface-inset. */
+  --accent-primary: oklch(0.516 0.192 290.2);   /* ≈ #6B49CB (era #7c5ce0) */
+}
+
+/* ═══════════════════════════════════════════════
+   LIGHT THEME: MIST
+   Cool blue-grey pastels: ultra-low saturation with a subtle blue undertone —
+   softer than pure white, like a foggy morning.
+
+   Mist es el unico claro cuyo `raised` es MAS OSCURO que su `base` (#e8ecf2
+   contra #f2f4f8): el panel se separa hacia abajo, como en los temas oscuros,
+   en vez de subir hacia el blanco. Se queda a proposito. Es lo que le da su
+   caracter, y midiendo separa mejor que los otros dos — escalon base->raised de
+   1.08 contra 1.05 de Amox Light y Sterling Light. Ojo al tocarlo: aqui el
+   “panel” es el color oscuro y el “lienzo” el claro, al reves de lo que se
+   espera leyendo el resto del archivo.
+   ═══════════════════════════════════════════════ */
+.theme-mist {
+  /* ── Surfaces: cool blue-grey pastels ── */
+  --surface-base:    #f2f4f8;   /* cool off-white */
+  --surface-raised:  #e8ecf2;   /* blue-grey cards */
+  --surface-overlay: #ffffff;   /* modals */
+  --surface-inset:   #dce1e9;   /* recessed areas */
+
+  /* ── Borders: cool grey (strong bumped into the canonical range) ── */
+  --border-subtle:  rgba(70, 85, 110, 0.11);
+  --border-default: rgba(70, 85, 110, 0.17);
+  --border-strong:  rgba(70, 85, 110, 0.31);
+
+  /* ── Text: slate tones, never pure black (calibrated ≥ AA floors) ── */
+  --text-primary:   #262d3c;   /* deep slate — ≥10:1 on all surfaces */
+  --text-secondary: #495366;   /* medium slate — ≥5.5:1 */
+  --text-tertiary:  oklch(0.501 0.032 267.2);   /* ≈ #5B6376 (era #5d6578, 4.44:1) */
+  --text-disabled:  oklch(0.593 0.027 263.3);   /* ≈ #767E8F (era #a3acbd, 1.74:1) */
+
+  /* ── Accent: muted indigo — complements cool greys ── */
+  --accent-primary: oklch(0.507 0.103 270.1);   /* ≈ #4E61A0 (era #5568a8, 4.07:1) */
+
+  /* --hover-bg / --active-bg / --shadow-* los pone .mode-light, derivados de
+     --text-primary. Declararlos aqui los volveria a ganar (misma especificidad,
+     y este bloque va despues en el archivo). */
+
+  /* ── Titlebar ── */
+
+  /* ── Feedback: desaturated cool tones ── */
+  --feedback-success:        #4d8a5e;
+  --feedback-success-bg:     rgba(77, 138, 94, 0.08);
+  --feedback-success-border: rgba(77, 138, 94, 0.18);
+  --feedback-success-text:   oklch(0.490 0.094 151.0);   /* ≈ #326F44 (era 3.91:1) */
+  --feedback-error:          #c0544e;
+  --feedback-error-bg:       rgba(192, 84, 78, 0.08);
+  --feedback-error-border:   rgba(192, 84, 78, 0.18);
+  --feedback-error-text:     #a5443e;
+  --feedback-warning:        #b08830;
+  --feedback-warning-bg:     rgba(176, 136, 48, 0.08);
+  --feedback-warning-border: rgba(176, 136, 48, 0.18);
+  --feedback-warning-text:   oklch(0.500 0.109 86.2);    /* ≈ #7E5D00 (era 3.15:1) */
+  --color-destructive:       #c0544e;
+  --color-destructive-bg:    rgba(192, 84, 78, 0.08);
+  --color-destructive-text:  #a5443e;
+
+  /* ── Syntax ──
+     "Muted and easy on the eyes" estaba resuelto bajando el croma Y subiendo la
+     luminosidad, y lo segundo es lo que no funciona sobre papel: 6 de las 9
+     caian por debajo de 4.5:1 sobre el lienzo, y el comentario en 2.38 era el
+     mas flojo de los diez temas. Se conserva el tono y el croma de cada una
+     — el caracter apagado del tema no cambia — y solo baja la luminosidad. */
+  --syntax-keyword:   #7c5cc2;   /* soft purple — ya pasaba */
+  --syntax-string:    oklch(0.530 0.083 164.8);   /* ≈ #367B60 (era #468a6e, 3.72) */
+  --syntax-number:    oklch(0.554 0.128 47.4);    /* ≈ #AD5726 (era #c06838, 3.61) */
+  --syntax-function:  oklch(0.542 0.118 260.9);   /* ≈ #466EB3 (era #4a72b8, 4.34) */
+  --syntax-comment:   oklch(0.638 0.024 269.3);   /* ≈ #858B9B (era #9aa0b0, 2.38 —
+                          piso 3.0: un comentario tiene que retroceder, no desaparecer) */
+  --syntax-type:      oklch(0.530 0.078 193.0);   /* ≈ #267A78 (era #3a8a88, 3.69) */
+  --syntax-operator:  oklch(0.545 0.067 60.9);    /* ≈ #8D6747 (era #906a4a, 4.39) */
+  --syntax-variable:  #2c3444;   /* deep slate — ya pasaba */
+  --syntax-constant:  #7c5cc2;   /* soft purple — ya pasaba */
+
+  /* ── Database types ──
+     Son las etiquetas de la cabecera de resultados y del explorador de esquema:
+     salen en cada consulta. Caian 5 de 6, entre 3.36 y 4.25. */
+  --type-integer:  oklch(0.526 0.118 260.9);   /* ≈ #4269AE (era 4.03) */
+  --type-float:    oklch(0.514 0.078 193.0);   /* ≈ #207573 (era 3.43) */
+  --type-text:     oklch(0.536 0.128 47.4);    /* ≈ #A75220 (era 3.36) */
+  --type-datetime: oklch(0.536 0.154 295.4);   /* ≈ #7656BC (era 4.25) */
+  --type-boolean:  oklch(0.512 0.083 164.8);   /* ≈ #30765A (era 3.46) */
+  --type-default:  #566178;
+
+  /* ── Legacy aliases ── */
+  --editor-bg: var(--surface-base);
+  --text-color: var(--text-secondary);
+  --text-active: var(--text-primary);
+  --text-muted: var(--text-tertiary);
+  --sidebar-item-active-bg: var(--active-bg);
+  --border-color: var(--border-default);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #ffffff;
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --chart-bg: var(--surface-base);
+  --grid-color: rgba(70, 85, 110, 0.10);
+  --tooltip-bg: var(--surface-overlay);
+  --table-row-hover: rgba(70, 85, 110, 0.04);
+}
+
+/* ═══════════════════════════════════════════════
+   LIGHT THEME: AMOXLIGHT — signature brand theme (light)
+   Cool-neutral off-white paper with a micro cyan tint (rhymes with the brand,
+   never competes with data), elevation rising toward white, alpha borders, and
+   a dark brand TEAL accent (the cyan logo can't read on light, so it darkens to
+   a legible teal). Syntax is darkened into a narrow lightness band; the brand
+   teal reappears as the data-type color so identity shows up in the SQL itself.
+   ═══════════════════════════════════════════════ */
+.theme-amoxlight {
+  /* Elevation rises toward white (light-mode logic) */
+  --surface-base:    #f1f4f7;   /* the "paper" — cool off-white, micro cyan tint */
+  --surface-raised:  #f8fafb;   /* panels/sidebar/editor/cards */
+  --surface-overlay: #ffffff;   /* modals/popovers/menus */
+  --surface-inset:   #e7ebef;   /* wells: gutter, inputs, empty cells */
+
+  /* Borders by alpha over the ink color — integrate on any surface */
+  --border-subtle:  rgba(28, 37, 48, 0.07);
+  --border-default: rgba(28, 37, 48, 0.12);
+  --border-strong:  rgba(28, 37, 48, 0.20);
+
+  /* Cool blue-grey ink, three real tiers (≥10 / ≥5.5 / ≥4 :1) */
+  --text-primary:   #1c2530;
+  --text-secondary: #41505e;
+  --text-tertiary:  oklch(0.519 0.030 243.1);   /* ≈ #5A6B79 (era #5e6f7d, 4.33:1) */
+  --text-disabled:  oklch(0.615 0.021 245.7);   /* ≈ #7B8691 (era #9aa6b1, 2.07:1) */
+
+  /* Brand teal default lives in .theme-amoxlight:not([class*="accent-"]) below,
+     so a user-picked accent (via the light ramps) overrides it. */
+
+  /* --hover-bg / --active-bg / --shadow-* los pone .mode-light, derivados de
+     --text-primary. Declararlos aqui los volveria a ganar (misma especificidad,
+     y este bloque va despues en el archivo). */
+
+  /* Feedback — darkened for light bg (AA) */
+  --feedback-success:        #1f7a48;
+  --feedback-success-bg:     rgba(31, 122, 72, 0.10);
+  --feedback-success-border: rgba(31, 122, 72, 0.22);
+  --feedback-success-text:   #196a3d;
+  --feedback-error:          #c0392b;
+  --feedback-error-bg:       rgba(192, 57, 43, 0.10);
+  --feedback-error-border:   rgba(192, 57, 43, 0.22);
+  --feedback-error-text:     #a5291c;
+  --feedback-warning:        #b06f10;
+  --feedback-warning-bg:     rgba(176, 111, 16, 0.10);
+  --feedback-warning-border: rgba(176, 111, 16, 0.22);
+  --feedback-warning-text:   #915a08;
+  --feedback-info:           #0a7d8c;
+  --feedback-info-bg:        rgba(10, 125, 140, 0.10);
+  --feedback-info-border:    rgba(10, 125, 140, 0.22);
+  --feedback-info-text:      #086573;
+  --color-destructive:       #c0392b;
+  --color-destructive-bg:    rgba(192, 57, 43, 0.10);
+  --color-destructive-text:  #a5291c;
+
+  /* Syntax — darkened, medium-sat, narrow lightness band; brand teal on types */
+  --syntax-keyword:   #b03a9e;   /* magenta — SELECT/FROM/WHERE, max separation */
+  --syntax-string:    #3f7a1f;   /* olive green literals */
+  --syntax-number:    #8a5a00;   /* dark amber — numerics */
+  --syntax-function:  #1e66c7;   /* blue — COUNT/SUM */
+  --syntax-comment:   #7a8896;   /* desaturated grey, recedes */
+  --syntax-type:      oklch(0.515 0.092 209.7);   /* BRAND TEAL — el mismo valor
+                          exacto que el acento por defecto del tema, para que la
+                          identidad se lea igual en la UI y en el SQL (4.40:1 antes) */
+  --syntax-operator:  #41505e;   /* ink-grey, sober */
+  --syntax-variable:  #1c2530;   /* = text: columns/identifiers neutral */
+  --syntax-constant:  #8a5a00;   /* dark amber — TRUE/FALSE/NULL */
+
+  --type-integer:  #1e66c7;
+  --type-float:    oklch(0.515 0.092 209.7);   /* el teal de marca, como syntax-type */
+  --type-text:     #8a5a00;
+  --type-datetime: #6d3fc4;
+  --type-boolean:  #3f7a1f;
+  --type-default:  #41505e;
+
+  --editor-bg: var(--surface-base);
+  --text-color: var(--text-secondary);
+  --text-active: var(--text-primary);
+  --text-muted: var(--text-tertiary);
+  --sidebar-item-active-bg: var(--active-bg);
+  --border-color: var(--border-default);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #ffffff;
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --chart-bg: var(--surface-base);
+  --grid-color: rgba(0, 0, 0, 0.05);
+  --tooltip-bg: var(--surface-overlay);
+  --table-row-hover: #f9fafb;
+}
+
+/* ═══════════════════════════════════════════════
+   LIGHT THEME: STERLING LIGHT
+   Surface + palette values from Sterling (MIT) © La Matemaga
+   https://github.com/LaMatemaga/sterling — lavender-tinted paper (#f6f3fb)
+   with the Sterling LEGEND palette on syntax: the hue-matched darkened
+   twins that Sterling designed precisely to stay readable as text on
+   light surfaces.
+   ═══════════════════════════════════════════════ */
+.theme-sterlinglight {
+  /* Elevation rises toward white (light-mode logic) */
+  --surface-base:    #f6f3fb;   /* Sterling light "paper" */
+  --surface-raised:  #fbf9fe;   /* Sterling "surface" — panels/sidebar/cards */
+  --surface-overlay: #ffffff;   /* modals/popovers/menus */
+  /* El pozo era #e2dbf0, el "surface-2" de Sterling: un escalon base->inset de
+     1.22 cuando los otros claros van en 1.09. Todo lo que se pinta DENTRO de un
+     pozo — entradas, canaleta del editor, celdas vacias — perdia medio punto de
+     contraste de golpe, y era la causa unica de cuatro de los cinco fallos del
+     tema. Aclararlo es una linea; compensarlo oscureciendo toda la tinta eran
+     seis, y habria cambiado el caracter del tema. */
+  --surface-inset:   #ede8f6;   /* escalon 1.09, igual que Amox Light */
+
+  /* Bordes por alfa sobre la tinta, no lavandas opacos.
+     Sterling los dibuja como colores literales, y por eso --border-subtle se
+     salia del rango por arriba (1.35): un lavanda opaco no puede integrarse
+     sobre cuatro superficies distintas a la vez. Mismos alfas que Amox Light. */
+  --border-subtle:  rgba(36, 26, 61, 0.07);
+  --border-default: rgba(36, 26, 61, 0.12);
+  --border-strong:  rgba(36, 26, 61, 0.20);
+
+  /* Violet ink, three real tiers */
+  --text-primary:   #241a3d;   /* Sterling text */
+  --text-secondary: #5c5178;   /* Sterling muted — 6.02:1 con el pozo aclarado */
+  --text-tertiary:  oklch(0.524 0.066 297.1);   /* ≈ #6E628C (era #7d719c, 3.31:1) */
+  --text-disabled:  oklch(0.619 0.054 297.4);   /* ≈ #897FA3 (era #a99fc4, 2.07:1) */
+
+  /* Sterling's light "period" violet is the DEFAULT accent — the rule lives
+     in .theme-sterlinglight:not([class*="accent-"]) so a user pick overrides. */
+
+  /* --hover-bg / --active-bg / --shadow-* los pone .mode-light, derivados de
+     --text-primary. Declararlos aqui los volveria a ganar (misma especificidad,
+     y este bloque va despues en el archivo). */
+
+  /* Feedback — Sterling legend twins (darkened for light bg, AA):
+     teal=success, coral=error, amber=warning, blue=info */
+  --feedback-success:        #147568;
+  --feedback-success-bg:     rgba(20, 117, 104, 0.10);
+  --feedback-success-border: rgba(20, 117, 104, 0.22);
+  --feedback-success-text:   #0f6156;
+  --feedback-error:          #a94230;
+  --feedback-error-bg:       rgba(169, 66, 48, 0.10);
+  --feedback-error-border:   rgba(169, 66, 48, 0.22);
+  --feedback-error-text:     #93382a;
+  --feedback-warning:        #855700;
+  --feedback-warning-bg:     rgba(133, 87, 0, 0.10);
+  --feedback-warning-border: rgba(133, 87, 0, 0.22);
+  --feedback-warning-text:   #6f4a00;
+  --feedback-info:           #365da5;
+  --feedback-info-bg:        rgba(54, 93, 165, 0.10);
+  --feedback-info-border:    rgba(54, 93, 165, 0.22);
+  --feedback-info-text:      #2c4d8e;
+  --color-destructive:       #a94230;
+  --color-destructive-bg:    rgba(169, 66, 48, 0.10);
+  --color-destructive-text:  #93382a;
+
+  /* Syntax — the 8 Sterling LIGHT legend colors, one per role */
+  --syntax-keyword:   #6945b8;   /* Violet — SELECT/FROM/WHERE */
+  --syntax-string:    #147568;   /* Teal literals */
+  --syntax-number:    #855700;   /* Amber — numerics */
+  --syntax-function:  #365da5;   /* Blue — COUNT/SUM */
+  --syntax-comment:   #8a80a5;   /* violet-grey, recedes */
+  --syntax-type:      #a43a99;   /* Orchid — data types, CAST */
+  --syntax-operator:  #445762;   /* Payne, sober */
+  --syntax-variable:  #241a3d;   /* = text: identifiers neutral */
+  --syntax-constant:  #a94230;   /* Coral — TRUE/FALSE/NULL */
+
+  --type-integer:  #365da5;
+  --type-float:    #147568;
+  --type-text:     #855700;
+  --type-datetime: #6945b8;
+  --type-boolean:  #a43a99;
+  --type-default:  #445762;
+
+  --editor-bg: var(--surface-base);
+  --text-color: var(--text-secondary);
+  --text-active: var(--text-primary);
+  --text-muted: var(--text-tertiary);
+  --sidebar-item-active-bg: var(--active-bg);
+  --border-color: var(--border-default);
+  --header-bg: var(--surface-raised);
+  --input-bg: var(--surface-inset);
+  --button-text-color: #ffffff;
+  --panel-bg: var(--surface-raised);
+  --panel-section-bg: var(--surface-inset);
+  --chart-bg: var(--surface-base);
+  --grid-color: rgba(36, 26, 61, 0.05);
+  --tooltip-bg: var(--surface-overlay);
+  --table-row-hover: #f1ecfa;
+}
+
+/* ═══════════════════════════════════════════════
+   RAMPA DE ACENTOS PARA MODO CLARO
+   Los mismos TONOS que en oscuro. La luminosidad, en cambio, no es una version
+   bajada de la del oscuro: esta clavada en una banda estrecha, L 0.47-0.52.
+
+   Por que clavada. --accent-primary se usa de dos maneras: como TEXTO (146 usos
+   con `color:`) y como RELLENO de boton con texto blanco encima (100 usos con
+   `background`). En oscuro las dos piden lo mismo, un color claro. En claro
+   piden cosas opuestas — el texto quiere oscuro contra el papel, el relleno
+   quiere oscuro para que el blanco encima se lea — y resulta que ambas se
+   cumplen en la misma banda. Fuera de ella fallan las dos a la vez: medido, la
+   mitad turquesa (amox-2 a amox-5) daba 2.5-3.1:1 como texto y 3.3-4.1:1 con
+   blanco encima. Un boton "Aqua" en tema claro no se leia.
+
+   La consecuencia hay que decirla: en claro esta deja de ser una rampa de
+   luminosidad y pasa a ser una rampa de TONO. Los cuatro primeros pasos quedan
+   muy parecidos entre si (teales casi identicos) porque el margen de croma a esa
+   L es el que es. Se prefiere eso a cuatro acentos ilegibles.
+
+   Cuelgan de `.mode-light`, no de la lista de temas claros uno por uno. Antes
+   cada regla enumeraba los cinco temas (27 selectores de 5 clases cada uno) y
+   habia que acordarse de tocarlos al anadir o quitar un tema — es justo lo que
+   se rompio al retirar Light e Ivory. `.mode-light` va en el body de TODOS los
+   temas claros, presentes y futuros.
+
+   Especificidad: 0-2-0, la misma que tenia `.theme-mist.accent-linear`, asi que
+   sigue ganando al acento propio del tema (0-1-0) y no colisiona con las reglas
+   `:not([class*="accent-"])`, que solo aplican cuando NO hay acento elegido.
+   ═══════════════════════════════════════════════ */
+.mode-light.accent-linear  { --accent-primary: oklch(0.507 0.141 277.1); }   /* ≈ #5359B4 */
+.mode-light.accent-amox-2  { --accent-primary: oklch(0.476 0.108 195.6);  --button-text-color: #ffffff; }   /* ≈ #006E70 */
+.mode-light.accent-amox-3  { --accent-primary: oklch(0.478 0.105 198.1);  --button-text-color: #ffffff; }   /* ≈ #006E72 */
+.mode-light.accent-amox-4  { --accent-primary: oklch(0.479 0.102 204.2);  --button-text-color: #ffffff; }   /* ≈ #006D78 */
+.mode-light.accent-amox-5  { --accent-primary: oklch(0.484 0.102 215.0);  --button-text-color: #ffffff; }   /* ≈ #006C82 */
+.mode-light.accent-amox-6  { --accent-primary: oklch(0.490 0.116 233.6);  --button-text-color: #ffffff; }   /* ≈ #006997 */
+.mode-light.accent-amox-7  { --accent-primary: oklch(0.492 0.137 246.1);  --button-text-color: #ffffff; }   /* ≈ #0065A9 */
+.mode-light.accent-amox-8  { --accent-primary: oklch(0.500 0.161 255.3);  --button-text-color: #ffffff; }   /* ≈ #0A61BC */
+.mode-light.accent-amox-9  { --accent-primary: oklch(0.489 0.180 262.0);  --button-text-color: #ffffff; }   /* ≈ #2057C4 */
+.mode-light.accent-amox-10 { --accent-primary: oklch(0.471 0.200 267.9);  --button-text-color: #ffffff; }   /* ≈ #2D49C9 */
+
+/* Acentos sobrios + islands, oscurecidos para fondo claro. Los sobrios ya
+   cumplian los dos usos y no se tocan; islands bajaba de 4.5 como texto por un
+   pelo (4.23). */
+.mode-light.accent-islands { --accent-primary: oklch(0.504 0.179 261.9); }   /* ≈ #245CC8 */
+.mode-light.accent-sage     { --accent-primary: oklch(0.48 0.13 155); }
+.mode-light.accent-amber    { --accent-primary: oklch(0.50 0.13 75); }
+.mode-light.accent-rose     { --accent-primary: oklch(0.52 0.18 15); }
+.mode-light.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
+.mode-light.accent-steel    { --accent-primary: oklch(0.46 0.08 250); }
+.mode-light.accent-copper   { --accent-primary: oklch(0.50 0.13 50); }
+
+/* Form controls don't inherit font-family by default — force them to use the
+   interface font so buttons/inputs/selects everywhere follow --font-sans. */
+button, input, select, textarea, optgroup {
+  font-family: inherit;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--surface-inset);
+  color: var(--text-color);
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  font-weight: var(--weight-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+}
+

@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const CSS = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'index.css'), 'utf8');
+const CSS = require('./estilosDelCliente.cjs').leer();
 
 function srgbToLinear(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
 

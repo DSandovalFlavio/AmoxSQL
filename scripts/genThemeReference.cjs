@@ -5,7 +5,7 @@
  * Se GENERA, no se escribe a mano, y esa es toda la gracia. Una referencia de
  * color escrita a mano empieza siendo verdad y deja de serlo en la primera
  * calibración que nadie se acuerda de copiar; a partir de ahí es peor que no
- * tenerla, porque alguien la usa para decidir. Esta lee `client/src/index.css` y
+ * tenerla, porque alguien la usa para decidir. Esta lee los estilos de `client/src/estilos/` (en el orden de `index.css`) y
  * `DataVisualizer/constants.js` con el MISMO resolvedor que el verificador de
  * contraste (lib/themeTokens.cjs), así que los dos hablan de los mismos colores.
  *
@@ -355,7 +355,7 @@ function pagina() {
 veinte acentos y veinticuatro paletas de gráficos.</p>
 
 <div class="meta">
-  Generado el ${fecha} desde <code>client/src/index.css</code> y
+  Generado el ${fecha} desde <code>client/src/estilos/</code> y
   <code>client/src/components/DataVisualizer/constants.js</code>.<br>
   Para regenerar: <code>node scripts/genThemeReference.cjs</code> —
   no edites este HTML a mano, se sobrescribe.

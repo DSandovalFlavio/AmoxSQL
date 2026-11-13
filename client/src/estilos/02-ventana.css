@@ -1,0 +1,457 @@
+/* ── Window Title Bar ── */
+/* Centrado OPTICO, no geometrico.
+   Centrar el contenido dentro de la propia barra deja los elementos altos: bajo
+   la barra hay un canal de 6px antes de que empiecen las tarjetas del shell, asi
+   que el hueco visible por debajo es 6 (barra) + 6 (canal) frente a 6 por arriba.
+   La banda que el ojo lee va del borde de la ventana al borde de las tarjetas:
+   40 + 6 = 46px. Con box-sizing de borde y 6px de padding superior, el centro del
+   contenido cae en 6 + (40-6)/2 = 23px, que es justo la mitad de esa banda. */
+.window-title-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  box-sizing: border-box;
+  padding-top: 6px;
+  height: var(--titlebar-height);
+  /* Transparente a propósito: deja pasar el resplandor de .app-container.
+     Ojo — la barra es hermana de .app-container, no hija, así que hereda el
+     fondo del body; ver la regla de body más abajo. */
+  background: transparent;
+  color: var(--text-disabled);
+  user-select: none;
+  border-bottom: none;
+  z-index: 9999;
+  position: sticky;
+  top: 0;
+  width: 100%;
+}
+
+.window-title-bar .drag-region {
+  height: 100%;
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+}
+
+.window-title-bar .wtb-left {
+  padding-left: 8px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.window-title-bar .wtb-center {
+  justify-content: center;
+  overflow: visible;
+}
+
+/* ── Slot izquierdo: menú de aplicación + breadcrumb ── */
+.wtb-menu-anchor {
+  -webkit-app-region: no-drag;   /* dentro de .drag-region: recuperar el clic */
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.wtb-appmenu {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--accent-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.wtb-appmenu:hover,
+.wtb-appmenu--open { background: var(--hover-bg); }
+
+.wtb-crumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  white-space: nowrap;
+  min-width: 0;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.wtb-crumb:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.wtb-crumb-project {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wtb-crumb-sep { color: var(--text-disabled); }
+
+/* El workspace de la carpeta abierta (B1), delante del proyecto */
+.wtb-crumb-ws {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.wtb-crumb-ws-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.wtb-crumb-db {
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Slot central: omnibox ──
+   Abre la paleta de comandos, que hasta ahora solo existía como Ctrl+Shift+P.
+   El texto dice "commands" y nada más: la búsqueda de archivos y esquema llega
+   en la fase 8 y prometerla antes sería peor que no tener el campo. */
+.wtb-omnibox {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(420px, 40vw);
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--surface-base) 55%, transparent);
+  color: var(--text-tertiary);
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.wtb-omnibox:hover {
+  background: color-mix(in oklch, var(--surface-base) 78%, transparent);
+  border-color: var(--border-default);
+  color: var(--text-secondary);
+}
+
+.wtb-omnibox-icon { flex: none; }
+
+.wtb-omnibox-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wtb-omnibox-kbd {
+  margin-left: auto;
+  flex: none;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+
+.mode-light .wtb-omnibox-kbd { background: rgba(0, 0, 0, 0.07); }
+
+.wtb-dropdown-item-key {
+  margin-left: auto;
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-disabled);
+}
+
+/* ── Workspace Widget (center of title bar) ── */
+
+.wtb-mode-badge {
+  font-size: 9px;
+  font-weight: var(--weight-semibold);
+  padding: 0px 4px;
+  border-radius: 3px;
+  border: 1px solid;
+  line-height: 14px;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.wtb-mode--readwrite {
+  color: var(--accent-primary);
+  border-color: color-mix(in oklch, var(--accent-primary) 40%, transparent);
+}
+
+.wtb-mode--readonly {
+  color: var(--feedback-warning);
+  border-color: color-mix(in oklch, var(--feedback-warning) 40%, transparent);
+}
+
+.wtb-mode--memory {
+  color: var(--text-tertiary);
+  border-color: var(--border-default);
+}
+
+.wtb-chevron {
+  color: var(--text-tertiary);
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.wtb-chevron--open {
+  transform: rotate(180deg);
+}
+
+/* ── Workspace Dropdown ── */
+.wtb-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  /* Anclado a la izquierda: los dos menús (aplicación y workspace) cuelgan del
+     slot izquierdo. Centrado, como estaba cuando el widget vivía en el centro
+     de la barra, se saldría por el borde de la ventana. */
+  left: 0;
+  min-width: 260px;
+  max-width: 360px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+
+  z-index: 10000;
+  animation: dropdown-in 0.12s ease-out;
+}
+
+.wtb-dropdown-section-label {
+  font-size: 9px;
+  font-weight: var(--weight-semibold);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 6px 10px 4px 10px;
+}
+
+.wtb-dropdown-current {
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: var(--hover-bg);
+  margin: 0 2px 2px 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wtb-dropdown-current-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wtb-dropdown-current-name {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.wtb-dropdown-current-db {
+  font-size: var(--text-xxs);
+  color: var(--text-tertiary);
+}
+
+.wtb-dropdown-current-db .wtb-mode-badge {
+  font-size: 8px;
+  padding: 0 3px;
+  line-height: 12px;
+}
+
+.wtb-dropdown-divider {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 6px;
+}
+
+.wtb-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.wtb-dropdown-item:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.wtb-dropdown-item--danger:hover {
+  background: var(--color-destructive-bg);
+  color: var(--color-destructive-text);
+}
+
+.wtb-dropdown-item-icon {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+}
+
+.wtb-dropdown-item:hover .wtb-dropdown-item-icon {
+  color: var(--text-secondary);
+}
+
+.wtb-dropdown-item--danger:hover .wtb-dropdown-item-icon {
+  color: var(--color-destructive-text);
+}
+
+.wtb-dropdown-item-name {
+  font-weight: var(--weight-medium);
+  flex-shrink: 0;
+}
+
+.wtb-dropdown-item-path {
+  font-size: var(--text-xxs);
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+}
+
+/* ── Window Controls (right side) ── */
+.window-title-bar .wtb-right {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.window-title-bar .window-controls {
+  display: flex;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.window-title-bar .control-btn {
+  width: 46px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 0;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.window-title-bar .control-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.window-title-bar .control-btn.close:hover {
+  background: var(--feedback-error-text) !important;
+  color: #FFFFFF;
+}
+
+.window-title-bar .control-btn svg {
+  shape-rendering: crispEdges;
+}
+
+/* macOS: los botones son los del sistema, a la izquierda (`marcoDeVentana` en
+   electron/main.js). Ocupan 78 px reales, sea cual sea el zoom de la interfaz. */
+:root[data-plataforma="mac"] .window-controls {
+  display: none;
+}
+
+:root[data-plataforma="mac"] .window-title-bar .wtb-left {
+  padding-left: calc(78px / var(--zoom-ventana, 1));
+}
+
+:root[data-plataforma="mac"][data-pantalla-completa] .window-title-bar .wtb-left {
+  padding-left: 8px;
+}
+
+:root[data-plataforma="mac"] .window-title-bar .wtb-right {
+  padding-right: 8px;
+}
+
+/* ── Tab Bar Card — floating above editor area only ── */
+.tab-bar-card {
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  margin: 6px 8px 4px 8px;
+  flex-shrink: 0;
+  overflow: visible;
+}
+
+.tab-bar-card .tab-bar {
+  border-bottom: none;
+  background: transparent;
+  height: 32px;
+}
+
+/* ── Column Context Menu ── */
+.column-context-menu {
+  background-color: var(--surface-overlay, #1a1b1f);
+  border: 1px solid var(--border-default, #2a2b2f);
+  border-radius: 8px;
+  padding: 4px;
+  min-width: 200px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+
+  animation: dropdown-in 0.12s ease-out;
+}
+.column-context-menu-item {
+  padding: 7px 12px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary, #aaa);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+  user-select: none;
+}
+.column-context-menu-item:hover {
+  background: var(--hover-bg, #ffffff12);
+  color: var(--text-primary, #fff);
+}
+.column-context-menu-separator {
+  height: 1px;
+  background: var(--border-subtle, #ffffff10);
+  margin: 4px 0;
+}
+
+/* ── Generic spin class (keyframe `spin` defined once near :root) ── */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
