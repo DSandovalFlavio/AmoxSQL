@@ -20,7 +20,8 @@ import { esDeTarjeta } from './archivos/lienzo.js';
 import { esDeDiagrama } from './archivos/diagrama.js';
 import { publicarPropuestas, pedirRevision } from './propuestasEnEditor.js';
 
-import { API_BASE as API } from '../../api.js';
+import { API_BASE as API } from '../../api.js';
+import { esSinModelo, BotonAjustesIA } from './SinModelo.jsx';
 
 /**
  * AiAssistantPanel — File-aware AI assistant sidebar panel.
@@ -669,6 +670,7 @@ const AiAssistantPanel = ({
                     {errorMsg && (
                         <div className="ai-error-bar">
                             <span>{errorMsg}</span>
+                            {esSinModelo(errorMsg) && <BotonAjustesIA />}
                             <button onClick={() => setErrorMsg(null)}>
                                 <LuX size={12} />
                             </button>

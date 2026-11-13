@@ -22,7 +22,7 @@
 /** @type {Record<string, { detalle: string, emite: string, escucha: string }>} */
 export const EVENTOS = {
     // ── Abrir algo desde otra parte ──
-    amox_abrir_ajustes: { detalle: 'la sección de Settings (string) o nada', emite: 'workspaces/VistaWorkspaces', escucha: 'App' },
+    amox_abrir_ajustes: { detalle: 'la sección de Settings (string) o nada', emite: 'workspaces/VistaWorkspaces, ai/SinModelo (sin modelo → AI)', escucha: 'App' },
     amox_abrir_ayuda: { detalle: "'shortcuts' | 'storyflow' | 'dataflow'", emite: 'CommandPalette, SettingsModal (un enlace viejo)', escucha: 'App' },
     amox_abrir_ejecucion: { detalle: '{ runId }', emite: 'Data Flow (formulario), dbt, Operations, Needs attention, Retomar', escucha: 'App (FichaEjecucion)' },
     amox_abrir_operacion: { detalle: '—', emite: 'WindowTitleBar, Operations, Needs attention', escucha: 'App, WelcomeScreen, VistaWorkspaces' },

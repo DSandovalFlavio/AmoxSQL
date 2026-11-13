@@ -421,9 +421,17 @@ async function resumenInicio() {
         const suyos = proyectos.filter(p => p.workspaceId === w.id);
         const porEstado = {};
         for (const p of suyos) if (p.estado) porEstado[p.estado] = (porEstado[p.estado] || 0) + 1;
-        const proxima = suyos.filter(p => p.entrega && p.entrega >= hoy && p.estado !== 'entregado')
-            .sort((a, b) => a.entrega.localeCompare(b.entrega))[0] || null;
-        return { ...w, porEstado, proximaEntrega: proxima ? { proyecto: proxima.nombre, fecha: proxima.entrega } : null };
+        const pendientes = suyos.filter(p => p.entrega && p.estado !== 'entregado')
+            .sort((a, b) => a.entrega.localeCompare(b.entrega));
+        const proxima = pendientes.find(p => p.entrega >= hoy) || null;
+        // Una entrega que ya pasó sin entregarse no desaparece del resumen
+        // (6.0, M10 · T15): antes la tarjeta decía «No due dates».
+        const vencidas = pendientes.filter(p => p.entrega < hoy);
+        return {
+            ...w, porEstado,
+            proximaEntrega: proxima ? { proyecto: proxima.nombre, fecha: proxima.entrega } : null,
+            entregaVencida: vencidas.length ? { proyecto: vencidas[0].nombre, fecha: vencidas[0].entrega, cuantas: vencidas.length } : null,
+        };
     });
     const ejecuciones = (await baseCentral.query(
         `SELECT e.id, e.proceso, e.proyecto, e.origen, e.inicio, e.fin, e.estado, e.error, w.nombre AS workspace, w.color

@@ -22,6 +22,7 @@ import { exportConversationToMarkdown } from './exportConversation';
 
 import { API_BASE as API } from '../../api.js';
 import { emitir } from '../../eventos.js';
+import { esSinModelo, BotonAjustesIA } from './SinModelo.jsx';
 
 // Remembers the transcript scroll position per conversation so switching tabs
 // (e.g. opening a chart in Story Flow and coming back) doesn't reset to the top.
@@ -406,7 +407,7 @@ const AiDivingPanel = ({
 
     // ─── Empty state (no conversation yet) ───
     // A business question first, built from the project (plan UX, F5).
-    const emptyState = <InicioDeepDive onPreguntar={sendFollowUp} />;
+    const emptyState = <InicioDeepDive onPreguntar={sendFollowUp} sinModelo={!(selectedModel === 'custom' ? customModel : selectedModel)} />;
 
     // "Ask about this" → add reference + focus the input so the user types the question
     const handleAskAbout = useCallback((ref) => {
@@ -887,6 +888,7 @@ const AiDivingPanel = ({
                         {errorMsg && (
                             <div className="ai-error-bar">
                                 <span>{errorMsg}</span>
+                                {esSinModelo(errorMsg) && <BotonAjustesIA />}
                                 <button onClick={() => setErrorMsg(null)}>
                                     <LuX size={12} />
                                 </button>

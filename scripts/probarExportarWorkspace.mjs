@@ -125,6 +125,15 @@ try {
     comprobar('una tarjeta por workspace activo', inicio.workspaces.length === 2 && !!t, inicio.workspaces.map(x => x.nombre).join());
     comprobar('con sus proyectos por estado', t.proyectos === 2 && t.porEstado.en_revision === 1 && t.porEstado.en_curso === 1, JSON.stringify(t.porEstado));
     comprobar('y su próxima entrega', t.proximaEntrega?.proyecto === 'campana-roi' && t.proximaEntrega.fecha === '2098-12-24', JSON.stringify(t.proximaEntrega));
+    comprobar('sin entregas vencidas', t.entregaVencida === null, JSON.stringify(t.entregaVencida));
+    // 6.0 (M10 · T15): una entrega que ya pasó sin entregarse no desaparece.
+    await put(`/api/proyectos/${pA.id}`, { entrega: '2020-01-02' });
+    const t2 = (await get('/api/inicio')).workspaces.find(x => x.id === w.id);
+    comprobar('una entrega vencida aparece', t2.entregaVencida?.proyecto === 'ventas-q4' && t2.entregaVencida.fecha === '2020-01-02' && t2.entregaVencida.cuantas === 1, JSON.stringify(t2.entregaVencida));
+    comprobar('y la próxima sigue siendo la que viene', t2.proximaEntrega?.proyecto === 'campana-roi', JSON.stringify(t2.proximaEntrega));
+    await put(`/api/proyectos/${pA.id}`, { estado: 'entregado' });
+    comprobar('una vez entregada, deja de estar vencida', (await get('/api/inicio')).workspaces.find(x => x.id === w.id).entregaVencida === null);
+    await put(`/api/proyectos/${pA.id}`, { estado: 'en_revision', entrega: '2099-03-01' });
     comprobar('y su política', t.politicaIa?.datos === 'esquema');
     comprobar('los proyectos sueltos, aparte', inicio.sinWorkspace.map(p => p.nombre).join() === 'scratch', inicio.sinWorkspace.map(p => p.nombre).join());
     comprobar('los archivados se cuentan', inicio.archivados.length === 1);

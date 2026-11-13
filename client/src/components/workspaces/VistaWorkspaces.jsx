@@ -433,7 +433,9 @@ export default function VistaWorkspaces({ onVolver, onAbrir, inicial = null }) {
                             </span>
                             <span className="wsv-prox">
                                 <LuCalendarClock size={12} />
-                                {w.proximaEntrega ? <>Next due: <b>{w.proximaEntrega.proyecto}</b> · {fechaCorta(w.proximaEntrega.fecha)}</> : 'No due dates'}
+                                {w.entregaVencida
+                                    ? <span className="wsv-vencida">Overdue: <b>{w.entregaVencida.proyecto}</b> · {fechaCorta(w.entregaVencida.fecha)}{w.entregaVencida.cuantas > 1 ? ` · +${w.entregaVencida.cuantas - 1} more` : ''}</span>
+                                    : w.proximaEntrega ? <>Next due: <b>{w.proximaEntrega.proyecto}</b> · {fechaCorta(w.proximaEntrega.fecha)}</> : 'No due dates'}
                             </span>
                         </button>
                     ))}

@@ -784,6 +784,8 @@
 }
 
 .wsv-prox b { color: var(--text-primary); font-weight: 600; }
+/* 6.0 (M10 · T15): una entrega vencida, en el color de aviso. */
+.wsv-vencida, .wsv-vencida b { color: var(--feedback-warning-text); }
 
 .wsv-chip {
   display: inline-flex;

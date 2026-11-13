@@ -112,8 +112,10 @@ export default function VistaOperacion({ onClose, incrustada = false }) {
                         </div>
                     ) : null}
 
-                    <section className="opx-resumen" aria-label="Today">
-                        <div className="opx-cifra"><span className="opx-num">{cuenta?.total ?? 0}</span><span>today</span></div>
+                    {/* 6.0 (M10 · T13): las cifras cuentan sólo lo PROGRAMADO; la
+                        bitácora de abajo trae también lo que se corrió a mano. */}
+                    <section className="opx-resumen" aria-label="Scheduled runs today" title="Only scheduled runs. The log below also lists runs started by hand.">
+                        <div className="opx-cifra"><span className="opx-num">{cuenta?.total ?? 0}</span><span>scheduled today</span></div>
                         <div className="opx-cifra opx-cifra--ok"><span className="opx-num">{cuenta?.bien ?? 0}</span><span>finished</span></div>
                         <div className={`opx-cifra${cuenta?.mal ? ' opx-cifra--mal' : ''}`}><span className="opx-num">{cuenta?.mal ?? 0}</span><span>failed</span></div>
                         <div className="opx-cifra"><span className="opx-num">{cuenta?.faltan ?? 0}</span><span>to come</span></div>

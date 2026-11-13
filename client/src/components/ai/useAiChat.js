@@ -3,7 +3,8 @@ import { marcarPropuestas, conEstado, estadoDe, esArchivoNuevo } from './propues
 import { API_BASE as API } from '../../api.js';
 import { migrateTheme } from '../../theme.js';
 import { guardarBorrador, leerBorrador, borrarBorrador } from '../../utils/borradorDeAnalisis';
-import { emitir } from '../../eventos.js';
+import { emitir } from '../../eventos.js';
+import { TEXTO_SIN_MODELO } from './SinModelo.jsx';
 
 /** Stable client-side message id (survives the streaming→historical handoff). */
 function genId() {
@@ -422,7 +423,7 @@ export default function useAiChat({
         setErrorMsg(null);
         const currentModel = selectedModel === 'custom' ? customModel : selectedModel;
         if (!currentModel) {
-            setErrorMsg('Please select or enter a model name.');
+            setErrorMsg(TEXTO_SIN_MODELO);
             return;
         }
 
