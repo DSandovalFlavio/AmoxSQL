@@ -50,7 +50,7 @@ import { especFinal, asimilarCodigo, describirExtras } from './vega/codigo';
 import { sqlDeAgregado } from './vega/agregar';
 import { specDeSalida, scriptDePython } from './vega/salida';
 import { escribirAmoxvis } from './vega/figura';
-import { prepararFilas } from './vega/motor';
+import { prepararFilas } from './vega/filas';
 import { temaVega, TOKENS_CLAROS } from './vega/tema';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
 import { StoryFlowGuide } from './StoryFlowGuide';

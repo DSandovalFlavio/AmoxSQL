@@ -15,28 +15,16 @@ import { atajoDe } from './utils/atajos.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
-import ExtensionExplorer from './components/ExtensionExplorer';
-import SnippetsPanel from './components/SnippetsPanel';
-import DbtPanel from './components/DbtPanel';
-import GitPanel from './components/GitPanel';
-import SearchPanel from './components/SearchPanel';
-import QueryHistoryPanel from './components/QueryHistoryPanel';
 import SaveQueryModal from './components/SaveQueryModal';
-import ImportModal from './components/ImportModal';
-import ImportExcelModal from './components/ImportExcelModal';
 import LayoutManager from './components/LayoutManager';
 
 // New Components
 import WelcomeScreen from './components/WelcomeScreen';
-import WorkspaceWizard from './components/WorkspaceWizard';
 import WorkspacesHost from './components/workspaces/WorkspacesHost';
 import AvisoDeLlegadas from './components/fuentes/AvisoDeLlegadas';
 import AvisoProgramador from './components/AvisoProgramador';
-import FichaEjecucion from './components/FichaEjecucion';
 import VistaOperacion from './components/operacion/VistaOperacion';
-import ExportarProyecto from './components/paquete/ExportarProyecto';
 import AiAssistantPanel from './components/ai/AiAssistantPanel';
-import AiDivingPanel from './components/ai/AiDivingPanel';
 import ConversationList from './components/ai/ConversationList';
 // StatusBar removed — info redundant with ResultsTable + WindowTitleBar
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
@@ -53,6 +41,19 @@ const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
 import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink, LuSearch, LuPin, LuLibraryBig, LuChevronRight } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
+// Paneles del lateral y diálogos que no hacen falta al arrancar: cada uno en su trozo (6.0, M8).
+const ExtensionExplorer = lazy(() => import('./components/ExtensionExplorer'));
+const SnippetsPanel = lazy(() => import('./components/SnippetsPanel'));
+const DbtPanel = lazy(() => import('./components/DbtPanel'));
+const GitPanel = lazy(() => import('./components/GitPanel'));
+const SearchPanel = lazy(() => import('./components/SearchPanel'));
+const QueryHistoryPanel = lazy(() => import('./components/QueryHistoryPanel'));
+const ImportModal = lazy(() => import('./components/ImportModal'));
+const ImportExcelModal = lazy(() => import('./components/ImportExcelModal'));
+const WorkspaceWizard = lazy(() => import('./components/WorkspaceWizard'));
+const FichaEjecucion = lazy(() => import('./components/FichaEjecucion'));
+const ExportarProyecto = lazy(() => import('./components/paquete/ExportarProyecto'));
+const PanelCargando = <div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading...</div>;
 // Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
 const FunctionReference   = lazy(() => import('./components/FunctionReference'));
 import OnboardingHost from './components/onboarding/OnboardingHost';
@@ -1412,13 +1413,14 @@ function App() {
           onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
         />
         <WorkspacesHost />
-        {fichaEjecucion && <FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} />}
+        {fichaEjecucion && <Suspense fallback={null}><FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} /></Suspense>}
         <WelcomeScreen 
           initialPath={projectPath}
           onSelectWorkspace={handleWorkspaceSelect} 
           onStartSession={startIdeSession} 
           onOpenSettings={() => setIsSettingsOpen(true)} 
         />
+        <Suspense fallback={null}>
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
@@ -1443,6 +1445,7 @@ function App() {
           uiZoomLevel={uiZoomLevel}
           onUiZoomChange={setUiZoomLevel}
         />
+        </Suspense>
       </div>
     );
   }
@@ -1506,15 +1509,15 @@ function App() {
       <AvisoProgramador />
       {verOperacion && <VistaOperacion onClose={() => setVerOperacion(false)} />}
       {fichaEjecucion && (
-        <FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} onAbrirProceso={(ruta) => handleFileOpen(ruta)} />
+        <Suspense fallback={null}><FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} onAbrirProceso={(ruta) => handleFileOpen(ruta)} /></Suspense>
       )}
       {exportando && (
-        <ExportarProyecto plantilla={exportando.plantilla} proyecto={(projectPath || 'project').split(/[\\/]/).filter(Boolean).pop()} onClose={() => setExportando(null)} />
+        <Suspense fallback={null}><ExportarProyecto plantilla={exportando.plantilla} proyecto={(projectPath || 'project').split(/[\\/]/).filter(Boolean).pop()} onClose={() => setExportando(null)} /></Suspense>
       )}
 
       {/* Workspace Scaffolding Wizard — shown on first open of new projects */}
       {showWorkspaceWizard && (
-        <WorkspaceWizard
+        <Suspense fallback={null}><WorkspaceWizard
           projectPath={projectPath}
           onComplete={(created) => {
             setShowWorkspaceWizard(false);
@@ -1524,7 +1527,7 @@ function App() {
             }
           }}
           onSkip={() => setShowWorkspaceWizard(false)}
-        />
+        /></Suspense>
       )}
 
       {appPhase === PHASE.IDE && (
@@ -1646,7 +1649,7 @@ function App() {
                   </button>
                   {extensionesAbiertas && (
                     <div className="sidebar-seccion-plegable__cuerpo">
-                      <ExtensionExplorer />
+                      <Suspense fallback={PanelCargando}><ExtensionExplorer /></Suspense>
                     </div>
                   )}
                 </div>
@@ -1655,13 +1658,13 @@ function App() {
 
             {visitedSidebarTabs.has('dbt') && (
               <div className={activeSidebarTab === 'dbt' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'dbt' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} onOpenDbtLineage={handleOpenDbtLineage} />
+                <Suspense fallback={PanelCargando}><DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} onOpenDbtLineage={handleOpenDbtLineage} /></Suspense>
               </div>
             )}
 
             {visitedSidebarTabs.has('snippets') && (
               <div className={activeSidebarTab === 'snippets' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'snippets' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <SnippetsPanel onInsert={handleCreateSqlTab} />
+                <Suspense fallback={PanelCargando}><SnippetsPanel onInsert={handleCreateSqlTab} /></Suspense>
               </div>
             )}
 
@@ -1675,7 +1678,7 @@ function App() {
 
             {visitedSidebarTabs.has('history') && (
               <div className={activeSidebarTab === 'history' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'history' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <QueryHistoryPanel onSelect={handleCreateSqlTab} onSaveAsFile={handleSaveHistoryQueryAsFile} />
+                <Suspense fallback={PanelCargando}><QueryHistoryPanel onSelect={handleCreateSqlTab} onSaveAsFile={handleSaveHistoryQueryAsFile} /></Suspense>
               </div>
             )}
 
@@ -1692,12 +1695,12 @@ function App() {
 
             {visitedSidebarTabs.has('search') && (
               <div className={activeSidebarTab === 'search' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'search' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <SearchPanel onOpenFile={handleFileOpen} projectPath={projectPath} />
+                <Suspense fallback={PanelCargando}><SearchPanel onOpenFile={handleFileOpen} projectPath={projectPath} /></Suspense>
               </div>
             )}
             {visitedSidebarTabs.has('git') && (
               <div className={activeSidebarTab === 'git' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'git' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <GitPanel projectPath={projectPath} />
+                <Suspense fallback={PanelCargando}><GitPanel projectPath={projectPath} /></Suspense>
               </div>
             )}
             {visitedSidebarTabs.has('deepdive') && (

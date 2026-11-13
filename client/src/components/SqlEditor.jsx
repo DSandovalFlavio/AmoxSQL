@@ -1,7 +1,7 @@
 import { API_BASE } from '../api.js';
 import React, { useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { format } from 'sql-formatter';
+// sql-formatter pesa ~280 kB: se carga la primera vez que se formatea (6.0, M8).
 import { getSharedSqlWorkerBridge, initSharedSqlWorkerBridge } from '../utils/sqlWorkerBridge';
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import { splitSqlStatements } from '../utils/sqlSplitter';
@@ -505,7 +505,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         });
 
         // 4. Format Code
-        const formatSql = () => {
+        const formatSql = async () => {
             if (props.language === 'markdown') return;
             const model = editor.getModel();
             let textToFormat = model.getValue();
@@ -525,6 +525,10 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             };
 
             try {
+                const version = model.getAlternativeVersionId();
+                const { format } = await import('sql-formatter');
+                // La primera vez la carga tarda un instante: si el texto cambió entretanto, no se pisa.
+                if (model.isDisposed() || model.getAlternativeVersionId() !== version) return;
                 const formatted = format(textToFormat, getFormatterConfig());
 
                 if (range) {

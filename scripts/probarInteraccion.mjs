@@ -347,6 +347,21 @@ async function fase2(app) {
       const ordenado = fila(); t.boton('Run').click(); await t.dormir(1000);
       return { ordenado, tras: fila() };`);
     bien('ejecutar otra vez empieza de cero', e.tras !== e.ordenado, e);
+
+    // Vega se carga la primera vez que se dibuja (6.0, M8): que llegue y dibuje.
+    console.log('— el gráfico');
+    e = await app.js(`
+      const boton = [...document.querySelectorAll('.rt-view-btn')].find(b => /chart/i.test((b.innerText || '') + ' ' + (b.title || '') + ' ' + (b.getAttribute('aria-label') || '')));
+      if (!boton) return { boton: false };
+      boton.click();
+      let svg = null;
+      for (let i = 0; i < 60 && !svg; i++) { await t.dormir(200); svg = document.querySelector('.figura-vega svg'); }
+      const marcas = svg ? svg.querySelectorAll('path, rect, line').length : 0;
+      const error = document.querySelector('.figura-vega-error')?.innerText || null;
+      const tabla = [...document.querySelectorAll('.rt-view-btn')].find(b => /table/i.test((b.innerText || '') + ' ' + (b.title || '') + ' ' + (b.getAttribute('aria-label') || '')));
+      tabla?.click(); await t.dormir(200);
+      return { boton: true, svg: !!svg, marcas, error };`);
+    bien('la vista de gráfico dibuja la figura', e.boton && e.svg && e.marcas > 0 && !e.error, e);
 }
 // ── Fase 3: la ventana emergente ────────────────────────────────────────────
 async function fase3(app) {

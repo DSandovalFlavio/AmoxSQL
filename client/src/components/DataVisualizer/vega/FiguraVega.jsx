@@ -15,9 +15,12 @@
  *     arriba (el editor de código lo pone debajo del texto).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import * as vega from 'vega';
 import { temaVega } from './tema';
-import { prepararFilas, compilarFigura, resolverVariables } from './motor';
+import { prepararFilas, resolverVariables } from './filas';
+
+// Vega y Vega-Lite (~600 kB) se cargan la primera vez que se dibuja una figura (6.0, M8).
+let motorCargado = null;
+const cargarMotor = () => (motorCargado ??= import('./motor'));
 
 /** Un tooltip propio, con los colores de la interfaz y sin depender de otro paquete. */
 function crearTooltip() {
@@ -116,35 +119,39 @@ const FiguraVega = ({ spec, filas, c, colores, fuente, escala = 1, onEstado = nu
             setError(msg);
             onEstado?.({ error: msg, avisos });
         };
-        let nueva = null;
-        const hoja = document.createElement('div');
-        hoja.className = 'figura-vega-hoja';
-        try {
-            const tema = temaVega(el, { fuente, escala, colores, c: c || {} });
-            const estilo = getComputedStyle(el);
-            const propio = resolverVariables(spec, (n) => estilo.getPropertyValue(n).trim());
-            const vg = compilarFigura(propio, { tema, ancho: tam.w, alto: tam.h, avisos });
-            nueva = new vega.View(vega.parse(vg), { renderer: 'svg', hover: true, logLevel: vega.Error });
-            nueva.tooltip(tooltipRef.current.manejador);
-            try { nueva.data('dataset', datos); } catch { /* el spec trae sus propios datos */ }
-            nueva.initialize(hoja);
-        } catch (e) {
-            nueva?.finalize();
-            fallar(e);
-            return () => { vivo = false; };
-        }
-        nueva.runAsync().then(() => {
-            if (!vivo) { nueva.finalize(); return; }
-            vistaRef.current?.finalize();
-            el.replaceChildren(hoja);
-            vistaRef.current = nueva;
-            setError(null);
-            onEstado?.({ error: null, avisos });
-            onVista?.(nueva);
-        }).catch((e) => {
-            nueva.finalize();
-            if (vivo) fallar(e);
-        });
+        const dibujar = ({ vega, compilarFigura }) => {
+            if (!vivo) return;
+            let nueva = null;
+            const hoja = document.createElement('div');
+            hoja.className = 'figura-vega-hoja';
+            try {
+                const tema = temaVega(el, { fuente, escala, colores, c: c || {} });
+                const estilo = getComputedStyle(el);
+                const propio = resolverVariables(spec, (n) => estilo.getPropertyValue(n).trim());
+                const vg = compilarFigura(propio, { tema, ancho: tam.w, alto: tam.h, avisos });
+                nueva = new vega.View(vega.parse(vg), { renderer: 'svg', hover: true, logLevel: vega.Error });
+                nueva.tooltip(tooltipRef.current.manejador);
+                try { nueva.data('dataset', datos); } catch { /* el spec trae sus propios datos */ }
+                nueva.initialize(hoja);
+            } catch (e) {
+                nueva?.finalize();
+                fallar(e);
+                return;
+            }
+            nueva.runAsync().then(() => {
+                if (!vivo) { nueva.finalize(); return; }
+                vistaRef.current?.finalize();
+                el.replaceChildren(hoja);
+                vistaRef.current = nueva;
+                setError(null);
+                onEstado?.({ error: null, avisos });
+                onVista?.(nueva);
+            }).catch((e) => {
+                nueva.finalize();
+                if (vivo) fallar(e);
+            });
+        };
+        cargarMotor().then(dibujar).catch((e) => { if (vivo) fallar(e); });
         return () => { vivo = false; };
         // tam va aparte: ver el efecto de abajo
         // eslint-disable-next-line react-hooks/exhaustive-deps
