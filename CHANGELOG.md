@@ -19,6 +19,10 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 - **Más legible:** ningún texto de la interfaz baja de 11 px (había etiquetas y contadores de 8–10 px), y en los temas claros el texto terciario y el deshabilitado tienen más contraste.
 - **Settings:** «Store Integrations» se llama **Cloud storage**; las secciones van en tres bloques (la app · datos y dónde trabajas · About), y en la galería de temas la pareja de la marca, Amox Dark y Amox Light, va arriba y más grande.
 - **Extensions:** un botón de **Install** relleno por extensión hacía que todo pareciera lo principal; ahora los de la lista son discretos y el relleno queda para instalar lo que escribes en la búsqueda.
+- **Data Flow, el diagrama y el Canvas se abren a un tamaño que se lee.** Antes encuadraban todo, y con el lateral y los paneles abiertos un flujo de ocho pasos quedaba al 33 %; ahora, si no cabe a un 75 %, se abre al 75 % por el principio y el resto queda a un desplazamiento (o en el minimapa). **Fit** sigue enseñándolo todo.
+- **Report Flow con poco ancho** empieza con el esquema de láminas plegado: la lámina pasa de 537×301 a 763×429 px en una ventana de 1440×900. Desplegarlo se recuerda, como siempre.
+- **DBT Studio** enseña sus seis pestañas (antes se veían tres), ofrece **Compile** cuando el linaje está vacío y dice si el entorno elegido encuentra dbt, y qué versión.
+- **Workspaces:** las rutas largas se ven por su final, que es lo que distingue un proyecto de otro.
 
 ### Nuevo
 - **Variables del proyecto, con `$nombre`.** Se declaran una vez en **SQL Snippets › Variables** (nombre, tipo —texto, número, fecha, sí/no, lista—, valor y para qué sirve) y se usan en cualquier consulta, celda, tarjeta del Canvas o proceso de Data Flow como `WHERE region = $region`, sin comillas a mano y con su tipo; ningún valor puede cambiar la consulta. Se guardan con el proyecto (`.amoxsql/variables.json`), así que un gráfico o un proceso guardado con `$region` sigue funcionando. La barra Variables del editor muestra la misma lista; al escribir `$` el editor las ofrece con su descripción; el Assistant las conoce. `${x}` sigue pegando texto, como antes.
@@ -46,6 +50,12 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 - Una ruta con apóstrofo ya no rompe (ni altera) el SQL de importar, Data Flow o el modo sin herramientas.
 
 ### Arreglado
+- **Abrir un proceso de Data Flow ya no lo marca como modificado.**
+- **Una entrega vencida aparece en la tarjeta del cliente** («Overdue: …»); antes, si la fecha había pasado sin entregarse, la tarjeta decía «No due dates».
+- **Sin modelo de IA**, el Assistant y Deep Dive dicen qué falta y llevan a Settings › AI (antes: «Please select or enter a model name.»); Deep Dive lo avisa antes de preguntar.
+- **El registro de Data Flow** pone la hora completa (sólo enseñaba los milisegundos) y pliega el SQL de cada paso a una línea.
+- **La ficha de una ejecución** dice con qué valores corrió el proceso, también los suyos propios.
+- **«Where you left off»** ya no tapa el documento al recargar la ventana; sale al abrir el proyecto.
 - **Settings desde la pantalla de bienvenida** mostraba las preferencias del editor por defecto, no las tuyas, y cambiarlas ahí no hacía nada.
 - **Deep Dive vuelve a listar sus sesiones.** La lista daba un error del motor («must appear in the GROUP BY clause») en cuanto la tabla de conversaciones tenía las columnas que añadieron versiones posteriores.
 - **Abrir un proyecto grande en una carpeta sincronizada ya no deja la app esperando:** el índice de archivos, el árbol de carpetas, buscar los gráficos de una consulta y lo que sigue a un renombre recorrían el proyecto sin soltar el servidor.
@@ -69,6 +79,7 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 - **El servidor por partes** (M7): `server/index.js` pasa de 7 672 a ~670 líneas; las ~300 rutas viven en doce archivos de `server/api/` (una familia cada uno, ninguna URL cambia), con lo compartido en `server/api/compartido.js`. Los doce pasos de transformación de Data Flow se definen una vez (`server/flujos/pasos.js`): lo que corre y el «SQL equivalente» que se exporta ya no pueden separarse. El servidor escribe con nivel y hora (`server/registrador.js`, `AMOXSQL_LOG=error|aviso|info|depurar`). Guardas nuevas: `probarRutasDeArchivos`, `probarRegistrador`, `probarSesionesDeepDive`.
 - **El cliente por partes** (M8): el paquete de arranque pasa de 2,99 MB a 1,54 MB — Vega y Vega-Lite, el formateador de SQL y html2canvas se cargan la primera vez que se usan, y seis paneles del lateral, los diálogos de importar, el asistente de proyecto, la ficha de una ejecución y Export project, al abrirlos. Settings, una sección por archivo (`components/settings/`), cada una cargada al entrar; la apariencia sale de `App.jsx` a `shell/Apariencia.jsx`. `index.css` (22 600 líneas) en 25 archivos por tema en `client/src/estilos/`, sin cambiar el orden de la cascada (el CSS compilado salió idéntico), y sin las 438 reglas de 324 clases que nadie pinta; siete archivos sin uso borrados (1 433 líneas). Los 36 eventos de ventana, listados en `client/src/eventos.js` con `emitir`/`escuchar`. Cinco utilidades (`fila`, `columna`, `hueco-N`, `texto-secundario`, `texto-tenue`) para lo que se escribía en `style={{…}}`. Guardas nuevas: `probarEventos`, `probarEstilosEnLinea`; `probarInteraccion` dibuja un gráfico, recorre Settings y Help y cambia el tema.
 - **Color y jerarquía** (M9): tres niveles de botón (`btn-primario`, `btn-secundario`, `btn-texto`) y un primario por vista; pisos de contraste con margen y cada acento comprobado en los diez temas; ningún texto por debajo de 11 px. Guardas nuevas: `probarAcentos`, `probarTamanoMinimo`.
+- **Lo que salió de la segunda pasada** (M10): el encuadre inicial de los lienzos en `utils/encuadreLegible.js` + `hooks/useEncuadreInicial.js`; comparar un proceso por contenido (`chains/mismoProceso.js`); `comprobarEntorno` de dbt; `utils/rutaCorta.js`. Guardas nuevas: `probarEncuadreLegible`, `probarMismoProceso`, `probarDbtEntorno`.
 
 ---
 
