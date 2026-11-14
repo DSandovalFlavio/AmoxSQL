@@ -105,6 +105,9 @@ const DE_LA_APP = ATAJOS.filter(a => a.donde === 'app');
 /** El atajo global que corresponde a este evento, o null. */
 export const atajoDe = (e, mac = esMac()) => DE_LA_APP.find(a => coincide(e, a.teclas, mac)) || null;
 
+/** Las teclas de un atajo por su id, para enseñarlas junto a una acción («Ctrl+S»), o null. */
+export const teclasDe = (id) => ATAJOS.find(a => a.id === id)?.teclas || null;
+
 /** Para pintarlo: «Ctrl + S». */
 export const teclasLegibles = (teclas) => {
     const { ctrl, shift, alt, tecla } = partir(teclas);

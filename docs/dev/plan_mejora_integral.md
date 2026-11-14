@@ -147,6 +147,17 @@ Los hallazgos están en la auditoría, sección 11. Por orden de lo que más se 
 
 Queda por hacer cuando haya con qué: Deep Dive y el Assistant con un modelo real, y DBT Studio corriendo dbt.
 
+### M11 · Pestañas y archivos (pedida por el autor, 2026-11-13)
+
+Que el editor se use como un editor de código: encontrar, distinguir y ordenar lo abierto y lo guardado. Decisión del autor: el **árbol** de archivos es una **opción de Settings**; la navegación carpeta a carpeta de hoy sigue siendo la de serie.
+
+1. **Pestañas.** Nombres que se distingan («Query 1», «Notebook 2» en vez de ocho «Untitled.sql»; dos con el mismo nombre llevan su carpeta). Ver todas: la rueda desplaza la barra, la activa siempre a la vista, y una lista de todas las abiertas con buscador cuando no caben. Cerrar de golpe: Close others · Close to the right · **Close saved** · Close all, sin tocar las fijadas y preguntando una vez. Reabrir (Ctrl+Shift+T) también una pestaña sin guardar, con su texto. El menú contextual, en inglés y con sus atajos.
+2. **Files (1).** Árbol opcional (Settings › Editor › File explorer: *Folders* —la de hoy— o *Tree*), con «Collapse all» y el archivo activo revelado. Ocultar las carpetas de sistema y las que empiezan por punto, con «Show hidden files». Ordenar por fecha de modificación. Nombres largos recortados por el medio.
+3. **Files (2).** Anidar lo que va junto (el `.sqlnb.state.json` bajo su `.sqlnb`); **Open editors** y **Favorites** arriba.
+4. **Files (3).** Filtro por tipo y búsqueda en subcarpetas; arrastrar del explorador al editor para abrir; más acciones (Open to the side, Copy absolute path, el estado de Git por archivo).
+
+Fuera, para después: pestañas de vista previa, colores por tipo.
+
 ## 3. Lo que se propone NO hacer
 
 - **Renombrar rutas, archivos o variables por coherencia de idioma**: mucho movimiento, ningún beneficio para el usuario.

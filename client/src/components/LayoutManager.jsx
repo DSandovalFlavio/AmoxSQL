@@ -29,7 +29,8 @@ import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
 import { olvidarPestanas, editorDe, focoDe, aplicadorDe } from '../utils/memoriaDePestana';
 import { aplicarRango, describirRango } from './ai/archivos/rango.js';
 import { cargarVariables, guardarVariables, aBarra, deBarra } from '../utils/variablesProyecto';
-import { emitir } from '../eventos.js';
+import { emitir } from '../eventos.js';
+import { nombreNuevo, tieneNombreNumerado } from '../utils/nombresDePestana';
 
 /**
  * Un .sql se abre con el gráfico que tenía la última vez (Dec-79): la vista
@@ -593,6 +594,38 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
      * nada que releer.
      */
     const cerradasRef = useRef([]);
+    // 6.0 (M11): las que no tienen ruta también vuelven, con su texto. Sólo las
+    // de los editores de archivos (no Deep Dive, el linaje ni el diagrama ER,
+    // que se rehacen solos) y si tienen algo escrito.
+    const SIN_RUTA_QUE_VUELVEN = new Set(['sql', 'sqlnb', 'sqlchain', 'md', 'amoxdeck', 'amoxdiagram', 'amoxcanvas', 'amoxvis', 'texto']);
+    const sinRutaQueVuelve = (t) => !!t && !t.path && SIN_RUTA_QUE_VUELVEN.has(t.type) && typeof t.content === 'string' && t.content.trim() !== '';
+    const sinRutaCerrada = (t, pane) => ({
+        path: null, name: t.name, type: t.type, pane,
+        tab: { path: '', name: t.name, type: t.type, content: t.content, dirty: true, initialChartConfig: t.initialChartConfig },
+    });
+    const reabrirUltimaRef = useRef(null);
+    // Se asigna en cada render (lee el estado por stateRef): la usa también el aviso «Reopen».
+    reabrirUltimaRef.current = async () => {
+        const { toast } = stateRef.current;
+        const ultima = cerradasRef.current.shift();
+        if (!ultima) { toast.info('There is no closed tab to bring back.'); return; }
+        if (!ultima.path) {
+            // Sin archivo: vuelve con el texto que tenía, sin guardar.
+            const nueva = { ...ultima.tab, id: Date.now().toString() + Math.random().toString(36).slice(2, 6), results: null, ejecucion: null, avisoEjecucion: null, emergente: false };
+            const pane = ultima.pane === 'right' && stateRef.current.splitEnabled ? 'right' : 'left';
+            (pane === 'left' ? setLeftTabs : setRightTabs)(prev => [...prev, nueva]);
+            (pane === 'left' ? setLeftActiveId : setRightActiveId)(nueva.id);
+            return;
+        }
+        try {
+            const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(ultima.path)}`);
+            const datos = await res.json();
+            if (datos.error) throw new Error(datos.error);
+            await openFileRef.current(ultima.path, datos.content, ultima.type, { firma: datos.firma }, ultima.pane);
+        } catch (e) {
+            toast.error(`Could not reopen ${ultima.name}: ${e.message}`);
+        }
+    };
 
     /**
      * Ultimas pestañas visitadas, de mas reciente a menos.
@@ -659,6 +692,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 { path: cerrando.path, name: cerrando.name, type: cerrando.type, pane: inLeft ? 'left' : 'right' },
                 ...cerradasRef.current.filter(c => c.path !== cerrando.path),
             ].slice(0, 20);
+        } else if (sinRutaQueVuelve(cerrando)) {
+            // 6.0 (M11): una pestaña sin guardar se perdía al cerrarla. Vuelve con
+            // su texto (Ctrl+Shift+T, o «Reopen» en el aviso).
+            cerradasRef.current = [sinRutaCerrada(cerrando, inLeft ? 'left' : 'right'), ...cerradasRef.current].slice(0, 20);
+            stateRef.current.toast.info(`${cerrando.name} was not saved.`, {
+                action: { label: 'Reopen', onClick: () => reabrirUltimaRef.current?.() },
+            });
         }
 
         const activeId = inLeft ? leftActiveId : rightActiveId;
@@ -682,8 +722,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // All") — confirms once, listing every unsaved file, before discarding any
     // of them. A single-tab close (handleTabClose above, and the "x" button)
     // stays silent, matching its existing behavior.
-    const closeTabsWithConfirm = useCallback(async (pane, tabsToClose) => {
-        if (!tabsToClose || tabsToClose.length === 0) return;
+    const closeTabsWithConfirm = useCallback(async (pane, todas) => {
+        // Las fijadas no se cierran de golpe, igual que no se cierran una a una (6.0, M11).
+        const tabsToClose = (todas || []).filter(t => !t.fijada);
+        if (tabsToClose.length === 0) return;
         const dirtyOnes = tabsToClose.filter(t => t.dirty);
         if (dirtyOnes.length > 0) {
             const { dialog } = stateRef.current;
@@ -696,7 +738,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             if (!ok) return;
         }
         for (const t of tabsToClose) {
-            if (!t.path) continue;
+            if (!t.path) {
+                if (sinRutaQueVuelve(t)) cerradasRef.current = [sinRutaCerrada(t, pane), ...cerradasRef.current].slice(0, 20);
+                continue;
+            }
             cerradasRef.current = [
                 { path: t.path, name: t.name, type: t.type, pane },
                 ...cerradasRef.current.filter(c => c.path !== t.path),
@@ -1388,26 +1433,20 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // openChartFor(). El estado guarda en que panel hay que abrirlo.
     const [chartSourceFor, setChartSourceFor] = useState(null);   // { targetPane } | null
 
+    // Los nombres de todo lo abierto, en los dos paneles: para numerar lo nuevo.
+    const nombresAbiertos = () => [...stateRef.current.leftTabs, ...stateRef.current.rightTabs].map(t => t.name);
+
     const spawnTab = useCallback((normalizedType, initialContent, targetPane) => {
         const newTab = {
             id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
             path: '',
-            name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb'
-                : normalizedType === 'sqlchain' ? 'Untitled.sqlchain'
-                : normalizedType === 'md' ? 'Untitled.md'
-                : normalizedType === 'amoxdeck' ? 'Untitled.amoxdeck'
-                : normalizedType === 'amoxdiagram' ? 'Untitled.amoxdiagram'
-                : normalizedType === 'amoxcanvas' ? 'Untitled.amoxcanvas'
-                : normalizedType === 'amoxvis' ? 'Untitled.amoxvis'
+            // 6.0 (M11): «Query 1.sql», «Notebook 2.sqlnb»… — el número más bajo
+            // libre entre las abiertas. Antes, ocho «Untitled.sql» iguales.
+            name: tieneNombreNumerado(normalizedType) ? nombreNuevo(normalizedType, nombresAbiertos())
                 : normalizedType === 'er-diagram' ? (initialContent ? `ER · ${initialContent}` : 'ER Diagram')
                 : normalizedType === 'datadiving' ? 'Deep Dive'
                 : normalizedType === 'dbt-lineage' ? 'DBT Lineage'
-                // Un borrador que **no es de ninguno de los nuestros**. El
-                // mecanismo ya existía entero —siete variantes con `path: ''`
-                // que sólo eligen sitio al guardar—; lo que faltaba era poder
-                // pegar algo y mirarlo sin que naciera siendo SQL.
-                : normalizedType === 'texto' ? 'Untitled.txt'
-                : 'Untitled.sql',
+                : nombreNuevo('sql', nombresAbiertos()),
             type: normalizedType,
             content: initialContent || (normalizedType === 'sqlnb'
                 ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
@@ -1523,7 +1562,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const { onRequestSaveAs, activePane } = stateRef.current;
         const newTab = {
             id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-            path: '', name: 'Untitled.sql', type: 'sql', content: query, results: null, dirty: true,
+            path: '', name: nombreNuevo('sql', nombresAbiertos()), type: 'sql', content: query, results: null, dirty: true,
         };
         if (activePane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
@@ -1629,19 +1668,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
          * archivo puede haber cambiado desde que se cerro, y devolver una
          * version vieja seria peor que no reabrir nada.
          */
-        reabrirUltima: async () => {
-            const { toast } = stateRef.current;
-            const ultima = cerradasRef.current.shift();
-            if (!ultima) { toast.info('There is no closed tab to bring back.'); return; }
-            try {
-                const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(ultima.path)}`);
-                const datos = await res.json();
-                if (datos.error) throw new Error(datos.error);
-                await openFileRef.current(ultima.path, datos.content, ultima.type, { firma: datos.firma }, ultima.pane);
-            } catch (e) {
-                toast.error(`Could not reopen ${ultima.name}: ${e.message}`);
-            }
-        },
+        reabrirUltima: () => reabrirUltimaRef.current?.(),
 
         /** Fija o suelta la pestaña activa. Una fijada no se cierra por accidente. */
         alternarFijada: () => {
@@ -2018,6 +2045,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         closeAllTabsInPane: (paneId) => {
             const tabs = paneId === 'left' ? leftTabs : rightTabs;
             closeTabsWithConfirm(paneId, tabs);
+        },
+        // 6.0 (M11): las guardadas (sin cambios y con archivo), para quitarse de
+        // encima lo que sólo se abrió para mirar.
+        closeSavedTabsInPane: (paneId) => {
+            const tabs = paneId === 'left' ? leftTabs : rightTabs;
+            closeTabsWithConfirm(paneId, tabs.filter(t => t.path && !t.dirty));
         },
     }));
 

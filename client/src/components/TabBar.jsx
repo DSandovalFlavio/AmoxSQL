@@ -1,9 +1,63 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { LuLoader, LuHourglass, LuPin, LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown, LuGitBranch, LuPresentation, LuChartBar, LuShare2, LuLayoutDashboard } from 'react-icons/lu';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { LuLoader, LuHourglass, LuPin, LuX, LuPlus, LuCode, LuFilePlus, LuFileText, LuChevronDown, LuGitBranch, LuPresentation, LuChartBar, LuShare2, LuLayoutDashboard, LuList } from 'react-icons/lu';
+import { carpetasQueDistinguen } from '../utils/nombresDePestana';
+import { useEscape } from '../hooks/useEscape';
 
 const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart, onReorder, onCreateNew, onTabContextMenu, onTabRename }) => {
     const [showNewMenu, setShowNewMenu] = useState(false);
     const menuRef = useRef(null);
+
+    // ── 6.0 (M11): ver todas las pestañas ──────────────────────────────────
+    // Dos con el mismo nombre enseñan su carpeta.
+    const carpetas = useMemo(() => carpetasQueDistinguen(tabs), [tabs]);
+    // Las que no caben: la rueda desplaza la barra, la activa siempre se ve, y
+    // un botón dice cuántas quedan fuera y las lista todas.
+    const tiraRef = useRef(null);
+    const [fuera, setFuera] = useState(0);
+    const medirFuera = useCallback(() => {
+        const tira = tiraRef.current;
+        if (!tira) return;
+        const caja = tira.getBoundingClientRect();
+        let n = 0;
+        for (const el of tira.querySelectorAll('[data-tab-id]')) {
+            const r = el.getBoundingClientRect();
+            if (r.left < caja.left - 1 || r.right > caja.right + 1) n++;
+        }
+        setFuera(n);
+    }, []);
+    useEffect(() => {
+        const tira = tiraRef.current;
+        if (!tira) return undefined;
+        medirFuera();
+        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(medirFuera) : null;
+        ro?.observe(tira);
+        return () => ro?.disconnect();
+    }, [tabs, medirFuera]);
+    useEffect(() => {
+        const el = activeTabId && tiraRef.current?.querySelector(`[data-tab-id="${CSS.escape(activeTabId)}"]`);
+        el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        medirFuera();
+    }, [activeTabId, medirFuera]);
+    const alRodar = (e) => {
+        const tira = tiraRef.current;
+        if (!tira || tira.scrollWidth <= tira.clientWidth) return;
+        const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        if (d) tira.scrollLeft += d;
+    };
+    const [lista, setLista] = useState(false);
+    const [filtro, setFiltro] = useState('');
+    const listaRef = useRef(null);
+    useEscape(() => setLista(false), lista);
+    useEffect(() => {
+        if (!lista) return undefined;
+        const fueraDeLista = (e) => { if (listaRef.current && !listaRef.current.contains(e.target)) setLista(false); };
+        document.addEventListener('mousedown', fueraDeLista);
+        return () => document.removeEventListener('mousedown', fueraDeLista);
+    }, [lista]);
+    const enLista = useMemo(() => {
+        const q = filtro.trim().toLowerCase();
+        return q ? tabs.filter(t => `${t.name} ${t.path || ''}`.toLowerCase().includes(q)) : tabs;
+    }, [tabs, filtro]);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -93,12 +147,13 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                 </div>
             )}
 
-            <div className="tab-bar-tabs" onDragOver={handleDragOver} onDrop={handleBarDrop}>
+            <div className="tab-bar-tabs" ref={tiraRef} onDragOver={handleDragOver} onDrop={handleBarDrop} onWheel={alRodar} onScroll={medirFuera}>
                 {tabs.map(tab => {
                     const isActive = tab.id === activeTabId;
                     return (
                         <div
                             key={tab.id}
+                            data-tab-id={tab.id}
                             draggable
                             onDragStart={(e) => handleDragStart(e, tab.id)}
                             onDragOver={handleDragOver}
@@ -122,6 +177,7 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                             >
                                 {tab.name}
                             </span>
+                            {carpetas.has(tab.id) && <span className="tab-carpeta" title={tab.path}>{carpetas.get(tab.id)}</span>}
                             {/* Deep Dive: el analista espera tu respuesta (una pregunta, o se
                                 quedó sin ciclos). Se ve aunque estés en otra pestaña. */}
                             {tab.espera && <span className="tab-aviso tab-aviso--espera" title="The analyst is waiting for your answer" aria-label="Waiting for your answer" />}
@@ -147,6 +203,36 @@ const TabBar = ({ tabs, activeTabId, onTabClick, onTabClose, paneId, onDragStart
                     );
                 })}
             </div>
+
+            {/* 6.0 (M11): todas las abiertas, cuando no caben. */}
+            {(fuera > 0 || lista) && (
+                <div className="tab-bar-lista" ref={listaRef}>
+                    <button type="button" className="tab-bar-lista-btn" onClick={() => { setFiltro(''); setLista(v => !v); }}
+                        title={`All open tabs (${tabs.length})`} aria-haspopup="menu" aria-expanded={lista}>
+                        <LuList size={13} /> <span>{fuera}</span>
+                    </button>
+                    {lista && (
+                        <div className="tab-bar-lista-menu" role="menu">
+                            {tabs.length > 6 && (
+                                <input autoFocus className="tab-bar-lista-filtro" placeholder="Find an open tab…" value={filtro}
+                                    onChange={e => setFiltro(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter' && enLista[0]) { onTabClick(enLista[0].id); setLista(false); } }} />
+                            )}
+                            {enLista.map(t => (
+                                <button key={t.id} type="button" role="menuitem"
+                                    className={`tab-bar-lista-item${t.id === activeTabId ? ' tab-bar-lista-item--activa' : ''}`}
+                                    onClick={() => { onTabClick(t.id); setLista(false); }} title={t.path || t.name}>
+                                    {t.fijada && <LuPin size={10} />}
+                                    <span className="tab-bar-lista-nombre">{t.name}</span>
+                                    {carpetas.has(t.id) && <span className="tab-carpeta">{carpetas.get(t.id)}</span>}
+                                    {t.dirty && <span className="tab-dirty">●</span>}
+                                </button>
+                            ))}
+                            {!enLista.length && <div className="tab-bar-lista-vacia">No open tab matches.</div>}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

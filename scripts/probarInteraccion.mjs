@@ -434,6 +434,27 @@ async function fase2(app) {
     bien('Ctrl+Shift+/ abre Help y cada sección pinta', e.abierto && e.nombres.length === 3 && !e.vacias.length, e);
     await app.tecla('escape'); await dormir(300);
     bien('Escape cierra Help', !(await app.js(`return !!document.querySelector('[aria-label="Help"]');`)));
+
+    // 6.0 (M11): una pestaña nueva se llama por su tipo y un número, y una sin
+    // guardar que se cierra vuelve con su texto.
+    console.log('— pestañas nuevas y reabrir');
+    e = await app.js(`
+      const nombres = () => [...document.querySelectorAll('.tab-item .tab-label')].map(x => x.innerText);
+      document.querySelector('.tab-bar-new-btn').click(); await t.dormir(500);
+      document.querySelector('.tab-bar-new-btn').click(); await t.dormir(500);
+      const nuevas = nombres().filter(n => /^Query \\d+\\.sql$/.test(n));
+      const activa = document.querySelector('.tab-item.active');
+      const nombre = activa.querySelector('.tab-label').innerText;
+      t.ed().setValue('SELECT 42 AS respuesta;'); await t.dormir(300);
+      activa.querySelector('.tab-close').click(); await t.dormir(500);
+      const cerrada = !nombres().includes(nombre);
+      [...document.querySelectorAll('button')].find(b => b.innerText.trim() === 'Reopen')?.click(); await t.dormir(800);
+      const vuelta = document.querySelector('.tab-item.active .tab-label')?.innerText;
+      const texto = t.ed().getValue();
+      document.querySelector('.tab-item.active .tab-close')?.click(); await t.dormir(300);
+      return { nuevas, nombre, cerrada, vuelta, texto };`);
+    bien('dos nuevas se llaman «Query N.sql», distintas', e.nuevas.length >= 2 && new Set(e.nuevas).size === e.nuevas.length, e);
+    bien('cerrada sin guardar vuelve con su texto', e.cerrada && e.vuelta === e.nombre && e.texto === 'SELECT 42 AS respuesta;', e);
 }
 // ── Fase 3: la ventana emergente ────────────────────────────────────────────
 async function fase3(app) {

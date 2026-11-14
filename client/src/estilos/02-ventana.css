@@ -455,3 +455,14 @@
   animation: spin 1s linear infinite;
 }
 
+
+/* 6.0 (M11): el menú de una pestaña, con su atajo a la derecha. */
+.menu-pestana-texto { flex: 1; }
+.menu-pestana-atajo {
+  margin-left: 16px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: none;
+  border: 0;
+}

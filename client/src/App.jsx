@@ -9,7 +9,7 @@ import { importarRecientesUnaVez, requisitosQueFaltan, describirFaltantes, aviso
 import { AparienciaProvider, useApariencia } from './shell/Apariencia.jsx';
 import { tipoDePestana, nombreDe } from './utils/tiposDeArchivo.js';
 import { ATAJO_DE_EDITOR } from './utils/atajosEnMonaco.js';
-import { atajoDe } from './utils/atajos.js';
+import { atajoDe, teclasDe } from './utils/atajos.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
@@ -65,6 +65,16 @@ import PopoutResultsPage from './components/PopoutResultsPage';
 import { escribirAmoxvis } from './components/DataVisualizer/vega/figura';
 import { focoDe } from './utils/memoriaDePestana';
 import { emitir } from './eventos.js';
+
+/** Una entrada del menú de una pestaña: icono, texto y, si lo tiene, su atajo. */
+function EntradaMenuPestana({ icono: Icono, texto, atajo, onClick }) {
+  return (
+    <div className="column-context-menu-item" role="menuitem" onClick={onClick}>
+      <Icono size={13} /> <span className="menu-pestana-texto">{texto}</span>
+      {atajo && <kbd className="menu-pestana-atajo">{atajo}</kbd>}
+    </div>
+  );
+}
 
 // App Phases
 const PHASE = {
@@ -615,6 +625,12 @@ function Shell() {
         break;
       case 'closeAll':
         layoutRef.current?.closeAllTabsInPane(paneId);
+        break;
+      case 'closeSaved':
+        layoutRef.current?.closeSavedTabsInPane(paneId);
+        break;
+      case 'reopen':
+        layoutRef.current?.reabrirUltima();
         break;
       default:
         break;
@@ -1615,6 +1631,8 @@ function Shell() {
               const idxInPane = paneTabs ? paneTabs.findIndex(t => t.id === tabContextMenu.tabId) : -1;
               const hasTabsToRight = idxInPane >= 0 && idxInPane < (paneTabs.length - 1);
               const hasOtherTabs = (paneTabs?.length || 0) > 1;
+              // Las guardadas que no están fijadas: lo que «Close saved» cerraría.
+              const hasSavedTabs = (paneTabs || []).some(t => t.path && !t.dirty && !t.fijada);
               const canReveal = !!(meta?.path && window.electronAPI?.showItemInFolder);
               return (
                 <div
@@ -1622,54 +1640,25 @@ function Shell() {
                   style={{ position: 'fixed', top: tabContextMenu.y, left: tabContextMenu.x, zIndex: 99999 }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('rename')}>
-                    <LuPencil size={13} /> Renombrar…
-                  </div>
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('save')}>
-                    <LuSave size={13} /> Guardar
-                  </div>
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('saveAs')}>
-                    <LuSave size={13} /> Guardar como…
-                  </div>
-                  {meta?.path && (
-                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('copyPath')}>
-                      <LuClipboardCopy size={13} /> Copiar ruta
-                    </div>
-                  )}
-                  {canReveal && (
-                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('reveal')}>
-                      <LuFolderOpen size={13} /> Reveal in the explorer
-                    </div>
-                  )}
+                  {/* 6.0 (M11): en inglés, como el resto de la interfaz, y con
+                      los atajos de utils/atajos.js al lado. */}
+                  <EntradaMenuPestana icono={LuPencil} texto="Rename…" onClick={() => handleTabMenuAction('rename')} />
+                  <EntradaMenuPestana icono={LuSave} texto="Save" atajo={teclasDe('guardar')} onClick={() => handleTabMenuAction('save')} />
+                  <EntradaMenuPestana icono={LuSave} texto="Save as…" atajo={teclasDe('guardarComo')} onClick={() => handleTabMenuAction('saveAs')} />
+                  {meta?.path && <EntradaMenuPestana icono={LuClipboardCopy} texto="Copy path" onClick={() => handleTabMenuAction('copyPath')} />}
+                  {canReveal && <EntradaMenuPestana icono={LuFolderOpen} texto="Reveal in the explorer" onClick={() => handleTabMenuAction('reveal')} />}
                   <div className="column-context-menu-separator" />
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('moveToOtherPane')}>
-                    <LuArrowLeftRight size={13} /> {tabContextMenu.paneId === 'left' ? 'Mover al panel derecho' : 'Mover al panel izquierdo'}
-                  </div>
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('duplicate')}>
-                    <LuCopyPlus size={13} /> Abrir una copia al lado
-                  </div>
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('fijar')}>
-                    <LuPin size={13} /> {meta?.fijada ? 'Soltar' : 'Fijar'}
-                  </div>
+                  <EntradaMenuPestana icono={LuArrowLeftRight} texto={tabContextMenu.paneId === 'left' ? 'Move to the right pane' : 'Move to the left pane'} onClick={() => handleTabMenuAction('moveToOtherPane')} />
+                  <EntradaMenuPestana icono={LuCopyPlus} texto="Open a copy to the side" atajo={teclasDe('duplicar')} onClick={() => handleTabMenuAction('duplicate')} />
+                  <EntradaMenuPestana icono={LuPin} texto={meta?.fijada ? 'Unpin' : 'Pin'} atajo={teclasDe('fijar')} onClick={() => handleTabMenuAction('fijar')} />
                   <div className="column-context-menu-separator" />
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('close')}>
-                    <LuX size={13} /> Cerrar
-                  </div>
-                  {hasOtherTabs && (
-                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeOthers')}>
-                      <LuX size={13} /> Close the others
-                    </div>
-                  )}
-                  {hasTabsToRight && (
-                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeToRight')}>
-                      <LuX size={13} /> Cerrar las de la derecha
-                    </div>
-                  )}
-                  {hasOtherTabs && (
-                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeAll')}>
-                      <LuX size={13} /> Cerrar todas
-                    </div>
-                  )}
+                  <EntradaMenuPestana icono={LuX} texto="Close" atajo={teclasDe('cerrar')} onClick={() => handleTabMenuAction('close')} />
+                  {hasOtherTabs && <EntradaMenuPestana icono={LuX} texto="Close others" onClick={() => handleTabMenuAction('closeOthers')} />}
+                  {hasTabsToRight && <EntradaMenuPestana icono={LuX} texto="Close to the right" onClick={() => handleTabMenuAction('closeToRight')} />}
+                  {hasSavedTabs && <EntradaMenuPestana icono={LuX} texto="Close saved" onClick={() => handleTabMenuAction('closeSaved')} />}
+                  {hasOtherTabs && <EntradaMenuPestana icono={LuX} texto="Close all" onClick={() => handleTabMenuAction('closeAll')} />}
+                  <div className="column-context-menu-separator" />
+                  <EntradaMenuPestana icono={LuHistory} texto="Reopen closed tab" atajo={teclasDe('reabrir')} onClick={() => handleTabMenuAction('reopen')} />
                 </div>
               );
             })()}
