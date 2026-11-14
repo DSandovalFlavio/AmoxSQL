@@ -90,22 +90,56 @@
    muted/subtle/focus-ring/color-user are derived ONCE in :root (dark washes)
    and .mode-light (softer light washes).
 
-   6.0 (M9): los ocho «Vibrant» cubren el círculo cromático — cian (el de la
-   marca, que es el de :root y no necesita clase), azul, violeta, magenta,
-   rojo, naranja, lima y verde. Antes eran siete azules casi iguales y un
-   violeta. Cada uno con el croma máximo dentro de sRGB a su luminosidad, y
-   ésta la mínima que da ≥ 4.6:1 como texto sobre las superficies de los siete
-   temas oscuros (scripts/checkThemeContrast.cjs). Los ids viejos (amox-2…10,
-   linear, islands) se traducen al cargar: theme.js → migrateAccent.
+   6.0 (M9): los «Vibrant» cubren el círculo cromático. Antes eran siete azules
+   casi iguales y un violeta. Cada uno con el croma máximo dentro de sRGB a su
+   luminosidad, y ésta la mínima que da ≥ 4.5:1 como texto sobre las
+   superficies de los siete temas oscuros (scripts/checkThemeContrast.cjs).
+
+   6.0 (auditoría de color, docs/dev/auditoria_color_2026-11.md): diez vivos y
+   seis sobrios, ninguna pareja por debajo de ΔE 8 en oscuro ni de 5 en claro.
+   - El cian tiene clase propia. Antes era «sin clase», o sea el acento del
+     TEMA: en Nord o Ember elegir cian daba el acento de Nord o de Ember. Ahora
+     «sin clase» es la opción «Theme» del selector (id `tema`) y el cian es un
+     acento más, ya dentro de sRGB: el de :root pedía croma 0,155 donde caben
+     0,125 y cada navegador lo recortaba a su manera.
+   - Rojo neón (el rojo con el croma máximo que cabe) y rosa aparte: el rojo de
+     antes era este mismo lavado.
+   - Amarillo nuevo: entre naranja y lima había 70° vacíos.
+   - Los sobrios ya no repiten el tono de un vivo con menos croma (violet y
+     lavender quedaban a ΔE 4,6, green y sage a 0,6 en claro): sage, sand, clay,
+     mauve, steel y graphite. Los retirados se traducen en theme.js →
+     migrateAccent.
    ═══════════════════════════════════════════════ */
 
+.accent-cyan    { --acc-l: 0.797; --acc-c: 0.134; --acc-h: 211.5; } /* 6.91:1 — el #22d3ee de la marca */
 .accent-blue    { --acc-l: 0.720; --acc-c: 0.145; --acc-h: 258; }   /* 5.01:1 */
 .accent-violet  { --acc-l: 0.720; --acc-c: 0.160; --acc-h: 295; }   /* 4.78:1 */
-.accent-magenta { --acc-l: 0.730; --acc-c: 0.210; --acc-h: 340; }   /* 4.72:1 */
-.accent-red     { --acc-l: 0.720; --acc-c: 0.170; --acc-h: 25;  }   /* 4.68:1 */
-.accent-orange  { --acc-l: 0.760; --acc-c: 0.165; --acc-h: 55;  }   /* 5.55:1 */
-.accent-lime    { --acc-l: 0.860; --acc-c: 0.200; --acc-h: 125; }   /* 8.52:1 */
+.accent-magenta { --acc-l: 0.730; --acc-c: 0.210; --acc-h: 335; }   /* 4.72:1 */
+.accent-pink    { --acc-l: 0.760; --acc-c: 0.150; --acc-h: 5;   }   /* 5.43:1 */
+.accent-red     { --acc-l: 0.680; --acc-c: 0.208; --acc-h: 22;  }   /* neón; 3.93 en los menús de Nord → ver abajo */
+.accent-orange  { --acc-l: 0.760; --acc-c: 0.158; --acc-h: 50;  }   /* 5.54:1 */
+.accent-yellow  { --acc-l: 0.870; --acc-c: 0.170; --acc-h: 95;  }   /* 8.44:1 */
+.accent-lime    { --acc-l: 0.860; --acc-c: 0.200; --acc-h: 128; }   /* 8.55:1 */
 .accent-green   { --acc-l: 0.780; --acc-c: 0.180; --acc-h: 155; }   /* 6.70:1 */
+
+/* Nord es el oscuro de superficies más claras: el neón da 3.93 sobre sus
+   menús. Ahí sube la luz lo justo para leerse (≈ #ff7072), y sigue siendo rojo. */
+.theme-nord.accent-red { --acc-l: 0.720; --acc-c: 0.175; }
+
+/* Con un acento rojo el botón principal y el de borrar serían el mismo color:
+   el rojo de error de Obsidian, Deep Dark e Islands está a ΔE 1,8–3,4 del neón.
+   Mientras el acento sea rojo, el error pasa a bermellón (a ΔE 6,8 del neón:
+   más naranja). Lo mismo para Deep Dark, cuyo acento propio es el neón. Solo en
+   oscuro: en claro el rojo del acento ya era éste y no cambia. */
+.mode-dark.accent-red,
+.theme-deepdark:not([class*="accent-"]) {
+  --feedback-error:          #f75932;
+  --feedback-error-text:     #ff7552;   /* 4.71:1 en la peor superficie oscura */
+  --feedback-error-bg:       color-mix(in oklch, #f75932 10%, transparent);
+  --feedback-error-border:   color-mix(in oklch, #f75932 25%, transparent);
+  --color-destructive:       #f75932;
+  --color-destructive-text:  #ff7552;
+}
 
 /* ═══════════════════════════════════════════════
    DARK THEME: EMBER — suelo frio, codigo calido
@@ -161,13 +195,16 @@
   --feedback-success-bg:   rgba(39, 215, 150, 0.10);
   --feedback-success-border: rgba(39, 215, 150, 0.22);
   --feedback-success-text: #27d796;
-  --feedback-error:        #f43e5c;
-  --feedback-error-bg:     rgba(244, 62, 92, 0.10);
-  --feedback-error-border: rgba(244, 62, 92, 0.22);
-  /* El rojo de la paleta da 4,13 como TEXTO sobre la superficie de modales, que
-     se queda corto. Como marca y borde se queda tal cual; para texto va el mismo
-     tono aclarado, que sube a 5,23. Para eso existe el token -text aparte. */
-  --feedback-error-text:   #fb6574;
+  /* Bermellon y no el rojo de la paleta (#f43e5c): ese estaba a ΔE 4,4 del
+     coral del acento, y el boton principal se leia como uno de borrar. Mas
+     naranja, queda a 8,4 del coral y a 8,7 de la palabra clave (auditoria de
+     color 2026-11). El texto va aclarado: 5,74 en la peor superficie. */
+  --feedback-error:        #f75932;
+  --feedback-error-bg:     rgba(247, 89, 50, 0.10);
+  --feedback-error-border: rgba(247, 89, 50, 0.22);
+  --feedback-error-text:   #ff7552;
+  --color-destructive:     #f75932;
+  --color-destructive-text: #ff7552;
   --feedback-warning:      #fac29a;
   --feedback-warning-bg:   rgba(250, 194, 154, 0.10);
   --feedback-warning-border: rgba(250, 194, 154, 0.22);
@@ -186,7 +223,7 @@
   --syntax-number:   #b877db;   /* violeta — separado de la cadena */
   --syntax-function: #25b2bc;   /* cian */
   --syntax-comment:  #6c6f93;   /* el apagado de la paleta */
-  --syntax-type:     #fac29a;   /* durazno claro */
+  --syntax-type:     #f3d19c;   /* arena — el durazno claro estaba a ΔE 2,6 de la cadena */
   --syntax-operator: #f09383;   /* salmon */
   --syntax-variable: #e2e2eb;
   --syntax-constant: #27d796;   /* verde — TRUE/FALSE/NULL */
@@ -492,9 +529,12 @@
   --syntax-function: #88c0d0;
   --syntax-comment:  #616e88;
   --syntax-type:     #8fbcbb;
-  --syntax-operator: #81a1c1;
+  /* Operador y constante tenian el color de la palabra clave y del numero.
+     El operador pasa a neutro (es puntuacion) y la constante toma el naranja
+     de la aurora de Nord, el unico calido de la paleta que no se usaba. */
+  --syntax-operator: #98a4b3;
   --syntax-variable: #d8dee9;
-  --syntax-constant: #b48ead;
+  --syntax-constant: #d08770;
 
   --editor-bg: var(--surface-base);
   --header-bg: var(--surface-raised);
@@ -558,7 +598,7 @@
   --syntax-string:   #6aab73;  /* soft green */
   --syntax-number:   #2aacb8;  /* teal-cyan */
   --syntax-function: #56a8f5;  /* soft blue */
-  --syntax-comment:  #555861;  /* muted gray */
+  --syntax-comment:  #666a74;  /* muted gray — 3,2:1 (era #555861, 2,45: el mas bajo de los diez) */
   --syntax-type:     #c77dbb;  /* soft purple: classes, types */
   --syntax-operator: #bcbec4;  /* neutral text */
   --syntax-variable: #bcbec4;  /* plain text */
@@ -574,44 +614,41 @@
 
 /* ═══════════════════════════════════════════════
    SOBER ACCENT PALETTES
-   Muted, professional tones for dark themes
+   Tonos de poco croma que NO repiten el de un vivo: con el mismo tono y menos
+   croma, en claro (L 0,47–0,52) la diferencia desaparecía.
    ═══════════════════════════════════════════════ */
-.accent-sage {
-  --acc-l: 0.72; --acc-c: 0.10; --acc-h: 155;   /* Muted sage green */     /* Muted sage green */
-}
-
-.accent-amber {
-  --acc-l: 0.78; --acc-c: 0.12; --acc-h: 75;   /* Warm amber/gold */      /* Warm amber/gold */
-}
-
-.accent-rose {
-  --acc-l: 0.68; --acc-c: 0.14; --acc-h: 15;   /* Muted rose/coral */      /* Muted rose/coral */
-}
-
-.accent-lavender {
-  --acc-l: 0.70; --acc-c: 0.12; --acc-h: 300;   /* Soft lavender/purple */     /* Soft lavender/purple */
-}
-
-.accent-steel {
-  --acc-l: 0.68; --acc-c: 0.06; --acc-h: 250;   /* Cool steel blue-grey */     /* Cool steel blue-grey */
-}
-
-.accent-copper {
-  --acc-l: 0.72; --acc-c: 0.10; --acc-h: 50;   /* Warm copper/terracotta */      /* Warm copper/terracotta */
-}
+.accent-sage     { --acc-l: 0.740; --acc-c: 0.060; --acc-h: 145; }   /* 5.54:1 */
+.accent-sand     { --acc-l: 0.800; --acc-c: 0.075; --acc-h: 85;  }   /* 6.67:1 */
+.accent-clay     { --acc-l: 0.700; --acc-c: 0.095; --acc-h: 38;  }   /* 4.51:1 */
+.accent-mauve    { --acc-l: 0.720; --acc-c: 0.075; --acc-h: 340; }   /* 4.86:1 */
+.accent-steel    { --acc-l: 0.700; --acc-c: 0.055; --acc-h: 250; }   /* 4.70:1 */
+.accent-graphite { --acc-l: 0.820; --acc-c: 0.008; --acc-h: 260; }   /* 7.15:1 — un acento sin color */
 
 /* ═══════════════════════════════════════════════
    THEME DEFAULT ACCENTS
-   nord/islands ship a built-in accent. It must apply ONLY when the user
-   hasn't picked one — otherwise (accent class present) the picked accent
-   wins. `:not([class*="accent-"])` scopes the default cleanly; before this,
-   the theme's accent-primary (later in the file) overrode every accent pick.
+   Cada tema trae el suyo, y solo se aplica cuando el usuario no eligió uno
+   (la opción «Theme» del selector: sin clase de acento). `:not([class*="accent-"])`
+   lo limita; antes el acento del tema pisaba cualquier elección.
    ═══════════════════════════════════════════════ */
+/* Estos dos van por componentes (--acc-*) y no con --accent-primary ya hecho:
+   así `body` lo compone y la barra «Accent intensity» lo sigue moviendo, como
+   movía el cian que tenían antes. */
+/* Obsidian: su sintaxis ya gira en lavanda, y así el cian queda como firma de
+   Amox Dark. */
+.theme-obsidian:not([class*="accent-"]) {
+  --acc-l: 0.720; --acc-c: 0.160; --acc-h: 295;   /* ≈ #ad8dfd */
+}
+/* Deep Dark: negro sin tinte y un solo color, el rojo neón. Su error pasa a
+   bermellón en la regla de arriba. */
+.theme-deepdark:not([class*="accent-"]) {
+  --acc-l: 0.680; --acc-c: 0.208; --acc-h: 22;    /* ≈ #ff525b */
+}
 .theme-nord:not([class*="accent-"]) {
   --accent-primary: #81a1c1;
 }
 .theme-ember:not([class*="accent-"]) {
-  --accent-primary: #e95678;
+  /* El coral de siempre con un punto más de luz: daba 4.42 sobre los menús. */
+  --accent-primary: #eb5e7c;
 }
 .theme-islands:not([class*="accent-"]) {
   --accent-primary: #548af7;
@@ -709,7 +746,7 @@
   --syntax-type:      oklch(0.530 0.078 193.0);   /* ≈ #267A78 (era #3a8a88, 3.69) */
   --syntax-operator:  oklch(0.545 0.067 60.9);    /* ≈ #8D6747 (era #906a4a, 4.39) */
   --syntax-variable:  #2c3444;   /* deep slate — ya pasaba */
-  --syntax-constant:  #7c5cc2;   /* soft purple — ya pasaba */
+  --syntax-constant:  oklch(0.530 0.120 15);   /* ≈ #A54B55 — era el mismo violeta que la palabra clave */
 
   /* ── Database types ──
      Son las etiquetas de la cabecera de resultados y del explorador de esquema:
@@ -804,7 +841,7 @@
                           identidad se lea igual en la UI y en el SQL (4.40:1 antes) */
   --syntax-operator:  #41505e;   /* ink-grey, sober */
   --syntax-variable:  #1c2530;   /* = text: columns/identifiers neutral */
-  --syntax-constant:  #8a5a00;   /* dark amber — TRUE/FALSE/NULL */
+  --syntax-constant:  #6d3fc4;   /* violeta — TRUE/FALSE/NULL; era el mismo ambar que el numero */
 
   --type-integer:  #1e66c7;
   --type-float:    oklch(0.515 0.092 209.7);   /* el teal de marca, como syntax-type */
@@ -958,22 +995,24 @@
    sigue ganando al acento propio del tema (0-1-0) y no colisiona con las reglas
    `:not([class*="accent-"])`, que solo aplican cuando NO hay acento elegido.
    ═══════════════════════════════════════════════ */
-.mode-light.accent-blue    { --accent-primary: oklch(0.500 0.180 258); --button-text-color: #ffffff; }   /* texto 4.69 · blanco encima 6.16 */
+.mode-light.accent-cyan    { --accent-primary: oklch(0.490 0.085 212); --button-text-color: #ffffff; }   /* texto 4.61 · blanco encima 6.05 */
+.mode-light.accent-blue    { --accent-primary: oklch(0.500 0.180 258); --button-text-color: #ffffff; }   /* 4.69 · 6.16 */
 .mode-light.accent-violet  { --accent-primary: oklch(0.520 0.220 295); --button-text-color: #ffffff; }   /* 4.68 · 6.14 */
-.mode-light.accent-magenta { --accent-primary: oklch(0.520 0.210 340); --button-text-color: #ffffff; }   /* 4.73 · 6.21 */
+.mode-light.accent-magenta { --accent-primary: oklch(0.520 0.210 335); --button-text-color: #ffffff; }   /* 4.73 · 6.21 */
+.mode-light.accent-pink    { --accent-primary: oklch(0.525 0.190 5);   --button-text-color: #ffffff; }   /* 4.56 · 5.99 */
 .mode-light.accent-red     { --accent-primary: oklch(0.520 0.200 25);  --button-text-color: #ffffff; }   /* 4.66 · 6.12 */
-.mode-light.accent-orange  { --accent-primary: oklch(0.505 0.125 55);  --button-text-color: #ffffff; }   /* 4.67 · 6.14 */
-.mode-light.accent-lime    { --accent-primary: oklch(0.490 0.120 125); --button-text-color: #ffffff; }   /* 4.61 · 6.05 */
-.mode-light.accent-green   { --accent-primary: oklch(0.485 0.115 155); --button-text-color: #ffffff; }   /* 4.60 · 6.05 */
+.mode-light.accent-orange  { --accent-primary: oklch(0.515 0.150 42);  --button-text-color: #ffffff; }   /* 4.58 · 6.01 */
+.mode-light.accent-yellow  { --accent-primary: oklch(0.500 0.102 95);  --button-text-color: #ffffff; }   /* ocre: 4.56 · 5.99 */
+.mode-light.accent-lime    { --accent-primary: oklch(0.490 0.128 128); --button-text-color: #ffffff; }   /* 4.59 · 6.02 */
+.mode-light.accent-green   { --accent-primary: oklch(0.485 0.113 158); --button-text-color: #ffffff; }   /* 4.60 · 6.04 */
 
-/* Acentos sobrios, oscurecidos para fondo claro. Ya cumplian los dos usos y
-   no se tocan. */
-.mode-light.accent-sage     { --accent-primary: oklch(0.48 0.13 155); }
-.mode-light.accent-amber    { --accent-primary: oklch(0.50 0.13 75); }
-.mode-light.accent-rose     { --accent-primary: oklch(0.52 0.18 15); }
-.mode-light.accent-lavender { --accent-primary: oklch(0.48 0.17 300); }
-.mode-light.accent-steel    { --accent-primary: oklch(0.46 0.08 250); }
-.mode-light.accent-copper   { --accent-primary: oklch(0.50 0.13 50); }
+/* Acentos sobrios en claro: la misma banda de luz, con su poco croma. */
+.mode-light.accent-sage     { --accent-primary: oklch(0.490 0.045 150); --button-text-color: #ffffff; }   /* 4.67 · 6.13 */
+.mode-light.accent-sand     { --accent-primary: oklch(0.495 0.045 80);  --button-text-color: #ffffff; }   /* 4.69 · 6.15 */
+.mode-light.accent-clay     { --accent-primary: oklch(0.500 0.085 30);  --button-text-color: #ffffff; }   /* 4.76 · 6.25 */
+.mode-light.accent-mauve    { --accent-primary: oklch(0.500 0.085 340); --button-text-color: #ffffff; }   /* 4.79 · 6.29 */
+.mode-light.accent-steel    { --accent-primary: oklch(0.470 0.065 250); --button-text-color: #ffffff; }   /* 5.17 · 6.80 */
+.mode-light.accent-graphite { --accent-primary: oklch(0.400 0.012 260); --button-text-color: #ffffff; }   /* 7.01 · 9.21 */
 
 /* Form controls don't inherit font-family by default — force them to use the
    interface font so buttons/inputs/selects everywhere follow --font-sans. */

@@ -14,7 +14,7 @@
 const {
     CSS, THEME_SELECTORS, LIGHT,
     themes, root, MODE_LIGHT,
-    ACCENT_DEFAULT, ACCENTS_LIGHT, ACCENTS_DARK,
+    ACCENT_DEFAULT, ACCENTS_LIGHT, ACCENTS_DARK, presetEnTema,
     col, shadowColor, over, contrast,
 } = require('./lib/themeTokens.cjs');
 
@@ -170,7 +170,8 @@ for (const theme of list) {
     // puede cambiar, y era ahí donde fallaba (cuatro botones ilegibles en claro).
     const presets = { '(por defecto)': ACCENT_DEFAULT[theme] ? { '--accent-primary': ACCENT_DEFAULT[theme] } : null,
                       ...(esClaro ? ACCENTS_LIGHT : ACCENTS_DARK) };
-    for (const [nombre, tokensAcc] of Object.entries(presets)) {
+    for (const [nombre, general] of Object.entries(presets)) {
+        const tokensAcc = general && nombre !== '(por defecto)' ? presetEnTema(theme, nombre, general) : general;
         const acc = col(theme, '--accent-primary', tokensAcc);
         if (!acc) continue;
         const comoTexto = Math.min(...todas.map(s => contrast(acc, s)));

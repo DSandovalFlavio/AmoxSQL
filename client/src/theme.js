@@ -62,12 +62,51 @@ const ACENTOS_RETIRADOS = {
     'amox-2': 'cyan', 'amox-3': 'cyan', 'amox-4': 'cyan', 'amox-5': 'cyan',
     'amox-6': 'blue', 'amox-7': 'blue', 'amox-8': 'blue', 'amox-9': 'blue', 'amox-10': 'blue',
     islands: 'blue', linear: 'violet',
+    // Auditoría de color (2026-11): los sobrios dejaron de repetir el tono de
+    // un vivo. Cada uno va al que ocupa su sitio ahora.
+    rose: 'clay', lavender: 'mauve', amber: 'sand', copper: 'sand',
 };
-export const migrateAccent = (accent) => ACENTOS_RETIRADOS[accent] || accent || 'cyan';
 
-/** Body class that defines a theme's own surfaces. Default dark = no class. */
+/**
+ * «Theme»: el acento que trae el tema. Es el único sin clase `accent-*`, así que
+ * las reglas `.theme-X:not([class*="accent-"])` le ponen el suyo a cada tema.
+ * Hasta la auditoría de color ese papel lo hacía `cyan`, y por eso elegir cian
+ * en Nord o en Ember daba el acento de Nord o de Ember.
+ */
+export const ACENTO_DEL_TEMA = 'tema';
+export const migrateAccent = (accent) => ACENTOS_RETIRADOS[accent] || accent || ACENTO_DEL_TEMA;
+
+/**
+ * El acento guardado de la app.
+ *
+ * Un `cyan` guardado antes de la auditoría de color no es una elección: la app
+ * lo escribía siempre, y significaba «sin clase», o sea el acento del tema. Se
+ * lee una vez como `tema`, y desde que se guarda con la marca `amoxsql-accent-v2`
+ * un `cyan` ya es el cian. Sin esto, quien nunca eligió acento se quedaría
+ * clavado en cian en los temas que traen el suyo.
+ */
+const MARCA_ACENTO = 'amoxsql-accent-v2';
+export const acentoGuardado = () => {
+    try {
+        const v = localStorage.getItem('amoxsql-accent');
+        if (v === 'cyan' && !localStorage.getItem(MARCA_ACENTO)) return ACENTO_DEL_TEMA;
+        return migrateAccent(v);
+    } catch {
+        return ACENTO_DEL_TEMA;
+    }
+};
+export const guardarAcento = (accent) => {
+    try {
+        localStorage.setItem('amoxsql-accent', accent);
+        localStorage.setItem(MARCA_ACENTO, '1');
+    } catch { /* sin localStorage no se recuerda */ }
+};
+
+/** Body class that defines a theme's own surfaces (Obsidian's are :root's). */
 export const themeClassFor = (theme) => {
-    if (theme === 'dark') return null; // obsidian default
+    // Obsidian se guarda como `dark` y sus superficies son las de :root; la clase
+    // solo existe para que pueda traer su propio acento.
+    if (theme === 'dark') return 'theme-obsidian';
     return `theme-${theme}`;
 };
 
@@ -89,15 +128,15 @@ export const modeClassFor = (theme) => (isLightTheme(theme) ? 'mode-light' : 'mo
 export const applyStoredTheme = () => {
     try {
         const theme = migrateTheme(localStorage.getItem('amoxsql-theme'));
-        const accent = migrateAccent(localStorage.getItem('amoxsql-accent'));
+        const accent = acentoGuardado();
         const body = document.body;
 
         const themeClass = themeClassFor(theme);
         if (themeClass) body.classList.add(themeClass);
         body.classList.add(modeClassFor(theme));
 
-        // cian es el acento por defecto y no lleva clase
-        if (accent !== 'cyan') body.classList.add(`accent-${accent}`);
+        // el acento del tema no lleva clase
+        if (accent !== ACENTO_DEL_TEMA) body.classList.add(`accent-${accent}`);
 
         const l = parseFloat(localStorage.getItem('amoxsql-accent-l'));
         if (Number.isFinite(l)) body.style.setProperty('--acc-l', String(l));

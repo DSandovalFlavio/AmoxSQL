@@ -66,9 +66,9 @@
      directamente. Su especificidad (>= 0-1-0) gana sobre `body` (0-0-1), así que
      conservan su color afinado a mano y el ajuste de L no les aplica: en claro
      el acento necesita una L baja para contrastar y forzarla lo rompería. */
-  --acc-l: 0.730;    /* luminosidad — AJUSTABLE por el usuario (.600 – .950) */
-  --acc-c: 0.155;    /* croma */
-  --acc-h: 195;      /* tono — cian por defecto */
+  --acc-l: 0.797;    /* luminosidad — AJUSTABLE por el usuario (.600 – .950) */
+  --acc-c: 0.134;    /* croma — el maximo dentro de sRGB a esta L y tono */
+  --acc-h: 211.5;    /* tono — el cian de la marca (#22d3ee), igual que .accent-cyan */
 
   /* ── Interaction States ── */
   --hover-bg:   rgba(255, 255, 255, 0.06);
@@ -117,9 +117,9 @@
   /* ── Syntax Highlighting Tokens (for Monaco & code display) ── */
   --syntax-keyword:   oklch(0.72 0.12 280);   /* ≈ #9BA1F2 lavender */
   --syntax-string:    oklch(0.76 0.10 70);    /* ≈ #D4A76A warm gold */
-  --syntax-number:    oklch(0.78 0.11 60);    /* ≈ #E0A86E amber */
+  --syntax-number:    oklch(0.76 0.12 350);   /* rosa — el ambar estaba a ΔE 2,9 de la cadena */
   --syntax-function:  oklch(0.80 0.09 200);   /* ≈ #6EC5D4 teal */
-  --syntax-comment:   oklch(0.46 0.01 270);   /* ≈ #5C5F66 muted gray */
+  --syntax-comment:   oklch(0.50 0.012 270);  /* ≈ #60636A — 3,3:1 (era 2,8) */
   --syntax-type:      oklch(0.79 0.12 235);   /* ≈ #4FC1FF sky blue */
   --syntax-operator:  oklch(0.78 0.06 60);    /* warm neutral */
   --syntax-variable:  oklch(0.85 0.04 265);   /* light neutral */

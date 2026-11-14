@@ -2,7 +2,7 @@
 
 **🌐 English · [Español](../../es/user-guide/themes-and-appearance.md)**
 
-> AmoxSQL ships 10 themes (light and dark) and 13 accent colors, with the code editor and charts following your choice live.
+> AmoxSQL ships 10 themes (light and dark), each with its own accent, and 16 more accents to choose from, with the code editor and charts following your choice live.
 
 <img src="../../../images/09_settings_modal.png" alt="Appearance settings" width="100%" />
 
@@ -15,17 +15,31 @@
 
 A new install starts on **Amox Dark** (since 6.0); if you had already chosen another theme, yours stays.
 
-Split into two modes:
-
-- **Dark:** **Amox Dark** (signature, cyan/teal), Obsidian, Onyx, **Ayu Dark** (faithful adaptation of the ayu palette), Nord Dark, Dark Islands.
-- **Light:** **Amox Light** (signature, teal), Ivory, Mist, Light.
+| Theme | Mode | What it is | Its accent |
+|---|---|---|---|
+| **Amox Dark** | Dark | The house theme: cool carbon | Brand cyan |
+| **Amox Light** | Light | The house light theme | Brand teal |
+| **Sterling Deep** | Dark | Violet grey | Lime |
+| **Sterling Light** | Light | Lavender paper, violet ink | Violet |
+| **Obsidian** | Dark | Blue-black, the deepest with a tint | Violet |
+| **Deep Dark** | Dark | Untinted black: the data is the only colour | Neon red |
+| **Ember** | Dark | Neutral floor, warm code | Coral |
+| **Dark Islands** | Dark | Sober grey | Blue |
+| **Nord Dark** | Dark | Polar night, all muted | Frost blue |
+| **Mist** | Light | Cool fog, low glare | Indigo |
 
 All are calibrated to the same contrast floors (WCAG accessibility), so text is legible in any of them. Amox Dark and Amox Light are the brand themes.
 
-## Accent colors (13)
-The accent tints buttons, highlights, links, and active elements:
-- **7 vibrant:** Cyan, Aqua, Sky, Azure, Blue, Cobalt, Linear Blue.
-- **6 muted:** Sage, Amber, Rose, Lavender, Steel, Copper.
+## Accent colors
+The accent tints buttons, highlights, links, and active elements.
+
+- **Theme** (the first swatch): the accent the theme brings, the one in the table above. It is the default, and it follows you when you change theme.
+- **10 vibrant:** Cyan, Blue, Violet, Magenta, Pink, Neon red, Orange, Yellow, Lime, Green.
+- **6 muted:** Sage, Sand, Clay, Mauve, Steel, Graphite (an accent with no colour).
+
+Each accent has a darker version for light themes, so it reads both as text and as a button. With **Neon red** on a dark theme, errors turn vermilion, so a primary button is never mistaken for a delete one.
+
+If you had picked an accent that is gone, it switches by itself to the closest one: Rose to Clay, Lavender to Mauve, Amber and Copper to Sand.
 
 ## The editor and charts follow your theme
 - The **code editor** adopts the active theme and accent live — no reload.

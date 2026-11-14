@@ -14,7 +14,7 @@
  * su hijo (ver la nota de `effectiveAccentL`).
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { themeClassFor, modeClassFor, migrateTheme, migrateAccent } from '../theme.js';
+import { themeClassFor, modeClassFor, migrateTheme, acentoGuardado, guardarAcento, ACENTO_DEL_TEMA } from '../theme.js';
 import { deriveLogoStops } from '../utils/logoGradient.js';
 import { syncMonacoTheme } from '../monacoTheme.js';
 
@@ -22,7 +22,7 @@ const Contexto = createContext(null);
 
 export function AparienciaProvider({ children }) {
   const [theme, setTheme] = useState(() => migrateTheme(localStorage.getItem('amoxsql-theme')));
-  const [accentColor, setAccentColor] = useState(() => migrateAccent(localStorage.getItem('amoxsql-accent'))); // 'cyan' y los de accents.js
+  const [accentColor, setAccentColor] = useState(acentoGuardado); // 'tema' (el del tema) o un id de accents.js
   // Luminosidad del acento. null = sin personalizar, se usa la L propia del preset.
   // Guardarla como null en vez de un número evita aplanar los presets,
   // que tienen cada uno su L: cada preset conserva su identidad hasta que el
@@ -135,12 +135,12 @@ export function AparienciaProvider({ children }) {
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem('amoxsql-accent', accentColor);
+    guardarAcento(accentColor);
     // Remove all accent classes first
     const classes = [...document.body.classList].filter(c => c.startsWith('accent-'));
     classes.forEach(c => document.body.classList.remove(c));
-    // Apply new accent class (cyan = default, no class needed)
-    if (accentColor !== 'cyan') {
+    // Apply new accent class (the theme's own accent = no class)
+    if (accentColor !== ACENTO_DEL_TEMA) {
       document.body.classList.add(`accent-${accentColor}`);
     }
     // The accent changes --accent-primary → re-theme Monaco (cursor/highlight).

@@ -4,7 +4,8 @@
  * se carga la primera vez que se abre la sección.
  */
 import { LuDownload, LuTrash2 } from 'react-icons/lu';
-import { Toggle } from './comun';
+import { Toggle } from './comun';
+
 import { migrateAccent } from '../../theme.js';
 
 export default function Comportamiento({
@@ -202,7 +203,7 @@ export default function Comportamiento({
                             if (ok) {
                                 onEditorSettingsChange?.({});
                                 onThemeChange?.('dark');
-                                onAccentChange?.('cyan');
+                                onAccentChange?.('tema');
                                 onLayoutChange?.('horizontal');
                                 onUiZoomChange?.(1.0);
                                 toast.success('Settings restored to defaults');

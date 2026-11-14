@@ -398,21 +398,26 @@ async function fase2(app) {
       return { cartas: cartas.length, claro, oscuro };`);
     bien('elegir un tema en Settings lo aplica y lo guarda', e.cartas >= 10 && e.claro.modo && e.claro.guardado === 'amoxlight' && e.claro.activa && e.oscuro.modo && e.oscuro.guardado === 'amoxdark', e);
 
-    // Los acentos recorren el círculo cromático (6.0, M9): elegir uno lo aplica.
+    // Los acentos recorren el círculo cromático (6.0, M9; auditoría de color):
+    // diez vivos más «Theme», el acento que trae el tema. Elegir uno lo aplica;
+    // volver a «Theme» quita la clase y deja el del tema.
     e = await app.js(`
       window.dispatchEvent(new CustomEvent('amox_abrir_ajustes', { detail: 'appearance' }));
       let muestras = [];
-      for (let i = 0; i < 40 && !muestras.length; i++) { await t.dormir(100); muestras = [...document.querySelectorAll('.stg-content-body [title]')].filter(b => /^(Cyan|Blue|Violet|Magenta|Red|Orange|Lime|Green)\\b/.test(b.title)); }
+      for (let i = 0; i < 40 && !muestras.length; i++) { await t.dormir(100); muestras = [...document.querySelectorAll('.stg-content-body [title]')].filter(b => /^(Theme|Cyan|Blue|Violet|Magenta|Pink|Neon red|Orange|Yellow|Lime|Green)\\b/.test(b.title)); }
       const marca = document.querySelectorAll('.stg-theme-marca .stg-theme-card').length;
       const antes = getComputedStyle(document.body).getPropertyValue('--accent-primary').trim();
       muestras.find(b => b.title.startsWith('Violet'))?.click(); await t.dormir(300);
       const violeta = { clase: document.body.classList.contains('accent-violet'), guardado: localStorage.getItem('amoxsql-accent'), color: getComputedStyle(document.body).getPropertyValue('--accent-primary').trim() };
-      return { muestras: muestras.map(b => b.title.split(' ')[0]), marca, antes, violeta };`);
+      muestras.find(b => b.title.startsWith('Theme'))?.click(); await t.dormir(300);
+      const delTema = { sinClase: ![...document.body.classList].some(c => c.startsWith('accent-')), guardado: localStorage.getItem('amoxsql-accent'), color: getComputedStyle(document.body).getPropertyValue('--accent-primary').trim() };
+      return { muestras: muestras.map(b => b.title.split(' ')[0]), marca, antes, violeta, delTema };`);
     await foto(app, 'ajustes-acento-violeta');
-    await app.js(`[...document.querySelectorAll('.stg-content-body [title]')].find(b => b.title.startsWith('Cyan'))?.click(); await t.dormir(300);`);
+    await app.js(`[...document.querySelectorAll('.stg-content-body [title]')].find(b => b.title.startsWith('Theme'))?.click(); await t.dormir(300);`);
     await foto(app, 'ajustes-apariencia');
     await app.js(`document.querySelector('.stg-close-btn')?.click(); await t.dormir(200);`);
-    bien('los ocho acentos, la pareja de la marca arriba, y elegir uno lo aplica', e.muestras.length === 8 && e.marca === 2 && e.violeta.clase && e.violeta.guardado === 'violet' && e.violeta.color !== e.antes, e);
+    bien('«Theme» y los diez acentos, la pareja de la marca arriba, y elegir uno lo aplica', e.muestras.length === 11 && e.muestras[0] === 'Theme' && e.marca === 2 && e.violeta.clase && e.violeta.guardado === 'violet' && e.violeta.color !== e.antes
+        && e.delTema.sinClase && e.delTema.guardado === 'tema' && e.delTema.color === e.antes, e);
 
     // Los atajos y las guías salieron de Settings a Help (6.0, M8).
     console.log('— Help');

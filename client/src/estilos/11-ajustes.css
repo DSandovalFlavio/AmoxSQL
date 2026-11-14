@@ -618,6 +618,15 @@
   font-size: var(--text-xs);
 }
 
+/* La muestra «Theme»: el acento del tema activo, separada de las de color fijo. */
+.stg-swatch--tema {
+  margin-right: 10px;
+}
+
+.stg-swatch-tema-icono {
+  color: rgba(0, 0, 0, 0.62);
+}
+
 /* ── Layout Card ── */
 
 .stg-layout-grid {

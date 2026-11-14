@@ -5,7 +5,7 @@
  */
 // Los acentos viven fuera: el inspector del deck necesita la misma lista y no
 // puede importar 97 KB de modal para leer dos arrays.
-import { LuMoon, LuSun, LuCheck } from 'react-icons/lu';
+import { LuMoon, LuSun, LuCheck, LuPalette } from 'react-icons/lu';
 import { VIBRANT_ACCENTS, SOBER_ACCENTS } from '../../accents.js';
 import { Toggle } from './comun';
 
@@ -27,26 +27,30 @@ import { Toggle } from './comun';
  */
 const COLUMNAS_DE_TEMAS = [
     [
-        { id: 'amoxdark',  label: 'Amox Dark',    icon: <LuMoon size={14} />, sidebar: '#151b22', editor: '#0f141a', text: '#22d3ee', desc: 'Signature · cyan brand' },
-        { id: 'amoxlight', label: 'Amox Light',   icon: <LuSun size={14} />,  sidebar: '#f8fafb', editor: '#f1f4f7', text: '#0a7d8c', desc: 'Signature · teal brand' },
+        { id: 'amoxdark',  label: 'Amox Dark',    icon: <LuMoon size={14} />, sidebar: '#151b22', editor: '#0f141a', text: '#22d3ee', acento: '#22d3ee', desc: 'Signature · cyan brand' },
+        { id: 'amoxlight', label: 'Amox Light',   icon: <LuSun size={14} />,  sidebar: '#f8fafb', editor: '#f1f4f7', text: '#0a7d8c', acento: '#007584', desc: 'Signature · teal brand' },
     ],
     [
-        { id: 'sterlingdeep',  label: 'Sterling Deep',  icon: <LuMoon size={14} />, sidebar: '#181824', editor: '#13131f', text: '#b6f09c', desc: 'Deep violet · lime accent' },
-        { id: 'sterlinglight', label: 'Sterling Light', icon: <LuSun size={14} />,  sidebar: '#fbf9fe', editor: '#f6f3fb', text: '#7c5ce0', desc: 'Sterling · by La Matemaga' },
+        { id: 'sterlingdeep',  label: 'Sterling Deep',  icon: <LuMoon size={14} />, sidebar: '#181824', editor: '#13131f', text: '#b6f09c', acento: '#b6f09c', desc: 'Deep violet · lime accent' },
+        { id: 'sterlinglight', label: 'Sterling Light', icon: <LuSun size={14} />,  sidebar: '#fbf9fe', editor: '#f6f3fb', text: '#7c5ce0', acento: '#6b49cb', desc: 'Sterling · by La Matemaga' },
     ],
     [
-        { id: 'deepdark',  label: 'Deep Dark',    icon: <LuMoon size={14} />, sidebar: '#0f0f0f', editor: '#050505', text: '#ccc',    desc: 'True black · no tint at all' },
-        { id: 'mist',      label: 'Mist',         icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', desc: 'Cool fog' },
+        { id: 'deepdark',  label: 'Deep Dark',    icon: <LuMoon size={14} />, sidebar: '#0f0f0f', editor: '#050505', text: '#ccc',    acento: '#ff525b', desc: 'True black · neon red accent' },
+        { id: 'mist',      label: 'Mist',         icon: <LuSun size={14} />,  sidebar: '#e8ecf2', editor: '#f2f4f8', text: '#2c3444', acento: '#4e61a0', desc: 'Cool fog' },
     ],
     [
-        { id: 'dark',      label: 'Obsidian',     icon: <LuMoon size={14} />, sidebar: '#0e1017', editor: '#080a0f', text: '#ccc',    desc: 'Deep ink blue' },
-        { id: 'ember',     label: 'Ember',        icon: <LuMoon size={14} />, sidebar: '#1a1a23', editor: '#16161c', text: '#e95678', desc: 'Cool floor · warm syntax' },
+        { id: 'dark',      label: 'Obsidian',     icon: <LuMoon size={14} />, sidebar: '#0e1017', editor: '#080a0f', text: '#ccc',    acento: '#ad8dfd', desc: 'Deep ink blue · violet accent' },
+        { id: 'ember',     label: 'Ember',        icon: <LuMoon size={14} />, sidebar: '#1a1a23', editor: '#16161c', text: '#eb5e7c', acento: '#eb5e7c', desc: 'Cool floor · warm syntax' },
     ],
     [
-        { id: 'islands',   label: 'Dark Islands', icon: <LuMoon size={14} />, sidebar: '#1e2024', editor: '#181a1d', text: '#bcbec4', desc: 'Sober grey, no tint' },
-        { id: 'nord',      label: 'Nord Dark',    icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', desc: 'Polar night' },
+        { id: 'islands',   label: 'Dark Islands', icon: <LuMoon size={14} />, sidebar: '#1e2024', editor: '#181a1d', text: '#bcbec4', acento: '#548af7', desc: 'Sober grey, no tint' },
+        { id: 'nord',      label: 'Nord Dark',    icon: <LuMoon size={14} />, sidebar: '#151920', editor: '#222833', text: '#d8dee9', acento: '#81a1c1', desc: 'Polar night' },
     ],
 ];
+
+// El acento que trae cada tema: la muestra «Theme» del selector lo enseña. Es
+// el mismo valor que la regla `.theme-X:not([class*="accent-"])` de 03-temas.css.
+const ACENTO_DE_TEMA = Object.fromEntries(COLUMNAS_DE_TEMAS.flat().map(t => [t.id, t.acento]));
 
 // Esquinas del resplandor del fondo. Los ids coinciden con las clases body.glow-*
 // de index.css; el punto de la miniatura se posiciona con esos mismos ids.
@@ -77,7 +81,8 @@ export default function Apariencia({
     onThemeChange,
     onUiZoomChange,
     uiZoomLevel,
-}) {
+}) {
+
     const tarjeta = (t, marca) => (
         <div
             key={t.id}
@@ -148,15 +153,19 @@ export default function Apariencia({
                 <h3 className="stg-section-heading stg-section-heading--mb12">Accent Color</h3>
                 <p className="stg-swatch-label">Vibrant</p>
                 <div className="stg-swatch-group stg-mb14">
-                    {VIBRANT_ACCENTS.map(s => (
+                    {/* La primera es la del tema: cada tema trae su acento, y es la que
+                        hay si no se elige ninguno. Cambia al cambiar de tema. */}
+                    {[{ id: 'tema', color: ACENTO_DE_TEMA[currentTheme] || 'var(--accent-primary)', label: 'Theme — the accent this theme brings', tema: true }, ...VIBRANT_ACCENTS].map(s => (
                         <div
                             key={s.id}
                             onClick={() => onAccentChange?.(s.id)}
-                            className={`stg-swatch${currentAccent === s.id ? ' stg-swatch--active' : ''}`}
+                            className={`stg-swatch${s.tema ? ' stg-swatch--tema' : ''}${currentAccent === s.id ? ' stg-swatch--active' : ''}`}
                             style={{ background: s.color }}
                             title={s.label}
                         >
-                            {currentAccent === s.id && <span className="stg-swatch-check" style={{ color: '#000' }}><LuCheck size={12} /></span>}
+                            {currentAccent === s.id
+                                ? <span className="stg-swatch-check" style={{ color: '#000' }}><LuCheck size={12} /></span>
+                                : s.tema && <LuPalette size={13} className="stg-swatch-tema-icono" />}
                         </div>
                     ))}
                 </div>

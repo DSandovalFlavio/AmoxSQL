@@ -2,7 +2,7 @@
 
 **🌐 [English](../../en/user-guide/themes-and-appearance.md) · Español**
 
-> AmoxSQL trae 10 temas (claros y oscuros) y 13 colores de acento, con el editor de código y los gráficos siguiendo tu elección en vivo.
+> AmoxSQL trae 10 temas (claros y oscuros), cada uno con su acento, y 16 acentos más para elegir, con el editor de código y los gráficos siguiendo tu elección en vivo.
 
 <img src="../../../images/09_settings_modal.png" alt="Ajustes de apariencia" width="100%" />
 
@@ -15,17 +15,31 @@
 
 Una instalación nueva empieza en **Amox Dark** (desde la 6.0); si ya habías elegido otro tema, se queda el tuyo.
 
-Divididos en dos modos:
-
-- **Oscuros:** **Amox Dark** (insignia, cian/teal), Obsidian, Onyx, **Ayu Dark** (adaptación fiel de la paleta ayu), Nord Dark, Dark Islands.
-- **Claros:** **Amox Light** (insignia, teal), Ivory, Mist, Light.
+| Tema | Modo | Cómo es | Su acento |
+|---|---|---|---|
+| **Amox Dark** | Oscuro | El de la casa: carbón frío | Cian de la marca |
+| **Amox Light** | Claro | El claro de la casa | Teal de la marca |
+| **Sterling Deep** | Oscuro | Gris violeta | Lima |
+| **Sterling Light** | Claro | Papel lavanda, tinta violeta | Violeta |
+| **Obsidian** | Oscuro | Negro azulado, el más hondo con tinte | Violeta |
+| **Deep Dark** | Oscuro | Negro sin tinte: el dato es lo único con color | Rojo neón |
+| **Ember** | Oscuro | Suelo neutro, código cálido | Coral |
+| **Dark Islands** | Oscuro | Gris sobrio | Azul |
+| **Nord Dark** | Oscuro | Noche polar, todo apagado | Azul escarcha |
+| **Mist** | Claro | Niebla fría, poco brillo | Índigo |
 
 Todos están calibrados a los mismos pisos de contraste (accesibilidad WCAG), así que el texto es legible en cualquiera. Amox Dark y Amox Light son los temas de marca.
 
-## Colores de acento (13)
-El acento tiñe botones, resaltados, enlaces y elementos activos:
-- **7 vibrantes:** Cyan, Aqua, Sky, Azure, Blue, Cobalt, Linear Blue.
-- **6 sobrios:** Sage, Amber, Rose, Lavender, Steel, Copper.
+## Colores de acento
+El acento tiñe botones, resaltados, enlaces y elementos activos.
+
+- **Theme** (la primera muestra): el acento que trae el tema, el de la tabla de arriba. Es el de serie, y cambia contigo cuando cambias de tema.
+- **10 vibrantes:** Cyan, Blue, Violet, Magenta, Pink, Neon red, Orange, Yellow, Lime, Green.
+- **6 sobrios:** Sage, Sand, Clay, Mauve, Steel, Graphite (un acento sin color).
+
+Cada acento tiene su versión para tema claro, más oscura, para que se lea como texto y como botón. Con **Neon red** en un tema oscuro, los errores pasan a bermellón, para que un botón principal no se confunda con uno de borrar.
+
+Si tenías elegido un acento que ya no está, se cambia solo por el más parecido: Rose por Clay, Lavender por Mauve, Amber y Copper por Sand.
 
 ## El editor y los gráficos siguen tu tema
 - El **editor de código** adopta el tema y el acento activos en vivo — sin recargar.
