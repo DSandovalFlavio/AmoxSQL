@@ -43,6 +43,15 @@ La barra también muestra "Editado hace Xs · Ejecutado hace Xs" para orientarte
 
 > **El export pertenece a la query.** El botón **Export** del editor exporta el resultado completo de la **query actual del editor** (re-ejecutándola), mientras que el botón **Download** del panel de resultados descarga solo las filas ya cargadas en la tabla. Ver [Guardar resultados](../results/saving-results.md).
 
+### Lambdas de DuckDB 2
+Desde la 6.0 una función anónima se escribe `lambda x: x * 2` (y `lambda x, i: …` con el índice), no `x -> x * 2`. Si una consulta trae flechas —escrita en la 5.x o copiada de un ejemplo viejo— el motor da un error, y junto a él aparece **Rewrite the lambda** (o *Rewrite 3 lambdas*), que las reescribe en esa consulta; **Ctrl+Z** lo deshace. Las flechas del JSON (`datos -> 'cliente'`, `->>`) no se tocan.
+
+```sql
+SELECT list_transform([1, 2, 3], lambda x: x * 2);   -- [2, 4, 6]
+```
+
+<img src="../../images/editor/lambda-rewrite.png" alt="una consulta con una flecha de la 5.x: el error del motor y, al lado, Rewrite the lambda" width="100%" />
+
 ### Autocompletado
 Mientras escribes, el editor sugiere tablas, columnas y funciones de DuckDB según el contexto de la cláusula (por ejemplo, no ofrece agregados en un `WHERE`). Resuelve incluso las columnas de salida de CTEs y subconsultas consultando al propio motor. Es un tema por sí mismo: ver [Autocompletado](autocomplete.md).
 

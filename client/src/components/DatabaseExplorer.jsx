@@ -14,6 +14,7 @@ import {
 import { useDialog } from './dialogs/DialogProvider';
 import { useToast } from './ToastProvider';
 import DeleteConfirmModal from './DeleteConfirmModal';
+import FormatoDeBase from './FormatoDeBase';
 import FuentesExplorador from './fuentes/FuentesExplorador';
 import OtrosProyectos from './OtrosProyectos';
 import DestinosDeEntrega from './fuentes/DestinosDeEntrega';
@@ -24,14 +25,16 @@ import { LuWaves, LuHistory as LuVersiones } from 'react-icons/lu';
  * Builds a schema-qualified name: "schema"."table" for non-main schemas, just "table" for main.
  */
 const qualifiedName = (schema, tableName) => {
-    if (!schema || schema === 'main') return `"${tableName}"`;
-    return `"${schema}"."${tableName}"`;
+    if (!schema || schema === 'main') return ident(tableName);
+    return `${identEsquema(schema)}.${ident(tableName)}`;
 };
 
 /** Un identificador entre comillas dobles, con las suyas dobladas. */
-const ident = (n) => `"${String(n).replace(/"/g, '""')}"`;
+function ident(n) { return `"${String(n).replace(/"/g, '""')}"`; }
+/** Un esquema con su ruta: DuckDB 2 anida esquemas y el servidor los da como `ventas.crudo`. */
+function identEsquema(s) { return String(s || 'main').split('.').map(ident).join('.'); }
 /** `schema.tabla` calificado siempre (también `main`): para ALTER y DROP. */
-const calificado = (schema, nombre) => `${ident(schema || 'main')}.${ident(nombre)}`;
+const calificado = (schema, nombre) => `${identEsquema(schema)}.${ident(nombre)}`;
 
 /**
  * Returns a display name for drag/drop and copy operations.
@@ -245,11 +248,11 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
     };
 
     const nuevaTabla = (schema = 'main') => {
-        const prefijo = schema && schema !== 'main' ? `${ident(schema)}.` : '';
+        const prefijo = schema && schema !== 'main' ? `${identEsquema(schema)}.` : '';
         onSelectQuery?.(`CREATE TABLE ${prefijo}nueva_tabla (\n    id INTEGER PRIMARY KEY,\n    nombre VARCHAR,\n    creada TIMESTAMP DEFAULT current_timestamp\n);\n\n-- Or from a query:\n-- CREATE TABLE ${prefijo}nueva_tabla AS SELECT * FROM otra_tabla;\n`);
     };
     const nuevaVista = (schema = 'main') => {
-        const prefijo = schema && schema !== 'main' ? `${ident(schema)}.` : '';
+        const prefijo = schema && schema !== 'main' ? `${identEsquema(schema)}.` : '';
         onSelectQuery?.(`CREATE OR REPLACE VIEW ${prefijo}nueva_vista AS\nSELECT *\nFROM tabla\nWHERE true;\n`);
     };
     const nuevoEsquema = async () => {
@@ -257,6 +260,18 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
         const n = String(nombre || '').trim();
         if (!n) return;
         if (await ejecutar(`CREATE SCHEMA ${ident(n)}`, `Schema "${n}" created`)) setExpandedSchemas(p => ({ ...p, [n]: true }));
+    };
+    // 6.0 (O3): DuckDB 2 nests schemas — `ventas.crudo` lives inside `ventas`.
+    const nuevoSubesquema = async (padre) => {
+        const nombre = await dialog.promptAsync({
+            title: `New schema inside ${padre}`,
+            message: `It is written ${padre}.name — for example, raw data, clean data and deliveries of the same area.`,
+            placeholder: 'raw', confirmLabel: 'Create', validate: (v) => nombreValido(v) || (/\./.test(v) ? 'One level at a time: no dots' : null),
+        });
+        const n = String(nombre || '').trim();
+        if (!n) return;
+        const ruta = `${padre}.${n}`;
+        if (await ejecutar(`CREATE SCHEMA ${identEsquema(padre)}.${ident(n)}`, `Schema "${ruta}" created`)) setExpandedSchemas(p => ({ ...p, [ruta]: true }));
     };
     const borrarEsquema = async ({ schema, tablas }) => {
         if (schema === 'main') { toast.info('The main schema cannot be dropped.'); return; }
@@ -267,7 +282,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                 : 'It is empty. This cannot be undone.',
             confirmLabel: 'Drop schema', destructive: true,
         });
-        if (ok) await ejecutar(`DROP SCHEMA ${ident(schema)}${tablas ? ' CASCADE' : ''}`, `Schema "${schema}" dropped`);
+        if (ok) await ejecutar(`DROP SCHEMA ${identEsquema(schema)}${tablas ? ' CASCADE' : ''}`, `Schema "${schema}" dropped`);
     };
 
     /** Abre un menú bajo el botón que se pulsó (los tres puntos o el «+»). */
@@ -411,7 +426,7 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
         <div className="db-explorer">
             {/* Header */}
             <div className="db-header">
-                <span className="db-header-title"><LuDatabase size={14} /> Database Schema</span>
+                <span className="db-header-title"><LuDatabase size={14} /> Data</span>
                 <div className="db-header-actions">
                     {/* Single-schema DBs: ER is for that one schema, so expose it here.
                         Multi-schema DBs get a per-schema ER button on each schema row. */}
@@ -461,6 +476,8 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     />
                     {/* Y adónde se entrega (D6): las carpetas con nombre de los procesos. */}
                     {!deferredSearchQuery && <DestinosDeEntrega variante="arbol" />}
+                    {/* 6.0 (O4): una base en el formato de la 5.x se puede actualizar. */}
+                    {!deferredSearchQuery && <FormatoDeBase refresco={`${currentDb}|${onRefresh || ''}`} onActualizada={fetchSchemas} />}
                     {/* 5.12 (I8): las versiones del lago abierto */}
                     {!deferredSearchQuery && esLago(currentDb) && <VersionesDelLago refresco={`${currentDb}|${onRefresh || ''}`} onSelectQuery={onSelectQuery} />}
                     {loading && <div className="db-loading">Loading...</div>}
@@ -633,6 +650,11 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     <div className="ctx-menu-item" onClick={() => { const s = menuEsquema.schema; setMenuEsquema(null); nuevaVista(s); }}>
                         <LuEye size={14} /> New view in {menuEsquema.schema}…
                     </div>
+                    {menuEsquema.schema !== 'main' && (
+                        <div className="ctx-menu-item" onClick={() => { const s = menuEsquema.schema; setMenuEsquema(null); nuevoSubesquema(s); }}>
+                            <LuFolderPlus size={14} /> New schema inside {menuEsquema.schema}…
+                        </div>
+                    )}
                     <div className="ctx-menu-item" onClick={() => { const s = menuEsquema.schema; setMenuEsquema(null); onOpenErDiagram?.(s); }}>
                         <LuWorkflow size={14} /> ER Diagram
                     </div>

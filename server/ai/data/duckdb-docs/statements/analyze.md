@@ -1,9 +1,11 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/statements/analyze
 - /docs/sql/statements/analyze
 - /docs/stable/sql/statements/analyze
+- /docs/current/sql/statements/analyze
+- /docs/lts/sql/statements/analyze
+- /docs/preview/sql/statements/analyze
 title: ANALYZE Statement
 ---
 

@@ -1,9 +1,12 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/dialect/order_preservation
 - /docs/sql/dialect/order_preservation
 - /docs/stable/sql/dialect/order_preservation
+- /docs/current/sql/dialect/order_preservation
+- /docs/lts/sql/dialect/order_preservation
+- /docs/preview/sql/dialect/order_preservation
+tested: true
 title: Order Preservation
 ---
 
@@ -65,7 +68,7 @@ The following operations **do not** guarantee that the row order is preserved:
 * `JOIN`
 * `UNION`
 * `USING SAMPLE`
-* Whole-table aggregation (the input order, that is, the order in which rows are fed into [order-sensitive aggregate functions]({% link docs/current/sql/functions/aggregates.md %}#order-by-clause-in-aggregate-functions) is not guaranteed unless explicitly specified in the aggregate function)
+* Whole-table aggregation (the input order, that is, the order in which rows are fed into [order-sensitive aggregate functions]({% link docs/2.0/sql/functions/aggregates.md %}#order-by-clause-in-aggregate-functions) is not guaranteed unless explicitly specified in the aggregate function)
 * `GROUP BY` (neither in- nor output order are guaranteed)
 * `ORDER BY` (specifically, `ORDER BY` may not use a [stable algorithm](https://en.wikipedia.org/wiki/Stable_algorithm))
 * Scalar subqueries
@@ -74,14 +77,24 @@ The following operations **do not** guarantee that the row order is preserved:
 
 By default, the following components preserve insertion order:
 
-* [CSV reader]({% link docs/current/data/csv/overview.md %}#order-preservation) (`read_csv` function)
-* [JSON reader]({% link docs/current/data/json/overview.md %}#order-preservation) (`read_json` function)
-* [Parquet reader]({% link docs/current/data/parquet/overview.md %}#order-preservation) (`read_parquet` function)
+* [CSV reader]({% link docs/2.0/data/csv/overview.md %}#order-preservation) (`read_csv` function)
+* [JSON reader]({% link docs/2.0/data/json/overview.md %}#order-preservation) (`read_json` function)
+* [Parquet reader]({% link docs/2.0/data/parquet/overview.md %}#order-preservation) (`read_parquet` function)
 
-Preservation of insertion order is controlled by the `preserve_insertion_order` [configuration option]({% link docs/current/configuration/overview.md %}).
+The `preserve_insertion_order` setting governs whether this order is maintained as rows flow into a _sink_. A sink is any operation that consumes a result, namely:
+
+* Writing to a file, for example with [`COPY ... TO`]({% link docs/2.0/sql/statements/copy.md %})
+* Writing to a table, for example with [`INSERT`]({% link docs/2.0/sql/statements/insert.md %}) or [`CREATE TABLE ... AS SELECT`]({% link docs/2.0/sql/statements/create_table.md %}#create-table--as-select-ctas)
+* Returning a query result to the client
+
+When the setting is disabled, DuckDB may reorder the rows produced by a query that has no `ORDER BY` clause before they reach the sink.
+
+Preservation of insertion order is controlled by the `preserve_insertion_order` [configuration option]({% link docs/2.0/configuration/overview.md %}).
 This setting is `true` by default, indicating that the order should be preserved.
 To change this setting, use:
 
 ```sql
 SET preserve_insertion_order = false;
 ```
+
+Disabling this setting can reduce memory usage when importing or exporting datasets larger than memory. See the [`preserve_insertion_order` option in the workload tuning guide]({% link docs/2.0/guides/performance/how_to_tune_workloads.md %}#the-preserve_insertion_order-option) for details.

@@ -152,7 +152,7 @@ const SchemaDiffModal = ({ isOpen, onClose, tables = [] }) => {
                                             <td style={{ ...tdStyle, color: statusColors[row.status] }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                     {statusIcons[row.status]}
-                                                    <span style={{ fontSize: '10px', textTransform: 'uppercase' }}>{row.status}</span>
+                                                    <span style={{ fontSize: '11px', textTransform: 'uppercase' }}>{row.status}</span>
                                                 </div>
                                             </td>
                                             <td style={{ ...tdStyle, fontFamily: "'JetBrains Mono', monospace", fontWeight: 500 }}>

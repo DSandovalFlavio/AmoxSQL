@@ -184,6 +184,8 @@ const AYUDAS = `window.t = {
   ed: () => monaco.editor.getEditors()[0],
   alto: () => Math.round(document.querySelector('.ep-results')?.getBoundingClientRect().height || 0),
   redim: async (y) => { const r = document.querySelector('.ep-resizer'); const b = r.getBoundingClientRect(); r.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: b.x + 5, clientY: b.y + 2 })); window.dispatchEvent(new MouseEvent('mousemove', { clientX: b.x + 5, clientY: y })); window.dispatchEvent(new MouseEvent('mouseup', { clientX: b.x + 5, clientY: y })); await t.dormir(300); return t.alto(); },
+  // 6.0 (M5): Pop out lives in the results' «Save / Share ▾» menu.
+  emergente: async () => { [...document.querySelectorAll('.rt-action-btn')].find(b => b.textContent.includes('Save / Share')).click(); await t.dormir(200); [...document.querySelectorAll('.rt-menu-guardar .toolbar-dropdown-item')].find(e => e.textContent.trim() === 'Pop out').click(); },
   esperarRun: async () => { for (let i = 0; i < 60 && !t.boton('Run'); i++) await t.dormir(200); return !!t.boton('Run'); },
 };`;
 
@@ -203,6 +205,10 @@ try {
       if (w) { w.click(); await t.dormir(200); t.boton('Continue')?.click(); await t.dormir(800); }
       t.boton('Leave unlinked')?.click(); await t.dormir(800);
       t.boton('In-Memory')?.click(); await t.dormir(400);
+      // 6.0 (M4): which tours open by themselves in a first session.
+      window.__tours = new Set();
+      new MutationObserver(() => { const o = document.querySelector('.ob-overlay'); if (o) window.__tours.add((o.querySelector('[class*=brand]')?.textContent || o.innerText).trim().slice(0, 40)); })
+        .observe(document.body, { childList: true, subtree: true });
       (t.boton('Start Session') || t.boton('Start') || [...document.querySelectorAll('button')].find(b => /^(Start|Open|Connect)/.test(b.textContent.trim())))?.click();
       await t.dormir(3000);`);
     for (let i = 0; i < 20 && !await app.js('return !!document.querySelector(".ob-overlay")'); i++) await dormir(300);
@@ -215,6 +221,8 @@ try {
       for (const f of ['uno', 'dos', 'tres']) { const e = t.fila(f); t.pulsar(e); e.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); await t.dormir(800); }
       for (let k = 0; k < 6; k++) { const b = t.boton('Skip'); if (!b) break; b.click(); await t.dormir(400); }`);
     bien('el proyecto se abre con sus pestañas', (await app.js(`return document.querySelectorAll('.tab-item').length`)) === 3);
+    const tours = await app.js(`return [...window.__tours]`);
+    bien('una sesión nueva abre un solo recorrido, el de bienvenida (M4)', tours.length <= 1 && tours.every(x => /Welcome/.test(x)), tours);
 
     // La 5 va antes que la 4, que termina cerrando la ventana principal.
     let actual = app;
@@ -339,11 +347,124 @@ async function fase2(app) {
       const ordenado = fila(); t.boton('Run').click(); await t.dormir(1000);
       return { ordenado, tras: fila() };`);
     bien('ejecutar otra vez empieza de cero', e.tras !== e.ordenado, e);
+
+    // Vega se carga la primera vez que se dibuja (6.0, M8): que llegue y dibuje.
+    console.log('— el gráfico');
+    e = await app.js(`
+      const boton = [...document.querySelectorAll('.rt-view-btn')].find(b => /chart/i.test((b.innerText || '') + ' ' + (b.title || '') + ' ' + (b.getAttribute('aria-label') || '')));
+      if (!boton) return { boton: false };
+      boton.click();
+      let svg = null;
+      for (let i = 0; i < 60 && !svg; i++) { await t.dormir(200); svg = document.querySelector('.figura-vega svg'); }
+      const marcas = svg ? svg.querySelectorAll('path, rect, line').length : 0;
+      const error = document.querySelector('.figura-vega-error')?.innerText || null;
+      const tabla = [...document.querySelectorAll('.rt-view-btn')].find(b => /table/i.test((b.innerText || '') + ' ' + (b.title || '') + ' ' + (b.getAttribute('aria-label') || '')));
+      tabla?.click(); await t.dormir(200);
+      return { boton: true, svg: !!svg, marcas, error };`);
+    bien('la vista de gráfico dibuja la figura', e.boton && e.svg && e.marcas > 0 && !e.error, e);
+
+    // Cada sección de Settings vive en su archivo y se carga al abrirla (6.0, M8).
+    console.log('— Settings, sección a sección');
+    e = await app.js(`
+      window.dispatchEvent(new CustomEvent('amox_abrir_ajustes', { detail: 'appearance' }));
+      for (let i = 0; i < 40 && !document.querySelector('.stg-tab'); i++) await t.dormir(100);
+      const nombres = [...document.querySelectorAll('.stg-tab')].map(x => x.innerText.trim());
+      const vacias = [];
+      const pintar = async () => { for (let i = 0; i < 40; i++) { const b = document.querySelector('.stg-content-body'); if (b && b.innerText.trim().length > 20) return true; await t.dormir(100); } return false; };
+      for (const n of nombres) {
+        [...document.querySelectorAll('.stg-tab')].find(x => x.innerText.trim() === n)?.click();
+        if (!(await pintar())) vacias.push(n);
+        if (n === 'AI') for (const sub of [...document.querySelectorAll('.stg-content-body button')].filter(b => /^(Modes|Models|Knowledge|Skills)$/.test(b.innerText.trim()))) { sub.click(); if (!(await pintar())) vacias.push('AI › ' + sub.innerText.trim()); }
+      }
+      const vivo = !!document.querySelector('.stg-modal');
+      document.querySelector('.stg-close-btn')?.click(); await t.dormir(200);
+      return { secciones: nombres.length, vacias, vivo };`);
+    bien('cada sección se abre y pinta', e.secciones >= 9 && !e.vacias.length && e.vivo, e);
+
+    // La apariencia vive en su proveedor (shell/Apariencia.jsx, 6.0 M8): elegir
+    // un tema en Settings lo aplica al documento y lo guarda.
+    e = await app.js(`
+      window.dispatchEvent(new CustomEvent('amox_abrir_ajustes', { detail: 'appearance' }));
+      let cartas = [];
+      for (let i = 0; i < 40 && !cartas.length; i++) { await t.dormir(100); cartas = [...document.querySelectorAll('.stg-theme-card')]; }
+      const antes = localStorage.getItem('amoxsql-theme');
+      const carta = (txt) => cartas.find(c => c.innerText.includes(txt));
+      carta('Amox Light')?.click(); await t.dormir(300);
+      const claro = { modo: document.body.classList.contains('mode-light'), guardado: localStorage.getItem('amoxsql-theme'), activa: !!document.querySelector('.stg-theme-card--active')?.innerText.includes('Amox Light') };
+      carta('Amox Dark')?.click(); await t.dormir(300);
+      const oscuro = { modo: document.body.classList.contains('mode-dark'), guardado: localStorage.getItem('amoxsql-theme') };
+      if (antes && antes !== oscuro.guardado) { carta(antes)?.click(); }
+      document.querySelector('.stg-close-btn')?.click(); await t.dormir(200);
+      return { cartas: cartas.length, claro, oscuro };`);
+    bien('elegir un tema en Settings lo aplica y lo guarda', e.cartas >= 10 && e.claro.modo && e.claro.guardado === 'amoxlight' && e.claro.activa && e.oscuro.modo && e.oscuro.guardado === 'amoxdark', e);
+
+    // Los acentos recorren el círculo cromático (6.0, M9; auditoría de color):
+    // diez vivos más «Theme», el acento que trae el tema. Elegir uno lo aplica;
+    // volver a «Theme» quita la clase y deja el del tema.
+    e = await app.js(`
+      window.dispatchEvent(new CustomEvent('amox_abrir_ajustes', { detail: 'appearance' }));
+      let muestras = [];
+      for (let i = 0; i < 40 && !muestras.length; i++) { await t.dormir(100); muestras = [...document.querySelectorAll('.stg-content-body [title]')].filter(b => /^(Theme|Cyan|Blue|Violet|Magenta|Pink|Neon red|Orange|Yellow|Lime|Green)\\b/.test(b.title)); }
+      const marca = document.querySelectorAll('.stg-theme-marca .stg-theme-card').length;
+      const antes = getComputedStyle(document.body).getPropertyValue('--accent-primary').trim();
+      muestras.find(b => b.title.startsWith('Violet'))?.click(); await t.dormir(300);
+      const violeta = { clase: document.body.classList.contains('accent-violet'), guardado: localStorage.getItem('amoxsql-accent'), color: getComputedStyle(document.body).getPropertyValue('--accent-primary').trim() };
+      muestras.find(b => b.title.startsWith('Theme'))?.click(); await t.dormir(300);
+      const delTema = { sinClase: ![...document.body.classList].some(c => c.startsWith('accent-')), guardado: localStorage.getItem('amoxsql-accent'), color: getComputedStyle(document.body).getPropertyValue('--accent-primary').trim() };
+      return { muestras: muestras.map(b => b.title.split(' ')[0]), marca, antes, violeta, delTema };`);
+    await foto(app, 'ajustes-acento-violeta');
+    await app.js(`[...document.querySelectorAll('.stg-content-body [title]')].find(b => b.title.startsWith('Theme'))?.click(); await t.dormir(300);`);
+    await foto(app, 'ajustes-apariencia');
+    await app.js(`document.querySelector('.stg-close-btn')?.click(); await t.dormir(200);`);
+    bien('«Theme» y los diez acentos, la pareja de la marca arriba, y elegir uno lo aplica', e.muestras.length === 11 && e.muestras[0] === 'Theme' && e.marca === 2 && e.violeta.clase && e.violeta.guardado === 'violet' && e.violeta.color !== e.antes
+        && e.delTema.sinClase && e.delTema.guardado === 'tema' && e.delTema.color === e.antes, e);
+
+    // Los atajos y las guías salieron de Settings a Help (6.0, M8).
+    console.log('— Help');
+    await app.js(`t.ed().focus();`);
+    await app.tecla('ctrl+shift+/'); await dormir(300);
+    e = await app.js(`
+      for (let i = 0; i < 40 && !document.querySelector('[aria-label="Help"]'); i++) await t.dormir(100);
+      const dialogo = document.querySelector('[aria-label="Help"]');
+      if (!dialogo) return { abierto: false };
+      const nombres = [...dialogo.querySelectorAll('.stg-tab')].map(x => x.innerText.trim());
+      const vacias = [];
+      for (const n of nombres) {
+        [...dialogo.querySelectorAll('.stg-tab')].find(x => x.innerText.trim() === n)?.click();
+        let ok = false;
+        for (let i = 0; i < 40 && !ok; i++) { await t.dormir(100); ok = (dialogo.querySelector('.stg-content-body')?.innerText.trim().length || 0) > 20; }
+        if (!ok) vacias.push(n);
+      }
+      return { abierto: true, nombres, vacias };`);
+    bien('Ctrl+Shift+/ abre Help y cada sección pinta', e.abierto && e.nombres.length === 3 && !e.vacias.length, e);
+    await app.tecla('escape'); await dormir(300);
+    bien('Escape cierra Help', !(await app.js(`return !!document.querySelector('[aria-label="Help"]');`)));
+
+    // 6.0 (M11): una pestaña nueva se llama por su tipo y un número, y una sin
+    // guardar que se cierra vuelve con su texto.
+    console.log('— pestañas nuevas y reabrir');
+    e = await app.js(`
+      const nombres = () => [...document.querySelectorAll('.tab-item .tab-label')].map(x => x.innerText);
+      document.querySelector('.tab-bar-new-btn').click(); await t.dormir(500);
+      document.querySelector('.tab-bar-new-btn').click(); await t.dormir(500);
+      const nuevas = nombres().filter(n => /^Query \\d+\\.sql$/.test(n));
+      const activa = document.querySelector('.tab-item.active');
+      const nombre = activa.querySelector('.tab-label').innerText;
+      t.ed().setValue('SELECT 42 AS respuesta;'); await t.dormir(300);
+      activa.querySelector('.tab-close').click(); await t.dormir(500);
+      const cerrada = !nombres().includes(nombre);
+      [...document.querySelectorAll('button')].find(b => b.innerText.trim() === 'Reopen')?.click(); await t.dormir(800);
+      const vuelta = document.querySelector('.tab-item.active .tab-label')?.innerText;
+      const texto = t.ed().getValue();
+      document.querySelector('.tab-item.active .tab-close')?.click(); await t.dormir(300);
+      return { nuevas, nombre, cerrada, vuelta, texto };`);
+    bien('dos nuevas se llaman «Query N.sql», distintas', e.nuevas.length >= 2 && new Set(e.nuevas).size === e.nuevas.length, e);
+    bien('cerrada sin guardar vuelve con su texto', e.cerrada && e.vuelta === e.nombre && e.texto === 'SELECT 42 AS respuesta;', e);
 }
 // ── Fase 3: la ventana emergente ────────────────────────────────────────────
 async function fase3(app) {
     const emergentes = async () => (await paginas()).filter(p => p.url.includes('popout=true')).length;
-    const abrirEmergente = () => app.js(`[...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.startsWith('Pop out')).click(); await t.dormir(300);`);
+    const abrirEmergente = () => app.js(`await t.emergente(); await t.dormir(300);`);
     const ventana = async (n) => {
         for (let i = 0; i < 30; i++) {
             for (const p of (await paginas()).filter(x => x.url.includes('popout=true'))) {
@@ -603,6 +724,12 @@ async function fase5(app0) {
 async function fase4(app) {
     const cuenta = () => app.js(`return [...document.querySelectorAll('.modal-overlay')].length`);
     console.log('— atajos desde el editor');
+    // After the recovery of fase5 the window may be behind another one, and on Windows a
+    // covered window counts as hidden and gets no keys (CDP's bringToFront doesn't change
+    // that): emulate focus and an active page.
+    await app.cdp('Page.bringToFront').catch(() => {});
+    await app.cdp('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => {});
+    await app.cdp('Page.setWebLifecycleState', { state: 'active' }).catch(() => {}); await dormir(300);
     await app.js(`await t.ir('tres.sql'); t.ed().focus();`);
     const ancho = () => app.js(`const p = document.querySelector('.ai-panel'); return p && getComputedStyle(p).pointerEvents !== 'none' && getComputedStyle(p.parentElement).opacity !== '0' ? 100 : 0`);
     const a0 = await ancho();
@@ -640,7 +767,7 @@ async function fase4(app) {
     bien('Esc cierra la búsqueda', await app.js(`return !document.querySelector('.find-widget.visible');`));
 
     console.log('— cerrar la principal');
-    await app.js(`await t.ir('uno.sql'); t.boton('Run').click(); await t.dormir(900); [...document.querySelectorAll('button')].find(b => b.getAttribute('aria-label')?.startsWith('Pop out')).click(); await t.dormir(1500);`);
+    await app.js(`await t.ir('uno.sql'); t.boton('Run').click(); await t.dormir(900); await t.emergente(); await t.dormir(1500);`);
     await app.js(`setTimeout(() => window.electronAPI.windowControl.close(), 100); return 1;`).catch(() => {});
     await dormir(3000);
     const vivas = await paginas().catch(() => []);

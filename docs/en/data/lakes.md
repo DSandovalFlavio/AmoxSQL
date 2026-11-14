@@ -40,6 +40,9 @@ With a lake open, the explorer tree has **Lake versions**: each version, newest 
 
 In a lake table's menu, **As it was…** asks for a version or a date and opens the query.
 
+### A lake from 5.x
+A lake created with 5.x opens and is read without changing it. AmoxSQL tells you when you open it, because **the first write** (a new table, an `INSERT`) moves it to the DuckDB 2 format, and from then on only 6 opens it. A lake that travelled with its folder (to another machine or a synced folder) opens with the data it has next to it.
+
 ### Maintenance
 
 The wrench in **Lake versions** opens maintenance. **Before doing anything**, it says what will happen:

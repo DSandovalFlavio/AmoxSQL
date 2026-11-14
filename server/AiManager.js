@@ -6,6 +6,7 @@
  * 
  * Uses Vercel AI SDK for the new agent chat functionality.
  */
+const registrador = require('./registrador');
 const path = require('path');
 const fs = require('fs');
 const { homeAmox } = require('./rutas');
@@ -190,7 +191,7 @@ class AiManager {
 
         // Sync user tier overrides on initialization
         setUserTierOverrides(config.modelTierOverrides || {});
-        console.log(`[AI] Initialized with Provider: ${this.provider}, Model: ${this.modelName}`);
+        registrador.info(`[AI] Initialized with Provider: ${this.provider}, Model: ${this.modelName}`);
 
         // DuckDB docs auto-update (fire-and-forget; the bundled snapshot always works).
         this.maybeAutoUpdateDocs().catch(() => {});
@@ -209,12 +210,12 @@ class AiManager {
         const intervalMs = Math.max(1, Number(config.duckdbDocsIntervalDays) || 30) * 24 * 60 * 60 * 1000;
         const age = status.extractedAt ? (Date.now() - new Date(status.extractedAt).getTime()) : Infinity;
         if (age < intervalMs) return; // fresh enough
-        console.log(`[DuckDB Docs] Auto-update: snapshot is ${Math.round(age / 86400000)}d old, refreshing…`);
+        registrador.info(`[DuckDB Docs] Auto-update: snapshot is ${Math.round(age / 86400000)}d old, refreshing…`);
         try {
-            const res = await duckdbDocs.refresh(msg => console.log('[DuckDB Docs]', msg));
-            console.log(`[DuckDB Docs] Auto-update done: ${res.count} files @ ${res.extractedAt}`);
+            const res = await duckdbDocs.refresh(msg => registrador.info('[DuckDB Docs]', msg));
+            registrador.info(`[DuckDB Docs] Auto-update done: ${res.count} files @ ${res.extractedAt}`);
         } catch (err) {
-            console.warn('[DuckDB Docs] Auto-update failed (keeping current snapshot):', err.message);
+            registrador.aviso('[DuckDB Docs] Auto-update failed (keeping current snapshot):', err.message);
         }
     }
 
@@ -344,7 +345,7 @@ class AiManager {
                 },
             });
             _ollamaModelCache.set(key, instance);
-            console.log(`[AI] Ollama model configured: ${modelName} | num_ctx=${rt.numCtx} | keep_alive=${rt.keepAlive}${rt.think === false ? ' | think=off' : ''}`);
+            registrador.info(`[AI] Ollama model configured: ${modelName} | num_ctx=${rt.numCtx} | keep_alive=${rt.keepAlive}${rt.think === false ? ' | think=off' : ''}`);
         }
         return instance;
     }
@@ -369,7 +370,7 @@ class AiManager {
             }
             fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
         } catch (e) {
-            console.error("[AI] Failed to track usage:", e);
+            registrador.error("[AI] Failed to track usage:", e);
         }
     }
 
@@ -447,7 +448,7 @@ class AiManager {
         const aiPersistenceMod = require('./ai/persistence');
         const tools = createTools({ dbManager, queryResults, projectPath, mode, conversationId, aiPersistence: aiPersistenceMod, archivo });
 
-        console.log(`[AI Chat] Starting tool loop | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
+        registrador.info(`[AI Chat] Starting tool loop | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
 
         try {
             const llmModel = this.getModel(provider, model);
@@ -470,7 +471,7 @@ class AiManager {
             // Run memory extraction in the background (skip for low-tier models,
             // and — per policy — for local models to keep the Ollama slot free).
             if (profile.supportsMemory && memoryExtractionAllowed(provider, this.getConfig().memoryExtraction)) {
-                if (politica.permiteMemorias(provider)) extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
+                if (politica.permiteMemorias(provider)) extractMemories(llmModel, messages, dbManager).catch(e => registrador.error('[AI Memory Background]', e));
             }
 
             // Track Gemini usage
@@ -478,7 +479,7 @@ class AiManager {
                 this.trackUsage(model, result.usage);
             }
 
-            console.log(`[AI Chat] Complete | Steps: ${result.steps?.length || 1} | Tokens: ${result.usage?.totalTokens || '?'} | Tier: ${profile.tier}`);
+            registrador.info(`[AI Chat] Complete | Steps: ${result.steps?.length || 1} | Tokens: ${result.usage?.totalTokens || '?'} | Tier: ${profile.tier}`);
 
             // Collect all tool results from steps
             const toolResults = [];
@@ -508,7 +509,7 @@ class AiManager {
                 steps: result.steps?.length || 1,
             };
         } catch (err) {
-            console.error(`[AI Chat] Error:`, err);
+            registrador.error(`[AI Chat] Error:`, err);
 
             // Provide helpful error messages
             if (err.message && err.message.includes('fetch failed')) {
@@ -582,7 +583,7 @@ class AiManager {
         const aiPersistence = require('./ai/persistence');
         const tools = createTools({ dbManager, queryResults, projectPath, mode, conversationId, aiPersistence, archivo });
 
-        console.log(`[AI Stream] Starting | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
+        registrador.info(`[AI Stream] Starting | Provider: ${provider} | Model: ${model} | Mode: ${mode} | Tier: ${profile.tier}`);
 
         const llmModel = this.getModel(provider, model);
 
@@ -603,12 +604,12 @@ class AiManager {
                 // Run memory extraction in the background (skip for low-tier models,
                 // and — per policy — for local models to keep the Ollama slot free).
                 if (profile.supportsMemory && memoryExtractionAllowed(provider, this.getConfig().memoryExtraction)) {
-                    if (politica.permiteMemorias(provider)) extractMemories(llmModel, messages, dbManager).catch(e => console.error('[AI Memory Background]', e));
+                    if (politica.permiteMemorias(provider)) extractMemories(llmModel, messages, dbManager).catch(e => registrador.error('[AI Memory Background]', e));
                 }
                 if (provider === 'gemini' && usage) {
                     this.trackUsage(model, usage);
                 }
-                console.log(`[AI Stream] Complete | Tokens: ${usage?.totalTokens || '?'} | Tier: ${profile.tier}`);
+                registrador.info(`[AI Stream] Complete | Tokens: ${usage?.totalTokens || '?'} | Tier: ${profile.tier}`);
             },
         });
 
@@ -661,7 +662,7 @@ class AiManager {
         const model = modelOverride || this.modelName;
         const profile = getModelProfile(model, provider);
 
-        console.log(`[AI PromptOnly] Starting | Provider: ${provider} | Model: ${model} | Tier: ${profile.tier}`);
+        registrador.info(`[AI PromptOnly] Starting | Provider: ${provider} | Model: ${model} | Tier: ${profile.tier}`);
 
         // Build virtual table mapping
         const { virtualMap, schemaText } = buildVirtualMapping(files, tables);
@@ -872,7 +873,7 @@ ${schemaText}`;
                     }
                 }
             } catch (err) {
-                console.warn('[AI PromptOnly] Pass 2 summary failed:', err.message);
+                registrador.aviso('[AI PromptOnly] Pass 2 summary failed:', err.message);
             }
         }
 

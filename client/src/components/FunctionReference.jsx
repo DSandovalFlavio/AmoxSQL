@@ -238,16 +238,16 @@ export default function FunctionReference() {
 
         return [
             { id: 'usadas', label: 'The ones you use most', icon: LuTrendingUp,
-              hint: 'Contadas en tu historial de queries de este proyecto.',
+              hint: 'Counted in this project’s query history.',
               items: tomar(masUsadas) },
             { id: 'recientes', label: 'Most recently used', icon: LuClock,
               hint: 'In order of the last time they showed up in a query.',
               items: tomar(usage.recent) },
-            { id: 'empezar', label: 'Para empezar', icon: LuStar,
+            { id: 'empezar', label: 'To get started', icon: LuStar,
               hint: 'The typical start of an analysis, useful from day one.',
               items: tomar(STARTERS) },
-            { id: 'descubrir', label: 'Para descubrir', icon: LuCompass,
-              hint: 'Rotan cada semana, y se saltan las que ya usas.',
+            { id: 'descubrir', label: 'To discover', icon: LuCompass,
+              hint: 'They rotate every week and skip the ones you already use.',
               items: tomar(discoveryPicks(disponibles, usadas)) },
         ].filter(g => g.items.length > 0);
     }, [all, usage]);
@@ -331,8 +331,8 @@ export default function FunctionReference() {
                         DOMINIO de que trata. Para "algo de fechas" sigue
                         ganando el dominio, asi que se conservan los dos. */}
                     <select className="fnref-cat" value={groupBy} onChange={e => setGroupBy(e.target.value)} title="How to group the catalogue">
-                        <option value="stage">Por etapa</option>
-                        <option value="category">Por dominio</option>
+                        <option value="stage">By stage</option>
+                        <option value="category">By domain</option>
                     </select>
                     <button
                         className={`fnref-typesbtn${showTypes ? ' fnref-typesbtn--on' : ''}`}

@@ -2,13 +2,15 @@
 layout: docu
 railroad: query_syntax/orderby.js
 redirect_from:
-- /docs/preview/sql/query_syntax/orderby
 - /docs/sql/query_syntax/orderby
 - /docs/stable/sql/query_syntax/orderby
+- /docs/current/sql/query_syntax/orderby
+- /docs/lts/sql/query_syntax/orderby
+- /docs/preview/sql/query_syntax/orderby
 title: ORDER BY Clause
 ---
 
-`ORDER BY` is an output modifier. Logically it is applied near the very end of the query (just prior to [`LIMIT`]({% link docs/current/sql/query_syntax/limit.md %}) or [`OFFSET`]({% link docs/current/sql/query_syntax/limit.md %}), if present).
+`ORDER BY` is an output modifier. Logically it is applied near the very end of the query (just prior to [`LIMIT`]({% link docs/2.0/sql/query_syntax/limit.md %}) or [`OFFSET`]({% link docs/2.0/sql/query_syntax/limit.md %}), if present).
 The `ORDER BY` clause sorts the rows on the sorting criteria in either ascending or descending order.
 In addition, every order clause can specify whether `NULL` values should be moved to the beginning or to the end.
 
@@ -30,7 +32,7 @@ By default, DuckDB sorts `ASC` and `NULLS LAST`, i.e., the values are sorted in 
 For the default `ASC` direction this matches PostgreSQL. Note, however, that DuckDB keeps `NULLS LAST` even for `DESC` ordering, whereas PostgreSQL places `NULL`s first on `DESC` (it treats `NULL` as the largest value). To match PostgreSQL in both directions, set `default_null_order = 'NULLS_LAST_ON_ASC_FIRST_ON_DESC'`.
 The default sort order can be changed with the following configuration options.
 
-Use the `default_null_order` option to change the default `NULL` sorting order to either `NULLS_FIRST`, `NULLS_LAST`, `NULLS_FIRST_ON_ASC_LAST_ON_DESC` or `NULLS_LAST_ON_ASC_FIRST_ON_DESC`:
+Use the `default_null_order` option to change the default `NULL` sorting order to either `NULLS_FIRST`, `NULLS_LAST`, `NULLS_FIRST_ON_ASC_LAST_ON_DESC`, or `NULLS_LAST_ON_ASC_FIRST_ON_DESC`:
 
 ```sql
 SET default_null_order = 'NULLS_FIRST';
@@ -47,7 +49,7 @@ SET default_order = 'DESC';
 Text is sorted using the binary comparison collation by default, which means values are sorted on their binary UTF-8 values.
 While this works well for ASCII text (e.g., for English language data), the sorting order can be incorrect for other languages.
 For this purpose, DuckDB provides collations.
-For more information on collations, see the [Collation page]({% link docs/current/sql/expressions/collations.md %}).
+For more information on collations, see the [Collation page]({% link docs/2.0/sql/expressions/collations.md %}).
 
 ## Examples
 

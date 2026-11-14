@@ -8,6 +8,11 @@ import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import { renderMermaid, idDeRender } from './mermaidRuntime';
+// Sus clases (.mde-preview-body, el ancla de los encabezados…) viven ahí. Antes
+// llegaban porque el editor de Markdown, el cuaderno o el deck ya la habían
+// cargado; desde que los paneles se cargan al abrirlos (6.0, M8), un Canvas
+// abierto solo pintaba su texto sin estilos y con la almohadilla del ancla a la vista.
+import '../MarkdownEditor.css';
 import { parsearFlujo } from './mermaidFlow';
 import { frontmatterRange } from './markdownModel.js';
 import 'katex/dist/katex.min.css';
@@ -134,7 +139,7 @@ function MermaidDiagram({ code, theme, onEditar }) {
         <>
             <div className="mde-mermaid-wrap">
                 {editable && (
-                    <button className="mde-mermaid-edit" title="Editar en AmoxDiagram" onClick={onEditar}>
+                    <button className="mde-mermaid-edit" title="Edit in AmoxDiagram" onClick={onEditar}>
                         <LuShare2 size={12} /> Editar
                     </button>
                 )}

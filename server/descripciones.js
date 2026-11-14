@@ -13,6 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 const { MARCA } = require('./procedencia');
+const esquemas = require('./esquemas');
 
 const unaLinea = (t) => String(t || '').replace(/\s+/g, ' ').trim();
 
@@ -25,9 +26,10 @@ async function deLaBase(db, { raiz = null, attachedPath = null } = {}) {
     const r = {};
     const entrada = (k) => r[k] || (r[k] = { descripcion: null, columnas: {}, de: 'base' });
     const [tablas, vistas, columnas] = await Promise.all([
-        q(`SELECT schema_name AS s, table_name AS t, comment AS c FROM duckdb_tables() WHERE database_name = current_database() AND comment IS NOT NULL AND comment <> ''`).catch(() => []),
-        q(`SELECT schema_name AS s, view_name AS t, comment AS c FROM duckdb_views() WHERE database_name = current_database() AND NOT internal AND comment IS NOT NULL AND comment <> ''`).catch(() => []),
-        q(`SELECT schema_name AS s, table_name AS t, column_name AS col, comment AS c FROM duckdb_columns() WHERE database_name = current_database() AND comment IS NOT NULL AND comment <> ''`).catch(() => []),
+        // El esquema con su ruta (`ventas.crudo`), como lo enseña el explorador (esquemas.js).
+        q(`SELECT table_schema AS s, table_name AS t, table_comment AS c FROM ${esquemas.TABLAS} AS x WHERE table_catalog = current_database() AND table_comment IS NOT NULL AND table_comment <> ''`).catch(() => []),
+        Promise.resolve([]),
+        q(`SELECT table_schema AS s, table_name AS t, column_name AS col, column_comment AS c FROM ${esquemas.COLUMNAS} AS x WHERE table_catalog = current_database() AND column_comment IS NOT NULL AND column_comment <> ''`).catch(() => []),
     ]);
     for (const f of [...tablas, ...vistas]) {
         if (String(f.c).includes(MARCA)) continue;          // la procedencia va aparte

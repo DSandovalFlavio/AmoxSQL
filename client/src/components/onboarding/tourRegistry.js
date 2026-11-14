@@ -38,7 +38,8 @@ export const TOURS = [
         legacyReplayEvent: 'amox_replay_dataflow_tour',
     },
     {
-        id: 'ai-modes', brandLabel: 'Meet the AI', brandIcon: LuSparkles, doneLabel: 'Got it',
+        // `pista`: la frase de la pista cuando «New to <brandLabel>?» no se lee bien (6.0, M10 · T18).
+        id: 'ai-modes', brandLabel: 'Meet the AI', pista: 'New to the AI assistant?', brandIcon: LuSparkles, doneLabel: 'Got it',
         steps: AI_MODES, storageKey: 'amox-ai-modes-tour-seen',
     },
     {
@@ -89,4 +90,17 @@ export function resetTour(id) {
 export function openTour(id) {
     if (!byId[id]) return;
     window.dispatchEvent(new CustomEvent(OPEN_TOUR_EVENT, { detail: { id } }));
+}
+
+/**
+ * 6.0 (M4): a feature's first run OFFERS its tour instead of opening it. Only the
+ * welcome tour opens by itself; the rest show a one-line hint that covers nothing
+ * («New to Story Flow? Take the tour»). Before, a first session met four modals,
+ * seventeen steps, with the AI's before the welcome. This is the one place that
+ * decides: features just call `ofrecerTour(id)` — whether it was seen is checked here.
+ */
+export const OFRECER_TOUR_EVENT = 'amox-ofrecer-tour';
+export function ofrecerTour(id) {
+    if (!byId[id] || hasSeenTour(id)) return;
+    window.dispatchEvent(new CustomEvent(OFRECER_TOUR_EVENT, { detail: { id } }));
 }

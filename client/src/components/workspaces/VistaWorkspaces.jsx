@@ -27,6 +27,8 @@ import Atencion from '../operacion/Atencion';
 import DesdePaquete from '../paquete/DesdePaquete';
 import VistaOperacion from '../operacion/VistaOperacion';
 import { useEscape } from '../../hooks/useEscape';
+import { emitir } from '../../eventos.js';
+import { rutaCorta } from '../../utils/rutaCorta';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, {
@@ -229,7 +231,7 @@ export default function VistaWorkspaces({ onVolver, onAbrir, inicial = null }) {
     }, [actual, datos]);
 
     const avisar = (t) => { setAviso(t); setTimeout(() => setAviso(null), 4000); };
-    const ajustes = () => window.dispatchEvent(new CustomEvent('amox_abrir_ajustes', { detail: 'workspaces' }));
+    const ajustes = () => emitir('amox_abrir_ajustes', 'workspaces');
     const enlazar = async (ruta, workspaceId) => {
         try { await pedir('PUT', '/api/proyectos-enlace', { ruta, workspaceId }); cargar(); }
         catch (err) { avisar(err.message); }
@@ -271,7 +273,7 @@ export default function VistaWorkspaces({ onVolver, onAbrir, inicial = null }) {
     const filaProyecto = (p, { conEnlace = false } = {}) => (
         <tr key={p.id}>
             <td><b>{p.nombre}</b></td>
-            <td className="wsv-mono" title={p.ruta}>{p.ruta}</td>
+            <td className="wsv-mono" title={p.ruta}>{rutaCorta(p.ruta)}</td>
             <td>{p.existe === false ? <span className="wsv-chip wsv-chip--warn"><LuTriangleAlert size={11} />not found</span> : hace(p.ultimoAbierto || p.ultimo_abierto)}</td>
             <td className="wsv-td-acciones">
                 {conEnlace && ws.length > 0 && <SelectorEnlace workspaces={ws} etiqueta={e} onElegir={(id) => enlazar(p.ruta, id)} />}
@@ -328,7 +330,7 @@ export default function VistaWorkspaces({ onVolver, onAbrir, inicial = null }) {
                             {suyos.length === 0 && <tr><td colSpan={5} className="wsv-vacio">No project linked yet. Open a folder and link it from the title bar, or use “Link to a {e.s}” on an unassigned one.</td></tr>}
                             {suyos.map(p => (
                                 <tr key={p.id}>
-                                    <td><b>{p.nombre}</b><small className="wsv-mono">{p.ruta}</small></td>
+                                    <td><b>{p.nombre}</b><small className="wsv-mono" title={p.ruta}>{rutaCorta(p.ruta)}</small></td>
                                     <td>
                                         <select className={`wsv-select wsv-estado wsv-estado--${ESTADO[p.estado]?.clase || 'nada'}`} value={p.estado || ''}
                                             onChange={(ev) => cambiarProyecto(p.id, { estado: ev.target.value || null })} aria-label={`Status of ${p.nombre}`}>
@@ -432,7 +434,9 @@ export default function VistaWorkspaces({ onVolver, onAbrir, inicial = null }) {
                             </span>
                             <span className="wsv-prox">
                                 <LuCalendarClock size={12} />
-                                {w.proximaEntrega ? <>Next due: <b>{w.proximaEntrega.proyecto}</b> · {fechaCorta(w.proximaEntrega.fecha)}</> : 'No due dates'}
+                                {w.entregaVencida
+                                    ? <span className="wsv-vencida">Overdue: <b>{w.entregaVencida.proyecto}</b> · {fechaCorta(w.entregaVencida.fecha)}{w.entregaVencida.cuantas > 1 ? ` · +${w.entregaVencida.cuantas - 1} more` : ''}</span>
+                                    : w.proximaEntrega ? <>Next due: <b>{w.proximaEntrega.proyecto}</b> · {fechaCorta(w.proximaEntrega.fecha)}</> : 'No due dates'}
                             </span>
                         </button>
                     ))}

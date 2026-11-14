@@ -31,6 +31,9 @@ Under the hood it uses DuckDB (`SUMMARIZE` plus a statistics enrichment pass) to
 ### Semantic types
 Beyond the SQL type, the profile infers a meaningful type and gives it an icon: **Identifier** (id/uuid/key or nearly all unique), **Date**, **Boolean**, **Number**, **Email**, **Category** (few distinct values), or **Text**.
 
+### VARIANT columns
+A VARIANT column (or STRUCT, list, MAP) holds nested values rather than categories, so the profile describes it by its **keys**: which ones appear, in what share of rows and with which types ("total · decimal / text"). A key with mixed types is listed apart: it is usually the first sign of dirty data.
+
 ### Plot a column
 When you expand a column, the **Plot** button opens a **new, editable chart** in its own tab, built from a derived, aggregated query (a histogram for numeric, a time series for dates, top-20 for categorical). It doesn't chart the raw million rows: it builds exactly the chart's data.
 

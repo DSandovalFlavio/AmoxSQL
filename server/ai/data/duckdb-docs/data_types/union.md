@@ -1,19 +1,22 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/union
 - /docs/sql/data_types/union
 - /docs/stable/sql/data_types/union
+- /docs/current/sql/data_types/union
+- /docs/lts/sql/data_types/union
+- /docs/preview/sql/data_types/union
+tested: true
 title: Union Type
 ---
 
-A `UNION` *type* (not to be confused with the SQL [`UNION` operator]({% link docs/current/sql/query_syntax/setops.md %}#union-all-by-name)) is a nested type capable of holding one of multiple “alternative” values, much like the `union` in C. The main difference is that these `UNION` types are *tagged unions* and thus always carry a discriminator “tag” which signals which alternative it is currently holding, even if the inner value itself is null. `UNION` types are thus more similar to C++17's `std::variant`, Rust's `Enum` or the “sum type” present in most functional languages.
+A `UNION` *type* (not to be confused with the SQL [`UNION` operator]({% link docs/2.0/sql/query_syntax/setops.md %}#union-all-by-name)) is a nested type capable of holding one of multiple “alternative” values, much like the `union` in C. The main difference is that these `UNION` types are *tagged unions* and thus always carry a discriminator “tag” which signals which alternative it is currently holding, even if the inner value itself is null. `UNION` types are thus more similar to C++17's `std::variant`, Rust's `Enum`, or the “sum type” present in most functional languages.
 
-`UNION` types must always have at least one member, and while they can contain multiple members of the same type, the tag names must be unique. `UNION` types can have at most 256 members.
+`UNION` types must always have at least one member, and while they can contain multiple members of the same type, the tag names must be unique. `UNION` types can have at most 255 members.
 
 Under the hood, `UNION` types are implemented on top of `STRUCT` types, and simply keep the “tag” as the first entry.
 
-`UNION` values can be created with the [`union_value(tag := expr)`]({% link docs/current/sql/functions/union.md %}) function or by [casting from a member type](#casting-to-unions).
+`UNION` values can be created with the [`union_value(tag := expr)`]({% link docs/2.0/sql/functions/union.md %}) function or by [casting from a member type](#casting-to-unions).
 
 ## Example
 
@@ -51,7 +54,7 @@ FROM tbl1;
 | two   |
 | three |
 
-Alternatively, you can use 'dot syntax' similarly to [`STRUCT`s]({% link docs/current/sql/data_types/struct.md %}).
+Alternatively, you can use 'dot syntax' similarly to [`STRUCT`s]({% link docs/2.0/sql/data_types/struct.md %}).
 
 ```sql
 SELECT u.str
@@ -109,8 +112,8 @@ So how do we disambiguate if we want to create a `UNION` with multiple members o
 
 ## Comparison and Sorting
 
-Since `UNION` types are implemented on top of `STRUCT` types internally, they can be used with all the comparison operators as well as in both `WHERE` and `HAVING` clauses with the [same semantics as `STRUCT`s]({% link docs/current/sql/data_types/struct.md %}#comparison-operators). The “tag” is always stored as the first struct entry, which ensures that the `UNION` types are compared and ordered by “tag” first.
+Since `UNION` types are implemented on top of `STRUCT` types internally, they can be used with all the comparison operators as well as in both `WHERE` and `HAVING` clauses with the [same semantics as `STRUCT`s]({% link docs/2.0/sql/data_types/struct.md %}#comparison-operators). The “tag” is always stored as the first struct entry, which ensures that the `UNION` types are compared and ordered by “tag” first.
 
 ## Functions
 
-See [Union Functions]({% link docs/current/sql/functions/union.md %}).
+See [Union Functions]({% link docs/2.0/sql/functions/union.md %}).

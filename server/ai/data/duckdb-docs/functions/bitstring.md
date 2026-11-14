@@ -1,17 +1,19 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/functions/bitstring
 - /docs/sql/functions/bitstring
 - /docs/stable/sql/functions/bitstring
 - /docs/test/functions/bitstring
+- /docs/current/sql/functions/bitstring
+- /docs/lts/sql/functions/bitstring
+- /docs/preview/sql/functions/bitstring
 title: Bitstring Functions
 ---
 
 <!-- markdownlint-disable MD001 -->
 
-This section describes functions and operators for examining and manipulating [`BITSTRING`]({% link docs/current/sql/data_types/bitstring.md %}) values.
-Bitstrings must be of equal length when performing the bitwise operands AND, OR and XOR. When bit shifting, the original length of the string is preserved.
+This section describes functions and operators for examining and manipulating [`BITSTRING`]({% link docs/2.0/sql/data_types/bitstring.md %}) values.
+Bitstrings must be of equal length when performing the bitwise operands AND, OR, and XOR. When bit shifting, the original length of the string is preserved.
 
 ## Bitstring Operators
 

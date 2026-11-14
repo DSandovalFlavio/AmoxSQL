@@ -18,7 +18,7 @@ import { fusionar, envoltorio, MOTIVOS } from './diagram/diagramMerge';
 import { bloquesCercados } from './markdown/fencedBlocks';
 import { invalidateSchema } from '../state/sidebarCache';
 import { splitSqlStatements } from '../utils/sqlSplitter';
-import { tipoDePestana } from '../utils/tiposDeArchivo';
+import { tipoDePestana, tipoDeArchivo } from '../utils/tiposDeArchivo';
 import { decidirAviso, decidirGuardado, ACCIONES } from '../utils/conflictoArchivo';
 import { vigilar } from '../state/vigilante';
 import Retomar from './Retomar';
@@ -28,6 +28,9 @@ import { consultaQueSigue, conConsulta } from '../utils/seguirConsulta';
 import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
 import { olvidarPestanas, editorDe, focoDe, aplicadorDe } from '../utils/memoriaDePestana';
 import { aplicarRango, describirRango } from './ai/archivos/rango.js';
+import { cargarVariables, guardarVariables, aBarra, deBarra } from '../utils/variablesProyecto';
+import { emitir } from '../eventos.js';
+import { nombreNuevo, tieneNombreNumerado } from '../utils/nombresDePestana';
 
 /**
  * Un .sql se abre con el gráfico que tenía la última vez (Dec-79): la vista
@@ -81,7 +84,7 @@ const setSqlFilePref = (path, pref) => {
     } catch { /* non-fatal */ }
 };
 
-const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onExportAmoxvis, onShowHistorySidebar, onBuscarProyecto }, ref) => {
+const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onExportAmoxvis, onShowHistorySidebar, onBuscarProyecto, onAbrirArchivo }, ref) => {
     const toast = useToast();
     const dialog = useDialog();
     // Layout State
@@ -132,8 +135,26 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     const [planNote, setPlanNote] = useState(null);
     const [planLoading, setPlanLoading] = useState(false);
 
-    // Variables State (shared across session)
-    const [queryVariables, setQueryVariables] = useState([]);
+    // 6.0 (Dec-98): the bar shows the PROJECT's variables (.amoxsql/variables.json):
+    // the same list as SQL Snippets › Variables. `$name` reads them in the engine;
+    // `${name}` still pastes the text. A change is saved after a short pause.
+    const [queryVariables, setQueryVariablesLocal] = useState([]);
+    const guardarVarsRef = useRef(null);
+    useEffect(() => {
+        let vivo = true;
+        cargarVariables().then(({ variables }) => { if (vivo) setQueryVariablesLocal(aBarra(variables)); });
+        const alCambiar = (e) => { if (!guardarVarsRef.current) setQueryVariablesLocal(aBarra(e.detail?.variables)); };
+        window.addEventListener('amox_variables', alCambiar);
+        return () => { vivo = false; window.removeEventListener('amox_variables', alCambiar); };
+    }, []);
+    const setQueryVariables = useCallback((lista) => {
+        setQueryVariablesLocal(lista);
+        clearTimeout(guardarVarsRef.current);
+        guardarVarsRef.current = setTimeout(async () => {
+            guardarVarsRef.current = null;
+            await guardarVariables(deBarra(lista));
+        }, 600);
+    }, []);
 
     // Alert Modal State
     const [alertData, setAlertData] = useState({ isOpen: false, message: '', title: 'Error', type: 'error' });
@@ -198,6 +219,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // 5.14 (F5, Dec-46): «Donde lo dejaste», con las pestañas que volvieron.
     const [retomar, setRetomar] = useState(null);
     const copiaRef = useRef(null);
+    const reanudadaRef = useRef(false);
     // «Where you left off» se cierra en cuanto abres o cambias de pestaña: es un
     // resumen para empezar, y se quedaba flotando encima de lo que abrieras.
     const retomarVistoRef = useRef(null);
@@ -350,7 +372,8 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // en desarrollo este efecto corre dos veces, y la segunda restauración pisaba
         // lo que había añadido la primera.
         if (!copiaRef.current) {
-            const copia = consumirReanudada() ? leerCopia(projectPath) : [];
+            reanudadaRef.current = consumirReanudada();
+            const copia = reanudadaRef.current ? leerCopia(projectPath) : [];
             const base = Date.now();
             copiaRef.current = copia.map((t, i) => ({
                 id: `${base}-copia-${i}`, path: null, name: t.name, type: t.type, content: t.content,
@@ -358,7 +381,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             }));
         }
         restoreTabs().then((nombres) => {
-            setRetomar({ pestanas: nombres || [] });
+            // Tras recargar la ventana (Reload, o volver de un fallo) no se vuelve a
+            // nada: es la misma sesión, y la tarjeta tapaba el documento que se
+            // acababa de restaurar (6.0, M10 · T19). Sólo al abrir el proyecto.
+            if (!reanudadaRef.current) setRetomar({ pestanas: nombres || [] });
             const izquierda = copiaRef.current.filter(t => t.panel !== 'right');
             const derecha = copiaRef.current.filter(t => t.panel === 'right');
             const sumar = (prev, nuevas) => [...prev.filter(t => !nuevas.some(n => n.id === t.id)), ...nuevas];
@@ -568,6 +594,38 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
      * nada que releer.
      */
     const cerradasRef = useRef([]);
+    // 6.0 (M11): las que no tienen ruta también vuelven, con su texto. Sólo las
+    // de los editores de archivos (no Deep Dive, el linaje ni el diagrama ER,
+    // que se rehacen solos) y si tienen algo escrito.
+    const SIN_RUTA_QUE_VUELVEN = new Set(['sql', 'sqlnb', 'sqlchain', 'md', 'amoxdeck', 'amoxdiagram', 'amoxcanvas', 'amoxvis', 'texto']);
+    const sinRutaQueVuelve = (t) => !!t && !t.path && SIN_RUTA_QUE_VUELVEN.has(t.type) && typeof t.content === 'string' && t.content.trim() !== '';
+    const sinRutaCerrada = (t, pane) => ({
+        path: null, name: t.name, type: t.type, pane,
+        tab: { path: '', name: t.name, type: t.type, content: t.content, dirty: true, initialChartConfig: t.initialChartConfig },
+    });
+    const reabrirUltimaRef = useRef(null);
+    // Se asigna en cada render (lee el estado por stateRef): la usa también el aviso «Reopen».
+    reabrirUltimaRef.current = async () => {
+        const { toast } = stateRef.current;
+        const ultima = cerradasRef.current.shift();
+        if (!ultima) { toast.info('There is no closed tab to bring back.'); return; }
+        if (!ultima.path) {
+            // Sin archivo: vuelve con el texto que tenía, sin guardar.
+            const nueva = { ...ultima.tab, id: Date.now().toString() + Math.random().toString(36).slice(2, 6), results: null, ejecucion: null, avisoEjecucion: null, emergente: false };
+            const pane = ultima.pane === 'right' && stateRef.current.splitEnabled ? 'right' : 'left';
+            (pane === 'left' ? setLeftTabs : setRightTabs)(prev => [...prev, nueva]);
+            (pane === 'left' ? setLeftActiveId : setRightActiveId)(nueva.id);
+            return;
+        }
+        try {
+            const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(ultima.path)}`);
+            const datos = await res.json();
+            if (datos.error) throw new Error(datos.error);
+            await openFileRef.current(ultima.path, datos.content, ultima.type, { firma: datos.firma }, ultima.pane);
+        } catch (e) {
+            toast.error(`Could not reopen ${ultima.name}: ${e.message}`);
+        }
+    };
 
     /**
      * Ultimas pestañas visitadas, de mas reciente a menos.
@@ -626,7 +684,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         // Una pestaña fijada no se cierra por accidente. Es la mitad de la
         // pareja: fijar protege lo que importa, reabrir rescata lo demas.
         if (cerrando?.fijada) {
-            stateRef.current.toast.info(`${cerrando.name} esta fijada. Quitale la chincheta para cerrarla.`);
+            stateRef.current.toast.info(`${cerrando.name} is pinned. Unpin it to close it.`);
             return;
         }
         if (cerrando?.path) {
@@ -634,6 +692,13 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 { path: cerrando.path, name: cerrando.name, type: cerrando.type, pane: inLeft ? 'left' : 'right' },
                 ...cerradasRef.current.filter(c => c.path !== cerrando.path),
             ].slice(0, 20);
+        } else if (sinRutaQueVuelve(cerrando)) {
+            // 6.0 (M11): una pestaña sin guardar se perdía al cerrarla. Vuelve con
+            // su texto (Ctrl+Shift+T, o «Reopen» en el aviso).
+            cerradasRef.current = [sinRutaCerrada(cerrando, inLeft ? 'left' : 'right'), ...cerradasRef.current].slice(0, 20);
+            stateRef.current.toast.info(`${cerrando.name} was not saved.`, {
+                action: { label: 'Reopen', onClick: () => reabrirUltimaRef.current?.() },
+            });
         }
 
         const activeId = inLeft ? leftActiveId : rightActiveId;
@@ -657,8 +722,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // All") — confirms once, listing every unsaved file, before discarding any
     // of them. A single-tab close (handleTabClose above, and the "x" button)
     // stays silent, matching its existing behavior.
-    const closeTabsWithConfirm = useCallback(async (pane, tabsToClose) => {
-        if (!tabsToClose || tabsToClose.length === 0) return;
+    const closeTabsWithConfirm = useCallback(async (pane, todas) => {
+        // Las fijadas no se cierran de golpe, igual que no se cierran una a una (6.0, M11).
+        const tabsToClose = (todas || []).filter(t => !t.fijada);
+        if (tabsToClose.length === 0) return;
         const dirtyOnes = tabsToClose.filter(t => t.dirty);
         if (dirtyOnes.length > 0) {
             const { dialog } = stateRef.current;
@@ -671,7 +738,10 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             if (!ok) return;
         }
         for (const t of tabsToClose) {
-            if (!t.path) continue;
+            if (!t.path) {
+                if (sinRutaQueVuelve(t)) cerradasRef.current = [sinRutaCerrada(t, pane), ...cerradasRef.current].slice(0, 20);
+                continue;
+            }
             cerradasRef.current = [
                 { path: t.path, name: t.name, type: t.type, pane },
                 ...cerradasRef.current.filter(c => c.path !== t.path),
@@ -780,7 +850,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     const response = await fetch(`${API_BASE}/api/query`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query: stmt.raw, queryId: qid, limit: rowLimit }),
+                        body: JSON.stringify({ query: stmt.raw, queryId: qid, limit: rowLimit, historial: true }),
                         signal: controller.signal,
                     });
                     data = await response.json();
@@ -904,7 +974,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             const response = await fetch(`${API_BASE}/api/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: rowLimit }),
+                body: JSON.stringify({ query: resolvedQuery, queryId: qid, limit: rowLimit, historial: true }),
                 signal,
             });
             const data = await response.json();
@@ -978,7 +1048,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
          * aviso les pisaría la suya.
          */
         if (tab.type === 'texto') {
-            toast.info(`${tab.name} no es un archivo que se ejecute.`);
+            toast.info(`${tab.name} is not a file that runs.`);
         }
     }, [getActiveTab, executeQuery, toast]);
 
@@ -1006,7 +1076,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
 
         try {
             const lectura = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(tab.procedencia.archivo)}`);
-            if (!lectura.ok) throw new Error('no se pudo leer el documento');
+            if (!lectura.ok) throw new Error('could not read the document');
             const { content: markdown } = await lectura.json();
 
             const r = fusionar(markdown, tab.procedencia, mermaid, { forzar });
@@ -1017,7 +1087,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ path: tab.procedencia.archivo, content: r.contenido }),
             });
-            if (!escritura.ok) throw new Error('no se pudo escribir el documento');
+            if (!escritura.ok) throw new Error('could not write the document');
 
             // El ancla se renueva con lo que acabamos de escribir: a partir de
             // ahora «como estaba cuando lo abrí» es esto.
@@ -1028,7 +1098,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             if (!isSilent) toast.success(r.movido ? 'Saved (the diagram had moved)' : 'Saved');
             return { ok: true };
         } catch (e) {
-            if (!isSilent) toast.error(`Error al guardar: ${e.message}`);
+            if (!isSilent) toast.error(`Could not save: ${e.message}`);
             return { ok: false, motivo: 'error', mensaje: e.message };
         }
     }, [findTabPane, updateTab]);
@@ -1089,7 +1159,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 if (tab.path) clearDraft(tab.path);
                 toast.info(`${nombre}: brought in the version from disk.`);
             } catch (e) {
-                toast.error(`No se pudo leer el archivo: ${e.message}`);
+                toast.error(`Could not read the file: ${e.message}`);
             }
             return;
         }
@@ -1200,7 +1270,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                     const d = await w.json().catch(() => ({}));
                     if (abierta) updateTab(pane, abierta.id, { content: cambiado, firma: d.firma || null, dirty: false });
                 }
-                if (abierta) window.dispatchEvent(new CustomEvent('amox_consulta_seguida', { detail: { path: rutaGrafico, consulta: sigue.consulta } }));
+                if (abierta) emitir('amox_consulta_seguida', { path: rutaGrafico, consulta: sigue.consulta });
                 seguidos++;
             } catch { /* un gráfico que no se pudo seguir avisa al abrirse */ }
         }
@@ -1363,26 +1433,20 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // openChartFor(). El estado guarda en que panel hay que abrirlo.
     const [chartSourceFor, setChartSourceFor] = useState(null);   // { targetPane } | null
 
+    // Los nombres de todo lo abierto, en los dos paneles: para numerar lo nuevo.
+    const nombresAbiertos = () => [...stateRef.current.leftTabs, ...stateRef.current.rightTabs].map(t => t.name);
+
     const spawnTab = useCallback((normalizedType, initialContent, targetPane) => {
         const newTab = {
             id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
             path: '',
-            name: normalizedType === 'sqlnb' ? 'Untitled.sqlnb'
-                : normalizedType === 'sqlchain' ? 'Untitled.sqlchain'
-                : normalizedType === 'md' ? 'Untitled.md'
-                : normalizedType === 'amoxdeck' ? 'Untitled.amoxdeck'
-                : normalizedType === 'amoxdiagram' ? 'Untitled.amoxdiagram'
-                : normalizedType === 'amoxcanvas' ? 'Untitled.amoxcanvas'
-                : normalizedType === 'amoxvis' ? 'Untitled.amoxvis'
+            // 6.0 (M11): «Query 1.sql», «Notebook 2.sqlnb»… — el número más bajo
+            // libre entre las abiertas. Antes, ocho «Untitled.sql» iguales.
+            name: tieneNombreNumerado(normalizedType) ? nombreNuevo(normalizedType, nombresAbiertos())
                 : normalizedType === 'er-diagram' ? (initialContent ? `ER · ${initialContent}` : 'ER Diagram')
                 : normalizedType === 'datadiving' ? 'Deep Dive'
                 : normalizedType === 'dbt-lineage' ? 'DBT Lineage'
-                // Un borrador que **no es de ninguno de los nuestros**. El
-                // mecanismo ya existía entero —siete variantes con `path: ''`
-                // que sólo eligen sitio al guardar—; lo que faltaba era poder
-                // pegar algo y mirarlo sin que naciera siendo SQL.
-                : normalizedType === 'texto' ? 'Untitled.txt'
-                : 'Untitled.sql',
+                : nombreNuevo('sql', nombresAbiertos()),
             type: normalizedType,
             content: initialContent || (normalizedType === 'sqlnb'
                 ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
@@ -1498,7 +1562,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         const { onRequestSaveAs, activePane } = stateRef.current;
         const newTab = {
             id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-            path: '', name: 'Untitled.sql', type: 'sql', content: query, results: null, dirty: true,
+            path: '', name: nombreNuevo('sql', nombresAbiertos()), type: 'sql', content: query, results: null, dirty: true,
         };
         if (activePane === 'left') {
             setLeftTabs(prev => [...prev, newTab]);
@@ -1604,19 +1668,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
          * archivo puede haber cambiado desde que se cerro, y devolver una
          * version vieja seria peor que no reabrir nada.
          */
-        reabrirUltima: async () => {
-            const { toast } = stateRef.current;
-            const ultima = cerradasRef.current.shift();
-            if (!ultima) { toast.info('There is no closed tab to bring back.'); return; }
-            try {
-                const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(ultima.path)}`);
-                const datos = await res.json();
-                if (datos.error) throw new Error(datos.error);
-                await openFileRef.current(ultima.path, datos.content, ultima.type, { firma: datos.firma }, ultima.pane);
-            } catch (e) {
-                toast.error(`No se pudo reabrir ${ultima.name}: ${e.message}`);
-            }
-        },
+        reabrirUltima: () => reabrirUltimaRef.current?.(),
 
         /** Fija o suelta la pestaña activa. Una fijada no se cierra por accidente. */
         alternarFijada: () => {
@@ -1827,7 +1879,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
             });
             // The mounted DataVisualizer of this tab merges the changes into its
             // state via setFields (keeps auto-detected axes; no defaults reset).
-            window.dispatchEvent(new CustomEvent('amox_update_chart_config', { detail: { changes, tabId: tab.id } }));
+            emitir('amox_update_chart_config', { changes, tabId: tab.id });
             toast.info('Assist updated the chart of this query');
         },
 
@@ -1993,6 +2045,12 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
         closeAllTabsInPane: (paneId) => {
             const tabs = paneId === 'left' ? leftTabs : rightTabs;
             closeTabsWithConfirm(paneId, tabs);
+        },
+        // 6.0 (M11): las guardadas (sin cambios y con archivo), para quitarse de
+        // encima lo que sólo se abrió para mirar.
+        closeSavedTabsInPane: (paneId) => {
+            const tabs = paneId === 'left' ? leftTabs : rightTabs;
+            closeTabsWithConfirm(paneId, tabs.filter(t => t.path && !t.dirty));
         },
     }));
 
@@ -2470,6 +2528,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // Same reasoning for an OS file dropped onto one specific pane's drop zone.
     const handleLeftFileDrop = useCallback((path) => handleQueryFile(path, 'left'), [handleQueryFile]);
     const handleRightFileDrop = useCallback((path) => handleQueryFile(path, 'right'), [handleQueryFile]);
+    // 6.0 (M11): un archivo arrastrado desde el explorador se abre en el panel
+    // donde se suelta; uno de datos se consulta, como uno soltado desde el sistema.
+    const soltarDesdeExplorador = useCallback((ruta, pane) => {
+        if (tipoDeArchivo(ruta).tipo === 'datos') handleQueryFile(ruta, pane);
+        else onAbrirArchivo?.(ruta, pane);
+    }, [handleQueryFile, onAbrirArchivo]);
+    const handleLeftArchivoSoltado = useCallback((ruta) => soltarDesdeExplorador(ruta, 'left'), [soltarDesdeExplorador]);
+    const handleRightArchivoSoltado = useCallback((ruta) => soltarDesdeExplorador(ruta, 'right'), [soltarDesdeExplorador]);
 
     // --- Results ratio (Fase 3/4) ---
     // Called by EditorPane on drag-release with the new ratio (0-1). While
@@ -2624,6 +2690,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onDragStart={handleDragStart}
                         onReorder={handleReorder}
                         onFileDrop={handleLeftFileDrop}
+                        onArchivoSoltado={handleLeftArchivoSoltado}
                         onCreateNew={handleLeftCreateNew}
                         onRequestSaveAs={handlePaneRequestSaveAs}
                         showAiSidebar={showAiSidebar}
@@ -2683,6 +2750,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                                 onDragStart={handleDragStart}
                                 onReorder={handleReorder}
                                 onFileDrop={handleRightFileDrop}
+                                onArchivoSoltado={handleRightArchivoSoltado}
                                 onCreateNew={handleRightCreateNew}
                                 onRequestSaveAs={handlePaneRequestSaveAs}
                                 showAiSidebar={showAiSidebar}

@@ -24,7 +24,7 @@ import { memo, useEffect, useRef, useState } from 'react';
 import {
     LuPlay, LuLoaderCircle, LuColumns2, LuCode, LuTable, LuEye, LuDatabase,
     LuMaximize2, LuChevronUp, LuChevronDown, LuTrash2, LuPencilLine,
-    LuSparkles, LuMessageCircleQuestion, LuWrench, LuChartColumn, LuWandSparkles, LuPenLine,
+    LuSparkles, LuMessageCircleQuestion, LuWrench, LuChartColumn, LuWandSparkles, LuPenLine, LuEllipsis,
 } from 'react-icons/lu';
 import { MODOS } from './modos.js';
 
@@ -55,7 +55,7 @@ const Canalon = ({
     resultadoArriba,    // E3: una celda de texto con un resultado justo encima
 }) => {
     const esSql = celda.tipo === 'sql';
-    // E3: el menú Assist de la celda. Se cierra al pulsar fuera.
+    // El menú «…» de la celda (Assist incluido). Se cierra al pulsar fuera.
     const [menu, setMenu] = useState(false);
     const zona = useRef(null);
     useEffect(() => {
@@ -65,6 +65,7 @@ const Canalon = ({
         return () => document.removeEventListener('mousedown', fuera);
     }, [menu]);
     const pedir = (accion) => { setMenu(false); onAsistir?.(celda.id, accion); };
+    const hacer = (fn) => { setMenu(false); fn(); };
     const [clase, ayuda] = esSql
         ? estadoDelPunto(resultado, frescura)
         : [null, null];
@@ -107,23 +108,22 @@ const Canalon = ({
             )}
 
             <div className="cdn-mandos">
-                {/* El mando de tres posiciones, en vertical. Se lee peor así que
-                    en horizontal, y es el precio de tener todo lo operativo en un
-                    solo sitio en vez de repartido entre el canalón y la cabecera. */}
-                {esSql ? (
-                    <>
-                        {mando(LuColumns2, 'Code and result', () => onEstado(celda.id, { modo: MODOS.AMBOS }),
-                            modo === MODOS.AMBOS ? ' cdn-mando--on' : '')}
-                        {mando(LuCode, 'Code only', () => onEstado(celda.id, { modo: MODOS.CODIGO }),
-                            modo === MODOS.CODIGO ? ' cdn-mando--on' : '')}
-                        {mando(LuTable, 'Result only', () => onEstado(celda.id, { modo: MODOS.RESULTADO }),
-                            modo === MODOS.RESULTADO ? ' cdn-mando--on' : '')}
-                    </>
-                ) : (
+                {/* 6.0 (M5, U6): three controls instead of ten — Run (above), the view and
+                    «…». The view is one button that steps through its positions; its tooltip
+                    says what you see and what the next click shows. */}
+                {esSql ? (() => {
+                    const VISTAS = [
+                        [MODOS.AMBOS, LuColumns2, 'Code and result'],
+                        [MODOS.CODIGO, LuCode, 'Code only'],
+                        [MODOS.RESULTADO, LuTable, 'Result only'],
+                    ];
+                    const i = Math.max(0, VISTAS.findIndex(v => v[0] === modo));
+                    const [, Icono, nombre] = VISTAS[i];
+                    const [sig, , nombreSig] = VISTAS[(i + 1) % VISTAS.length];
+                    return mando(Icono, `${nombre} — click for ${nombreSig.toLowerCase()}`, () => onEstado(celda.id, { modo: sig }));
+                })() : (
                     /* En una celda de texto sólo hay dos sitios donde estar: el
-                       texto o su fuente. Un tercero —las dos a la vez— dentro de
-                       una prosa sin caja no significa nada; para eso está la
-                       pantalla completa, que sí tiene sitio. */
+                       texto o su fuente. */
                     mando(
                         modo === MODOS.CODIGO ? LuEye : LuCode,
                         modo === MODOS.CODIGO ? 'Show the text' : 'Show the source',
@@ -131,54 +131,46 @@ const Canalon = ({
                     )
                 )}
 
-                {esSql && puedeDejarVista && mando(
-                    LuDatabase,
-                    celda.materializada
-                        ? 'Materialized: the result is stored. Run it again if the source data changes'
-                        : 'Materialize: store the result instead of recomputing it on every read',
-                    () => onCambiar(celda.id, { materializada: !celda.materializada }),
-                    celda.materializada ? ' cdn-mando--on cdn-mando--sep' : ' cdn-mando--sep',
-                )}
-
-                {mando(LuMaximize2, 'Take the whole tab', () => onAmpliar?.(celda.id),
-                    esSql && puedeDejarVista ? '' : ' cdn-mando--sep')}
-
-                {/* 5.14 (J6): un borrador sigue corriendo, pero no se exporta. */}
-                {mando(
-                    LuPencilLine,
-                    celda.borrador
-                        ? 'Draft: it runs, but stays out of Word and the deck. Click to include it again'
-                        : 'Mark as draft: it keeps running, but stays out of what you export',
-                    () => onCambiar(celda.id, { borrador: !celda.borrador }),
-                    celda.borrador ? ' cdn-mando--on cdn-mando--sep' : ' cdn-mando--sep',
-                )}
-
-                {/* E3: preguntar al Assistant por ESTA celda (N2). */}
-                {onAsistir && (
-                    <div ref={zona} style={{ position: 'relative' }}>
-                        {mando(LuSparkles, 'Assist on this cell', () => setMenu(v => !v), ` cdn-mando--sep${menu ? ' cdn-mando--on' : ''}`)}
-                        {menu && (
-                            <div className="cdn-asistir-menu" role="menu">
-                                {esSql ? (
-                                    <>
-                                        {resultado?.error && <button type="button" onClick={() => pedir('arreglar_celda')}><LuWrench size={13} /> Fix the error</button>}
-                                        <button type="button" onClick={() => pedir('explicar_celda')}><LuMessageCircleQuestion size={13} /> Explain this cell</button>
-                                        {resultado?.data?.length > 0 && <button type="button" onClick={() => pedir('graficar_celda')}><LuChartColumn size={13} /> Chart the result</button>}
-                                    </>
-                                ) : (
-                                    <>
-                                        {resultadoArriba && <button type="button" onClick={() => pedir('escribir_texto')}><LuPenLine size={13} /> Write from the result above</button>}
-                                        <button type="button" onClick={() => pedir('mejorar_celda')}><LuWandSparkles size={13} /> Improve this text</button>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {mando(LuChevronUp, 'Move up', () => onSubir(celda.id), ' cdn-mando--sep')}
-                {mando(LuChevronDown, 'Move down', () => onBajar(celda.id))}
-                {mando(LuTrash2, 'Delete', () => onBorrar(celda.id))}
+                {/* Everything else, named, in one menu. */}
+                <div ref={zona} style={{ position: 'relative' }}>
+                    {mando(LuEllipsis, 'More: Assist, materialize, draft, move, delete', () => setMenu(v => !v), ` cdn-mando--sep${menu ? ' cdn-mando--on' : ''}`)}
+                    {menu && (
+                        <div className="cdn-asistir-menu" role="menu">
+                            {/* E3: preguntar al Assistant por ESTA celda (N2). */}
+                            {onAsistir && (esSql ? (
+                                <>
+                                    {resultado?.error && <button type="button" onClick={() => pedir('arreglar_celda')}><LuWrench size={13} /> Fix the error</button>}
+                                    <button type="button" onClick={() => pedir('explicar_celda')}><LuMessageCircleQuestion size={13} /> Explain this cell</button>
+                                    {resultado?.data?.length > 0 && <button type="button" onClick={() => pedir('graficar_celda')}><LuChartColumn size={13} /> Chart the result</button>}
+                                </>
+                            ) : (
+                                <>
+                                    {resultadoArriba && <button type="button" onClick={() => pedir('escribir_texto')}><LuPenLine size={13} /> Write from the result above</button>}
+                                    <button type="button" onClick={() => pedir('mejorar_celda')}><LuWandSparkles size={13} /> Improve this text</button>
+                                </>
+                            ))}
+                            {onAsistir && <div className="cdn-menu-sep" />}
+                            <button type="button" onClick={() => hacer(() => onAmpliar?.(celda.id))}><LuMaximize2 size={13} /> Take the whole tab</button>
+                            {esSql && puedeDejarVista && (
+                                <button type="button" aria-pressed={!!celda.materializada}
+                                    title={celda.materializada ? 'The result is stored. Run it again if the source data changes' : 'Store the result instead of recomputing it on every read'}
+                                    onClick={() => hacer(() => onCambiar(celda.id, { materializada: !celda.materializada }))}>
+                                    <LuDatabase size={13} /> {celda.materializada ? 'Materialized (click to undo)' : 'Materialize'}
+                                </button>
+                            )}
+                            {/* 5.14 (J6): un borrador sigue corriendo, pero no se exporta. */}
+                            <button type="button" aria-pressed={!!celda.borrador}
+                                title={celda.borrador ? 'It runs, but stays out of Word and the deck' : 'It keeps running, but stays out of what you export'}
+                                onClick={() => hacer(() => onCambiar(celda.id, { borrador: !celda.borrador }))}>
+                                <LuPencilLine size={13} /> {celda.borrador ? 'Draft (click to include it again)' : 'Mark as draft'}
+                            </button>
+                            <div className="cdn-menu-sep" />
+                            <button type="button" onClick={() => hacer(() => onSubir(celda.id))}><LuChevronUp size={13} /> Move up</button>
+                            <button type="button" onClick={() => hacer(() => onBajar(celda.id))}><LuChevronDown size={13} /> Move down</button>
+                            <button type="button" className="cdn-menu-peligro" onClick={() => hacer(() => onBorrar(celda.id))}><LuTrash2 size={13} /> Delete</button>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

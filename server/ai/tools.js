@@ -6,6 +6,7 @@
  *   - dbManager: the DuckDB database manager instance
  *   - queryResults: Map<string, object> — accumulated query results for chart references
  */
+const registrador = require('../registrador');
 const { z } = require('zod');
 const { tool } = require('ai');
 const fs = require('fs');
@@ -61,11 +62,19 @@ function createTools(context) {
             description: "Execute a DuckDB SQL query to analyze data. Always verify column names with describe_table first. Returns a queryId for display_chart. If a 'join-fanout' warning appears in results, add DISTINCT or GROUP BY — the JOIN produced more rows than expected due to non-unique keys.",
             inputSchema: z.object({
                 query: z.string().describe('Valid DuckDB SELECT statement.'),
+                confirmed: z.preprocess(v => (v === 'true' ? true : v === 'false' ? false : v), z.boolean().optional())
+                    .describe('Only true after the user agreed to run a query that came back with needs_confirmation (it would move tens of millions of rows).'),
             }),
-            execute: async ({ query }) => {
+            execute: async ({ query, confirmed }) => {
                 try {
                     if (!query || typeof query !== 'string') {
                         return { error: 'Invalid query parameter. Expected a SQL string.' };
+                    }
+                    // 6.0 (O6): a query the engine estimates as very large is not run
+                    // until the user agrees (the estimated plan reads no data).
+                    if (confirmed !== true && confirmed !== 'true') {
+                        const pregunta = await require('./costoDeConsulta').antesDeCorrer(db, query);
+                        if (pregunta) return pregunta;
                     }
                     // Cap the result INSIDE DuckDB (LIMIT 501 probe) instead of
                     // materializing millions of rows in JS and slicing after.
@@ -154,7 +163,7 @@ function createTools(context) {
                             if (conversationId) {
                                 aiPersistence.pruneQueryCache(dbManager, conversationId, 100).catch(() => {});
                             }
-                        }).catch(e => console.warn('[Tools] query_cache write failed:', e.message));
+                        }).catch(e => registrador.aviso('[Tools] query_cache write failed:', e.message));
                     }
 
                     const joinWarning = await analyzeJoin(query, allRows.length, db);
@@ -202,13 +211,15 @@ function createTools(context) {
             inputSchema: z.object({}),
             execute: async () => {
                 try {
+                    // Schema = its full path (`ventas.crudo`): DuckDB 2 nests schemas (esquemas.js).
+                    const { TABLAS, COLUMNAS } = require('../esquemas');
                     const tables = await db.systemQuery(`
                         SELECT
                             table_schema,
                             table_name,
-                            (SELECT COUNT(*) FROM information_schema.columns c
-                             WHERE c.table_name = t.table_name AND c.table_schema = t.table_schema) as column_count
-                        FROM information_schema.tables t
+                            (SELECT COUNT(*) FROM ${COLUMNAS} c
+                             WHERE c.table_catalog = t.table_catalog AND c.table_name = t.table_name AND c.table_schema = t.table_schema) as column_count
+                        FROM ${TABLAS} t
                         WHERE table_schema NOT IN ('information_schema', 'pg_catalog', 'amoxsql_ai', 'amoxsql_chains')
                         AND NOT (table_schema = 'main' AND table_name IN ('amox_query_history'))
                         AND table_name NOT LIKE '\\_\\_chain\\_%' ESCAPE '\\'
@@ -221,7 +232,7 @@ function createTools(context) {
                     for (const t of tables.slice(0, 50)) {
                         try {
                             const countRes = await db.systemQuery(
-                                `SELECT COUNT(*) as cnt FROM "${t.table_schema}"."${t.table_name}"`
+                                `SELECT COUNT(*) as cnt FROM ${require('../esquemas').referencia(t.table_schema, t.table_name)}`
                             );
                             tablesWithCounts.push({
                                 schema: t.table_schema,
@@ -269,24 +280,24 @@ function createTools(context) {
         describe_table: tool({
             description: 'Get the schema (column names, types) and sample rows from a table. Use this to verify exact column names before writing queries.',
             inputSchema: z.object({
-                table_name: z.string().describe('Table name. Use "schema.table" for non-main schemas.'),
+                table_name: z.string().describe('Table name. Use "schema.table" for non-main schemas (a nested schema keeps its full path: "sales.raw.orders").'),
             }),
             execute: async ({ table_name }) => {
                 try {
-                    // Support the documented "schema.table" form → "schema"."table".
-                    // Parts may come quoted already (fuentes."weekly-sales").
-                    const sinComillas = (s) => s.trim().replace(/^"(.*)"$/, '$1').replace(/"/g, '""');
-                    const dot = table_name.indexOf('.');
-                    const ref = dot > 0
-                        ? `"${sinComillas(table_name.slice(0, dot))}"."${sinComillas(table_name.slice(dot + 1))}"`
-                        : `"${sinComillas(table_name)}"`;
+                    // "schema.table", or a nested schema's full path ("sales.raw.orders"), each
+                    // part quoted. Parts may come quoted already (fuentes."weekly-sales").
+                    const { partes } = require('../esquemas');
+                    const trozos = partes(table_name.trim());
+                    const sinComillas = (s) => String(s).replace(/"/g, '""');
+                    const dot = trozos.length > 1 ? 1 : -1;
+                    const ref = trozos.map(p => `"${sinComillas(p)}"`).join('.');
                     const columns = await db.systemQuery(`DESCRIBE ${ref}`);
                     const sample = await db.systemQuery(`SELECT * FROM ${ref} LIMIT 5`);
                     // 5.12 (I5): lo que dicen la tabla y sus columnas (comentarios, o dbt).
                     let d = null;
                     try {
                         const todas = await require('../descripciones').deLaBase(db, { raiz: typeof projectPath === 'string' ? projectPath : null, attachedPath: dbManager?.attachedPath || null });
-                        const clave = dot > 0 ? `${sinComillas(table_name.slice(0, dot)).replace(/""/g, '"')}.${sinComillas(table_name.slice(dot + 1)).replace(/""/g, '"')}` : `main.${sinComillas(table_name).replace(/""/g, '"')}`;
+                        const clave = dot > 0 ? `${trozos.slice(0, -1).join('.')}.${trozos[trozos.length - 1]}` : `main.${trozos[0]}`;
                         d = todas[clave] || null;
                     } catch { /* sin descripciones */ }
 

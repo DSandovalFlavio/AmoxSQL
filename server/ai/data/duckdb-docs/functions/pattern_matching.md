@@ -2,10 +2,12 @@
 layout: docu
 railroad: expressions/like.js
 redirect_from:
-- /docs/preview/sql/functions/pattern_matching
 - /docs/sql/functions/pattern_matching
 - /docs/sql/functions/patternmatching
 - /docs/stable/sql/functions/pattern_matching
+- /docs/current/sql/functions/pattern_matching
+- /docs/lts/sql/functions/pattern_matching
+- /docs/preview/sql/functions/pattern_matching
 title: Pattern Matching
 ---
 
@@ -49,9 +51,9 @@ SELECT 'abc' NOT ILIKE '%C'; -- false
 
 To search within a string for a character that is a wildcard (`%` or `_`), the pattern must use an `ESCAPE` clause and an escape character to indicate the wildcard should be treated as a literal character instead of a wildcard. See an example below.
 
-Additionally, the function `like_escape` has the same functionality as a `LIKE` expression with an `ESCAPE` clause, but using function syntax. See the [Text Functions page]({% link docs/current/sql/functions/text.md %}) for details.
+Additionally, the function `like_escape` has the same functionality as a `LIKE` expression with an `ESCAPE` clause, but using function syntax. See the [Text Functions page]({% link docs/2.0/sql/functions/text.md %}) for details.
 
-Search for strings with 'a' then a literal percent sign then 'c':
+Search for strings with `a` then a literal percent sign then `c`:
 
 ```sql
 SELECT 'a%c' LIKE 'a$%c' ESCAPE '$'; -- true
@@ -79,7 +81,7 @@ There are also alternative characters that can be used as keywords in place of `
 
 <div id="rrdiagram2"></div>
 
-The `SIMILAR TO` operator returns true or false depending on whether its pattern matches the given string. It is similar to `LIKE`, except that it interprets the pattern using a [regular expression]({% link docs/current/sql/functions/regular_expressions.md %}). Like `LIKE`, the `SIMILAR TO` operator succeeds only if its pattern matches the entire string; this is unlike common regular expression behavior where the pattern can match any part of the string.
+The `SIMILAR TO` operator returns true or false depending on whether its pattern matches the given string. It is similar to `LIKE`, except that it interprets the pattern using a [regular expression]({% link docs/2.0/sql/functions/regular_expressions.md %}). Like `LIKE`, the `SIMILAR TO` operator succeeds only if its pattern matches the entire string; this is unlike common regular expression behavior where the pattern can match any part of the string.
 
 A regular expression is a character sequence that is an abbreviated definition of a set of strings (a regular set). A string is said to match a regular expression if it is a member of the regular set described by the regular expression. As with `LIKE`, pattern characters match string characters exactly unless they are special characters in the regular expression language — but regular expressions use different special characters than `LIKE` does.
 
@@ -93,10 +95,9 @@ SELECT 'abc' SIMILAR TO '(b|c).*';   -- false
 SELECT 'abc' NOT SIMILAR TO 'abc';   -- false
 ```
 
-> In PostgreSQL, `~` is equivalent to `SIMILAR TO`
-> and `!~` is equivalent to `NOT SIMILAR TO`.
-> In DuckDB, these equivalences do not hold currently,
-> see the [PostgreSQL compatibility page]({% link docs/current/sql/dialect/postgresql_compatibility.md %}).
+> In PostgreSQL, the `~` and `!~` operators perform POSIX regular expression matching, not `SIMILAR TO` matching.
+> DuckDB follows the same partial-matching semantics by default,
+> see the [PostgreSQL compatibility page]({% link docs/2.0/sql/dialect/postgresql_compatibility.md %}).
 
 ## Globbing
 
@@ -172,44 +173,34 @@ SELECT * FROM glob('*');
 
 ### Globbing Semantics
 
-DuckDB's globbing implementation follows the semantics of [Python's `glob`](https://docs.python.org/3/library/glob.html) and not the `glob` used in the shell.
-A notable difference is the behavior of the `**/` construct: `**/⟨filename⟩`{:.language-sql .highlight} will not return a file with `⟨filename⟩`{:.language-sql .highlight} in top-level directory.
-For example, with a `README.md` file present in the directory, the following query finds it:
-
-```sql
-SELECT * FROM glob('README.md');
-```
-
-<div class="monospace_table"></div>
-
-| file      |
-| --------- |
-| README.md |
-
-However, the following query returns an empty result:
+The `**` wildcard matches any number of subdirectories, including none, so `**/⟨filename⟩`{:.language-sql .highlight} also returns a file named `⟨filename⟩`{:.language-sql .highlight} in the top-level directory.
+For example, with a `README.md` file present both in the current directory and in its `sub` subdirectory, the following query returns both files:
 
 ```sql
 SELECT * FROM glob('**/README.md');
 ```
 
-Meanwhile, the globbing of Bash, Zsh, etc. finds the file using the same syntax:
+<div class="monospace_table"></div>
 
-```batch
-ls **/README.md
-```
-
-```text
-README.md
-```
+| file          |
+| ------------- |
+| README.md     |
+| sub/README.md |
 
 ## Regular Expressions
 
-DuckDB's regular expression support is documented on the [Regular Expressions page]({% link docs/current/sql/functions/regular_expressions.md %}).
+DuckDB's regular expression support is documented on the [Regular Expressions page]({% link docs/2.0/sql/functions/regular_expressions.md %}).
 DuckDB supports some PostgreSQL-style operators for regular expression matching:
 
-| PostgreSQL-style | Equivalent expression                                                                                    |
-| :--------------- | :------------------------------------------------------------------------------------------------------- |
-| `~`              | [`regexp_full_match`]({% link docs/current/sql/functions/text.md %}#regexp_full_matchstring-regex)       |
-| `!~`             | `NOT` [`regexp_full_match`]({% link docs/current/sql/functions/text.md %}#regexp_full_matchstring-regex) |
-| `~*`             | (not supported)                                                                                          |
-| `!~*`            | (not supported)                                                                                          |
+| PostgreSQL-style | Equivalent expression                                                                                                        |
+| :--------------- | :--------------------------------------------------------------------------------------------------------------------------- |
+| `~`              | [`regexp_matches`]({% link docs/2.0/sql/functions/text.md %}#regexp_matchesstring-regex-options)                         |
+| `!~`             | `NOT` [`regexp_matches`]({% link docs/2.0/sql/functions/text.md %}#regexp_matchesstring-regex-options)                   |
+| `~*`             | [`regexp_matches`]({% link docs/2.0/sql/functions/text.md %}#regexp_matchesstring-regex-options) with case-insensitive matching       |
+| `!~*`            | `NOT` [`regexp_matches`]({% link docs/2.0/sql/functions/text.md %}#regexp_matchesstring-regex-options) with case-insensitive matching |
+
+> New As of DuckDB 2.0, the `~` and `!~` operators perform partial matching by default, and the `~*` and `!~*` operators are supported. In earlier versions, `~` and `!~` performed full matching.
+
+By default, these operators perform partial matching, following PostgreSQL's semantics.
+This is controlled by the deprecated `regex_match_operator_semantics` setting.
+Setting it to `full` restores the legacy behavior in which `~` and `!~` map to [`regexp_full_match`]({% link docs/2.0/sql/functions/text.md %}#regexp_full_matchstring-regex-col2), but this setting is deprecated and will be removed in a future release.

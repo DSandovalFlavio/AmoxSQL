@@ -149,11 +149,11 @@ const ChainTemplateGallery = ({ onSelect, onClose }) => {
                                         {tpl.description}
                                     </div>
                                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                                        <span style={{ fontSize: 10, color: 'var(--text-muted)', background: 'var(--hover-bg)', padding: '2px 6px', borderRadius: 8 }}>
+                                        <span style={{ fontSize: 11, color: 'var(--text-muted)', background: 'var(--hover-bg)', padding: '2px 6px', borderRadius: 8 }}>
                                             {tpl.nodeCount} nodes
                                         </span>
                                         {tpl.tags.map(t => (
-                                            <span key={t} style={{ fontSize: 10, color: 'var(--text-muted)', border: '1px solid var(--border-default)', padding: '2px 6px', borderRadius: 8 }}>
+                                            <span key={t} style={{ fontSize: 11, color: 'var(--text-muted)', border: '1px solid var(--border-default)', padding: '2px 6px', borderRadius: 8 }}>
                                                 {t}
                                             </span>
                                         ))}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { LuBot, LuX, LuLoader, LuCpu, LuCloud, LuTrash2, LuTable, LuFile, LuDatabase, LuBrain, LuSparkles, LuGripVertical, LuHistory, LuMessageSquarePlus, LuDownload, LuArrowUpRight, LuArrowUp, LuCircleHelp, LuChartColumn, LuListChecks, LuLightbulb, LuAtSign, LuTextSelect } from 'react-icons/lu';
 import { AiModesGuideModal } from './AiModesGuide';
-import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from '../onboarding/tourRegistry';
 import ChatMessage from './ChatMessage';
 import ToolCallBlock from './ToolCallBlock';
 import FileConversationList from './FileConversationList';
@@ -20,7 +20,8 @@ import { esDeTarjeta } from './archivos/lienzo.js';
 import { esDeDiagrama } from './archivos/diagrama.js';
 import { publicarPropuestas, pedirRevision } from './propuestasEnEditor.js';
 
-import { API_BASE as API } from '../../api.js';
+import { API_BASE as API } from '../../api.js';
+import { esSinModelo, BotonAjustesIA } from './SinModelo.jsx';
 
 /**
  * AiAssistantPanel — File-aware AI assistant sidebar panel.
@@ -257,7 +258,7 @@ const AiAssistantPanel = ({
     // First-run AI modes tour. Rendering + replay are owned by the global
     // OnboardingHost via the tour registry.
     useEffect(() => {
-        if (!hasSeenTour('ai-modes')) openTour('ai-modes');
+        ofrecerTour('ai-modes');
     }, []);
 
     // ─── Cache: filePath → last conversationId per session ───
@@ -669,6 +670,7 @@ const AiAssistantPanel = ({
                     {errorMsg && (
                         <div className="ai-error-bar">
                             <span>{errorMsg}</span>
+                            {esSinModelo(errorMsg) && <BotonAjustesIA />}
                             <button onClick={() => setErrorMsg(null)}>
                                 <LuX size={12} />
                             </button>

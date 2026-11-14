@@ -50,11 +50,12 @@ import { especFinal, asimilarCodigo, describirExtras } from './vega/codigo';
 import { sqlDeAgregado } from './vega/agregar';
 import { specDeSalida, scriptDePython } from './vega/salida';
 import { escribirAmoxvis } from './vega/figura';
-import { prepararFilas } from './vega/motor';
+import { prepararFilas } from './vega/filas';
 import { temaVega, TOKENS_CLAROS } from './vega/tema';
 import HeadlineOverlay from './overlays/HeadlineOverlay';
 import { StoryFlowGuide } from './StoryFlowGuide';
-import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from '../onboarding/tourRegistry';
+import { perfilarColumnas, ejesPorDefecto, tipoSugerido } from '../../utils/columnas';
 
 // ─── Tab definitions ─────────────────────────────────────────
 const TABS = [
@@ -91,7 +92,7 @@ function MandoAsistirGrafico({ etapa, onElegir }) {
         <div className="deck-asistir" ref={ref}>
             <button type="button" className="sf-cabecera-btn sf-asistir" onClick={() => setAbierto(v => !v)}
                 title="Ask Assist about this chart" aria-haspopup="menu" aria-expanded={abierto}>
-                <LuSparkles size={13} /> <span>Assist</span>
+                <LuSparkles size={13} /> <span className="sf-asistir-texto">Assist</span>
             </button>
             {abierto && (
                 <div className="deck-asistir-menu" role="menu">
@@ -217,7 +218,7 @@ function calcularRetiradas(alto) {
     return new Set(['nota', 'sub', 'firma', 'takeaway']);
 }
 
-const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null, recordadoCon = null, onAbrirArchivo = null, destinoIa = null, onFoco = null, onAsistir = null }) => {
+const DataVisualizer = memo(({ data, tipos = null, isReportMode = false, lectura = false, query = '', sourcePath = null, initialChartConfig = null, onConfigChange = null, isActive = true, onCreateNew = null, chrome = 'card', onPiezas = null, incluirSpec = false, truncado = false, onGuardar = null, recordadoCon = null, onAbrirArchivo = null, destinoIa = null, onFoco = null, onAsistir = null }) => {
     /**
      * Sin mandos, pero NO empotrada.
      *
@@ -290,22 +291,36 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
     // stale axis from a previous query would keep pointing at a column that no
     // longer exists → processChartData returns nothing → the chart shows
     // "No data" until a full app restart. (Reported bug.)
+    // 6.0 (M2, R1/R2): the axes come from what each column IS (utils/columnas.js),
+    // not from its position: «lugar, producto, …» used to chart units by rank.
+    const [sugerido, setSugerido] = useState(null);   // { chartType, motivo, antes }
     useEffect(() => {
         if (columns.length === 0) return;
         const xValid = state.xAxisKey && columns.includes(state.xAxisKey);
         const yValid = state.yAxisKeys?.length > 0 && state.yAxisKeys.every(k => columns.includes(k));
         const spInvalid = state.splitByKey && !columns.includes(state.splitByKey);
         if (xValid && yValid && !spInvalid) return;
-        const x = xValid ? state.xAxisKey : columns[0];
-        // La Y por defecto es la primera columna numérica que NO es la X: con
-        // «mes» (1..12) primero, X e Y salían iguales y la figura sumaba el mes.
-        const numericCols = columns.filter(c => c !== x && !isNaN(Number(data[0][c])));
-        const fallbackY = numericCols.length > 0 ? [numericCols[0]] : [columns.find(c => c !== x) || columns[0]];
+        const perfil = perfilarColumnas(data, tipos);
+        const ejes = ejesPorDefecto(perfil, data);
+        const x = xValid ? state.xAxisKey : (ejes.x || columns[0]);
+        const fallbackY = ejes.y.length && !ejes.y.includes(x) ? ejes.y : [columns.find(c => c !== x) || columns[0]];
         const patch = {
             xAxisKey:  x,
             yAxisKeys: yValid ? state.yAxisKeys : fallbackY,
         };
         if (spInvalid) patch.splitByKey = '';
+        // A brand-new chart (nothing chosen and nothing loaded) also gets the type that
+        // tells this result best — said in one line, with one click to undo it.
+        const nuevo = !xValid && !yValid && !initialChartConfig?.chartType && !lectura;
+        if (nuevo) {
+            if (!state.splitByKey && ejes.partir) patch.splitByKey = ejes.partir;
+            const t = tipoSugerido(perfil, { x, y: patch.yAxisKeys }, data);
+            if (t && t.chartType !== state.chartType) {
+                patch.chartType = t.chartType;
+                if (t.sortMode) patch.sortMode = t.sortMode;
+                setSugerido({ ...t, antes: { chartType: state.chartType, sortMode: state.sortMode } });
+            } else setSugerido(null);
+        } else setSugerido(null);
         setFields(patch);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [columns]);
@@ -519,10 +534,44 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
 
     // First-run Story Flow tour (editor only, not report mode). Rendering +
     // replay are owned by the global OnboardingHost via the tour registry.
+    // 6.0 (M1, F6): only when the chart is actually in view. The visualizer is
+    // mounted with every result, also while the user is looking at the table.
     useEffect(() => {
-        if (sinMandos) return;
-        if (!hasSeenTour('storyflow')) openTour('storyflow');
-    }, [sinMandos]);
+        if (sinMandos || !isActive) return;
+        ofrecerTour('storyflow');
+    }, [sinMandos, isActive]);
+
+    /* 6.0 (M5, U7): with little width (the Assistant open beside it), the panels fold
+       to a strip of the stage icons before the figure shrinks: at 1440 px with the
+       sidebar and the Assistant, the figure fell to 42 % on its own. A stage opens
+       its panel ON TOP of the figure; a click outside or Escape folds it again. */
+    const raizRef = useRef(null);
+    const [anchoRaiz, setAnchoRaiz] = useState(0);
+    useEffect(() => {
+        const el = raizRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') return undefined;
+        const ro = new ResizeObserver(([e]) => {
+            const w = Math.round(e.contentRect.width);
+            setAnchoRaiz(prev => (Math.abs(prev - w) < 4 ? prev : w));
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+    const estrecho = !sinMandos && lateral === 'paneles' && anchoRaiz > 0 && anchoRaiz < 760;
+    const [encima, setEncima] = useState(false);
+    const panelRef = useRef(null);
+    useEffect(() => { if (!estrecho) setEncima(false); }, [estrecho]);
+    useEffect(() => {
+        if (!encima) return undefined;
+        const fuera = (e) => {
+            if (panelRef.current?.contains(e.target) || e.target.closest?.('.sf-tira')) return;
+            setEncima(false);
+        };
+        const tecla = (e) => { if (e.key === 'Escape') setEncima(false); };
+        document.addEventListener('mousedown', fuera);
+        document.addEventListener('keydown', tecla);
+        return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', tecla); };
+    }, [encima]);
 
     // ── Font family resolution ──
     const fontFamily = useMemo(() => {
@@ -1017,7 +1066,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
 
     // ─── RENDER ──────────────────────────────────────────────
     return (
-        <div style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden', position: 'relative', fontFamily }}>
+        <div ref={raizRef} style={{ display: 'flex', height: '100%', width: '100%', overflow: 'hidden', position: 'relative', fontFamily }}>
             <SaveQueryModal
                 isOpen={isSaveModalOpen}
                 onClose={() => setIsSaveModalOpen(false)}
@@ -1030,16 +1079,32 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
             />
 
             {/* ━━━ Controls Panel ━━━ */}
-            {!sinMandos && (
-                <div style={{
+            {estrecho && (
+                <div className="sf-tira" role="tablist" aria-label="Story Flow stages">
+                    {TABS.map(tab => {
+                        const IconComp = tab.icon;
+                        const activo = encima && activeTab === tab.key;
+                        return (
+                            <button key={tab.key} type="button" role="tab" aria-selected={activo} title={tab.title}
+                                className={`sf-tira-btn${activo ? ' sf-tira-btn--activo' : ''}`}
+                                onClick={() => { if (activo) setEncima(false); else { setActiveTab(tab.key); setEncima(true); } }}>
+                                <IconComp size={15} />
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
+            {!sinMandos && (!estrecho || encima) && (
+                <div ref={panelRef} style={{
                     width: lateral === 'codigo' ? '440px' : '320px', flexShrink: 0, borderRight: '1px solid var(--border-color)',
                     padding: '12px', overflowY: 'auto',
+                    ...(estrecho ? { position: 'absolute', left: 44, top: 0, bottom: 0, zIndex: 6, maxWidth: 'calc(100% - 44px)', boxShadow: '8px 0 24px rgba(0, 0, 0, 0.3)' } : {}),
                     backgroundColor: 'var(--panel-bg)',
                     display: 'flex', flexDirection: 'column',
                 }}>
                     {/* ── Header ── */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <h3 style={{
+                    <div className="sf-cabecera" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h3 className="sf-titulo" style={{
                             margin: 0, fontSize: '12px', fontWeight: '600',
                             color: 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px'
                         }}>Story Flow</h3>
@@ -1120,11 +1185,19 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                     {(() => {
                         const cur = TABS.find(t => t.key === activeTab);
                         return cur?.hint ? (
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', margin: '-4px 0 10px 0', fontStyle: 'italic' }}>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '-4px 0 10px 0', fontStyle: 'italic' }}>
                                 {cur.hint}
                             </div>
                         ) : null;
                     })()}
+
+                    {/* 6.0 (M2): the type chosen for this result, and the way back. */}
+                    {sugerido && activeTab === 'type' && state.chartType === sugerido.chartType && (
+                        <div className="sf-sugerido" role="status">
+                            <span>Suggested: <strong>{sugerido.motivo}</strong></span>
+                            <button type="button" onClick={() => { setFields(sugerido.antes); setSugerido(null); }}>Undo</button>
+                        </div>
+                    )}
 
                     {/* ── Tab Content ── */}
                     <div style={{ flex: 1, overflowY: 'auto', scrollbarGutter: 'stable', paddingRight: '4px' }}>
@@ -1359,7 +1432,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                             <button type="button" className="sf-en-motor-cancelar" onClick={() => setSinTotales(sqlMotor)}>Cancel</button>
                         </span>
                     )}
-                    <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Size</span>
+                    <span style={{ fontSize: '11px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Size</span>
                     <div style={{ display: 'flex', gap: '3px' }}>
                         {CANVAS_SIZES.map(c => (
                             <button key={c.label} onClick={() => setField('canvasSize', c.label)}
@@ -1372,7 +1445,7 @@ const DataVisualizer = memo(({ data, isReportMode = false, lectura = false, quer
                         ))}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginLeft: 'auto' }}>
-                        <span style={{ fontSize: '10px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Zoom</span>
+                        <span style={{ fontSize: '11px', letterSpacing: '.1em', textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>Zoom</span>
                         <input type="range" min={40} max={220} step={5}
                             value={Math.round(zoomEfectivo * 100)}
                             onChange={e => setZoom(Number(e.target.value) / 100)}

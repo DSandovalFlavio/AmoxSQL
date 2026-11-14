@@ -1,0 +1,809 @@
+/* ── Editor Pane — Linear: clean containers, minimal borders ── */
+
+.ep-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: transparent;
+  border-left: none;
+  overflow: hidden;
+  position: relative;
+}
+
+.ep-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+}
+
+.ep-empty-subtitle {
+  color: var(--text-tertiary);
+  font-size: var(--text-md);
+  margin: 0;
+}
+
+/* Seis tarjetas en una fila miden ~1400px: en una ventana estrecha o con la
+   vista dividida se salían del panel (que recorta) y parecían no estar. Ahora
+   bajan a la fila siguiente. */
+.ep-empty-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: 100%;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+.ep-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 32px;
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+  min-width: 160px;
+}
+
+.ep-empty-card:hover {
+  border-color: var(--accent-primary);
+  background-color: var(--accent-subtle);
+  color: var(--text-primary);
+}
+
+.ep-empty-card-title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: inherit;
+}
+
+.ep-empty-card-desc {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+}
+
+.ep-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+  padding: 6px 8px;
+  gap: 4px;
+}
+
+.ep-notebook-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+}
+
+.ep-notebook-wrapper.active {
+  outline: 1px solid var(--accent-primary);
+  z-index: 1;
+}
+
+.ep-editor-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  gap: 4px;
+}
+
+.ep-editor-area.vertical {
+  flex-direction: row;
+}
+
+/* ── Editor "Message Box" — rounded card with elevation ── */
+.ep-editor-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 60px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-raised);
+  transition: border-color var(--transition-fast);
+}
+
+.ep-editor-card:focus-within {
+  border-color: color-mix(in oklch, var(--accent-primary) 40%, transparent);
+}
+
+.ep-editor-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 60px;
+}
+
+.ep-editor-wrapper {
+  flex: 1;
+  overflow: hidden;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.ep-editor-wrapper.active {
+  /* No outline — the card border handles focus state */
+}
+
+/* ── Editor Action Bar — inside the card header ── */
+
+.ep-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 40px;
+  min-height: 40px;
+  background-color: transparent;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  gap: 8px;
+  /* Lets the @container rule below hide the timestamps once THIS bar (not
+     the viewport) gets too narrow for a split pane. */
+  container-type: inline-size;
+  container-name: ep-action-bar;
+}
+
+.ep-action-left,
+.ep-action-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ep-action-right {
+  /* Allowed to shrink (unlike .ep-action-left's buttons, which keep their
+     natural size) so that when space runs out, the ONE shrinkable thing
+     inside it — the timestamps span — loses width instead of the whole
+     group overlapping .ep-action-left. This is the actual guarantee against
+     overlap; the @container rule below is just a cleaner "disappear before
+     it starts visibly clipping" on top of it. */
+  flex-shrink: 1;
+}
+
+.ep-action-ai {
+  /* Never shrinks — always fully visible and clickable. All the space
+     pressure in .ep-action-right lands on the timestamps above, never here. */
+  flex-shrink: 0;
+}
+
+/* Hides the timestamps cleanly before they'd start visibly clipping —
+   measured against a REALISTIC string ("Edited 19s ago · Ran 53s ago"),
+   not the "—" placeholder it renders before anything has run. The
+   flex-shrink above is the actual safety net if this guess is ever off. */
+@container ep-action-bar (max-width: 760px) {
+  .ep-action-timestamps {
+    display: none;
+  }
+}
+
+/* Button group (run+analyze, save+dropdown) */
+.ep-action-group {
+  display: flex;
+  align-items: center;
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: visible;
+}
+
+/* Primary run button */
+.ep-action-run {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--accent-primary);
+  color: var(--surface-base);
+  border: none;
+  padding: 4px 14px;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  height: 24px;
+  transition: opacity var(--transition-fast);
+}
+
+.ep-action-run:hover {
+  background-color: color-mix(in oklch, var(--accent-primary) 85%, black);
+}
+
+/* Ghost action button */
+.ep-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-left: none;
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  height: 24px;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.ep-action-btn:first-child {
+  border-left: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.ep-action-btn:last-child,
+.ep-action-chevron:last-child {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.ep-action-btn:only-child {
+  border-radius: var(--radius-md);
+  border-left: 1px solid var(--border-subtle);
+}
+
+.ep-action-btn:hover {
+  background-color: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+/* Analyze button attached to run */
+.ep-action-group .ep-action-btn:nth-child(2) {
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  border-left: 1px solid color-mix(in oklch, var(--accent-primary) 30%, transparent);
+  background-color: color-mix(in oklch, var(--accent-primary) 8%, transparent);
+}
+
+/* Chevron button for dropdown */
+.ep-action-chevron {
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-left: none;
+  color: var(--text-disabled);
+  padding: 0 6px;
+  cursor: pointer;
+  height: 24px;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.ep-action-chevron:hover {
+  color: var(--text-secondary);
+  background-color: var(--hover-bg);
+}
+
+/* Dropdown menu */
+.ep-action-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 2px;
+  background-color: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  min-width: 130px;
+  padding: 4px 0;
+  z-index: 1000;
+}
+
+.ep-action-dropdown-item {
+  padding: 5px 12px;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.ep-action-dropdown-item:hover {
+  background-color: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+/* Timestamps */
+.ep-action-timestamps {
+  font-size: var(--text-xs);
+  color: var(--text-disabled);
+  white-space: nowrap;
+  /* Real "Edited Xs ago · Ran Ys ago" text (not the placeholder "—" it
+     starts with) measured mid-overlap at bar widths well above a first
+     guess for the @container threshold below — so this can't rely on that
+     guess alone: it must be able to shrink all the way to nothing
+     regardless of exactly how long the current string is. */
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+}
+
+/* AI toggle button */
+.ep-action-ai {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  height: 24px;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.ep-action-ai:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-bg);
+}
+
+.ep-action-ai.active {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  background-color: var(--accent-subtle);
+}
+
+/* ── Variables Panel ── */
+
+.ep-var-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background-color: var(--accent-primary);
+  color: var(--surface-base);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+
+.ep-action-btn.active {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  background-color: var(--accent-subtle);
+}
+
+.ep-variables-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: color-mix(in oklch, var(--surface-inset) 50%, transparent);
+  flex-shrink: 0;
+}
+
+.ep-var-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: var(--surface-raised);
+  border-radius: var(--radius-md);
+  padding: 4px 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+.ep-var-syntax {
+  font-size: 11px;
+  color: var(--accent-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: var(--weight-medium);
+}
+
+.ep-var-equals {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  margin: 0 2px;
+}
+
+.ep-var-input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 11px;
+  outline: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: var(--weight-medium);
+}
+
+.ep-var-name {
+  width: 80px;
+}
+
+.ep-var-value {
+  width: 100px;
+  background-color: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+}
+
+.ep-var-select {
+  background-color: var(--surface-inset);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
+}
+
+.ep-var-remove {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  transition: color var(--transition-fast);
+}
+
+.ep-var-remove:hover {
+  color: var(--color-error, #ef4444);
+}
+
+/* ── Editor Pane Resizer — thin, elegant drag handle ── */
+
+.ep-resizer {
+  height: 6px;
+  width: 100%;
+  cursor: row-resize;
+  background: transparent;
+  z-index: 10;
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ep-resizer::after {
+  content: '';
+  width: 32px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--border-default);
+  transition: background var(--transition-fast), width var(--transition-fast);
+}
+
+.ep-resizer:hover::after,
+.ep-resizer:active::after {
+  background: var(--accent-primary);
+  width: 48px;
+}
+
+.ep-resizer.vertical {
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  flex-direction: column;
+}
+
+.ep-resizer.vertical::after {
+  width: 3px;
+  height: 32px;
+}
+
+.ep-resizer.vertical:hover::after,
+.ep-resizer.vertical:active::after {
+  width: 3px;
+  height: 48px;
+}
+
+/* ── Editor Pane Results Container — rounded card ── */
+
+.ep-results {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: calc(100% - 60px);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--surface-raised);
+}
+
+.ep-results.vertical {
+  min-width: 200px;
+  height: 100%;
+  max-height: none;
+  overflow: auto;
+}
+
+/* ── Editor Pane Ghost Splitter ── */
+
+.ep-ghost {
+  position: absolute;
+  display: none;
+  background-color: var(--accent-primary);
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* ── Editor Pane Error / Status Messages ── */
+
+.ep-error {
+  color: var(--feedback-error);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+.ep-error-texto { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+/* E2: «Fix with Assist» junto al error. */
+.ep-error-asistir {
+  flex: none; display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 6px; border: 1px solid var(--accent-primary);
+  background: transparent; color: var(--accent-primary); font: inherit; font-size: var(--text-xs); font-weight: 600; cursor: pointer;
+}
+.ep-error-asistir:hover { background: var(--hover-bg); }
+
+.ep-no-results {
+  padding: var(--space-3);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.ep-espera {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+.ep-espera > svg { flex-shrink: 0; color: var(--accent-primary); }
+.ep-espera > span { flex: 1; min-width: 0; }
+.ep-espera strong { font-weight: 600; color: var(--text-primary); }
+.ep-espera button {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.ep-espera button:hover { color: var(--text-primary); }
+
+.ep-emergente {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+.ep-emergente > svg { flex-shrink: 0; color: var(--accent-primary); }
+.ep-emergente > span { flex: 1; min-width: 0; }
+.ep-emergente button {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.ep-emergente button:hover { color: var(--text-primary); }
+
+/* ── Editor Pane File Drop Overlay ── */
+
+.ep-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 9999;
+  background: var(--overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  border: 2px dashed var(--accent-primary);
+  border-radius: var(--radius-lg);
+}
+
+.ep-drop-content {
+  color: var(--accent-primary);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ep-drop-icon {
+  font-size: var(--text-4xl);
+}
+
+.ep-drop-subtitle {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+/* ── Layout Manager ── */
+
+.lm-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.lm-drop-zone {
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: 100%;
+  background: var(--accent-muted);
+  z-index: 9999;
+  pointer-events: none;
+}
+
+.lm-drop-zone.left {
+  left: 0;
+  border-right: 2px solid var(--accent-primary);
+}
+
+.lm-drop-zone.right {
+  right: 0;
+  border-left: 2px solid var(--accent-primary);
+}
+
+.lm-panes {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.lm-pane-slot {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ── Vertical splitter between the two split panes (Fase 3) ── */
+.lm-splitter {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.lm-splitter::after {
+  content: '';
+  width: 3px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--border-default);
+  transition: background var(--transition-fast), width var(--transition-fast);
+}
+
+.lm-splitter:hover::after,
+.lm-splitter:active::after {
+  background: var(--accent-primary);
+  width: 4px;
+}
+
+.lm-splitter-ghost {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  display: none;
+  background-color: var(--accent-primary);
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+/* ── Results-link toggle (Fase 4) — sits between the two tab bar strips,
+   icon only (no circle/background) so it doesn't widen that gap. ── */
+.tab-link-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.tab-link-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-link-btn.active {
+  color: var(--accent-primary);
+}
+
+/* ── Shared: Context Menu / Dropdown (Linear style) ── */
+
+.ctx-menu {
+  position: fixed;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  z-index: 9999;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  min-width: 140px;
+
+}
+
+.ctx-menu-item {
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--radius-sm);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.ctx-menu-item:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.ctx-menu-item.danger {
+  color: var(--feedback-error);
+}
+
+.ctx-menu-item.danger:hover {
+  background: var(--hover-bg);
+  color: var(--feedback-error);
+}
+
+.ctx-menu-separator {
+  height: 1px;
+  background-color: var(--border-subtle);
+  margin: 4px;
+}
+

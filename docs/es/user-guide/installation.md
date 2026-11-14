@@ -23,6 +23,9 @@ Ve a [GitHub Releases](https://github.com/dsandovalflavio/amoxsql/releases/lates
 
 > **Nota:** el instalador de macOS es para chips **Apple Silicon (arm64)**. La firma/notarización oficial (para abrir con doble clic sin el paso de Terminal) llegará más adelante. Los instaladores pre-construidos continuos están disponibles para [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio); compilar desde fuente es siempre gratis.
 
+### Si ya tienes la 5.x
+El instalador de la 6.0 reemplaza a la 5.x y conserva tus proyectos, tema, ajustes y credenciales. Tus bases se abren igual; lo que conviene saber antes (bases nuevas que la 5.x no abre, lambdas, dbt) está en [Novedades de la 6.0](whats-new-6.md).
+
 ## Opción B — Compilar desde el código fuente
 
 ### Requisitos

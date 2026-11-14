@@ -35,6 +35,9 @@ The figure is drawn with **Vega-Lite**, the open grammar of graphics, and saved 
 2. In the results panel, switch from **Table** to **Chart** with the view toggle in the top bar.
 3. Story Flow appears with the chart and the six-stage sidebar. AmoxSQL preselects sensible axes from the columns.
 
+### The suggested chart
+The first time you open a result's chart, AmoxSQL looks at what each column is: a date goes on the X axis as a line; a rank or an id is not the axis if there is something better; the Y axis gets the main measure (an amount before a count, never a ratio); and a long list of categories comes out as horizontal bars, largest first. At the top it says what it chose ("Suggested: …") with **Undo** in case you wanted something else. A chart that was already remembered is left alone.
+
 ### A `.sql` file remembers its chart
 The chart you build on the result of a saved `.sql` is **a view of that query**: there is nothing to save. Switch tabs, close the file, come back tomorrow: when you run it again, the result shows up the way you left it (table or chart, with its settings). Under the Story Flow header it says so: **Kept with sales.sql**.
 
@@ -72,7 +75,7 @@ The sidebar header has the **Panels | Code** switch, the **Save** button (always
 - An `.amoxvis` edited outside AmoxSQL (in another editor) is recognized on open and read the same way: the panels take what they understand and the rest stays as your own code.
 
 ### The guide and the tour
-- The **?** button (info icon) in the panel header opens a drawer with the **Story Flow guide**: it explains the six stages and the storytelling principles. The same guide lives in Settings → Story Flow.
+- The **?** button (info icon) in the panel header opens a drawer with the **Story Flow guide**: it explains the six stages and the storytelling principles. The same guide lives in the **Help** dialog → Story Flow (Ctrl+Shift+/).
 - The first time you open Story Flow a **welcome tour** starts (a carousel through the six stages). You can replay it from the guide.
 
 ### Live update from the AI

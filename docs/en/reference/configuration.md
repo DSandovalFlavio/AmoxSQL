@@ -2,7 +2,7 @@
 
 **🌐 English · [Español](../../es/reference/configuration.md)**
 
-> AmoxSQL's Settings modal: appearance, editor, behavior, AI, store integrations, project, shortcuts, tours, and About — all in one place.
+> AmoxSQL's Settings modal: appearance, editor, behavior, AI, credentials, cloud storage, project, workspaces, and About — all in one place. Keyboard shortcuts and the guides live in the **Help** dialog.
 
 <img src="../../../images/09_settings_modal.png" alt="AmoxSQL Settings modal" width="100%" />
 
@@ -10,7 +10,9 @@
 
 Settings is AmoxSQL's central configuration panel. Open it with **Ctrl+,** (or the gear in the bar); it groups every preference into tabs on the left. A search box at the top filters the tabs by name.
 
-The tabs fall into two blocks: **Configure** (Appearance, Editor, Behavior, AI, Store Integrations, Project) and **Help & info** (Shortcuts, Story Flow, Data Flow, About). Most changes apply live.
+The tabs fall into three blocks: **the app** (Appearance, Editor, Behavior, AI), **data and where you work** (Credentials, Cloud storage, Project, Workspaces) and **About**. Most changes apply live.
+
+Keyboard shortcuts and the Story Flow and Data Flow guides are not settings: since 6.0 they live in the **Help** dialog — **Ctrl+Shift+/**, the application menu → **Keyboard Shortcuts**, or the command palette → **Help & Tours**.
 
 Configuration persists to `~/.amoxsql/config.json`; UI preferences are also stored in `localStorage` (see [Where configuration is stored](#where-configuration-is-stored)).
 
@@ -58,6 +60,9 @@ Workflow preferences.
 | Auto-save | Save files automatically as you edit |
 | Welcome screen | Show or hide the welcome screen on launch |
 | Default data-file action | What AmoxSQL does when you open a CSV/Parquet/Excel (e.g. preview, import) |
+| File Explorer › Nest Related Files | A `.sql`'s charts, under it in the explorer (on) |
+| File Explorer › Explorer View | **Folders** (one folder at a time, the default) or **Tree** (the whole project as a tree). See [File explorer](../data/file-explorer.md) |
+| File Explorer › Default Explorer Sort View | The order the explorer opens with (date modified too) |
 
 ## AI
 
@@ -72,7 +77,7 @@ Configures the assistant's providers, keys, and models. See [Providers & models]
 
 > API keys are stored in your local `config.json`; they never leave your machine except toward the provider you choose.
 
-## Store Integrations
+## Cloud storage
 
 Connect cloud storage for importing and exporting data. See [Google Sheets](../data/google-sheets.md) and [Exporting data](../data/exporting-data.md).
 
@@ -90,25 +95,15 @@ A wizard for setting up the active project (paths, database, context). See [Proj
 |---|---|
 | Project setup (*Open Project Setup*) | Step-by-step guide to configure the active project |
 
-## Shortcuts
+## Help (its own dialog)
 
-A reference-only tab with the complete keyboard-shortcut set, grouped by category. It's the same content as [Keyboard shortcuts](keyboard-shortcuts.md).
+Not part of Settings since 6.0. Open it with **Ctrl+Shift+/**, the application menu → **Keyboard Shortcuts**, or the palette → **Help & Tours**.
 
-## Story Flow
-
-Help and tour reset for the visualization section. See [Story Flow](../visualization/story-flow.md).
-
-| Option | What it controls |
+| Section | What it holds |
 |---|---|
-| Reset Story Flow tour | Shows the guided walkthrough again next time you enter |
-
-## Data Flow
-
-Help and tour reset for the pipeline editor. See [Data Flow](../data-flow/data-flow.md).
-
-| Option | What it controls |
-|---|---|
-| Reset Data Flow tour | Shows the guided walkthrough again next time you enter |
+| Keyboard Shortcuts | The complete keyboard-shortcut set, grouped by category — the same content as [Keyboard shortcuts](keyboard-shortcuts.md) |
+| Story Flow | The guide to the visualization section and **Replay tour**. See [Story Flow](../visualization/story-flow.md) |
+| Data Flow | The guide to the pipeline editor and **Replay tour**. See [Data Flow](../data-flow/data-flow.md) |
 
 ## About
 

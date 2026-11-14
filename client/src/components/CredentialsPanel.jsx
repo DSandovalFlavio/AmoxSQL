@@ -5,7 +5,7 @@
  * última vez. NUNCA el valor: el servidor no lo manda. Desde aquí se borra y,
  * desde la 5.10 (C4), se crean las credenciales de nube con nombre que usan las
  * fuentes en un bucket o un lago; las demás claves se escriben donde siempre
- * (AI, Store Integrations).
+ * (AI, Cloud storage).
  */
 import { useCallback, useEffect, useState } from 'react';
 import { LuKeyRound, LuTrash2, LuShieldCheck, LuTriangleAlert, LuLoader } from 'react-icons/lu';
@@ -73,7 +73,7 @@ export default function CredentialsPanel() {
             <h3 className="stg-section-title">Credentials</h3>
             <p className="stg-row-desc stg-row-desc--mb14">
                 API keys and cloud keys are encrypted with your system keychain. AmoxSQL never shows a saved
-                value again — to change one, type the new value where you entered it (AI, Store Integrations).
+                value again — to change one, type the new value where you entered it (AI, Cloud storage).
             </p>
 
             {estado.modo === 'texto' && (
@@ -97,7 +97,7 @@ export default function CredentialsPanel() {
                     {estado.credenciales.length === 0 && (
                         <div className="stg-row">
                             <p className="stg-row-desc">
-                                No credentials yet. Keys you enter under AI and Store Integrations are saved here.
+                                No credentials yet. Keys you enter under AI and Cloud storage are saved here.
                             </p>
                         </div>
                     )}

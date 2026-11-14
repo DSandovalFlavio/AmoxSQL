@@ -25,16 +25,16 @@ const ExportPanel = memo(({ onExport, onExportSvg, onExportPptx, isExportingPptx
                 <Section title="Take it elsewhere">
                     <button onClick={() => onExportarFuera('valores', { conAspecto })} style={btnStyle} className="dv-export-item" title="A Vega-Lite spec with the data inside: opens in any Vega-Lite editor">
                         <span><LuBraces size={12} style={iconStyle} />Vega-Lite with data</span>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>.vl.json</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>.vl.json</span>
                     </button>
                     <button onClick={() => onExportarFuera('plantilla', { conAspecto })} style={btnStyle} className="dv-export-item" title="The spec with the data by name (dataset), for visuals that bring their own data — Deneb in Power BI">
                         <span><LuBraces size={12} style={iconStyle} />Template (data as "dataset")</span>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Deneb</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Deneb</span>
                     </button>
                     {!esVega && (
                         <button onClick={() => onExportarFuera('python', { conAspecto })} style={btnStyle} className="dv-export-item" title="A Python script: the query in DuckDB and the figure with Altair">
                             <span><LuFileCode size={12} style={iconStyle} />Python script</span>
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Altair</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Altair</span>
                         </button>
                     )}
                     <Toggle label="Keep AmoxSQL's look" checked={conAspecto} onChange={setConAspecto} />
@@ -59,7 +59,7 @@ const ExportPanel = memo(({ onExport, onExportSvg, onExportPptx, isExportingPptx
                 {EXPORT_PRESETS.map(p => (
                     <button key={p.label} onClick={() => onExport(p)} style={btnStyle} className="dv-export-item">
                         <span><LuDownload size={12} style={iconStyle} />{p.label}</span>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{p.width}×{p.height}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{p.width}×{p.height}</span>
                     </button>
                 ))}
                 <button

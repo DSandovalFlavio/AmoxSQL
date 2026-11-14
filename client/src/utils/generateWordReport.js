@@ -7,7 +7,8 @@
  * not a regex approximation.
  */
 import { API_BASE } from '../api.js';
-import html2canvas from 'html2canvas-pro';
+// html2canvas pesa ~225 kB y sólo hace falta al exportar: se carga entonces (6.0, M8).
+const html2canvas = async (...args) => (await import('html2canvas-pro')).default(...args);
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';

@@ -2,6 +2,7 @@
  * Gallery Manager — Seeds and serves chart gallery files from <homeAmox>/gallery/
  * (~/.amoxsql/gallery salvo que AMOXSQL_HOME diga otra cosa).
  */
+const registrador = require('./registrador');
 const fs = require('fs');
 const path = require('path');
 const { homeAmox } = require('./rutas');
@@ -74,10 +75,10 @@ function seedGallery() {
             seeded++;
         }
         if (seeded > 0) {
-            console.log(`[Gallery] Seeded ${seeded} chart examples in ${GALLERY_DIR}`);
+            registrador.info(`[Gallery] Seeded ${seeded} chart examples in ${GALLERY_DIR}`);
         }
     } catch (err) {
-        console.warn('[Gallery] Seed warning:', err.message);
+        registrador.aviso('[Gallery] Seed warning:', err.message);
     }
 }
 

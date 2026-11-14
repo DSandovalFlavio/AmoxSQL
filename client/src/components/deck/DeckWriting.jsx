@@ -43,7 +43,7 @@ export function BarraFormato({ areaRef, onCambio, onAbrirMenu }) {
             <button
                 type="button"
                 className="deck-barra-insertar"
-                title="Insertar un bloque, una figura o una imagen ( / )"
+                title="Insert a block, a figure or an image ( / )"
                 onMouseDown={(e) => { e.preventDefault(); onAbrirMenu(); }}
             >
                 <LuPlus size={13} /> Insertar
@@ -92,7 +92,7 @@ export function MenuInsercion({ consulta, onElegir, onCerrar }) {
         return (
             <div className="deck-menu">
                 <div className="deck-menu-consulta"><LuSearch size={12} /> {consulta || '…'}</div>
-                <div className="deck-menu-vacio">Nada que insertar con eso.</div>
+                <div className="deck-menu-vacio">Nothing to insert with that.</div>
             </div>
         );
     }

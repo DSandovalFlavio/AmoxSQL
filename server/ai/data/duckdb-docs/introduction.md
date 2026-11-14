@@ -1,9 +1,11 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/introduction
 - /docs/sql/introduction
 - /docs/stable/sql/introduction
+- /docs/current/sql/introduction
+- /docs/lts/sql/introduction
+- /docs/preview/sql/introduction
 title: SQL Introduction
 ---
 
@@ -12,9 +14,9 @@ This tutorial is only intended to give you an introduction and is in no way a co
 This tutorial is adapted from the [PostgreSQL tutorial](https://www.postgresql.org/docs/current/tutorial-sql-intro.html).
 
 > DuckDB's SQL dialect closely follows the conventions of the PostgreSQL dialect.
-> The few exceptions to this are listed on the [PostgreSQL compatibility page]({% link docs/current/sql/dialect/postgresql_compatibility.md %}).
+> The few exceptions to this are listed on the [PostgreSQL compatibility page]({% link docs/2.0/sql/dialect/postgresql_compatibility.md %}).
 
-In the examples that follow, we assume that you have installed the DuckDB Command Line Interface (CLI) shell. See the [installation page]({% link install/index.html %}?environment=cli) for information on how to install the CLI.
+In the examples that follow, we assume that you have installed the DuckDB Command Line Interface (CLI) shell. See the [installation page]({% link docs/2.0/installation.html %}?environment=cli) for information on how to install the CLI.
 
 > Tip If you are looking for a comprehensive to SQL introduction,
 > check the slide decks of the [“Tabular Database Systems” course]({% link _library/2026-03-19-tabular-database-systems.md %}):
@@ -45,13 +47,13 @@ CREATE TABLE weather (
 
 You can enter this into the shell with the line breaks. The command is not terminated until the semicolon.
 
-White space (i.e., spaces, tabs and newlines) can be used freely in SQL commands. That means you can type the command aligned differently than above, or even all on one line. Two dash characters (`--`) introduce comments. Whatever follows them is ignored up to the end of the line. SQL is case-insensitive about keywords and identifiers. When returning identifiers, [their original cases are preserved]({% link docs/current/sql/dialect/keywords_and_identifiers.md %}#rules-for-case-sensitivity).
+White space (i.e., spaces, tabs, and newlines) can be used freely in SQL commands. That means you can type the command aligned differently than above, or even all on one line. Two dash characters (`--`) introduce comments. Whatever follows them is ignored up to the end of the line. SQL is case-insensitive about keywords and identifiers. When returning identifiers, [their original cases are preserved]({% link docs/2.0/sql/dialect/keywords_and_identifiers.md %}#rules-for-case-sensitivity).
 
 In the SQL command, we first specify the type of command that we want to perform: `CREATE TABLE`. After that follows the parameters for the command. First, the table name, `weather`, is given. Then the column names and column types follow.
 
 `city VARCHAR` specifies that the table has a column called `city` that is of type `VARCHAR`. `VARCHAR` specifies a data type that can store text of arbitrary length. The temperature fields are stored in an `INTEGER` type, a type that stores integer numbers (i.e., whole numbers without a decimal point). `FLOAT` columns store single precision floating-point numbers (i.e., numbers with a decimal point). `DATE` stores a date (i.e., year, month, day combination). `DATE` only stores the specific day, not a time associated with that day.
 
-DuckDB supports the standard SQL types `INTEGER`, `SMALLINT`, `FLOAT`, `DOUBLE`, `DECIMAL`, `CHAR(n)`, `VARCHAR(n)`, `DATE`, `TIME` and `TIMESTAMP`.
+DuckDB supports the standard SQL types `INTEGER`, `SMALLINT`, `FLOAT`, `DOUBLE`, `DECIMAL`, `CHAR(n)`, `VARCHAR(n)`, `DATE`, `TIME`, and `TIMESTAMP`.
 
 The second example will store cities and their associated geographical location:
 
@@ -105,14 +107,14 @@ VALUES ('1994-11-29', 'Hayward', 54, 37);
 
 Please enter all the commands shown above so you have some data to work with in the following sections.
 
-Alternatively, you can use the `COPY` statement. This is faster for large amounts of data because the `COPY` command is optimized for bulk loading while allowing less flexibility than `INSERT`. An example with [`weather.csv`]({% link data/weather.csv %}) would be:
+Alternatively, you can use the [`COPY` statement]({% link docs/2.0/sql/statements/copy.md %}). This is faster for large amounts of data because the `COPY` command is optimized for bulk loading while allowing less flexibility than `INSERT`. An example with [`weather.csv`]({% link data/weather.csv %}) would be:
 
 ```sql
 COPY weather
 FROM 'weather.csv';
 ```
 
-Where the file name for the source file must be available on the machine running the process. There are many other ways of loading data into DuckDB, see the [corresponding documentation section]({% link docs/current/data/overview.md %}) for more information.
+Where the file name for the source file must be available on the machine running the process. There are many other ways of loading data into DuckDB, see the [corresponding documentation section]({% link docs/2.0/data/overview.md %}) for more information.
 
 ## Querying a Table
 
@@ -155,7 +157,7 @@ This should give:
 
 Notice how the `AS` clause is used to relabel the output column. (The `AS` clause is optional.)
 
-A query can be “qualified” by adding a `WHERE` clause that specifies which rows are wanted. The `WHERE` clause contains a Boolean (truth value) expression, and only rows for which the Boolean expression is true are returned. The usual Boolean operators (`AND`, `OR` and `NOT`) are allowed in the qualification. For example, the following retrieves the weather of San Francisco on rainy days:
+A query can be “qualified” by adding a `WHERE` clause that specifies which rows are wanted. The `WHERE` clause contains a Boolean (truth value) expression, and only rows for which the Boolean expression is true are returned. The usual Boolean operators (`AND`, `OR`, and `NOT`) are allowed in the qualification. For example, the following retrieves the weather of San Francisco on rainy days:
 
 ```sql
 SELECT *
@@ -284,7 +286,7 @@ This query is called a left outer join because the table mentioned on the left o
 
 ## Aggregate Functions
 
-Like most other relational database products, DuckDB supports aggregate functions. An aggregate function computes a single result from multiple input rows. For example, there are aggregates to compute the `count`, `sum`, `avg` (average), `max` (maximum) and `min` (minimum) over a set of rows.
+Like most other relational database products, DuckDB supports aggregate functions. An aggregate function computes a single result from multiple input rows. For example, there are aggregates to compute the `count`, `sum`, `avg` (average), `max` (maximum), and `min` (minimum) over a set of rows.
 
 As an example, we can find the highest low-temperature reading anywhere with:
 
@@ -363,7 +365,7 @@ GROUP BY city
 HAVING max(temp_lo) < 40;
 ```
 
-More information about the `LIKE` operator can be found in the [pattern matching page]({% link docs/current/sql/functions/pattern_matching.md %}).
+More information about the `LIKE` operator can be found in the [pattern matching page]({% link docs/2.0/sql/functions/pattern_matching.md %}).
 
 It is important to understand the interaction between aggregates and SQL's `WHERE` and `HAVING` clauses. The fundamental difference between `WHERE` and `HAVING` is this: `WHERE` selects input rows before groups and aggregates are computed (thus, it controls which rows go into the aggregate computation), whereas `HAVING` selects group rows after groups and aggregates are computed. Thus, the `WHERE` clause must not contain aggregate functions; it makes no sense to try to use an aggregate to determine which rows will be inputs to the aggregates. On the other hand, the `HAVING` clause always contains aggregate functions.
 

@@ -2,9 +2,11 @@
 layout: docu
 railroad: statements/copy.js
 redirect_from:
-- /docs/preview/sql/statements/copy
 - /docs/sql/statements/copy
 - /docs/stable/sql/statements/copy
+- /docs/current/sql/statements/copy
+- /docs/lts/sql/statements/copy
+- /docs/preview/sql/statements/copy
 title: COPY Statement
 ---
 
@@ -84,7 +86,7 @@ COPY FROM DATABASE db1 TO db2 (SCHEMA);
 
 ## Overview
 
-`COPY` moves data between DuckDB and external files. `COPY ... FROM` imports data into DuckDB from an external file. `COPY ... TO` writes data from DuckDB to an external file. The `COPY` command can be used for `CSV`, `PARQUET` and `JSON` files.
+`COPY` moves data between DuckDB and external files. `COPY ... FROM` imports data into DuckDB from an external file. `COPY ... TO` writes data from DuckDB to an external file. The `COPY` command can be used for `CSV`, `PARQUET`, and `JSON` files.
 
 ## `COPY ... FROM`
 
@@ -140,7 +142,7 @@ Read the contents of a JSON file `lineitem.json` into the `lineitem` table:
 COPY lineitem FROM 'lineitem.json' (FORMAT json, ARRAY true);
 ```
 
-An expression may be used as the source of a `COPY ... FROM` command if it is placed within parentheses. 
+An expression may be used as the source of a `COPY ... FROM` command if it is placed within parentheses.
 
 Read the contents of a file whose path is stored in a variable into the `lineitem` table:
 
@@ -168,9 +170,22 @@ EXECUTE v1('lineitem.json');
 
 ## `COPY ... TO`
 
-`COPY ... TO` exports data from DuckDB to an external CSV, Parquet, JSON or BLOB file. It has mostly the same set of options as `COPY ... FROM`, however, in the case of `COPY ... TO` the options specify how the file should be written to disk. Any file created by `COPY ... TO` can be copied back into the database by using `COPY ... FROM` with a similar set of options.
+`COPY ... TO` exports data from DuckDB to an external CSV, Parquet, JSON, or BLOB file. It has mostly the same set of options as `COPY ... FROM`, however, in the case of `COPY ... TO` the options specify how the file should be written to disk. Any file created by `COPY ... TO` can be copied back into the database by using `COPY ... FROM` with a similar set of options.
 
 The `COPY ... TO` function can be called specifying either a table name, or a query. When a table name is specified, the contents of the entire table will be written into the resulting file. When a query is specified, the query is executed and the result of the query is written to the resulting file.
+
+> `COPY ... TO` overwrites the destination file if it already exists, without raising an error. There is no need to delete the file or add overwrite guard code beforehand. By default (controlled by the [`USE_TMP_FILE` option](#copy--to-options)), DuckDB writes to a temporary file first and only replaces an existing destination once the write completes successfully, so an interrupted write does not corrupt the previous file. Reading from and writing to the same file in a single statement is not guaranteed to be safe, however, and should be avoided.
+
+> New Support for `COPY ...` blocks in CTEs was introduced in DuckDB 2.0. For other data-modifying statements in CTEs, see [Data-Modifying CTEs]({% link docs/2.0/sql/query_syntax/with.md %}#data-modifying-ctes).
+
+`COPY ... TO` can also be used as a [CTE]({% link docs/2.0/sql/query_syntax/with.md %}) body. The CTE returns the number of rows written. `COPY ... FROM` cannot be used as a CTE body.
+
+```sql
+WITH copied(rows_written) AS (
+    COPY lineitem TO 'lineitem.csv' (FORMAT CSV, HEADER)
+)
+SELECT rows_written FROM copied;
+```
 
 Copy the contents of the `lineitem` table to a CSV file with a header:
 
@@ -190,7 +205,7 @@ Use tab separators to create a TSV file without a header:
 COPY lineitem TO 'lineitem.tsv' (DELIMITER '\t', HEADER false);
 ```
 
-Copy the l_orderkey column of the `lineitem` table to the file `orderkey.tbl`:
+Copy the `l_orderkey` column of the `lineitem` table to the file `orderkey.tbl`:
 
 ```sql
 COPY lineitem(l_orderkey) TO 'orderkey.tbl' (DELIMITER '|');
@@ -232,7 +247,7 @@ COPY (SELECT l_orderkey, l_comment FROM lineitem) TO 'lineitem_part.parquet' (RE
 
 Note: for nested columns (e.g., structs) the column statistics are defined for each part. For example, if we have a column `name STRUCT(field1 INTEGER, field2 INTEGER)` the column statistics will have stats for `name.field1` and `name.field2`.
 
-An expression may be used as the target of a `COPY ... TO` command if it is placed within parentheses. 
+An expression may be used as the target of a `COPY ... TO` command if it is placed within parentheses.
 
 Copy the result of a query to a file whose path is stored in a variable:
 
@@ -265,17 +280,19 @@ With few exceptions, the below options are applicable to all formats written wit
 
 | Name | Description | Type | Default |
 |:--|:-----|:-|:-|
-| `FORMAT` | Specifies the copy function to use. The default is selected from the file extension (e.g., `.parquet` results in a Parquet file being written/read). If the file extension is unknown `CSV` is selected. Vanilla DuckDB provides `CSV`, `PARQUET` and `JSON` but additional copy functions can be added by [`extensions`]({% link docs/current/extensions/overview.md %}). | `VARCHAR` | `auto` |
+| `FORMAT` | Specifies the copy function to use. The default is selected from the file extension (e.g., `.parquet` results in a Parquet file being written/read). If the file extension is unknown `CSV` is selected. Vanilla DuckDB provides `CSV`, `PARQUET`, and `JSON` but additional copy functions can be added by [`extensions`]({% link docs/2.0/extensions/overview.md %}). | `VARCHAR` | `auto` |
 | `USE_TMP_FILE` | Whether or not to write to a temporary file first if the original file exists (`target.csv.tmp`). This prevents overwriting an existing file with a broken file in case the writing is cancelled. | `BOOL` | `auto` |
-| `OVERWRITE_OR_IGNORE` | Whether or not to allow overwriting files if they already exist. Only has an effect when used with `PARTITION_BY`. | `BOOL` | `false` |
-| `OVERWRITE` | When `true`, all existing files inside targeted directories will be removed (not supported on remote filesystems). Only has an effect when used with `PARTITION_BY`. | `BOOL` | `false` |
-| `APPEND` | When `true`, in the event a filename pattern is generated that already exists, the path will be regenerated to ensure no existing files are overwritten. Only has an effect when used with `PARTITION_BY`. | `BOOL` | `false` |
-| `FILENAME_PATTERN` | Set a pattern to use for the filename, can optionally contain `{uuid}` / `{uuidv4}` or `{uuidv7}` to be filled in with a generated [UUID]({% link docs/current/sql/data_types/numeric.md %}#universally-unique-identifiers-uuids) (v4 or v7, respectively), and `{i}`, which is replaced by an incrementing index. Only has an effect when used with `PARTITION_BY`. | `VARCHAR` | `auto` |
+| `OVERWRITE_OR_IGNORE` | Whether or not to allow overwriting files if they already exist. Only has an effect when used with options that write multiple files, such as `PARTITION_BY`, `PER_THREAD_OUTPUT`, or `FILE_SIZE_BYTES`. | `BOOL` | `false` |
+| `OVERWRITE` | When `true`, all existing files inside targeted directories will be removed (not supported on remote filesystems). Only has an effect when used with options that write multiple files, such as `PARTITION_BY`, `PER_THREAD_OUTPUT`, or `FILE_SIZE_BYTES`. | `BOOL` | `false` |
+| `APPEND` | When `true`, in the event a filename pattern is generated that already exists, the path will be regenerated to ensure no existing files are overwritten. Only has an effect when used with options that write multiple files, such as `PARTITION_BY`, `PER_THREAD_OUTPUT`, or `FILE_SIZE_BYTES`. | `BOOL` | `false` |
+| `FILENAME_PATTERN` | Set a pattern to use for the filename, can optionally contain `{uuid}` / `{uuidv4}` or `{uuidv7}` to be filled in with a generated [UUID]({% link docs/2.0/sql/data_types/numeric.md %}#universally-unique-identifiers-uuids) (v4 or v7, respectively), and `{i}`, which is replaced by an incrementing index. Only has an effect when used with options that write multiple files, such as `PARTITION_BY`, `PER_THREAD_OUTPUT`, or `FILE_SIZE_BYTES`. | `VARCHAR` | `auto` |
 | `FILE_EXTENSION` | Set the file extension that should be assigned to the generated file(s). | `VARCHAR` | `auto` |
 | `PER_THREAD_OUTPUT` | When `true`, the `COPY` command generates one file per thread, rather than one file in total. This allows for faster parallel writing. | `BOOL` | `false` |
 | `FILE_SIZE_BYTES` | If this parameter is set, the `COPY` process creates a directory which will contain the exported files. If a file exceeds the set limit (specified as bytes such as `1000` or in human-readable format such as `1k`), the process creates a new file in the directory. This parameter works in combination with `PER_THREAD_OUTPUT`. Note that the size is used as an approximation, and files can be occasionally slightly over the limit. | `VARCHAR` or `BIGINT` | (empty) |
-| `PARTITION_BY` | The columns to partition by using a Hive partitioning scheme, see the [partitioned writes section]({% link docs/current/data/partitioning/partitioned_writes.md %}). | `VARCHAR[]` | (empty) |
-| `PRESERVE_ORDER` | Whether or not to [preserve order]({% link docs/current/sql/dialect/order_preservation.md %}) during the copy operation. Defaults to the value of the `preserve_insertion_order` [configuration option]({% link docs/current/configuration/overview.md %}). | `BOOL`| (*) |
+| `PARTITION_BY` | The columns to partition by using a Hive partitioning scheme, see the [partitioned writes section]({% link docs/2.0/data/partitioning/partitioned_writes.md %}). | `VARCHAR[]` | (empty) |
+| `PARTITION_PATH` | An expression over the `PARTITION_BY` columns that computes the output subdirectory for each partition, replacing the default `col=value` Hive layout. The result must be a relative path (no leading `/`, no `..` segments) and non-empty. Requires `PARTITION_BY` and cannot be combined with `HIVE_FILE_PATTERN`. See the [partitioned writes section]({% link docs/2.0/data/partitioning/partitioned_writes.md %}#custom-partition-paths). Added in DuckDB 2.0. | `VARCHAR` | (empty) |
+| `ORDER_BY` | A parenthesized list of expressions to sort the rows by before writing, each optionally followed by `ASC` or `DESC` and `NULLS FIRST` or `NULLS LAST`. When combined with `PARTITION_BY`, the rows are sorted within each partition. Added in DuckDB 2.0. | expression list | (empty) |
+| `PRESERVE_ORDER` | Whether or not to [preserve order]({% link docs/2.0/sql/dialect/order_preservation.md %}) during the copy operation. Defaults to the value of the `preserve_insertion_order` [configuration option]({% link docs/2.0/configuration/overview.md %}). | `BOOL`| (*) |
 | `RETURN_FILES` | Whether or not to include the created filepath(s) (as a `files VARCHAR[]` column) in the query result. | `BOOL` | `false` |
 | `RETURN_STATS` | Whether or not to return the files and their column statistics that were written as part of the `COPY` statement. | `BOOL`| `false` |
 | `WRITE_PARTITION_COLUMNS` | Whether or not to write partition columns into files. Only has an effect when used with `PARTITION_BY`. | `BOOL` | `false` |
@@ -327,7 +344,7 @@ The below options are applicable when writing CSV files.
 | Name | Description | Type | Default |
 |:--|:-----|:-|:-|
 | `COMPRESSION` | The compression type for the file. By default this will be detected automatically from the file extension (e.g., `file.csv.gz` will use `gzip`, `file.csv.zst` will use `zstd`, and `file.csv` will use `none`). Options are `none`, `gzip`, `zstd`. | `VARCHAR` | `auto` |
-| `DATEFORMAT` | Specifies the date format to use when writing dates. See [Date Format]({% link docs/current/sql/functions/dateformat.md %}). | `VARCHAR` | (empty) |
+| `DATEFORMAT` | Specifies the date format to use when writing dates. See [Date Format]({% link docs/2.0/sql/functions/dateformat.md %}). | `VARCHAR` | (empty) |
 | `DELIM` or `SEP` | The character that is written to separate columns within each row. | `VARCHAR` | `,` |
 | `NEW_LINE` | The character that is written to separate each row. Use escaped strings, e.g. `E'\x1e'` | `VARCHAR` | `\n` |
 | `ESCAPE` | The character that should appear before a character that matches the `quote` value. | `VARCHAR` | `"` |
@@ -337,7 +354,7 @@ The below options are applicable when writing CSV files.
 | `PREFIX` | Prefixes the CSV file with a specified string. This option must be used in conjunction with `SUFFIX` and requires `HEADER` to be set to `false`.| `VARCHAR` | (empty) |
 | `SUFFIX` | Appends a specified string as a suffix to the CSV file. This option must be used in conjunction with `PREFIX` and requires `HEADER` to be set to `false`.| `VARCHAR` | (empty) |
 | `QUOTE` | The quoting character to be used when a data value is quoted. | `VARCHAR` | `"` |
-| `TIMESTAMPFORMAT` | Specifies the date format to use when writing timestamps. See [Date Format]({% link docs/current/sql/functions/dateformat.md %}). | `VARCHAR` | (empty) |
+| `TIMESTAMPFORMAT` | Specifies the date format to use when writing timestamps. See [Date Format]({% link docs/2.0/sql/functions/dateformat.md %}). | `VARCHAR` | (empty) |
 
 ### Parquet Options
 
@@ -348,17 +365,22 @@ The below options are applicable when writing Parquet files.
 | `COMPRESSION` | The compression format to use (`uncompressed`, `snappy`, `gzip`, `zstd`, `brotli`, `lz4`, `lz4_raw`). | `VARCHAR` | `snappy` |
 | `COMPRESSION_LEVEL` | Compression level, set between 1 (lowest compression, fastest) and 22 (highest compression, slowest). Only supported for zstd compression. | `BIGINT` | `3` |
 | `FIELD_IDS` | The `field_id` for each column. Pass `auto` to attempt to infer automatically. | `STRUCT` | (empty) |
-| `ROW_GROUP_SIZE_BYTES` | The target size of each row group. You can pass either a human-readable string, e.g., `2MB`, or an integer, i.e., the number of bytes. This option is only used when you have issued `SET preserve_insertion_order = false;`, otherwise, it is ignored. | `BIGINT` | `row_group_size * 1024` |
+| `ROW_GROUP_SIZE_BYTES` | The target size of each row group. You can pass either a human-readable string, e.g., `2MB`, or an integer, i.e., the number of bytes. This option is only used when you have issued `SET preserve_insertion_order = false;`{:.language-sql .highlight}, otherwise, it is ignored. | `BIGINT` | `row_group_size * 1024` |
 | `ROW_GROUP_SIZE` | The target size, i.e., number of rows, of each row group. | `BIGINT` | 122880 |
 | `ROW_GROUPS_PER_FILE` | Create a new Parquet file if the current one has a specified number of row groups. If multiple threads are active, the number of row groups in a file may slightly exceed the specified number of row groups to limit the amount of locking – similarly to the behavior of `FILE_SIZE_BYTES`. However, if `per_thread_output` is set, only one thread writes to each file, and it becomes accurate again. | `BIGINT` |  (empty) |
 | `PARQUET_VERSION` | The Parquet version to use (`V1`, `V2`). | `VARCHAR` | `V1` |
 | `CHUNK_SIZE` | Alias for `ROW_GROUP_SIZE`. | `BIGINT` | 122880 |
 | `KV_METADATA` | Custom key-value metadata to embed in the file footer, supplied as a `STRUCT` of keys to values. `BLOB` values are written as raw bytes; other values are cast to string. | `STRUCT` | (empty) |
-| `SHREDDING` | A `STRUCT` mapping [`VARIANT`]({% link docs/current/sql/data_types/variant.md %}) column names to the type they should be shredded into, e.g., `{variant_col: 'STRUCT(name VARCHAR, age INTEGER)'}`. Enables typed (shredded) storage of `VARIANT` columns. | `STRUCT` | (empty) |
+| `SHREDDING` | A `STRUCT` mapping [`VARIANT`]({% link docs/2.0/sql/data_types/variant.md %}) column names to the type they should be shredded into, e.g., `{variant_col: 'STRUCT(name VARCHAR, age INTEGER)'}`. Enables typed (shredded) storage of `VARIANT` columns. | `STRUCT` | (empty) |
+| `DATA_PAGE_SIZE_LIMIT` | Target uncompressed size of Parquet data pages, in bytes. Pages may still be larger at vector granularity. | `UBIGINT` | `104857600` (100 MiB) |
 | `DICTIONARY_SIZE_LIMIT` | The maximum size of the dictionary used for dictionary encoding, in number of distinct values. Set to `0` to disable dictionary encoding. | `BIGINT` | `ROW_GROUP_SIZE / 5` |
 | `WRITE_BLOOM_FILTER` | Whether to write [Bloom filters](https://en.wikipedia.org/wiki/Bloom_filter) that allow readers to skip row groups. | `BOOLEAN` | `true` |
 | `BLOOM_FILTER_FALSE_POSITIVE_RATIO` | The target false positive ratio of the written Bloom filters. | `DOUBLE` | `0.01` |
 | `GEOPARQUET_VERSION` | Which [GeoParquet](https://geoparquet.org/) metadata version to write for geometry columns (`NONE`, `V1`, `V2`, `BOTH`). `NONE` disables GeoParquet metadata. | `VARCHAR` | `V1` |
+| `TIMESTAMP_IS_ADJUSTED_TO_UTC` | Controls the `isAdjustedToUTC` flag written for timestamp columns. With `AUTO`, the flag is set to `true` for `TIMESTAMP WITH TIME ZONE` columns and `false` for other timestamp types. Added in DuckDB 2.0. | `VARCHAR` (`AUTO`, `TRUE`, `FALSE`) | `AUTO` |
+| `WRITE_TIMESTAMP_AS_INT96` | When `true`, writes `TIMESTAMP` columns using the legacy Parquet `INT96` physical type for compatibility with older readers. Added in DuckDB 2.0. | `BOOLEAN` | `false` |
+
+> New As of DuckDB 2.0, the `TIMESTAMP_IS_ADJUSTED_TO_UTC` and `WRITE_TIMESTAMP_AS_INT96` options control how timestamp columns are written to Parquet files.
 
 Some examples of `FIELD_IDS` are as follows.
 
@@ -424,8 +446,8 @@ The below options are applicable when writing `JSON` files.
 |:--|:-----|:-|:-|
 | `ARRAY` | Whether to write a JSON array. If `true`, a JSON array of records is written, if `false`, newline-delimited JSON is written | `BOOL` | `false` |
 | `COMPRESSION` | The compression type for the file. By default this will be detected automatically from the file extension (e.g., `file.json.gz` will use `gzip`, `file.json.zst` will use `zstd`, and `file.json` will use `none`). Options are `none`, `gzip`, `zstd`. | `VARCHAR` | `auto` |
-| `DATEFORMAT` | Specifies the date format to use when writing dates. See [Date Format]({% link docs/current/sql/functions/dateformat.md %}). | `VARCHAR` | (empty) |
-| `TIMESTAMPFORMAT` | Specifies the date format to use when writing timestamps. See [Date Format]({% link docs/current/sql/functions/dateformat.md %}). | `VARCHAR` | (empty) |
+| `DATEFORMAT` | Specifies the date format to use when writing dates. See [Date Format]({% link docs/2.0/sql/functions/dateformat.md %}). | `VARCHAR` | (empty) |
+| `TIMESTAMPFORMAT` | Specifies the date format to use when writing timestamps. See [Date Format]({% link docs/2.0/sql/functions/dateformat.md %}). | `VARCHAR` | (empty) |
 
 
 Sets the value of column `hello` to `QUACK!` and outputs the results to `quack.json`:
@@ -457,11 +479,11 @@ COPY (SELECT 1 AS id, 'Alice' AS name, [1, 2, 3] AS numbers
       SELECT 2, 'Bob', [4, 5, 6] AS numbers)
 TO 'array_true.json' (FORMAT json, ARRAY true);
 
--- RETURNS: 
+-- RETURNS:
 /*
 [
     {"id":1,"name":"Alice","numbers":[1,2,3]},
-    {"id":2,"name":"Bob","numbers":[1,2,3]}
+    {"id":2,"name":"Bob","numbers":[4,5,6]}
 ]
 */
 ```
@@ -484,8 +506,8 @@ TO 'array_false.json' (FORMAT json, ARRAY false);
 ### BLOB Options
 
 The `BLOB` format option allows you to select a single column of a DuckDB table into a `.blob` file.
-The column must be cast to the `BLOB` data type. For details on typecasting, see the 
-[Casting Operations Matrix]({% link docs/current/sql/data_types/typecasting.md %}#Casting-Operations-Matrix).
+The column must be cast to the `BLOB` data type. For details on typecasting, see the
+[Casting Operations Matrix]({% link docs/2.0/sql/data_types/typecasting.md %}#casting-operations-matrix).
 
 The below options are applicable when writing `BLOB` files.
 
@@ -507,7 +529,7 @@ COPY (select 'foo'::BLOB) TO 'blob_output_gzip.blob' (FORMAT BLOB, COMPRESSION '
 
 ## Limitations
 
-`COPY` does not support copying between tables. To copy between tables, use an [`INSERT statement`]({% link docs/current/sql/statements/insert.md %}):
+`COPY` does not support copying between tables. To copy between tables, use an [`INSERT statement`]({% link docs/2.0/sql/statements/insert.md %}):
 
 ```sql
 INSERT INTO tbl2

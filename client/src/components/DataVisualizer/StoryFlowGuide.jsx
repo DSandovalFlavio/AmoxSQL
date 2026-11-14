@@ -3,7 +3,7 @@
  *
  * Single source of truth for the Story Flow explainer, reused by:
  *  - the "?" help drawer in the visualizer panel
- *  - Settings → Story Flow
+ *  - Help → Story Flow (ayuda/Ayuda.jsx, 6.0 M8)
  *  - the first-run tour carousel
  */
 import { memo } from 'react';

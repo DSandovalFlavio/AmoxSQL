@@ -31,7 +31,8 @@ import { resolveFooterFields, resolveTone } from '../../utils/deckParser';
 import { DECK_LAYOUT_META } from './deckLayoutPreviews';
 import { regionesDe, leerParte, escribirParte, tieneTituloPropio } from './deckRegions';
 import { BarraFormato, MenuInsercion } from './DeckWriting';
-import { useMenuInsercion, ejecutarAccion, accionDeAtajo, restaurarSeleccion } from './deckWritingOps';
+import { useMenuInsercion, ejecutarAccion, accionDeAtajo, restaurarSeleccion } from './deckWritingOps';
+import { migrateAccent } from '../../theme.js';
 
 /**
  * Una lámina es una página: `.deck-slide` recorta en vez de hacer scroll, así
@@ -285,7 +286,7 @@ const SlideDesigner = ({
     const { prose, chartSrc, charts, notes } = splitSlideContent(slide.markdown);
     const layout = slide.layout;
     const meta = DECK_LAYOUT_META[layout];
-    const acento = frontMatter?.accent || null;
+    const acento = frontMatter?.accent ? migrateAccent(frontMatter.accent) : null;   // un deck viejo puede traer un id de antes de la 6.0
     const paleta = frontMatter?.palette || null;
     const tono = resolveTone({ slideTone: slide.tone, deckTone: frontMatter?.tone });
     const canvasRef = useRef(null);

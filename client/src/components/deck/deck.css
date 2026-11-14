@@ -1128,7 +1128,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 }
 
 .dlp-card-hint {
-    font-size: 10px;
+    font-size: 11px;
     color: var(--text-tertiary);
     line-height: 1.3;
 }
@@ -1247,7 +1247,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     display: flex;
     align-items: center;
     gap: 3px;
-    font-size: 10px;
+    font-size: 11px;
     color: var(--text-tertiary);
     white-space: nowrap;
     overflow: hidden;
@@ -1292,7 +1292,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 
 .deck-outline-item-index {
     font-family: var(--font-mono);
-    font-size: 10px;
+    font-size: 11px;
     color: var(--text-tertiary);
     flex-shrink: 0;
     width: 14px;
@@ -1314,7 +1314,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 }
 
 .deck-outline-item-layout {
-    font-size: 10px;
+    font-size: 11px;
     color: var(--text-tertiary);
 }
 
@@ -1435,7 +1435,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     justify-content: center;
 }
 .deck-design-layout-badge {
-    font-size: 10px;
+    font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
     color: var(--accent-primary);
@@ -1518,7 +1518,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     display: none;
     align-items: center;
     gap: 4px;
-    font-size: 10px;
+    font-size: 11px;
     color: var(--accent-primary);
     background: var(--surface-overlay);
     border: 1px solid var(--border-subtle);
@@ -1582,7 +1582,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     transition: border-color 120ms ease, color 120ms ease;
 }
 .deck-chart-slot--empty:hover { border-color: var(--accent-primary); color: var(--accent-primary); }
-.deck-chart-slot-sub { font-size: 10px; color: var(--text-tertiary); }
+.deck-chart-slot-sub { font-size: 11px; color: var(--text-tertiary); }
 
 .deck-chart-remove {
     position: absolute;
@@ -1741,7 +1741,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     background: var(--surface-raised);
     border-radius: 3px;
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: .1em;
     text-transform: uppercase;
     color: var(--text-disabled);
@@ -1776,12 +1776,12 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 .deck-rg-ayuda {
     align-self: flex-end;
     margin-top: 3px;
-    font-size: 9.5px;
+    font-size: 11px;
     color: var(--text-disabled);
 }
 .deck-rg-ayuda kbd {
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     padding: 0 3px;
     border: 1px solid var(--border-default);
     border-radius: 3px;
@@ -1932,7 +1932,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 
 .dki-grupo { display: flex; flex-direction: column; gap: 7px; }
 .dki-grupo-titulo {
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: .13em;
     text-transform: uppercase;
     color: var(--text-disabled);
@@ -1945,7 +1945,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 .dki-valor { font-size: var(--text-xs); color: var(--text-primary); }
 .dki-valor--mono {
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: 11px;
     padding: 4px 7px;
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -1953,7 +1953,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     word-break: break-all;
 }
 
-.dki-nota { margin: 0; font-size: 10.5px; line-height: 1.5; color: var(--text-secondary); }
+.dki-nota { margin: 0; font-size: 11px; line-height: 1.5; color: var(--text-secondary); }
 .dki-nota--tenue { color: var(--text-disabled); }
 .dki-nota code {
     font-family: var(--font-mono);
@@ -1987,7 +1987,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 .dki-familia { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
 .dki-familia:first-of-type { margin-top: 0; }
 .dki-familia-label {
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: .1em;
     text-transform: uppercase;
     color: var(--text-disabled);
@@ -2009,7 +2009,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 .dki-lay:hover { border-color: var(--border-strong); background: var(--hover-bg); }
 .dki-lay--on { border-color: var(--accent-primary); background: var(--accent-subtle); }
 .dki-lay-label {
-    font-size: 9.5px;
+    font-size: 11px;
     color: var(--text-tertiary);
     white-space: nowrap;
     overflow: hidden;
@@ -2040,7 +2040,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     border: none;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 10.5px;
+    font-size: 11px;
     cursor: pointer;
 }
 .dki-seg button:hover { background: var(--hover-bg); color: var(--text-primary); }
@@ -2194,7 +2194,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 }
 .deck-barra-insertar kbd {
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     padding: 0 4px;
     border: 1px solid var(--border-default);
     border-radius: 3px;
@@ -2232,7 +2232,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 
 .deck-menu-grupo {
     padding: 6px 10px 2px;
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: .12em;
     text-transform: uppercase;
     color: var(--text-disabled);
@@ -2254,7 +2254,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 }
 .deck-menu-item--on { background: var(--accent-subtle); color: var(--text-primary); }
 .deck-menu-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.deck-menu-detalle { font-size: 10px; color: var(--text-disabled); flex-shrink: 0; }
+.deck-menu-detalle { font-size: 11px; color: var(--text-disabled); flex-shrink: 0; }
 
 /* ── Fase 4 — los formularios de los bloques de dato ───────────────────── */
 
@@ -2266,7 +2266,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
     border-radius: 999px;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 10.5px;
+    font-size: 11px;
     cursor: pointer;
 }
 .dkb-solapa:hover { border-color: var(--border-strong); color: var(--text-primary); }
@@ -2301,7 +2301,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 .dkb-fila-cab > span {
     flex: 1;
     font-family: var(--font-mono);
-    font-size: 9.5px;
+    font-size: 11px;
     color: var(--text-disabled);
 }
 .dkb-fila-cab button {
@@ -2381,7 +2381,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 .deck-crudo-cab > span { flex: 1; color: var(--text-secondary); }
 .deck-crudo-cab kbd {
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     padding: 1px 4px;
     border: 1px solid var(--border-default);
     border-radius: 3px;
@@ -2429,7 +2429,7 @@ body.mode-light .deck-slide[data-tone="dark"] .deck-slide-eyebrow {
 .deck-crudo-nota,
 .deck-crudo-error {
     margin: 0;
-    font-size: 10.5px;
+    font-size: 11px;
     line-height: 1.5;
     color: var(--text-disabled);
 }

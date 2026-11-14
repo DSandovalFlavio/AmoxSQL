@@ -14,6 +14,7 @@
  * versión del motor): no hace falta soltar nada. Con catálogo en un archivo
  * DuckDB —lo que crea AmoxSQL hoy— hay un solo escritor y recibe el mismo trato.
  */
+const registrador = require('./registrador');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -117,11 +118,11 @@ async function antesDeDbt(dbManager, raiz, comando) {
         extras = (filas || []).filter(d => d.nombre !== dbManager.alias && bases.some(b => igual(b, d.path)));
     } catch { /* sin motor: nada que soltar */ }
     for (const d of extras) {
-        try { await dbManager.query(`DETACH "${String(d.nombre).replace(/"/g, '""')}"`); } catch (e) { console.warn('[dbt] No se pudo soltar', d.nombre, e.message); }
+        try { await dbManager.query(`DETACH "${String(d.nombre).replace(/"/g, '""')}"`); } catch (e) { registrador.aviso('[dbt] No se pudo soltar', d.nombre, e.message); }
     }
     const devolverExtras = async () => {
         for (const d of extras) {
-            try { await dbManager.query(`ATTACH IF NOT EXISTS '${String(d.path).replace(/'/g, "''")}' AS "${String(d.nombre).replace(/"/g, '""')}"${d.readonly ? ' (READ_ONLY)' : ''}`); } catch (e) { console.warn('[dbt] No se pudo volver a adjuntar', d.nombre, e.message); }
+            try { await dbManager.query(`ATTACH IF NOT EXISTS '${String(d.path).replace(/'/g, "''")}' AS "${String(d.nombre).replace(/"/g, '""')}"${d.readonly ? ' (READ_ONLY)' : ''}`); } catch (e) { registrador.aviso('[dbt] No se pudo volver a adjuntar', d.nombre, e.message); }
         }
     };
 
@@ -208,6 +209,12 @@ async function avisoDeVersion(raiz, comando, { condaEnv, condaPath, python = nul
     if (!v) return null;
     if (Number(v.split('.')[0]) > Number(amox.split('.')[0])) {
         return `dbt runs DuckDB ${v} and AmoxSQL ${amox}. Databases that already exist keep working; one that dbt creates from scratch${lago ? ', and the DuckLake lake,' : ''} will not open in AmoxSQL: use DuckDB ${amox} in dbt's environment, or update AmoxSQL.`;
+    }
+    // 6.0: al revés, un dbt con DuckDB 1.x frente a AmoxSQL 2 (un entorno de antes,
+    // o dbt 2.0 con su DuckDB incluido, que es 1.5): lo que AmoxSQL creó, y un lago
+    // en el que escribió, ya no lo abre ese dbt (comprobado en la fase 0 de la 6.0).
+    if (Number(v.split('.')[0]) < Number(amox.split('.')[0])) {
+        return `dbt runs DuckDB ${v} and AmoxSQL ${amox}. A database that AmoxSQL created${lago ? ', or a DuckLake lake it wrote to,' : ''} will not open in dbt: use DuckDB ${amox} in dbt's environment (Set up dbt… does).`;
     }
     if (!lago) return null;
     if (menor(v, amox)) {

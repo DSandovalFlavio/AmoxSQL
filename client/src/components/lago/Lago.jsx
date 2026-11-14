@@ -4,6 +4,7 @@ import { LuHistory, LuChevronDown, LuChevronRight, LuX, LuLoader, LuWrench, LuWa
 import { API_BASE } from '../../api.js';
 import { useToast } from '../ToastProvider';
 import { useEscape } from '../../hooks/useEscape';
+import { emitir } from '../../eventos.js';
 
 /**
  * DuckLake de primera clase (5.12, fase 8; I8, Dec-33): crear un lago, ver sus versiones,
@@ -49,7 +50,7 @@ export function NuevoLago({ onClose }) {
         try {
             const r = await pedir('/crear', { nombre, catalogo });
             toast.success(`${r.archivo} created. Open it from the database selector in the title bar.`);
-            window.dispatchEvent(new Event('amox_files_changed'));
+            emitir('amox_files_changed');
             onClose();
         } catch (e) { setError(e.message); }
         setOcupado(false);

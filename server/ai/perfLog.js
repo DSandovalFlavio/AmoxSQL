@@ -17,6 +17,7 @@
  */
 
 'use strict';
+const registrador = require('../registrador');
 
 /** ns → seconds, tolerant of missing values. */
 function ns(v) {
@@ -54,7 +55,7 @@ function logOllamaPerf(tag, { model, usage, providerMetadata, ttftMs } = {}) {
         total != null ? `total=${total.toFixed(2)}s` : null,
     ].filter(Boolean);
 
-    console.log(`[AI Perf${tag ? ' ' + tag : ''}] ${parts.join(' | ')}`);
+    registrador.info(`[AI Perf${tag ? ' ' + tag : ''}] ${parts.join(' | ')}`);
 }
 
 module.exports = { logOllamaPerf };

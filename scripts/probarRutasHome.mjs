@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * `AMOXSQL_HOME` aparta todo lo que AmoxSQL guarda fuera de los proyectos.
  *

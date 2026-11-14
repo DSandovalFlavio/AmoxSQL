@@ -13,6 +13,7 @@
  */
 
 'use strict';
+const registrador = require('../registrador');
 
 const { streamText, stepCountIs } = require('ai');
 const { createTools } = require('./tools');
@@ -262,7 +263,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
             const match = matchSkillByIntent(lastUser.content, skills);
             if (!match) return null;
             const skill = skills.find(s => s.id === match.skillId) || null;
-            if (skill) console.log(`[AgenticLoop] Auto-activated skill "${skill.id}" (confidence ${match.confidence})`);
+            if (skill) registrador.info(`[AgenticLoop] Auto-activated skill "${skill.id}" (confidence ${match.confidence})`);
             return skill;
         } catch { return null; }
     }
@@ -408,7 +409,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
     // Stop on the client closes the request: it must also cut a quota wait short.
     const senalCorte         = opcionesOriginales.abortSignal || null;
 
-    console.log(`[AgenticLoop] Starting | Provider: ${provider} | Model: ${model} | maxIter: ${maxIterations}`);
+    registrador.info(`[AgenticLoop] Starting | Provider: ${provider} | Model: ${model} | maxIter: ${maxIterations}`);
 
     // The loop runs the working budget PLUS one reserved wrap-up turn.
     while (iteration < effectiveMaxIterations + WRAP_UP_RESERVE && !loopDone) {
@@ -455,10 +456,10 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
         // Force a synthesis instead of running more work.
         const isWrapUp = iteration > effectiveMaxIterations && !!activePlan.id;
         if (isWrapUp) {
-            console.log(`[AgenticLoop] Wrap-up turn — forcing synthesis (plan ${activePlan.id})`);
+            registrador.info(`[AgenticLoop] Wrap-up turn — forcing synthesis (plan ${activePlan.id})`);
             iterMessages = [...iterMessages, { role: 'user', content: buildWrapUpPrompt(activePlan) }];
         }
-        console.log(`[AgenticLoop] Iteration ${iteration}/${effectiveMaxIterations}${isWrapUp ? ' (wrap-up)' : ''} | Plan: ${activePlan.id || 'none'}`);
+        registrador.info(`[AgenticLoop] Iteration ${iteration}/${effectiveMaxIterations}${isWrapUp ? ' (wrap-up)' : ''} | Plan: ${activePlan.id || 'none'}`);
 
         // Report iteration capped at the working budget so the UI never shows "26/25".
         yield {
@@ -605,7 +606,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                                 activePlan.dynamicMaxIterations,
                             );
                             if (scaled !== effectiveMaxIterations) {
-                                console.log(`[AgenticLoop] Plan budget: ${effectiveMaxIterations} → ${scaled} (${activePlan.steps.length} steps)`);
+                                registrador.info(`[AgenticLoop] Plan budget: ${effectiveMaxIterations} → ${scaled} (${activePlan.steps.length} steps)`);
                                 effectiveMaxIterations = scaled;
                             }
                         }
@@ -705,7 +706,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                 } else if (part.type === 'tool-error') {
                     const errMsg = part.error?.message || String(part.error || 'Tool error');
                     const toolArgs = part.input ?? part.args ?? {};
-                    console.error(`[AgenticLoop] Tool error: ${part.toolName}: ${errMsg}`);
+                    registrador.error(`[AgenticLoop] Tool error: ${part.toolName}: ${errMsg}`);
                     yield {
                         type:       'tool-result',
                         toolName:   part.toolName,
@@ -763,7 +764,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
             // Stall watchdog fired: the iteration was aborted because the model
             // stream went silent. Recover instead of killing the whole analysis.
             if (iterStalled) {
-                console.warn(`[AgenticLoop] Iteration ${iteration} stalled (no stream activity for ${ITER_STALL_TIMEOUT_MS}ms) — aborting iteration`);
+                registrador.aviso(`[AgenticLoop] Iteration ${iteration} stalled (no stream activity for ${ITER_STALL_TIMEOUT_MS}ms) — aborting iteration`);
                 yield { type: 'step-end', iteration, latencyMs: Date.now() - iterStart };
                 stallRetries++;
                 if (stallRetries <= MAX_STALL_RETRIES && activePlan.id) {
@@ -791,7 +792,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
             if (limite.esLimite && esperasDeCuota < MAX_ESPERAS_CUOTA && sePuedeEsperar(limite) && !senalCorte?.aborted) {
                 esperasDeCuota++;
                 const segundos = (limite.segundos ?? 20) + 1;
-                console.warn(`[AgenticLoop] Rate limit on iteration ${iteration}: waiting ${segundos}s (${esperasDeCuota}/${MAX_ESPERAS_CUOTA})`);
+                registrador.aviso(`[AgenticLoop] Rate limit on iteration ${iteration}: waiting ${segundos}s (${esperasDeCuota}/${MAX_ESPERAS_CUOTA})`);
                 yield { type: 'esperando-cuota', segundos, intento: esperasDeCuota, maximo: MAX_ESPERAS_CUOTA };
                 const siguio = await esperar(segundos, senalCorte);
                 if (!siguio) { loopDone = true; break; }
@@ -808,7 +809,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
                 continue;
             }
 
-            console.error(`[AgenticLoop] Iteration ${iteration} error:`, err.message);
+            registrador.error(`[AgenticLoop] Iteration ${iteration} error:`, err.message);
             yield {
                 type: 'error',
                 error: err.message || String(err),
@@ -834,7 +835,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
             const hasUnresolvedSqlErrors = iterSqlErrors.length > 0 && iterSqlSuccesses === 0;
             if (hasUnresolvedSqlErrors && sqlCorrectionRetries < MAX_SQL_CORRECTION_RETRIES) {
                 sqlCorrectionRetries++;
-                console.log(`[AgenticLoop] SQL correction ${sqlCorrectionRetries}/${MAX_SQL_CORRECTION_RETRIES} — ${iterSqlErrors.length} unresolved error(s)`);
+                registrador.info(`[AgenticLoop] SQL correction ${sqlCorrectionRetries}/${MAX_SQL_CORRECTION_RETRIES} — ${iterSqlErrors.length} unresolved error(s)`);
                 yield {
                     type: 'sql-correction',
                     attempt: sqlCorrectionRetries,
@@ -897,7 +898,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
             } else if (idleRetries < MAX_IDLE_RETRIES) {
                 // ── Idle recovery: no tool calls this iteration ──
                 idleRetries++;
-                console.log(`[AgenticLoop] Idle iter ${iteration} (retry ${idleRetries}/${MAX_IDLE_RETRIES}) — forcing tools`);
+                registrador.info(`[AgenticLoop] Idle iter ${iteration} (retry ${idleRetries}/${MAX_IDLE_RETRIES}) — forcing tools`);
 
                 const directive = activePlan.id
                     ? buildContinuationPrompt(activePlan, iteration, effectiveMaxIterations) +
@@ -974,7 +975,7 @@ async function* agenticLoop(opcionesOriginales, getModelFn) {
     if (profile.supportsMemory && memoryExtractionAllowed(provider, memoryExtraction) && politica.permiteMemorias(provider)) {
         const llm = llmModel;
         extractMemories(llm, messages, dbManager).catch(e =>
-            console.error('[AgenticLoop] Memory extraction error:', e)
+            registrador.error('[AgenticLoop] Memory extraction error:', e)
         );
     }
 

@@ -29,6 +29,17 @@ Como alternativa, DuckDB puede **leer los archivos directamente** sin crear una 
 4. Deja marcado **Limpiar nombres de columna** para normalizar espacios y caracteres raros a guiones bajos.
 5. Pulsa **Importar**. Se crea la tabla y aparece en el [Explorador de base de datos](database-explorer.md).
 
+### JSON sin forma fija (VARIANT)
+Hay JSON cuyos registros no comparten campos: un evento trae `cliente`, otro `pedido`, otro los dos con niveles distintos. Al importarlo, en vez de forzar columnas marca **Keep each record as it is (one VARIANT column)**: cada registro queda entero en una sola columna, `datos`, y se lee con puntos:
+
+```sql
+SELECT datos.cliente.nombre, datos.pedido.total
+FROM eventos
+WHERE datos.tipo = 'compra';
+```
+
+En la tabla de resultados un valor anidado se abre como árbol con un clic, y el [perfil de datos](../results/data-profiler.md) dice qué claves hay, en cuántas filas y con qué tipos.
+
 ### Importar una carpeta (por tipo)
 1. Clic derecho sobre una carpeta → **Importar carpeta a la base…**.
 2. Elige el **tipo de archivo** (CSV, Parquet o JSON): se importan todos los que coincidan con ese patrón (por ejemplo, `*.csv`).

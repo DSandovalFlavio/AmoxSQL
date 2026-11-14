@@ -7,6 +7,7 @@ import { useEnlace, pedirEnlazar } from './workspaces/WorkspacesHost';
 import PoliticaIAChip from './workspaces/PoliticaIAChip';
 import { BotonOperacion } from './operacion/VistaOperacion';
 import { useEtiqueta } from '../etiqueta';
+import { emitir } from '../eventos.js';
 
 const RECENT_KEY = 'amoxsql-recent-projects';
 
@@ -115,7 +116,7 @@ const WindowTitleBar = ({
                 <LuKeyboard size={13} className="wtb-dropdown-item-icon" />
                 <span>Keyboard Shortcuts</span>
               </button>
-              <button className="wtb-dropdown-item" role="menuitem" onClick={runAndClose(() => window.dispatchEvent(new CustomEvent('amox_abrir_operacion')))}>
+              <button className="wtb-dropdown-item" role="menuitem" onClick={runAndClose(() => emitir('amox_abrir_operacion'))}>
                 <LuCalendarClock size={13} className="wtb-dropdown-item-icon" />
                 <span>Operations</span>
               </button>
@@ -203,11 +204,11 @@ const WindowTitleBar = ({
 
                 <div className="wtb-dropdown-divider" />
                 {/* 5.14 (G2 + G3): el proyecto en un archivo, con o sin datos. */}
-                <button className="wtb-dropdown-item" role="menuitem" onClick={() => { setOpenMenu(null); window.dispatchEvent(new CustomEvent('amox_exportar_proyecto', { detail: { plantilla: false } })); }}>
+                <button className="wtb-dropdown-item" role="menuitem" onClick={() => { setOpenMenu(null); emitir('amox_exportar_proyecto', { plantilla: false }); }}>
                   <LuPackage size={12} className="wtb-dropdown-item-icon" />
                   <span>Export project…</span>
                 </button>
-                <button className="wtb-dropdown-item" role="menuitem" onClick={() => { setOpenMenu(null); window.dispatchEvent(new CustomEvent('amox_exportar_proyecto', { detail: { plantilla: true } })); }}>
+                <button className="wtb-dropdown-item" role="menuitem" onClick={() => { setOpenMenu(null); emitir('amox_exportar_proyecto', { plantilla: true }); }}>
                   <LuLayoutTemplate size={12} className="wtb-dropdown-item-icon" />
                   <span>Save as template…</span>
                 </button>

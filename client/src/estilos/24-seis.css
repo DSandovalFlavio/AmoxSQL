@@ -1,0 +1,127 @@
+/* 6.0 (Dec-98): SQL Snippets › Variables — las variables del proyecto. */
+.vp { border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px; margin-bottom: 4px; }
+.vp-cabecera {
+  padding: 10px 14px 4px; display: flex; align-items: center; gap: 6px; cursor: pointer;
+  font-size: 11px; font-weight: 600; color: var(--text-disabled); text-transform: uppercase; letter-spacing: 0.5px;
+}
+.vp-linea { flex: 1; height: 1px; background: var(--border-subtle); }
+.vp-cuenta { font-size: 11px; color: var(--text-disabled); }
+.vp-nueva {
+  display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px;
+  border: none; border-radius: 4px; background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.vp-nueva:hover { background: var(--hover-bg); color: var(--accent-primary); }
+.vp-vacia { margin: 4px 14px 6px 28px; font-size: 11px; line-height: 1.5; color: var(--text-tertiary); }
+.vp-vacia code, .vp-item-nombre { font-family: 'JetBrains Mono', monospace; }
+.vp-vacia code { color: var(--accent-primary); }
+.vp-item { padding: 6px 14px 6px 28px; display: flex; flex-direction: column; gap: 2px; cursor: pointer; font-size: 12px; }
+.vp-item-fila { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.vp-item-nombre { font-weight: 500; color: var(--text-primary); }
+.vp-item-tipo {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-tertiary);
+  border: 1px solid var(--border-subtle); border-radius: 3px; padding: 0 4px;
+}
+.vp-item-valor { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: 11px; }
+.vp-item-btns { display: inline-flex; gap: 2px; opacity: 0; }
+.vp-item:hover .vp-item-btns, .vp-item:focus-within .vp-item-btns { opacity: 1; }
+.vp-item-btns button {
+  display: inline-flex; align-items: center; border: none; background: transparent; color: var(--text-muted);
+  padding: 2px; border-radius: 3px; cursor: pointer;
+}
+.vp-item-btns button:hover { background: var(--hover-bg); color: var(--text-active); }
+.vp-item-btns .vp-borrar:hover { color: var(--color-error); }
+.vp-item-desc { font-size: 11px; color: var(--text-tertiary); padding-left: 18px; }
+.vp-form { margin: 4px 14px 8px 28px; display: flex; flex-direction: column; gap: 6px; }
+.vp-fila { display: flex; align-items: center; gap: 6px; }
+.vp-dolar { font-family: 'JetBrains Mono', monospace; color: var(--accent-primary); }
+.vp-input {
+  width: 100%; min-width: 0; background: var(--input-bg); color: var(--text-active);
+  border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 8px; font-size: 11px; font-family: inherit;
+}
+.vp-nombre { flex: 1; font-family: 'JetBrains Mono', monospace; }
+.vp-tipo { width: auto; flex: none; }
+.vp-check { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-secondary); }
+.vp-error { font-size: 11px; color: var(--color-error); }
+.vp-acciones { display: flex; justify-content: flex-end; gap: 6px; }
+.vp-btn {
+  padding: 4px 10px; font-size: 11px; font-weight: 600; border-radius: 4px; cursor: pointer;
+  border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary);
+}
+.vp-btn:hover { background: var(--hover-bg); }
+.vp-btn-primario { background: var(--accent-color-user); color: var(--button-text-color); border-color: transparent; }
+.vp-btn-primario:disabled { opacity: 0.5; cursor: default; }
+
+/* 6.0 (O4): la base abierta está en el formato de la 5.x. */
+.fdb {
+  display: flex; align-items: center; gap: 8px; margin: 6px 10px; padding: 6px 8px;
+  border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--surface-base);
+  font-size: 11px; color: var(--text-secondary);
+}
+.fdb-icono { flex: none; color: var(--accent-primary); }
+.fdb-texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fdb-texto strong { color: var(--text-primary); font-weight: 600; }
+.fdb-btn {
+  flex: none; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--accent-primary);
+  background: transparent; color: var(--accent-primary); font: inherit; font-weight: 600; cursor: pointer;
+}
+.fdb-btn:hover:not(:disabled) { background: var(--hover-bg); }
+.fdb-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* 6.0 (O5): un valor anidado (VARIANT, STRUCT, LIST) como árbol. */
+.rt-cell-peek-arbol { overflow: auto; }
+.aj { font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.6; color: var(--text-primary); }
+.aj-hijos { padding-left: 14px; border-left: 1px solid var(--border-subtle); margin-left: 4px; }
+.aj-nodo > summary { cursor: pointer; list-style: revert; }
+.aj-clave { color: var(--text-secondary); }
+.aj-resumen { color: var(--text-tertiary); }
+.aj-texto { color: var(--color-success-text, var(--accent-primary)); }
+.aj-numero { color: var(--accent-primary); }
+.aj-logico { color: var(--color-info, var(--accent-primary)); }
+.aj-nulo { color: var(--text-disabled); font-style: italic; }
+
+/* 6.0 (M2): el tipo de gráfico elegido para este resultado, y cómo deshacerlo. */
+.sf-sugerido {
+  display: flex; align-items: center; gap: 8px; margin: -2px 0 10px; padding: 5px 8px;
+  border: 1px solid var(--border-subtle); border-radius: 6px; background: var(--surface-base);
+  font-size: 11px; color: var(--text-secondary);
+}
+.sf-sugerido span { flex: 1; min-width: 0; }
+.sf-sugerido strong { color: var(--text-primary); font-weight: 600; }
+.sf-sugerido button {
+  flex: none; border: none; background: transparent; color: var(--accent-primary);
+  font: inherit; font-weight: 600; cursor: pointer; padding: 0 2px;
+}
+.sf-sugerido button:hover { text-decoration: underline; }
+
+/* 6.0 (M5, U7): Story Flow folded to its stage icons when there is little width */
+.sf-tira {
+  width: 44px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 0;
+  border-right: 1px solid var(--border-color);
+  background-color: var(--panel-bg);
+}
+.sf-tira-btn {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+.sf-tira-btn:hover { color: var(--text-primary); background: var(--hover-bg); }
+.sf-tira-btn--activo,
+.sf-tira-btn--activo:hover { color: var(--accent-primary); background: var(--accent-subtle); }
+
+/* 6.0 (M5): the results' «Save / Share ▾» menu */
+.rt-menu-guardar { min-width: 230px; }
+.rt-menu-guardar .toolbar-dropdown-item { white-space: nowrap; }

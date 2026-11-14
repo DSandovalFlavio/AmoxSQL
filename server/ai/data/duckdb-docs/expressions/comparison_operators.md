@@ -2,9 +2,11 @@
 layout: docu
 railroad: expressions/comparison.js
 redirect_from:
-- /docs/preview/sql/expressions/comparison_operators
 - /docs/sql/expressions/comparison_operators
 - /docs/stable/sql/expressions/comparison_operators
+- /docs/current/sql/expressions/comparison_operators
+- /docs/lts/sql/expressions/comparison_operators
+- /docs/preview/sql/expressions/comparison_operators
 title: Comparisons
 ---
 
@@ -34,7 +36,7 @@ These operators treat `NULL` values as equal.
 
 ### Combination Casting
 
-When performing comparison on different types, DuckDB performs [Combination Casting]({% link docs/current/sql/data_types/typecasting.md %}#combination-casting).
+When performing comparison on different types, DuckDB performs [Combination Casting]({% link docs/2.0/sql/data_types/typecasting.md %}#combination-casting).
 These casts were introduced to make interactive querying more convenient and are in line with the casts performed by several programming languages but are often not compatible with PostgreSQL's behavior. For example, the following expressions evaluate and return `true` in DuckDB but fail in PostgreSQL.
 
 ```sql
@@ -42,7 +44,7 @@ SELECT 1 = true;
 SELECT 1 = '1.1';
 ```
 
-> It is not possible to enforce stricter type-checking for DuckDB's comparison operators. If you require stricter type-checking, consider creating a [macro]({% link docs/current/sql/statements/create_macro.md %}) with the [`typeof` function]({% link docs/current/sql/functions/utility.md %}#typeofexpression) or implementing a [user-defined function]({% link docs/current/clients/python/function.md %}).
+> It is not possible to enforce stricter type-checking for DuckDB's comparison operators. If you require stricter type-checking, consider creating a [macro]({% link docs/2.0/sql/statements/create_macro.md %}) with the [`typeof` function]({% link docs/2.0/sql/functions/utility.md %}#typeofexpression) or implementing a [user-defined function]({% link docs/2.0/clients/python/function.md %}).
 
 ## `BETWEEN` and `IS [NOT] NULL`
 
@@ -50,7 +52,7 @@ SELECT 1 = '1.1';
 
 Besides the standard comparison operators there are also the `BETWEEN` and `IS (NOT) NULL` operators. These behave much like operators, but have special syntax mandated by the SQL standard. They are shown in the table below.
 
-Note that `BETWEEN` and `NOT BETWEEN` are only equivalent to the examples below in the cases where both `a`, `x` and `y` are of the same type, as `BETWEEN` will cast all of its inputs to the same type.
+Note that `BETWEEN` and `NOT BETWEEN` are only equivalent to the examples below in the cases where both `a`, `x`, and `y` are of the same type, as `BETWEEN` will cast all of its inputs to the same type.
 
 | Predicate | Description |
 |:---|:---|
@@ -60,5 +62,17 @@ Note that `BETWEEN` and `NOT BETWEEN` are only equivalent to the examples below 
 | `expression ISNULL` | alias for `IS NULL` (non-standard) |
 | `expression IS NOT NULL` | `false` if expression is `NULL`, `true` otherwise |
 | `expression NOTNULL` | alias for `IS NOT NULL` (non-standard) |
+
+An explicit [collation]({% link docs/2.0/sql/expressions/collations.md %}) on any input to `BETWEEN` applies to the entire `BETWEEN` expression. This can differ from writing the comparisons separately, where the explicit collation applies only to the comparison that contains it:
+
+```sql
+SELECT
+    'B' NOT BETWEEN ('A' COLLATE NOCASE) AND 'a' AS between_result,
+    'B' < ('A' COLLATE NOCASE) OR 'B' > 'a' AS separate_result;
+```
+
+| between_result | separate_result |
+|:---|:---|
+| true | false |
 
 > For the expression `BETWEEN x AND y`, `x` is used as the lower bound and `y` is used as the upper bound. Therefore, if `x > y`, the result will always be `false`.

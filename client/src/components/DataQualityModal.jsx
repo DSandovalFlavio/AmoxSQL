@@ -198,7 +198,7 @@ const DataQualityModal = ({ isOpen, onClose, tableName, schema }) => {
                                                     {col.checks.map((ch, i) => (
                                                         <span key={i} style={{ display: 'flex', alignItems: 'center', gap: '3px' }} title={ch.detail}>
                                                             {statusIcon[ch.status]}
-                                                            <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>{ch.name}</span>
+                                                            <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>{ch.name}</span>
                                                         </span>
                                                     ))}
                                                 </div>
@@ -220,7 +220,7 @@ const ScoreCard = ({ label, value, color, highlight }) => (
         backgroundColor: 'var(--surface-inset)', borderRadius: '8px', padding: '12px',
         textAlign: 'center', border: highlight ? `1px solid ${color || 'var(--border-subtle)'}` : '1px solid var(--border-subtle)',
     }}>
-        <div style={{ fontSize: '10px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
+        <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
             {label}
         </div>
         <div style={{

@@ -8,7 +8,8 @@ import {
     LuLayoutList, LuLayers, LuCode, LuColumns3, LuLoader, LuBrain,
     LuFileCode2, LuPackage, LuBot,
     LuFolderInput, LuEyeOff, LuExternalLink, LuScissors, LuCheck, LuSquare, LuSquareCheck, LuFiles, LuSparkles,
-    LuPresentation
+    LuPresentation, LuPlus, LuEllipsis, LuLink,
+    LuChevronsDownUp, LuChevronRight, LuStar, LuFilter, LuColumns2,
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -21,6 +22,9 @@ import { comoAbrir, recordarApertura, olvidarApertura, moverPreferencia } from '
 import { tipoDeArchivo } from '../utils/tiposDeArchivo';
 import { vigilar } from '../state/vigilante';
 import { leerAmoxvis } from './DataVisualizer/vega/figura';
+import { anidarRelacionados } from '../utils/anidarArchivos';
+import { TIPOS_DE_FILTRO, buscarEnProyecto, carpetasConCambios } from '../utils/filtroDeArchivos';
+import { EditoresAbiertos, Favoritos } from './explorador/SeccionesExplorador';
 
 /**
  * A partir de aquí se pregunta antes de abrir en el editor.
@@ -53,14 +57,107 @@ function haceCuanto(ms) {
     return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
+const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = null, pestanas = null, onActivarPestana, onCerrarPestana, onAbrirAlLado, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
     const { confirmAsync } = useDialog();
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
+
+    // ── 6.0 (M11): la vista de árbol (opción de Settings › Behavior), lo oculto
+    // y el archivo activo. La vista de serie sigue siendo carpeta a carpeta.
+    const vistaArbol = (editorSettings?.explorerVista || 'carpetas') === 'arbol';
+    const [mostrarOcultos, setMostrarOcultos] = useState(() => {
+        try { return localStorage.getItem('amoxsql-fe-ocultos') === '1'; } catch { return false; }
+    });
+    const alternarOcultos = () => setMostrarOcultos(v => {
+        try { localStorage.setItem('amoxsql-fe-ocultos', v ? '0' : '1'); } catch { /* sólo esta sesión */ }
+        return !v;
+    });
+    // Lo que empieza por punto (.git, .amoxsql, .claude, .tmp…) no es del usuario.
+    const esVisible = (f) => mostrarOcultos || !String(f.name).startsWith('.');
+    const claveAbiertas = `amoxsql-fe-abiertas:${projectPath}`;
+    const [abiertas, setAbiertas] = useState(() => {
+        try { return new Set(JSON.parse(localStorage.getItem(claveAbiertas) || '[]')); } catch { return new Set(); }
+    });
+    const [hijos, setHijos] = useState(() => new Map());   // carpeta → su contenido
+    // 6.0 (M11): un .amoxvis bajo el .sql del que sale (Settings › Nest Related Files).
+    const anidar = editorSettings?.anidarArchivos ?? true;
+    // Qué .sql tienen sus gráficos a la vista (no son carpetas: no se leen ni se recuerdan).
+    const [conGraficosAbiertos, setConGraficosAbiertos] = useState(() => new Set());
+    const alternarAnidados = (ruta) => setConGraficosAbiertos(prev => {
+        const n = new Set(prev);
+        if (n.has(ruta)) n.delete(ruta); else n.add(ruta);
+        return n;
+    });
+    const estaAbierta = (f) => (f.isDirectory ? abiertas : conGraficosAbiertos).has(f.path.replace(/\\/g, '/'));
+    // 6.0 (M11): favoritos, por proyecto.
+    const claveFavoritos = `amoxsql-fe-favoritos:${projectPath}`;
+    const [favoritos, setFavoritos] = useState(() => {
+        try { return JSON.parse(localStorage.getItem(claveFavoritos) || '[]'); } catch { return []; }
+    });
+    useEffect(() => {
+        try { setFavoritos(JSON.parse(localStorage.getItem(claveFavoritos) || '[]')); } catch { setFavoritos([]); }
+    }, [claveFavoritos]);
+    const guardarFavoritos = (lista) => {
+        setFavoritos(lista);
+        try { localStorage.setItem(claveFavoritos, JSON.stringify(lista)); } catch { /* sólo esta sesión */ }
+    };
+    const rutaNorm = (p) => String(p || '').replace(/\\/g, '/');
+    // La ruta en el disco, con las barras del sistema (6.0, M11: «Copy Path»).
+    const rutaAbsoluta = (f) => {
+        if (f.fullPath) return f.fullPath;
+        const base = String(projectPath || '').replace(/[\\/]+$/, '');
+        const ruta = `${base}/${rutaNorm(f.path)}`;
+        return /^[A-Za-z]:/.test(base) ? ruta.replace(/\//g, '\\') : ruta;
+    };
+    const esFavorito = (f) => favoritos.some(x => x.path === rutaNorm(f.path));
+    const alternarFavorito = (f) => {
+        const ruta = rutaNorm(f.path);
+        guardarFavoritos(esFavorito(f)
+            ? favoritos.filter(x => x.path !== ruta)
+            : [...favoritos, { path: ruta, name: f.name, isDirectory: !!f.isDirectory }]);
+    };
+    const visiblesRef = useRef([]);                        // las filas en pantalla, en orden (para Shift+clic)
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const deferredSearchQuery = useDeferredValue(searchQuery);
+    // 6.0 (M11): con texto o con un tipo marcado se busca en TODO el proyecto
+    // (el índice de /api/files/index), no sólo en la carpeta en pantalla.
+    const [tiposFiltro, setTiposFiltro] = useState(() => {
+        try { return new Set(JSON.parse(localStorage.getItem('amoxsql-fe-tipos') || '[]')); } catch { return new Set(); }
+    });
+    const guardarTipos = (n) => {
+        try { localStorage.setItem('amoxsql-fe-tipos', JSON.stringify([...n])); } catch { /* sólo esta sesión */ }
+        return n;
+    };
+    const alternarTipo = (id) => setTiposFiltro(prev => {
+        const n = new Set(prev);
+        if (n.has(id)) n.delete(id); else n.add(id);
+        return guardarTipos(n);
+    });
+    const limpiarTipos = () => setTiposFiltro(guardarTipos(new Set()));
+    const [menuFiltro, setMenuFiltro] = useState(false);
+    const menuFiltroRef = useRef(null);
+    useEffect(() => {
+        if (!menuFiltro) return;
+        const fuera = (e) => { if (!menuFiltroRef.current?.contains(e.target)) setMenuFiltro(false); };
+        const tecla = (e) => { if (e.key === 'Escape') setMenuFiltro(false); };
+        document.addEventListener('mousedown', fuera);
+        document.addEventListener('keydown', tecla);
+        return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', tecla); };
+    }, [menuFiltro]);
+    const buscandoEnProyecto = !!deferredSearchQuery.trim() || tiposFiltro.size > 0;
+    const [indice, setIndice] = useState(null);
+    useEffect(() => {
+        if (!buscandoEnProyecto || indice !== null) return;
+        let vigente = true;
+        fetch(`${API_BASE}/api/files/index`)
+            .then(r => (r.ok ? r.json() : []))
+            .then(data => { if (vigente) setIndice(limpiarListado(data)); })
+            .catch(() => { if (vigente) setIndice([]); });
+        return () => { vigente = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [buscandoEnProyecto, indice]);
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState(null); // { x, y, file }
@@ -205,6 +302,74 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
         } catch { /* git unavailable or no repo — silent */ }
     };
 
+    // Lo que el explorador nunca enseña: las bases (van en Data) y lo que AmoxSQL
+    // escribe para sí junto a los archivos del usuario (6.0, M1 · F7).
+    const limpiarListado = (data) => data
+        .filter(f => !f.name.endsWith('.duckdb') && !f.name.endsWith('.db') && !f.name.endsWith('.ducklake') && !f.name.endsWith('.ducklake.sqlite'))
+        .filter(f => f.isDirectory || !/(\.sqlnb\.state\.json|\.wal|\.amoxtmp)$/i.test(f.name));
+
+    // ── El árbol (6.0, M11) ──
+    const vistaArbolRef = useRef(vistaArbol);
+    vistaArbolRef.current = vistaArbol;
+    const abiertasRef = useRef(abiertas);
+    abiertasRef.current = abiertas;
+    const cargarCarpeta = async (ruta) => {
+        try {
+            const r = await fetch(`${API_BASE}/api/files?path=${encodeURIComponent(ruta)}`);
+            if (!r.ok) throw new Error();
+            const data = limpiarListado(await r.json());
+            setHijos(prev => new Map(prev).set(ruta, data));
+        } catch {
+            // Ya no existe (la borraron o la movieron): se deja de tener abierta.
+            setAbiertas(prev => { if (!prev.has(ruta)) return prev; const n = new Set(prev); n.delete(ruta); return n; });
+        }
+    };
+    const recargarAbiertas = () => { for (const ruta of abiertasRef.current) cargarCarpeta(ruta); };
+    useEffect(() => {
+        try { localStorage.setItem(claveAbiertas, JSON.stringify([...abiertas])); } catch { /* sólo esta sesión */ }
+    }, [abiertas, claveAbiertas]);
+    const alternarCarpeta = (ruta) => {
+        setAbiertas(prev => {
+            const n = new Set(prev);
+            if (n.has(ruta)) n.delete(ruta);
+            else { n.add(ruta); if (!hijos.has(ruta)) cargarCarpeta(ruta); }
+            return n;
+        });
+    };
+    const plegarTodo = () => setAbiertas(new Set());
+    // Al pasar a árbol: desde la raíz, y con lo que estaba abierto ya leído.
+    useEffect(() => {
+        if (!vistaArbol) return;
+        if (currentPath) setCurrentPath('');
+        recargarAbiertas();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vistaArbol]);
+    // Revelar el archivo activo: en árbol se abren sus carpetas; la fila se marca
+    // y se trae a la vista.
+    useEffect(() => {
+        if (!archivoActivo || !vistaArbol) return;
+        const partes = String(archivoActivo).replace(/\\/g, '/').split('/').filter(Boolean);
+        const carpetas = partes.slice(0, -1).map((_, i) => partes.slice(0, i + 1).join('/'));
+        if (!carpetas.length) return;
+        setAbiertas(prev => {
+            const faltan = carpetas.filter(c => !prev.has(c));
+            if (!faltan.length) return prev;
+            faltan.forEach(cargarCarpeta);
+            return new Set([...prev, ...faltan]);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [archivoActivo, vistaArbol]);
+    const activoNorm = archivoActivo ? String(archivoActivo).replace(/\\/g, '/') : null;
+    const listaRef = useRef(null);
+    useEffect(() => {
+        if (!activoNorm) return;
+        const t = setTimeout(() => {
+            const fila = listaRef.current?.querySelector(`[data-ruta="${CSS.escape(activoNorm)}"]`);
+            fila?.scrollIntoView({ block: 'nearest' });
+        }, 150);
+        return () => clearTimeout(t);
+    }, [activoNorm, hijos]);
+
     const fetchFiles = async (path, { silent = false } = {}) => {
         if (!silent) setLoading(true);
         setError(null);
@@ -213,8 +378,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
             if (!response.ok) throw new Error('Failed to fetch files');
             let data = await response.json();
 
-            // FILTER: Hide Database files
-            data = data.filter(f => !f.name.endsWith('.duckdb') && !f.name.endsWith('.db') && !f.name.endsWith('.ducklake') && !f.name.endsWith('.ducklake.sqlite'));
+            data = limpiarListado(data);
 
             // Sort: directories first, then files
             data.sort((a, b) => {
@@ -222,6 +386,8 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                 return a.isDirectory ? -1 : 1;
             });
             setFiles(data);
+            setIndice(null);   // se vuelve a leer la próxima vez que haga falta
+            if (vistaArbolRef.current) recargarAbiertas();
             fetchGitStatus(); // non-blocking — update badges independently
         } catch (err) {
             setError(err.message);
@@ -246,9 +412,9 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
     const abrirComoTexto = async (file) => {
         if (file.sizeBytes != null && file.sizeBytes > AVISO_TAMANO) {
             const sigue = await confirmAsync({
-                title: 'Es un archivo grande',
-                message: `${file.name} ocupa ${formatBytes(file.sizeBytes)}. Abrirlo puede tardar y dejar el editor lento un rato.`,
-                confirmLabel: 'Abrir igualmente',
+                title: 'This is a large file',
+                message: `${file.name} is ${formatBytes(file.sizeBytes)}. Opening it may take a while and slow the editor down for a bit.`,
+                confirmLabel: 'Open anyway',
                 cancelLabel: 'Cancel',
             });
             if (!sigue) return;
@@ -259,7 +425,8 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
     const handleNavigate = (file) => {
         if (renamingFile) return; // Don't navigate while renaming
         if (file.isDirectory) {
-            setCurrentPath(file.path.replace(/\\/g, '/'));
+            if (vistaArbol) alternarCarpeta(file.path.replace(/\\/g, '/'));
+            else setCurrentPath(file.path.replace(/\\/g, '/'));
         } else {
             const lowerName = file.name.toLowerCase();
             /**
@@ -299,6 +466,21 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
     };
 
 
+
+    // Un favorito: el archivo se abre como desde su fila; una carpeta se muestra
+    // (en árbol, desplegada con las de encima; si no, se entra en ella).
+    const abrirFavorito = (f) => {
+        if (!f.isDirectory) { handleNavigate(f); return; }
+        if (!vistaArbol) { setCurrentPath(f.path); return; }
+        const partes = f.path.split('/').filter(Boolean);
+        const carpetas = partes.map((_, i) => partes.slice(0, i + 1).join('/'));
+        setAbiertas(prev => {
+            const faltan = carpetas.filter(c => !prev.has(c));
+            faltan.forEach(cargarCarpeta);
+            return new Set([...prev, ...faltan]);
+        });
+        setTimeout(() => listaRef.current?.querySelector(`[data-ruta="${CSS.escape(f.path)}"]`)?.scrollIntoView({ block: 'nearest' }), 200);
+    };
 
     const handleUp = () => {
         if (!currentPath) return;
@@ -377,10 +559,11 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
     };
 
     // --- Sort / Group helpers ---
-    const SORT_MODES = ['default', 'name', 'type', 'extension', 'size'];
+    const SORT_MODES = ['default', 'name', 'modified', 'type', 'extension', 'size'];
     const SORT_LABELS = {
         default: 'Default (dirs first)',
         name: 'By Name (A→Z)',
+        modified: 'By Date Modified (newest first)',
         type: 'By Category',
         extension: 'By Extension',
         size: 'By Size (largest first)'
@@ -410,8 +593,14 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
         return ext ? `1_.${ext}` : '2_No extension';
     };
 
-    const sortedFiles = (() => {
-        const filtered = files.filter(f => f.name.toLowerCase().includes(deferredSearchQuery.toLowerCase()));
+    // Ordena una lista (la carpeta actual, o un nivel del árbol).
+    const ordenarLista = (filtered) => {
+        if (sortMode === 'modified') {
+            return [...filtered].sort((a, b) => {
+                if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+                return (b.mtimeMs || 0) - (a.mtimeMs || 0) || a.name.localeCompare(b.name);
+            });
+        }
         if (sortMode === 'name') {
             return [...filtered].sort((a, b) => {
                 if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
@@ -439,12 +628,13 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
             });
         }
         // default: dirs first, then alpha
-        return filtered;
-    })();
+        return [...filtered].sort((a, b) => (a.isDirectory === b.isDirectory ? a.name.localeCompare(b.name) : (a.isDirectory ? -1 : 1)));
+    };
+    const sortedFiles = ordenarLista(files.filter(esVisible).filter(f => f.name.toLowerCase().includes(deferredSearchQuery.toLowerCase())));
 
     // Group files when in 'type' or 'extension' mode
     const groupedFiles = (() => {
-        if (sortMode !== 'type' && sortMode !== 'extension') return null;
+        if (vistaArbol || (sortMode !== 'type' && sortMode !== 'extension')) return null;
         const groupFn = sortMode === 'type' ? getFileTypeGroup : getExtGroup;
         const groups = {};
         sortedFiles.forEach(f => {
@@ -456,12 +646,22 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
         return groups;
     })();
 
-    const cycleSortMode = () => {
-        const idx = SORT_MODES.indexOf(sortMode);
-        const next = SORT_MODES[(idx + 1) % SORT_MODES.length];
-        setSortMode(next);
-        localStorage.setItem('amoxsql-fe-sort', next);
+    const elegirOrden = (modo) => {
+        setSortMode(modo);
+        try { localStorage.setItem('amoxsql-fe-sort', modo); } catch { /* sin almacenamiento, sólo esta sesión */ }
     };
+
+    // The header's menus («+ New» and «…»): one open at a time; a click outside or Escape closes it.
+    const [menuCabecera, setMenuCabecera] = useState(null);
+    const menuCabeceraRef = useRef(null);
+    useEffect(() => {
+        if (!menuCabecera) return;
+        const fuera = (e) => { if (!menuCabeceraRef.current?.contains(e.target)) setMenuCabecera(null); };
+        const tecla = (e) => { if (e.key === 'Escape') setMenuCabecera(null); };
+        document.addEventListener('mousedown', fuera);
+        document.addEventListener('keydown', tecla);
+        return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', tecla); };
+    }, [menuCabecera]);
 
     // --- Rename Logic ---
     const startRename = (file) => {
@@ -498,6 +698,13 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
             // ruta, y sin esto renombrar un `config.json` marcado como texto lo
             // devolvería a abrirse como tabla sin que nadie lo pidiera.
             moverPreferencia(projectPath, oldPath, newPath);
+            // Un favorito sigue al archivo (o a lo que había dentro de la carpeta).
+            const viejo = rutaNorm(oldPath);
+            if (favoritos.some(x => x.path === viejo || x.path.startsWith(viejo + '/'))) {
+                guardarFavoritos(favoritos.map(x => x.path === viejo
+                    ? { ...x, path: newPath, name: renameValue.trim() }
+                    : x.path.startsWith(viejo + '/') ? { ...x, path: newPath + x.path.slice(viejo.length) } : x));
+            }
 
             setRenamingFile(null);
             fetchFiles(currentPath, { silent: true });
@@ -671,7 +878,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
             e.preventDefault();
             e.stopPropagation();
             setMultiSelectMode(true);
-            const allPaths = sortedFiles.map(f => f.path);
+            const allPaths = (vistaArbol || buscandoEnProyecto ? visiblesRef.current : sortedFiles).map(f => f.path);
             const fromIdx = allPaths.indexOf(lastClickedRef.current);
             const toIdx = allPaths.indexOf(file.path);
             if (fromIdx >= 0 && toIdx >= 0) {
@@ -693,7 +900,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
         return false;
     };
 
-    const getSelectedFileObjects = () => sortedFiles.filter(f => selectedFiles.has(f.path));
+    const getSelectedFileObjects = () => (vistaArbol || buscandoEnProyecto ? visiblesRef.current : sortedFiles).filter(f => selectedFiles.has(f.path));
 
     // Fase 4 — consolidar: turn a multi-selection of .sql / .amoxvis / .md
     // files into one notebook. Each becomes a cell in the SAME order they're
@@ -812,45 +1019,89 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
     }, [currentPath]);
 
     return (
-        <div ref={wrapperRef} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div ref={wrapperRef} className="fe-raiz" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Header */}
             <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <LuFolder size={14} /> Files
                 </span>
-                <div className="fe-header-actions">
-                    <button onClick={() => onNewFile(currentPath, 'sql')} title="New SQL File" className="fe-header-btn">
-                        <LuFilePlus size={13} />
-                    </button>
-                    <button onClick={() => onNewFile(currentPath, 'sqlnb')} title="New SQL Notebook" className="fe-header-btn">
-                        <LuBookOpen size={13} />
-                    </button>
-                    <button onClick={() => onNewFile(currentPath, 'md')} title="New Markdown" className="fe-header-btn">
-                        <LuFileText size={13} />
-                    </button>
-                    <button onClick={() => onNewFile(currentPath, 'amoxdeck')} title="New Report Flow Deck" className="fe-header-btn">
-                        <LuPresentation size={13} />
-                    </button>
-                    <button onClick={() => onNewFile(currentPath, 'amoxcanvas')} title="New Canvas" className="fe-header-btn">
-                        <LuLayoutDashboard size={13} />
-                    </button>
-                    <button onClick={() => onNewFile(currentPath, 'amoxdiagram')} title="Nuevo diagrama (AmoxDiagram)" className="fe-header-btn">
-                        <LuShare2 size={13} />
-                    </button>
-                    <button onClick={() => onNewFolder(currentPath)} title="New Folder" className="fe-header-btn">
-                        <LuFolderPlus size={13} />
-                    </button>
+                {/* 6.0 (M3, U4): nine icons → «+ New», Refresh and «…». The same actions,
+                    named in a menu instead of guessed from a 13px icon. */}
+                <div className="fe-header-actions" ref={menuCabeceraRef}>
                     <button
-                        onClick={cycleSortMode}
-                        title={`Sort: ${SORT_LABELS[sortMode]}`}
-                        className="fe-header-btn"
-                        style={{ color: sortMode !== 'default' ? 'var(--accent-primary)' : undefined }}
+                        onClick={() => setMenuCabecera(m => (m === 'nuevo' ? null : 'nuevo'))}
+                        title="New file or folder"
+                        className="fe-header-nuevo"
+                        aria-haspopup="menu"
+                        aria-expanded={menuCabecera === 'nuevo'}
                     >
-                        {sortMode === 'type' || sortMode === 'extension' ? <LuLayers size={13} /> : <LuLayoutList size={13} />}
+                        <LuPlus size={13} /> New
                     </button>
                     <button onClick={() => fetchFiles(currentPath)} title="Refresh" className="fe-header-btn">
                         <LuRefreshCw size={13} />
                     </button>
+                    <button
+                        onClick={() => setMenuCabecera(m => (m === 'mas' ? null : 'mas'))}
+                        title="More"
+                        className="fe-header-btn"
+                        aria-haspopup="menu"
+                        aria-expanded={menuCabecera === 'mas'}
+                        style={{ color: sortMode !== 'default' ? 'var(--accent-primary)' : undefined }}
+                    >
+                        <LuEllipsis size={14} />
+                    </button>
+                    {menuCabecera === 'nuevo' && (
+                        <div className="fe-header-menu" role="menu">
+                            {[
+                                ['sql', LuFilePlus, 'SQL Query'],
+                                ['sqlnb', LuBookOpen, 'SQL Notebook'],
+                                ['sqlchain', LuLink, 'Data Flow'],
+                                ['amoxdeck', LuPresentation, 'Report Flow deck'],
+                                ['amoxcanvas', LuLayoutDashboard, 'Canvas'],
+                                ['amoxdiagram', LuShare2, 'Diagram'],
+                                ['md', LuFileText, 'Markdown'],
+                            ].map(([tipo, Icono, nombre]) => (
+                                <button key={tipo} role="menuitem" className="fe-header-menu-item"
+                                    onClick={() => { setMenuCabecera(null); onNewFile(currentPath, tipo); }}>
+                                    <Icono size={13} /> {nombre}
+                                </button>
+                            ))}
+                            <div className="fe-header-menu-sep" />
+                            <button role="menuitem" className="fe-header-menu-item"
+                                onClick={() => { setMenuCabecera(null); onNewFolder(currentPath); }}>
+                                <LuFolderPlus size={13} /> Folder
+                            </button>
+                        </div>
+                    )}
+                    {menuCabecera === 'mas' && (
+                        <div className="fe-header-menu fe-header-menu--derecha" role="menu">
+                            <div className="fe-header-menu-titulo">Sort</div>
+                            {SORT_MODES.map(modo => (
+                                <button key={modo} role="menuitemradio" aria-checked={sortMode === modo} className="fe-header-menu-item"
+                                    onClick={() => { setMenuCabecera(null); elegirOrden(modo); }}>
+                                    {sortMode === modo ? <LuCheck size={13} /> : <span style={{ width: 13 }} />} {SORT_LABELS[modo]}
+                                </button>
+                            ))}
+                            <div className="fe-header-menu-sep" />
+                            <button role="menuitemcheckbox" aria-checked={mostrarOcultos} className="fe-header-menu-item"
+                                onClick={() => { setMenuCabecera(null); alternarOcultos(); }}>
+                                {mostrarOcultos ? <LuCheck size={13} /> : <span className="fe-hueco-icono" />} Show hidden files
+                            </button>
+                            {vistaArbol && (
+                                <button role="menuitem" className="fe-header-menu-item" onClick={() => { setMenuCabecera(null); plegarTodo(); }}>
+                                    <LuChevronsDownUp size={13} /> Collapse all
+                                </button>
+                            )}
+                            {currentPath && !vistaArbol && (
+                                <>
+                                    <div className="fe-header-menu-sep" />
+                                    <button role="menuitem" className="fe-header-menu-item" onClick={() => { setMenuCabecera(null); handleUp(); }}>
+                                        <LuArrowUp size={13} /> Go up
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -866,10 +1117,37 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="fe-search-input"
                     />
+                    <div className="fe-filtro" ref={menuFiltroRef}>
+                        <button
+                            type="button"
+                            className={`fe-filtro-boton${tiposFiltro.size ? ' fe-filtro-boton--activo' : ''}`}
+                            title="Filter by type"
+                            aria-expanded={menuFiltro}
+                            onClick={() => setMenuFiltro(v => !v)}
+                        >
+                            <LuFilter size={12} />
+                            {tiposFiltro.size > 0 && <span>{tiposFiltro.size}</span>}
+                        </button>
+                        {menuFiltro && (
+                            <div className="fe-filtro-menu" role="menu">
+                                <div className="fe-filtro-titulo">Show only</div>
+                                {TIPOS_DE_FILTRO.map(t => (
+                                    <button key={t.id} type="button" role="menuitemcheckbox" aria-checked={tiposFiltro.has(t.id)} className="fe-filtro-opcion" onClick={() => alternarTipo(t.id)}>
+                                        {tiposFiltro.has(t.id) ? <LuCheck size={13} /> : <span className="fe-hueco-icono" />} {t.etiqueta}
+                                    </button>
+                                ))}
+                                {tiposFiltro.size > 0 && (
+                                    <button type="button" className="fe-filtro-opcion fe-filtro-opcion--limpiar" onClick={() => { limpiarTipos(); setMenuFiltro(false); }}>
+                                        <span className="fe-hueco-icono" /> Show all types
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Breadcrumbs / path — depth shown by a color gradient (dim root → bright current) */}
-                <div className="fe-breadcrumb">
+                {!vistaArbol && !buscandoEnProyecto && <div className="fe-breadcrumb">
                     {currentPath && (
                         <button onClick={handleUp} className="fe-breadcrumb-up" title="Go up">
                             <LuArrowUp size={12} />
@@ -900,9 +1178,24 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                             );
                         });
                     })()}
-                </div>
+                </div>}
             </div>
-            <ul className="file-list">
+            <div className="fe-secciones">
+                <EditoresAbiertos
+                    pestanas={pestanas}
+                    icono={getIcon}
+                    onActivar={(pane, id) => onActivarPestana?.(pane, id)}
+                    onCerrar={(id) => onCerrarPestana?.(id)}
+                />
+                <Favoritos
+                    favoritos={favoritos}
+                    icono={getIcon}
+                    archivoActivo={activoNorm}
+                    onAbrir={abrirFavorito}
+                    onQuitar={alternarFavorito}
+                />
+            </div>
+            <ul className="file-list" ref={listaRef}>
                 {loading && <div style={{ padding: '10px', color: 'var(--text-muted)' }}>Loading...</div>}
                 {error && <div style={{ color: 'red', padding: '10px' }}>{error}</div>}
                 {!loading && !error && files.length === 0 && (
@@ -926,15 +1219,22 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                     </div>
                 )}
                 {!loading && !error && (() => {
-                    const renderFileItem = (file) => (
+                    // Con flecha: en árbol, o si en esta carpeta hay algún .sql con gráficos (alinea los nombres).
+                    let conFlechas = vistaArbol;
+                    const carpetasGit = carpetasConCambios(Object.keys(gitStatusMap));
+                    const renderFileItem = (file, nivel = 0, conHijos = false, conCarpeta = false) => (
                         <li
                             key={file.path}
-                            className={`file-item${selectedFiles.has(file.path) ? ' file-item--selected' : ''}${clipboardMode === 'cut' && clipboardFiles.some(c => c.path === file.path) ? ' file-item--cut' : ''}${dragOverFolder === file.path ? ' file-item--drop-target' : ''}`}
+                            data-ruta={file.path.replace(/\\/g, '/')}
+                            style={vistaArbol || nivel > 0 ? { paddingLeft: 8 + nivel * 14 } : undefined}
+                            className={`file-item${activoNorm && file.path.replace(/\\/g, '/') === activoNorm ? ' file-item--activo' : ''}${selectedFiles.has(file.path) ? ' file-item--selected' : ''}${clipboardMode === 'cut' && clipboardFiles.some(c => c.path === file.path) ? ' file-item--cut' : ''}${dragOverFolder === file.path ? ' file-item--drop-target' : ''}`}
                             draggable
                             onDragStart={(e) => {
                                 e.dataTransfer.setData('text/plain', file.name);
                                 e.dataTransfer.setData('application/json', JSON.stringify({ type: file.isDirectory ? 'folder' : 'file', path: file.path, name: file.name }));
-                                e.dataTransfer.effectAllowed = 'move';
+                                // 6.0 (M11): soltado sobre el editor, se abre ahí.
+                                if (!file.isDirectory) e.dataTransfer.setData('application/x-amox-archivo', file.path);
+                                e.dataTransfer.effectAllowed = 'copyMove';
                             }}
                             onDragOver={file.isDirectory ? (e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; setDragOverFolder(file.path); } : undefined}
                             onDragLeave={file.isDirectory ? () => setDragOverFolder(null) : undefined}
@@ -943,6 +1243,15 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                             onContextMenu={(e) => handleContextMenu(e, file)}
                             title={file.name}
                         >
+                            {(conFlechas || conHijos || nivel > 0) && (
+                                <span
+                                    className={`fe-flecha${file.isDirectory || conHijos ? '' : ' fe-flecha--hueco'}${estaAbierta(file) ? ' fe-flecha--abierta' : ''}`}
+                                    onClick={conHijos ? (e) => { e.stopPropagation(); alternarAnidados(file.path.replace(/\\/g, '/')); } : undefined}
+                                    title={conHijos ? 'Charts saved from this query' : undefined}
+                                >
+                                    {(file.isDirectory || conHijos) && <LuChevronRight size={12} />}
+                                </span>
+                            )}
                             <span className="icon">
                                 {multiSelectMode
                                     ? (selectedFiles.has(file.path)
@@ -951,7 +1260,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                     : getIcon(file)
                                 }
                             </span>
-                            {renamingFile && renamingFile.name === file.name ? (
+                            {renamingFile && renamingFile.path === file.path ? (
                                 <input
                                     autoFocus
                                     type="text"
@@ -989,10 +1298,18 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                 const GIT_BADGE_COLORS = { M: 'var(--color-warning)', A: 'var(--color-success)', D: 'var(--color-error)', '?': undefined };
                                 return (
                                 <>
-                                    <span style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{baseName}</span>
-                                        <span style={{ flexShrink: 0 }}>{extName}</span>
+                                    <span className="fe-nombre">
+                                        {/* Cortado por el medio (6.0, M11): el final del nombre
+                                            suele ser lo que lo distingue. */}
+                                        <span className={`fe-nombre-cabeza${baseName.length > 16 ? ' fe-nombre-cabeza--larga' : ''}`}>{baseName.length > 16 ? baseName.slice(0, -6) : baseName}</span>
+                                        <span className="fe-nombre-cola">{baseName.length > 16 ? baseName.slice(-6) : ''}{extName}</span>
+                                        {conCarpeta && fileNorm.includes('/') && (
+                                            <span className="fe-carpeta-pista">{fileNorm.slice(0, fileNorm.lastIndexOf('/'))}</span>
+                                        )}
                                     </span>
+                                    {file.isDirectory && carpetasGit.has(fileNorm) && (
+                                        <span className="fe-git-punto" title="Has changes" />
+                                    )}
                                     {gitStatus && (
                                         <span
                                             className={`fe-git-badge fe-git-badge--${gitStatus}`}
@@ -1003,7 +1320,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                         </span>
                                     )}
                                     {(editorSettings?.showFileSizes ?? true) && file.sizeBytes != null && (
-                                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '6px', flexShrink: 0 }}>
+                                        <span className="fe-meta" style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '6px', flexShrink: 0 }}>
                                             {formatBytes(file.sizeBytes)}
                                         </span>
                                     )}
@@ -1016,7 +1333,8 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                         pasar el ratón. */}
                                     {file.mtimeMs != null && (
                                         <span
-                                            style={{ fontSize: '10px', color: 'var(--text-disabled)', marginLeft: '6px', flexShrink: 0 }}
+                                            className="fe-meta"
+                                            style={{ fontSize: '11px', color: 'var(--text-disabled)', marginLeft: '6px', flexShrink: 0 }}
                                             title={new Date(file.mtimeMs).toLocaleString()}
                                         >
                                             {haceCuanto(file.mtimeMs)}
@@ -1034,6 +1352,37 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                         </li>
                     );
 
+                    if (buscandoEnProyecto) {
+                        if (!indice) return <div className="fe-aviso-lista texto-tenue">Searching the project…</div>;
+                        const hallados = buscarEnProyecto(indice, deferredSearchQuery, tiposFiltro).filter(esVisible);
+                        visiblesRef.current = hallados;
+                        if (!hallados.length) return <div className="fe-aviso-lista texto-tenue">Nothing in the project matches.</div>;
+                        return hallados.map(f => renderFileItem(f, 0, false, true));
+                    }
+                    if (vistaArbol) {
+                        const q = deferredSearchQuery.trim().toLowerCase();
+                        const filas = [];
+                        const coincide = (f, ruta) => {
+                            if (!q || f.name.toLowerCase().includes(q)) return true;
+                            if (!f.isDirectory) return false;
+                            return (hijos.get(ruta) || []).filter(esVisible).some(h => coincide(h, h.path.replace(/\\/g, '/')));
+                        };
+                        const nivel = (lista, profundidad) => {
+                            const visibles = ordenarLista(lista.filter(esVisible));
+                            const { sueltos, anidados } = anidar && !q ? anidarRelacionados(visibles) : { sueltos: visibles, anidados: new Map() };
+                            for (const f of sueltos) {
+                                const ruta = f.path.replace(/\\/g, '/');
+                                if (!coincide(f, ruta)) continue;
+                                const suyos = anidados.get(ruta);
+                                filas.push([f, profundidad, !!suyos]);
+                                if (suyos && conGraficosAbiertos.has(ruta)) suyos.forEach(h => filas.push([h, profundidad + 1, false]));
+                                if (f.isDirectory && abiertas.has(ruta) && hijos.has(ruta)) nivel(hijos.get(ruta), profundidad + 1);
+                            }
+                        };
+                        nivel(files, 0);
+                        visiblesRef.current = filas.map(([f]) => f);
+                        return filas.map(([f, prof, conHijos]) => renderFileItem(f, prof, conHijos));
+                    }
                     if (groupedFiles) {
                         // Grouped view (type or extension)
                         return Object.entries(groupedFiles).map(([groupLabel, groupItems]) => (
@@ -1050,13 +1399,23 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                     justifyContent: 'space-between',
                                 }}>
                                     <span>{groupLabel}</span>
-                                    <span style={{ fontSize: '9px', opacity: 0.6, fontWeight: 500 }}>{groupItems.length}</span>
+                                    <span style={{ fontSize: '11px', opacity: 0.6, fontWeight: 500 }}>{groupItems.length}</span>
                                 </div>
-                                {groupItems.map(renderFileItem)}
+                                {groupItems.map(f => renderFileItem(f))}
                             </div>
                         ));
                     }
-                    return sortedFiles.map(renderFileItem);
+                    if (anidar && !deferredSearchQuery.trim()) {
+                        const { sueltos, anidados } = anidarRelacionados(sortedFiles);
+                        conFlechas = anidados.size > 0;
+                        return sueltos.flatMap(f => {
+                            const ruta = f.path.replace(/\\/g, '/');
+                            const suyos = anidados.get(ruta);
+                            if (!suyos) return [renderFileItem(f)];
+                            return [renderFileItem(f, 0, true), ...(conGraficosAbiertos.has(ruta) ? suyos.map(h => renderFileItem(h, 1)) : [])];
+                        });
+                    }
+                    return sortedFiles.map(f => renderFileItem(f));
                 })()}
             </ul>
 
@@ -1102,6 +1461,11 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                       * enseñaría ruido, y ofrecer algo que no va a servir es
                       * otra forma de mentir.
                       */}
+                    {!contextMenu.file.isDirectory && onAbrirAlLado && !['binario', 'datos'].includes(tipoDeArchivo(contextMenu.file.name).tipo) && (
+                        <div onClick={() => { const f = contextMenu.file; setContextMenu(null); onAbrirAlLado(f.path); }} className="context-menu-item">
+                            <LuColumns2 size={14} /> Open to the Side
+                        </div>
+                    )}
                     {tipoDeArchivo(contextMenu.file.name).tipo !== 'binario' && (
                         <div
                             onClick={() => {
@@ -1298,12 +1662,18 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                     {/* ── Utility separator ── */}
                     <div style={{ height: '1px', backgroundColor: 'var(--border-default)', margin: '4px 8px' }} />
 
+                    <div onClick={() => { alternarFavorito(contextMenu.file); setContextMenu(null); }} className="context-menu-item">
+                        <LuStar size={14} /> {esFavorito(contextMenu.file) ? 'Remove from Favorites' : 'Add to Favorites'}
+                    </div>
                     <div onClick={() => revealInExplorer(contextMenu.file)} className="context-menu-item">
                         <LuExternalLink size={14} /> Reveal in Explorer
                     </div>
                     {/* "Copy Path" (backslash identity regex) was a redundant duplicate of the
                         normalized relative path below, and its label implied an absolute path it
                         never produced — removed. */}
+                    <div onClick={() => { navigator.clipboard.writeText(rutaAbsoluta(contextMenu.file)); setContextMenu(null); }} className="context-menu-item">
+                        <LuClipboard size={14} /> Copy Path
+                    </div>
                     <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\\/g, '/')); setContextMenu(null); }} className="context-menu-item">
                         <LuClipboard size={14} /> Copy Relative Path
                     </div>

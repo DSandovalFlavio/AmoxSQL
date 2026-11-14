@@ -14,6 +14,7 @@
  * explorador de dónde vino una tabla, se le cuenta a la IA, y se avisa si el
  * archivo cambió después de cargarlo (4.4).
  */
+const registrador = require('./registrador');
 const fs = require('fs');
 const path = require('path');
 
@@ -121,7 +122,7 @@ async function anotar(db, referencia, { origen, archivos = [], fuente = null, ho
         await q(`COMMENT ON TABLE ${referencia} IS ${lit(componer(p))}`);
         return p;
     } catch (e) {
-        console.warn('[Procedencia] No se pudo anotar:', e?.message || e);
+        registrador.aviso('[Procedencia] No se pudo anotar:', e?.message || e);
         return null;
     }
 }
@@ -133,8 +134,8 @@ async function anotar(db, referencia, { origen, archivos = [], fuente = null, ho
 async function deLasTablas(db) {
     const q = (sql) => (db.systemQuery ? db.systemQuery(sql) : db.query(sql));
     const filas = await q(
-        `SELECT schema_name, table_name, comment FROM duckdb_tables()
-         WHERE comment LIKE '%"amoxsql":"procedencia"%' AND database_name <> 'fuentes'`
+        `SELECT table_schema AS schema_name, table_name, table_comment AS comment FROM ${require('./esquemas').TABLAS} AS t
+         WHERE table_type <> 'VIEW' AND table_comment LIKE '%"amoxsql":"procedencia"%' AND table_catalog <> 'fuentes'`
     );
     const r = {};
     for (const f of filas) {

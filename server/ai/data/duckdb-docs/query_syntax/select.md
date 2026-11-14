@@ -4,9 +4,11 @@ blurb: The SELECT clause specifies the list of columns that will be returned by 
 layout: docu
 railroad: query_syntax/select.js
 redirect_from:
-- /docs/preview/sql/query_syntax/select
 - /docs/sql/query_syntax/select
 - /docs/stable/sql/query_syntax/select
+- /docs/current/sql/query_syntax/select
+- /docs/lts/sql/query_syntax/select
+- /docs/preview/sql/query_syntax/select
 title: SELECT Clause
 ---
 
@@ -85,7 +87,7 @@ SELECT "Some Column Name" FROM tbl;
 
 The `SELECT` clause contains a list of expressions that specify the result of a query. The select list can refer to any columns in the `FROM` clause, and combine them using expressions. As the output of a SQL query is a table – every expression in the `SELECT` clause also has a name. The expressions can be explicitly named using the `AS` clause (e.g., `expr AS name`). If a name is not provided by the user the expressions are named automatically by the system.
 
-> Column names are case-insensitive. See the [Rules for Case Sensitivity]({% link docs/current/sql/dialect/keywords_and_identifiers.md %}#rules-for-case-sensitivity) for more details.
+> Column names are case-insensitive. See the [Rules for Case Sensitivity]({% link docs/2.0/sql/dialect/keywords_and_identifiers.md %}#rules-for-case-sensitivity) for more details.
 
 ### Star Expressions
 
@@ -103,7 +105,7 @@ SELECT COLUMNS('number\d+')
 FROM addresses;
 ```
 
-The [star expression]({% link docs/current/sql/expressions/star.md %}) is a special expression that expands to *multiple expressions* based on the contents of the `FROM` clause. In the simplest case, `*` expands to **all** expressions in the `FROM` clause. Columns can also be selected using regular expressions or lambda functions. See the [star expression page]({% link docs/current/sql/expressions/star.md %}) for more details.
+The [star expression]({% link docs/2.0/sql/expressions/star.md %}) is a special expression that expands to *multiple expressions* based on the contents of the `FROM` clause. In the simplest case, `*` expands to **all** expressions in the `FROM` clause. Columns can also be selected using regular expressions or lambda functions. See the [star expression page]({% link docs/2.0/sql/expressions/star.md %}) for more details.
 
 ### `DISTINCT` Clause
 
@@ -149,7 +151,7 @@ FROM addresses
 GROUP BY city;
 ```
 
-[Aggregate functions]({% link docs/current/sql/functions/aggregates.md %}) are special functions that *combine* multiple rows into a single value. When aggregate functions are present in the `SELECT` clause, the query is turned into an aggregate query. In an aggregate query, **all** expressions must either be part of an aggregate function, or part of a group (as specified by the [`GROUP BY clause`]({% link docs/current/sql/query_syntax/groupby.md %})).
+[Aggregate functions]({% link docs/2.0/sql/functions/aggregates.md %}) are special functions that *combine* multiple rows into a single value. When aggregate functions are present in the `SELECT` clause, the query is turned into an aggregate query. In an aggregate query, **all** expressions must either be part of an aggregate function, or part of a group (as specified by the [`GROUP BY clause`]({% link docs/2.0/sql/query_syntax/groupby.md %})).
 
 ### Window Functions
 
@@ -167,7 +169,7 @@ SELECT amount - lag(amount) OVER (ORDER BY time)
 FROM sales;
 ```
 
-[Window functions]({% link docs/current/sql/functions/window_functions.md %}) are special functions that allow the computation of values relative to *other rows* in a result. Window functions are marked by the `OVER` clause which contains the *window specification*. The window specification defines the frame or context in which the window function is computed. See the [window functions page]({% link docs/current/sql/functions/window_functions.md %}) for more information.
+[Window functions]({% link docs/2.0/sql/functions/window_functions.md %}) are special functions that allow the computation of values relative to *other rows* in a result. Window functions are marked by the `OVER` clause which contains the *window specification*. The window specification defines the frame or context in which the window function is computed. See the [window functions page]({% link docs/2.0/sql/functions/window_functions.md %}) for more information.
 
 ### `unnest` Function
 
@@ -183,4 +185,4 @@ Unnest a struct by one level:
 SELECT unnest({'a': 42, 'b': 84});
 ```
 
-The [`unnest`]({% link docs/current/sql/query_syntax/unnest.md %}) function is a special function that can be used together with [arrays]({% link docs/current/sql/data_types/array.md %}), [lists]({% link docs/current/sql/data_types/list.md %}), or [structs]({% link docs/current/sql/data_types/struct.md %}). The unnest function strips one level of nesting from the type. For example, `INTEGER[]` is transformed into `INTEGER`. `STRUCT(a INTEGER, b INTEGER)` is transformed into `a INTEGER, b INTEGER`. The unnest function can be used to transform nested types into regular scalar types, which makes them easier to operate on.
+The [`unnest`]({% link docs/2.0/sql/query_syntax/unnest.md %}) function is a special function that can be used together with [arrays]({% link docs/2.0/sql/data_types/array.md %}), [lists]({% link docs/2.0/sql/data_types/list.md %}), or [structs]({% link docs/2.0/sql/data_types/struct.md %}). The unnest function strips one level of nesting from the type. For example, `INTEGER[]` is transformed into `INTEGER`. `STRUCT(a INTEGER, b INTEGER)` is transformed into `a INTEGER, b INTEGER`. The unnest function can be used to transform nested types into regular scalar types, which makes them easier to operate on.

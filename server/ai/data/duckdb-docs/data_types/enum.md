@@ -3,9 +3,12 @@ blurb: The Enum type represents a dictionary data structure with all possible un
   values of a column.
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/enum
 - /docs/sql/data_types/enum
 - /docs/stable/sql/data_types/enum
+- /docs/current/sql/data_types/enum
+- /docs/lts/sql/data_types/enum
+- /docs/preview/sql/data_types/enum
+tested: true
 title: Enum Data Type
 ---
 
@@ -21,7 +24,7 @@ You can create an enum using hardcoded values:
 
 ```sql
 CREATE TYPE mood AS ENUM ('sad', 'ok', 'happy');
--- This statement will fail since enums cannot hold NULL values:
+-- This statement will fail since enum dictionary values cannot be NULL:
 -- CREATE TYPE mood AS ENUM ('sad', NULL);
 -- This statement will fail since enum values must be unique:
 -- CREATE TYPE mood AS ENUM ('sad', 'sad');
@@ -34,7 +37,7 @@ CREATE SCHEMA my_schema;
 CREATE TYPE my_schema.mood AS ENUM ('sad', 'ok', 'happy');
 ```
 
-Anonymous enums can be created on the fly during [casting]({% link docs/current/sql/expressions/cast.md %}):
+Anonymous enums can be created on the fly during [casting]({% link docs/2.0/sql/expressions/cast.md %}):
 
 ```sql
 SELECT 'clubs'::ENUM ('spades', 'hearts', 'diamonds', 'clubs');
@@ -44,11 +47,18 @@ You can also create an enum using a `SELECT` statement that returns a single col
 The set of values from the select statement will be deduplicated automatically,
 and `NULL` values will be ignored:
 
+<!-- test:setup
+CREATE TABLE sales_data (amount INTEGER, region VARCHAR);
+INSERT INTO sales_data VALUES (10, 'north'), (20, 'south'), (30, NULL);
+-->
+
 ```sql
 CREATE TYPE region AS ENUM (SELECT region FROM sales_data);
 ```
 
 If you are importing data from a file, you can create an enum for a `VARCHAR` column before importing:
+
+<!-- test:setup COPY (SELECT 10 AS amount, 'north' AS region UNION ALL SELECT 20, 'south') TO 'sales_data.csv'; -->
 
 ```sql
 CREATE TYPE region AS ENUM (SELECT region FROM 'sales_data.csv');
@@ -58,7 +68,9 @@ COPY sales_data FROM 'sales_data.csv';
 
 ## Using Enums
 
-Enum values are case-sensitive, so 'maltese' and 'Maltese' are considered different values:
+Enum values are case-sensitive, so `'maltese'` and `'Maltese'` are considered different values:
+
+<!-- test:error the last statement in this block is shown failing on purpose -->
 
 ```sql
 CREATE TYPE breed AS ENUM ('maltese', 'Maltese');
@@ -83,7 +95,12 @@ INSERT INTO person VALUES
     ('Mr. Mackey', 'ok');
 ```
 
+Enum-typed columns can still contain SQL `NULL`, which is distinct from the
+values in the enum dictionary.
+
 The following query will fail since the mood type does not have a `quackity-quack` value.
+
+<!-- test:error -->
 
 ```sql
 INSERT INTO person VALUES ('Hannes', 'quackity-quack');
@@ -157,10 +174,12 @@ WHERE current_mood = 'bogus';
 
 If you want to enforce type-safety, cast to the enum explicitly:
 
+<!-- test:error -->
+
 ```sql
 SELECT * FROM person
 WHERE current_mood = 'bogus'::mood;
--- Conversion Error: Could not convert string 'bogus' to UINT8
+-- Conversion Error: Could not convert string 'bogus' to ENUM('sad', 'ok', 'happy')
 ```
 
 ## Ordering of Enums
@@ -198,7 +217,7 @@ INSERT INTO tasks VALUES ('a', 'low'), ('b', 'medium'), ('c', 'high');
 -- WARNING!
 -- Equivalent to `WHERE priority_level::VARCHAR >= 'medium'`
 SELECT * FROM tasks
-WHERE priority_level >= 'medium';  
+WHERE priority_level >= 'medium';
 -- Misses the 'high' priority task!
 ```
 
@@ -207,7 +226,7 @@ WHERE priority_level >= 'medium';
 | b    | medium          |
 
 
-So, if you want to e.g. "get all priorities at or above `medium`" then explicitly cast to the enum type:
+So, if you want to e.g. “get all priorities at or above `medium`” then explicitly cast to the enum type:
 
 ```sql
 SELECT * FROM tasks
@@ -221,7 +240,7 @@ WHERE priority_level >= 'medium'::priority;
 
 ## Functions
 
-See [Enum Functions]({% link docs/current/sql/functions/enum.md %}).
+See [Enum Functions]({% link docs/2.0/sql/functions/enum.md %}).
 
 For example, show the available values in the `mood` enum using the `enum_range` function:
 

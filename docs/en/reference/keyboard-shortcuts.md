@@ -2,7 +2,7 @@
 
 **🌐 English · [Español](../../es/reference/keyboard-shortcuts.md)**
 
-> AmoxSQL's complete keyboard-shortcut set, grouped by category. The same list lives in Settings → Shortcuts.
+> AmoxSQL's complete keyboard-shortcut set, grouped by category. The same list lives in the **Help** dialog (Ctrl+Shift+/, or the application menu → Keyboard Shortcuts).
 
 ## What it is
 

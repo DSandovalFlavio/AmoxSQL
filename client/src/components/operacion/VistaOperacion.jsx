@@ -21,6 +21,7 @@ import {
 } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { useEtiqueta } from '../../etiqueta';
+import { emitir } from '../../eventos.js';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, { method: metodo, headers: cuerpo ? { 'Content-Type': 'application/json' } : undefined, body: cuerpo ? JSON.stringify(cuerpo) : undefined });
@@ -33,7 +34,7 @@ const ORIGEN = { interfaz: 'Data Flow', linea_de_comandos: 'Command line', lote:
 const local = (t) => (t ? new Date(String(t).replace(' ', 'T')) : null);
 const hora = (d) => (d ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '');
 const diaHora = (d) => (d ? d.toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
-const abrirEjecucion = (runId) => window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId } }));
+const abrirEjecucion = (runId) => emitir('amox_abrir_ejecucion', { runId });
 
 function Estado({ estado }) {
     const t = { ok: 'finished', fallo: 'failed', en_curso: 'running', interrumpida: 'interrupted', pausada: 'paused', cancelada: 'cancelled' }[estado] || estado;
@@ -111,8 +112,10 @@ export default function VistaOperacion({ onClose, incrustada = false }) {
                         </div>
                     ) : null}
 
-                    <section className="opx-resumen" aria-label="Today">
-                        <div className="opx-cifra"><span className="opx-num">{cuenta?.total ?? 0}</span><span>today</span></div>
+                    {/* 6.0 (M10 · T13): las cifras cuentan sólo lo PROGRAMADO; la
+                        bitácora de abajo trae también lo que se corrió a mano. */}
+                    <section className="opx-resumen" aria-label="Scheduled runs today" title="Only scheduled runs. The log below also lists runs started by hand.">
+                        <div className="opx-cifra"><span className="opx-num">{cuenta?.total ?? 0}</span><span>scheduled today</span></div>
                         <div className="opx-cifra opx-cifra--ok"><span className="opx-num">{cuenta?.bien ?? 0}</span><span>finished</span></div>
                         <div className={`opx-cifra${cuenta?.mal ? ' opx-cifra--mal' : ''}`}><span className="opx-num">{cuenta?.mal ?? 0}</span><span>failed</span></div>
                         <div className="opx-cifra"><span className="opx-num">{cuenta?.faltan ?? 0}</span><span>to come</span></div>
@@ -298,7 +301,7 @@ export function BotonOperacion() {
     if (!c?.hay) return null;
     return (
         <button type="button" className={`opx-boton${c.mal ? ' opx-boton--mal' : ''}`} title={c.mal ? `${c.mal} run${c.mal === 1 ? '' : 's'} need${c.mal === 1 ? 's' : ''} attention` : `${c.total} scheduled today`}
-            onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_operacion'))}>
+            onClick={() => emitir('amox_abrir_operacion')}>
             {c.mal ? <LuCircleAlert size={13} /> : <LuCalendarClock size={13} />}
             <span>{c.total}</span>
         </button>

@@ -19,6 +19,7 @@
  * Si no se puede abrir, el servidor sigue arrancando: `estado()` explica por
  * qué, y lo que dependa de esta base lo comprueba antes de usarla.
  */
+const registrador = require('../registrador');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -95,13 +96,13 @@ class BaseCentral {
                 interrumpidas: await this._repararEjecuciones(),
             }));
             this._estado = { ok: true, abierta: true, version, ruta, error: null };
-            console.log(`[Central] Abierta ${ruta} (esquema v${version}${interrumpidas ? `, ${interrumpidas} ejecución(es) marcadas como interrumpidas` : ''}).`);
+            registrador.info(`[Central] Abierta ${ruta} (esquema v${version}${interrumpidas ? `, ${interrumpidas} ejecución(es) marcadas como interrumpidas` : ''}).`);
             return this;
         } catch (e) {
             this._soltar();
             const mensaje = mensajeDeApertura(e?.message || String(e), ruta);
             this._estado = { ok: false, abierta: false, version: null, ruta, error: mensaje };
-            console.error('[Central] No se pudo abrir:', mensaje);
+            registrador.error('[Central] No se pudo abrir:', mensaje);
             throw new Error(mensaje);
         }
     }
@@ -190,7 +191,7 @@ class BaseCentral {
                 try { await this._ejecutar('ROLLBACK'); } catch { /* ya estaba deshecha */ }
                 throw new Error(`Falló la migración ${m.version} (${m.nombre}): ${e?.message || e}`);
             }
-            console.log(`[Central] Migración ${m.version} (${m.nombre}) aplicada.`);
+            registrador.info(`[Central] Migración ${m.version} (${m.nombre}) aplicada.`);
             actual = m.version;
         }
         return actual;

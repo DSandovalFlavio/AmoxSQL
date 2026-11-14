@@ -4,9 +4,12 @@ blurb: The PIVOT statement allows values within a column to be separated into th
 layout: docu
 railroad: statements/pivot.js
 redirect_from:
-- /docs/preview/sql/statements/pivot
 - /docs/sql/statements/pivot
 - /docs/stable/sql/statements/pivot
+- /docs/current/sql/statements/pivot
+- /docs/lts/sql/statements/pivot
+- /docs/preview/sql/statements/pivot
+tested: true
 title: PIVOT Statement
 ---
 
@@ -16,9 +19,9 @@ The values within those new columns are calculated using an aggregate function o
 DuckDB implements both the SQL Standard `PIVOT` syntax and a simplified `PIVOT` syntax that automatically detects the columns to create while pivoting.
 `PIVOT_WIDER` may also be used in place of the `PIVOT` keyword.
 
-For details on how the `PIVOT` statement is implemented, see the [Pivot Internals site]({% link docs/current/internals/pivot.md %}#pivot).
+For details on how the `PIVOT` statement is implemented, see the [Pivot Internals site]({% link docs/2.0/internals/pivot.md %}#pivot).
 
-> The [`UNPIVOT` statement]({% link docs/current/sql/statements/unpivot.md %}) is the inverse of the `PIVOT` statement.
+> The [`UNPIVOT` statement]({% link docs/2.0/sql/statements/unpivot.md %}) is the inverse of the `PIVOT` statement.
 
 ## Simplified `PIVOT` Syntax
 
@@ -107,7 +110,7 @@ ON year
 USING first(population);
 ```
 
-> Note The SQL syntax permits [`FILTER` clauses]({% link docs/current/sql/query_syntax/filter.md %}) with aggregate functions in the `USING` clause.
+> Note The SQL syntax permits [`FILTER` clauses]({% link docs/2.0/sql/query_syntax/filter.md %}) with aggregate functions in the `USING` clause.
 > In DuckDB, the `PIVOT` statement currently does not support these and they are silently ignored.
 
 ### `PIVOT ON`, `USING`, and `GROUP BY`
@@ -230,7 +233,7 @@ GROUP BY country, name;
 
 ### Using `PIVOT` within a `SELECT` Statement
 
-The `PIVOT` statement may be included within a `SELECT` statement as a CTE ([a Common Table Expression, or `WITH` clause]({% link docs/current/sql/query_syntax/with.md %})), or a subquery.
+The `PIVOT` statement may be included within a `SELECT` statement as a CTE ([a Common Table Expression, or `WITH` clause]({% link docs/2.0/sql/query_syntax/with.md %})), or a subquery.
 This allows for a `PIVOT` to be used alongside other SQL logic, as well as for multiple `PIVOT`s to be used in one query.
 
 No `SELECT` is needed within the CTE, the `PIVOT` keyword can be thought of as taking its place.
@@ -350,10 +353,9 @@ Below is the full syntax diagram of the SQL Standard version of the `PIVOT` stat
 
 <div id="rrdiagram2"></div>
 
-## Limitations
+## Expressions in the `USING` Clause
 
-`PIVOT` currently only accepts an aggregate function, expressions are not allowed.
-For example, the following query attempts to get the population as the number of people instead of thousands of people (i.e., instead of 564, get 564000):
+The `USING` clause also accepts expressions over aggregate functions. For example, the following query gets the population as the number of people instead of thousands of people (i.e., instead of 564, get 564000):
 
 ```sql
 PIVOT cities
@@ -361,14 +363,7 @@ ON year
 USING sum(population) * 1000;
 ```
 
-However, it fails with the following error:
-
-```console
-Catalog Error:
-* is not an aggregate function
-```
-
-To work around this limitation, perform the `PIVOT` with the aggregation only, then use the [`COLUMNS` expression]({% link docs/current/sql/expressions/star.md %}#columns-expression):
+Alternatively, perform the `PIVOT` with the aggregation only, then use the [`COLUMNS` expression]({% link docs/2.0/sql/expressions/star.md %}#columns-expression):
 
 ```sql
 SELECT country, name, 1000 * COLUMNS(* EXCLUDE (country, name))

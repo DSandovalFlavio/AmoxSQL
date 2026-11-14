@@ -2,9 +2,12 @@
 layout: docu
 railroad: expressions/case.js
 redirect_from:
-- /docs/preview/sql/expressions/case
 - /docs/sql/expressions/case
 - /docs/stable/sql/expressions/case
+- /docs/current/sql/expressions/case
+- /docs/lts/sql/expressions/case
+- /docs/preview/sql/expressions/case
+tested: true
 title: CASE Expression
 ---
 
@@ -82,7 +85,7 @@ FROM integers;
 
 ## `SWITCH` Expression
 
-The `SWITCH` expression is syntactic sugar for the `CASE` expression. It takes an expression, a [`MAP`]({% link docs/current/sql/data_types/map.md %}) of values to results, and an optional default value.
+The `SWITCH` expression is syntactic sugar for the `CASE` expression. It takes an expression, a [`MAP`]({% link docs/2.0/sql/data_types/map.md %}) of values to results, and an optional default value.
 
 ```sql
 CREATE OR REPLACE TABLE integers AS SELECT unnest([1, 2, 3]) AS i;

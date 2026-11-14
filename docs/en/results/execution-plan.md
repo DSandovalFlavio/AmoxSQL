@@ -35,6 +35,9 @@ It has two modes: **Estimated** (the plan the optimizer *thinks* it will run, wi
 ### Metrics and phases (Actual mode)
 In Actual mode, a strip shows **Latency, Rows, Rows scanned, CPU, Peak memory, and Bytes read**. Below it, a **phases** bar splits the time into **Planning**, **Execution** (operators), and **I/O & setup** (reading, CSV sniffing, result collection) — revealing whether the query is compute-bound or I/O-bound.
 
+### Blocks of rows read (row groups)
+DuckDB stores each table in blocks of rows and knows each column's minimum and maximum in each block: if a filter cannot match in a block, it skips it. The plan says how many it read out of those there were (**Row groups**). When a filter skips none, it adds a hint: if you often filter by that column, store the table sorted by it (`CREATE TABLE … AS SELECT … ORDER BY that_column`) and the engine can skip most of them.
+
 ### Query pane
 On the left you see the analyzed SQL; drag the divider to give it more or less room.
 

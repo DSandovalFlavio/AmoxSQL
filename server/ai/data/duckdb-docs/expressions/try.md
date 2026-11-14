@@ -1,14 +1,17 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/expressions/try
 - /docs/stable/sql/expressions/try
+- /docs/current/sql/expressions/try
+- /docs/lts/sql/expressions/try
+- /docs/preview/sql/expressions/try
+tested: true
 title: TRY Expression
 ---
 
 The `TRY` expression ensures that errors caused by the input rows in the child (scalar) expression result in `NULL` for those rows, instead of causing the query to throw an error.
 
-> The `TRY` expression was inspired by the [`TRY_CAST` expression]({% link docs/current/sql/expressions/cast.md %}#try_cast).
+> The `TRY` expression was inspired by the [`TRY_CAST` expression]({% link docs/2.0/sql/expressions/cast.md %}#try_cast).
 
 ## Examples
 
@@ -38,23 +41,23 @@ SELECT TRY('abc'::INTEGER);
 NULL
 ```
 
-### Logarithm on Zero
+### Integer Division by Zero
 
 #### Without `TRY`
 
 ```sql
-SELECT ln(0);
+SELECT 1 // 0;
 ```
 
 ```console
-Out of Range Error:
-cannot take logarithm of zero
+Invalid Input Error:
+Division by zero in expression (1 // 0). Use TRY(...) to return NULL for this expression, or SET error_on_division_by_zero=false to return NULL for all divisions by zero.
 ```
 
 #### With `TRY`
 
 ```sql
-SELECT TRY(ln(0));
+SELECT TRY(1 // 0);
 ```
 
 ```text
@@ -92,7 +95,7 @@ SELECT TRY(a::INTEGER) AS x FROM cte;
 
 ## Limitations
 
-`TRY` cannot be used in combination with a volatile function, an aggregate function, or a [scalar subquery]({% link docs/current/sql/expressions/subqueries.md %}#scalar-subquery).
+`TRY` cannot be used in combination with a volatile function, an aggregate function, or a [scalar subquery]({% link docs/2.0/sql/expressions/subqueries.md %}#scalar-subquery).
 For example:
 
 ```sql

@@ -2,13 +2,15 @@
 layout: docu
 railroad: statements/set.js
 redirect_from:
-- /docs/preview/sql/statements/set
 - /docs/sql/statements/set
 - /docs/stable/sql/statements/set
+- /docs/current/sql/statements/set
+- /docs/lts/sql/statements/set
+- /docs/preview/sql/statements/set
 title: SET and RESET Statements
 ---
 
-The `SET` statement modifies the provided DuckDB [configuration option]({% link docs/current/configuration/overview.md %}) at the specified scope.
+The `SET` statement modifies the provided DuckDB [configuration option]({% link docs/2.0/configuration/overview.md %}) at the specified scope.
 
 ## Examples
 
@@ -53,10 +55,10 @@ SET SESSION default_collation = 'nocase';
 Set the default sort order globally:
 
 ```sql
-SET GLOBAL sort_order = 'desc';
+SET GLOBAL default_order = 'DESC';
 ```
 
-Set the default threads globally: 
+Set the default threads globally:
 
 ```sql
 SET GLOBAL threads = 4;
@@ -84,6 +86,21 @@ Configuration options can have different scopes:
 
 When not specified, the default scope for the configuration option is used. For most options this is `GLOBAL`.
 
+> `GLOBAL` settings apply to the current DuckDB instance. They are not written to the database file or persisted across DuckDB instances. If all connections to an instance are closed and a new instance is started, configuration options use their defaults unless they are set again.
+
+For example, in DuckDB 2.0 the `TimeZone` option defaults to the `SESSION` scope, so the following two statements are equivalent, and both change the time zone for the current session only:
+
+```sql
+SET TimeZone = 'UTC';
+SET SESSION TimeZone = 'UTC';
+```
+
+To change the time zone for every session connected to the instance, use the `GLOBAL` scope explicitly:
+
+```sql
+SET GLOBAL TimeZone = 'UTC';
+```
+
 ## Configuration
 
-See the [Configuration]({% link docs/current/configuration/overview.md %}) page for the full list of configuration options.
+See the [Configuration]({% link docs/2.0/configuration/overview.md %}) page for the full list of configuration options.

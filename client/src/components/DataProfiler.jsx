@@ -3,10 +3,12 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
     LuHash, LuType, LuCalendar, LuKey, LuToggleLeft, LuLoader, LuMaximize, LuMinimize,
     LuTriangleAlert, LuInfo, LuCircleCheck, LuLightbulb, LuChevronRight, LuChevronDown, LuSparkles,
-    LuDownload, LuChartColumnBig,
+    LuDownload, LuChartColumnBig, LuBraces,
 } from 'react-icons/lu';
 import { useModalA11y } from '../hooks/useModalA11y';
 import FiguraVega from './DataVisualizer/vega/FiguraVega';
+import { papelDe, CORREO } from '../utils/columnas';
+import { emitir } from '../eventos.js';
 
 /**
  * DataProfiler — storytelling-driven EDA report for a query result.
@@ -38,16 +40,48 @@ const fmtAxis = (v) => {
 };
 
 // ── Semantic type detection (beyond the raw SQL type) ──
+// The engine's VARIANT type names, in words (UINT64 → integer, BOOL_TRUE → yes/no).
+function tipoLegible(t) {
+    const x = String(t || '').toUpperCase();
+    if (/^BOOL/.test(x)) return 'yes/no';
+    if (/INT/.test(x)) return 'integer';
+    if (/DOUBLE|FLOAT|DECIMAL/.test(x)) return 'decimal';
+    if (/VARCHAR|STRING/.test(x)) return 'text';
+    if (x === 'ARRAY' || x === 'LIST') return 'list';
+    return x.toLowerCase();
+}
+
+/**
+ * 6.0 (R3): the same roles as the chart's default axes (`utils/columnas.js`), from
+ * the profile's statistics instead of the rows. Before, a column with all-different
+ * values was an «Identifier» — an amount where no two sales match was one — and a
+ * ranking was a «Number». Now an identifier is so by its name or by being a 1..n
+ * sequence; a year or a month number is a Category.
+ */
 function semanticType(col) {
-    const name = (col.column || '').toLowerCase();
+    const name = col.column || '';
     const raw = (col.rawType || '').toUpperCase();
-    if (raw.includes('DATE') || raw.includes('TIME')) return { key: 'date', label: 'Date', Icon: LuCalendar };
+    // 6.0 (O5): a VARIANT (or STRUCT / LIST / MAP) holds nested values, not categories.
+    if (raw === 'VARIANT' || /^(STRUCT|MAP)\(|\[\]$/.test(raw)) return { key: 'nested', label: 'Nested', Icon: LuBraces };
     if (raw.includes('BOOL')) return { key: 'bool', label: 'Boolean', Icon: LuToggleLeft };
-    const looksUnique = col.uniqueCount > 0 && col.total > 20 && col.uniqueCount >= col.total * 0.98;
-    if (/(^|_)(id|uuid|guid|key)s?$/.test(name) || looksUnique) return { key: 'id', label: 'Identifier', Icon: LuKey };
-    if (col.dtype === 'numeric') return { key: 'number', label: 'Number', Icon: LuHash };
-    if (/mail/.test(name) || (col.emailLike > 0 && col.nonNull > 0 && col.emailLike / col.nonNull > 0.7)) return { key: 'email', label: 'Email', Icon: LuType };
-    if (col.uniqueCount > 0 && col.uniqueCount <= 50) return { key: 'category', label: 'Category', Icon: LuType };
+    const numerica = col.dtype === 'numeric';
+    const entera = numerica && /^(TINYINT|SMALLINT|INTEGER|INT|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT|UHUGEINT)$/.test(raw);
+    const valores = col.nonNull || 0;
+    // A 1..n sequence with no repeats (a ranking, a row number). The distinct count is approximate.
+    const min = Number(col.min), max = Number(col.max);
+    const secuencia = entera && valores >= 3 && Number.isFinite(min) && Number.isFinite(max)
+        && min <= 1 && max - min + 1 === valores && col.uniqueCount >= valores * 0.95;
+    const papel = papelDe({
+        nombre: name, numerica, entera,
+        fecha: !numerica && (raw.includes('DATE') || raw.includes('TIME')),
+        distintos: col.uniqueCount || 0, valores, n: col.total || 0,
+        largo: col.avgLength || 0, secuencia,
+    });
+    if (papel === 'fecha') return { key: 'date', label: 'Date', Icon: LuCalendar };
+    if (papel === 'identificador') return { key: 'id', label: 'Identifier', Icon: LuKey };
+    if (papel === 'medida') return { key: 'number', label: 'Number', Icon: LuHash };
+    if (CORREO.test(name) || (col.emailLike > 0 && valores > 0 && col.emailLike / valores > 0.7)) return { key: 'email', label: 'Email', Icon: LuType };
+    if (papel === 'dimension') return { key: 'category', label: 'Category', Icon: LuType };
     return { key: 'text', label: 'Text', Icon: LuType };
 }
 
@@ -185,7 +219,7 @@ const ColumnDetail = ({ col, onPlot }) => {
                 pct: total > 0 ? (c / total) * 100 : null,
             }));
         }
-        const tops = col.topValues || [];
+        const tops = col.keys || col.topValues || [];
         // topValues carries pct already; fall back to the scanned row count.
         const denom = Number(col.total) || tops.reduce((a, t) => a + Number(t.count), 0);
         return tops.map((t) => {
@@ -217,7 +251,7 @@ const ColumnDetail = ({ col, onPlot }) => {
             <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                     <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                        {col.dtype === 'numeric' ? 'Value distribution' : 'Top values'}
+                        {col.dtype === 'numeric' ? 'Value distribution' : col.keys ? 'Keys (in how many rows, and their types)' : 'Top values'}
                     </div>
                     {onPlot && (
                         <button
@@ -250,6 +284,8 @@ const ColumnDetail = ({ col, onPlot }) => {
                     <>
                         <StatBlock label="Length min/avg/max" value={`${fmt(col.minLength)} / ${fmt(col.avgLength && col.avgLength.toFixed(1))} / ${fmt(col.maxLength)}`} />
                         {col.topValues && col.topValues[0] && <StatBlock label="Most common" value={`"${col.topValues[0].value}" (${col.topValues[0].pct}%)`} />}
+                        {col.keys && <StatBlock label="Keys" value={`${fmt(col.keys.length)}${col.keys.length >= 30 ? '+' : ''} · ${fmt(col.keys.filter(k => Number(k.pct) >= 99.95).length)} in every row`} />}
+                        {col.keys && col.keys.some(k => k.tipos.length > 1) && <StatBlock label="Mixed types" value={col.keys.filter(k => k.tipos.length > 1).map(k => k.key).slice(0, 4).join(', ')} />}
                     </>
                 )}
             </div>
@@ -333,6 +369,12 @@ const DataProfiler = ({ data, isActive, query }) => {
                             topValues: result.visuals?.[colName]?.type === 'top' ? result.visuals[colName].data.map((tv) => ({
                                 value: tv.value, count: tv.count, pct: totalRows > 0 ? ((tv.count / totalRows) * 100).toFixed(1) : '0',
                             })) : undefined,
+                            // 6.0 (O5): a VARIANT column — its keys, in % of rows, with their types.
+                            keys: result.visuals?.[colName]?.type === 'keys' ? result.visuals[colName].data.map((k) => ({
+                                value: k.tipos?.length ? `${k.value} · ${[...new Set(k.tipos.map(tipoLegible))].join(' / ')}` : k.value,
+                                key: k.value, tipos: [...new Set((k.tipos || []).map(tipoLegible))], count: k.count,
+                                pct: totalRows > 0 ? ((k.count / totalRows) * 100).toFixed(1) : '0',
+                            })) : undefined,
                         };
                         o.semantic = semanticType(o);
                         return o;
@@ -409,7 +451,7 @@ const DataProfiler = ({ data, isActive, query }) => {
         const fLines = findings.map((f) => `- [${f.severity}] ${f.title}${f.column ? ` (${f.column})` : ''}: ${f.detail}`).join('\n');
         const cLines = profile.map((c) => `- ${c.column} (${c.semantic.label}): ${fmt(c.uniqueCount)} distinct, ${c.nullPct}% null`).join('\n');
         const prompt = `Here is an automated profile of my query result. Write a short, plain-language narrative: what story does this data tell, what should I watch out for, and what's worth exploring next? Be concise.\n\nSummary: ${headline}\n\nFindings:\n${fLines || '(none)'}\n\nColumns (${profile.length}):\n${cLines}\n\nQuery:\n\`\`\`sql\n${query}\n\`\`\``;
-        window.dispatchEvent(new CustomEvent('amox_ai_prompt', { detail: { prompt } }));
+        emitir('amox_ai_prompt', { prompt });
     };
 
     const buildReportHtml = () => {
@@ -470,9 +512,7 @@ const DataProfiler = ({ data, isActive, query }) => {
             chartQuery = `SELECT ${qn} AS ${qn}, COUNT(*) AS count\nFROM (${src}) AS __amox_src\nWHERE ${qn} IS NOT NULL\nGROUP BY ${qn}\nORDER BY count DESC\nLIMIT 20`;
             config = { chartType: 'bar', xAxisKey: name, yAxisKeys: ['count'] };
         }
-        window.dispatchEvent(new CustomEvent('amox_create_chart', {
-            detail: { title: `${name} distribution`, query: chartQuery, config },
-        }));
+        emitir('amox_create_chart', { title: `${name} distribution`, query: chartQuery, config });
     };
 
     return (
@@ -533,7 +573,7 @@ const DataProfiler = ({ data, isActive, query }) => {
                     { label: 'Findings', value: findings.length, tone: sevCounts.critical ? 'critical' : sevCounts.warning ? 'warning' : 'good' },
                 ].map((s, i) => (
                     <div key={i} style={{ ...card, padding: '12px 14px' }}>
-                        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', marginBottom: '4px' }}>{s.label}</div>
+                        <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', marginBottom: '4px' }}>{s.label}</div>
                         <div style={{ fontSize: '20px', fontWeight: 600, fontVariantNumeric: 'tabular-nums', color: s.tone === 'critical' ? 'var(--color-error)' : s.tone === 'warning' ? 'var(--color-warning)' : 'var(--text-primary)' }}>{s.value}</div>
                     </div>
                 ))}
@@ -563,7 +603,7 @@ const DataProfiler = ({ data, isActive, query }) => {
                                         : <LuTriangleAlert size={15} style={{ color: c, flexShrink: 0, marginTop: '1px' }} />}
                                     <div style={{ minWidth: 0 }}>
                                         <div style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                            <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: c }}>{SEV[f.severity].label}</span>
+                                            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: c }}>{SEV[f.severity].label}</span>
                                             {f.title}{f.column && <span style={{ color: 'var(--text-tertiary)', fontWeight: 400 }}> · {f.column}</span>}
                                         </div>
                                         <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', lineHeight: 1.45 }}>{f.detail}</div>
@@ -578,7 +618,7 @@ const DataProfiler = ({ data, isActive, query }) => {
             {/* Columns overview (compact, expandable) */}
             <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>Columns ({profile.length})</div>
             <div style={{ ...card, overflow: 'hidden', marginBottom: '18px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '16px 1.6fr 110px 80px 1fr 80px 16px', gap: '12px', alignItems: 'center', padding: '8px 13px', borderBottom: '1px solid var(--border-subtle)', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', background: 'var(--panel-bg)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '16px 1.6fr 110px 80px 1fr 80px 16px', gap: '12px', alignItems: 'center', padding: '8px 13px', borderBottom: '1px solid var(--border-subtle)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-tertiary)', background: 'var(--panel-bg)' }}>
                     <span />
                     <span>Column</span>
                     <span>Type</span>

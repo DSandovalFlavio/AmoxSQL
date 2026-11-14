@@ -164,8 +164,11 @@ const ChainCanvas = ({
                     size={0.8}
                     color={theme.dots}
                 />
+                {/* Arriba a la derecha (6.0, M10 · T4): a la izquierda tapaba
+                    los primeros pasos, que es donde empieza el flujo y donde ancla
+                    el encuadre inicial; abajo va la barra flotante. */}
                 <MiniMap
-                    position="top-left"
+                    position="top-right"
                     nodeColor={(node) => {
                         const status = node.data?.status;
                         if (status === 'success') return theme.success;

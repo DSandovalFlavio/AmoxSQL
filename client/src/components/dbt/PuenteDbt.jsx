@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LuLoader, LuCircleAlert, LuCheck, LuArrowUpFromLine, LuX } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
+import { emitir } from '../../eventos.js';
 
 const API = `${API_BASE}/api`;
 
@@ -33,7 +34,7 @@ export function FuentesEnDbt({ showToast = () => {} }) {
             if (!r.ok) throw new Error(d.error);
             setE(d);
             showToast(`Saved in ${d.archivo}`);
-            window.dispatchEvent(new Event('amox_dbt_cambio'));
+            emitir('amox_dbt_cambio');
         } catch (x) { showToast(x.message, 'error'); }
         setGuardando(false);
     };
@@ -87,7 +88,7 @@ export function PromoverAModelo({ sql, origen, onOpenFile, onCerrar }) {
             const d = await res.json();
             if (!res.ok) throw new Error(d.error);
             setR(d);
-            window.dispatchEvent(new Event('amox_dbt_cambio'));
+            emitir('amox_dbt_cambio');
             onOpenFile?.(d.archivo);
         } catch (x) { setError(x.message); }
         setOcupado(false);

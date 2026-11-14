@@ -789,7 +789,7 @@ const ChatMessage = ({ role, content, toolCalls, allMessages, isDiving, isStream
                         <LuDatabase size={10} style={{ color: 'var(--text-muted)', marginRight: '2px' }} />
                         {citations.map((table, i) => (
                             <span key={i} style={{
-                                fontSize: '10px', padding: '1px 6px',
+                                fontSize: '11px', padding: '1px 6px',
                                 backgroundColor: 'var(--sidebar-item-active-bg)',
                                 border: '1px solid var(--border-color)',
                                 borderRadius: '3px', color: 'var(--accent-color-user)',

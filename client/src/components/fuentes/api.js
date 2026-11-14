@@ -4,6 +4,7 @@
  * sin él, al proyecto abierto.
  */
 import { API_BASE } from '../../api.js';
+import { emitir } from '../../eventos.js';
 
 async function pedir(metodo, ruta, cuerpo) {
     const r = await fetch(`${API_BASE}${ruta}`, {
@@ -36,7 +37,7 @@ export const hojasDeExcel = (ruta) =>
     pedir('GET', `/api/files/inspect-excel?path=${encodeURIComponent(ruta)}`).then(d => d.sheets || []);
 
 /** Avisa a quien enseñe fuentes (el explorador, Data Flow) de que algo cambió. */
-export const avisarCambio = () => window.dispatchEvent(new CustomEvent('amox_fuentes_cambiaron'));
+export const avisarCambio = () => emitir('amox_fuentes_cambiaron');
 
 /** Del nombre de un archivo a un nombre de fuente: «Ventas Semana 39.xlsx» → ventas-semana-39. */
 export function sugerirNombre(ruta) {
@@ -114,7 +115,7 @@ export const borrarDestino = (nombre, workspaceId) =>
     pedir('DELETE', `/api/destinos/${encodeURIComponent(nombre)}${conWorkspace(workspaceId)}`);
 export const ubicarDestino = (nombre, ubicacion, workspaceId) =>
     pedir('PUT', `/api/destinos/${encodeURIComponent(nombre)}/ubicacion`, { ubicacion, workspaceId });
-export const avisarCambioDestinos = () => window.dispatchEvent(new CustomEvent('amox_destinos_cambiaron'));
+export const avisarCambioDestinos = () => emitir('amox_destinos_cambiaron');
 
 export const TEXTO_ESTADO_DESTINO = {
     listo: null,

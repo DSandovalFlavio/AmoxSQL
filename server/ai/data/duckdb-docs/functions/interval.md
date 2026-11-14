@@ -1,15 +1,17 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/functions/interval
 - /docs/sql/functions/interval
 - /docs/stable/sql/functions/interval
+- /docs/current/sql/functions/interval
+- /docs/lts/sql/functions/interval
+- /docs/preview/sql/functions/interval
 title: Interval Functions
 ---
 
 <!-- markdownlint-disable MD001 -->
 
-This section describes functions and operators for examining and manipulating [`INTERVAL`]({% link docs/current/sql/data_types/interval.md %}) values.
+This section describes functions and operators for examining and manipulating [`INTERVAL`]({% link docs/2.0/sql/data_types/interval.md %}) values.
 
 ## Interval Operators
 
@@ -22,7 +24,7 @@ The table below shows the available mathematical operators for `INTERVAL` types.
 | `+` | Addition to a `TIMESTAMP` | `TIMESTAMP '1992-03-22 01:02:03' + INTERVAL 5 DAY` | `1992-03-27 01:02:03` |
 | `+` | Addition to a `TIME` | `TIME '01:02:03' + INTERVAL 5 HOUR` | `06:02:03` |
 | `-` | Subtraction of an `INTERVAL` | `INTERVAL 5 HOUR - INTERVAL 1 HOUR` | `INTERVAL 4 HOUR` |
-| `-` | Subtraction from a `DATE` | `DATE '1992-03-27' - INTERVAL 5 DAY` | `1992-03-22` |
+| `-` | Subtraction from a `DATE` | `DATE '1992-03-27' - INTERVAL 5 DAY` | `1992-03-22 00:00:00` |
 | `-` | Subtraction from a `TIMESTAMP` | `TIMESTAMP '1992-03-27 01:02:03' - INTERVAL 5 DAY` | `1992-03-22 01:02:03` |
 | `-` | Subtraction from a `TIME` | `TIME '06:02:03' - INTERVAL 5 HOUR` | `01:02:03` |
 
@@ -32,10 +34,11 @@ The table below shows the available scalar functions for `INTERVAL` types.
 
 | Name | Description |
 |:--|:-------|
-| [`date_part(part, interval)`](#date_partpart-interval) | Extract [datepart component]({% link docs/current/sql/functions/datepart.md %}) (equivalent to `extract`). See [`INTERVAL`]({% link docs/current/sql/data_types/interval.md %}) for the sometimes surprising rules governing this extraction. |
+| [`date_part(part, interval)`](#date_partpart-interval) | Extract [datepart component]({% link docs/2.0/sql/functions/datepart.md %}) (equivalent to `extract`). See [`INTERVAL`]({% link docs/2.0/sql/data_types/interval.md %}) for the sometimes surprising rules governing this extraction. |
 | [`datepart(part, interval)`](#datepartpart-interval) | Alias of `date_part`. |
 | [`extract(part FROM interval)`](#extractpart-from-interval) | Alias of `date_part`. |
 | [`epoch(interval)`](#epochinterval) | Get total number of seconds, as double precision floating point number, in interval. |
+| [`normalized_interval(interval)`](#normalized_intervalinterval) | Normalizes an interval so that units that overflow their range are carried over into the next larger unit. |
 | [`to_centuries(integer)`](#to_centuriesinteger) | Construct a century interval. |
 | [`to_days(integer)`](#to_daysinteger) | Construct a day interval. |
 | [`to_decades(integer)`](#to_decadesinteger) | Construct a decade interval. |
@@ -50,13 +53,13 @@ The table below shows the available scalar functions for `INTERVAL` types.
 | [`to_weeks(integer)`](#to_weeksinteger) | Construct a week interval. |
 | [`to_years(integer)`](#to_yearsinteger) | Construct a year interval. |
 
-> Only the documented [date part components]({% link docs/current/sql/functions/datepart.md %}) are defined for intervals.
+> Only the documented [date part components]({% link docs/2.0/sql/functions/datepart.md %}) are defined for intervals.
 
 #### `date_part(part, interval)`
 
 <div class="nostroke_table"></div>
 
-| **Description** | Extract [datepart component]({% link docs/current/sql/functions/datepart.md %}) (equivalent to `extract`). See [`INTERVAL`]({% link docs/current/sql/data_types/interval.md %}) for the sometimes surprising rules governing this extraction. |
+| **Description** | Extract [datepart component]({% link docs/2.0/sql/functions/datepart.md %}) (equivalent to `extract`). See [`INTERVAL`]({% link docs/2.0/sql/data_types/interval.md %}) for the sometimes surprising rules governing this extraction. |
 | **Example** | `date_part('year', INTERVAL '14 months')` |
 | **Result** | `1` |
 
@@ -83,6 +86,14 @@ The table below shows the available scalar functions for `INTERVAL` types.
 | **Description** | Get total number of seconds, as double precision floating point number, in interval. |
 | **Example** | `epoch(INTERVAL 5 HOUR)` |
 | **Result** | `18000.0` |
+
+#### `normalized_interval(interval)`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Normalizes an interval so that units that overflow their range are carried over into the next larger unit. |
+| **Example** | `normalized_interval(INTERVAL '30 days')` |
+| **Result** | `INTERVAL 1 MONTH` |
 
 #### `to_centuries(integer)`
 

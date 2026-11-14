@@ -69,7 +69,7 @@ export default function InsertMenu({ groups, chains = [], onInsert, onChain, onC
 
             {chains.length > 0 && (
                 <>
-                    <div className="mde-insert-group">Desde el proyecto</div>
+                    <div className="mde-insert-group">From the project</div>
                     {chains.map(ruta => (
                         <div
                             key={ruta}

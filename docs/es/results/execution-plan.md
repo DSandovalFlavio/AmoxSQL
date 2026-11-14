@@ -35,6 +35,9 @@ Tiene dos modos: **Estimated** (el plan que el optimizador *cree* que ejecutará
 ### Métricas y fases (modo Actual)
 En modo Actual, una franja muestra **Latencia, Filas, Filas escaneadas, CPU, Memoria pico y Bytes leídos**. Debajo, una barra de **fases** reparte el tiempo en **Planning** (planificación), **Execution** (operadores) e **I/O & setup** (lectura, sniffing de CSV, recolección) — revela si la consulta está limitada por cómputo o por E/S.
 
+### Bloques de filas leídos (row groups)
+DuckDB guarda cada tabla en bloques de filas y sabe el mínimo y el máximo de cada columna en cada bloque: si un filtro no puede cumplirse en un bloque, se lo salta. El plan dice cuántos leyó de los que había (**Row groups**). Cuando un filtro no se salta ninguno, añade una pista: si filtras a menudo por esa columna, guarda la tabla ordenada por ella (`CREATE TABLE … AS SELECT … ORDER BY esa_columna`) y el motor podrá saltarse la mayoría.
+
 ### Panel de la consulta
 A la izquierda ves el SQL analizado; arrastra el separador para darle más o menos espacio.
 

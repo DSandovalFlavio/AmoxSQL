@@ -2,9 +2,11 @@
 layout: docu
 railroad: statements/checkpoint.js
 redirect_from:
-- /docs/preview/sql/statements/checkpoint
 - /docs/sql/statements/checkpoint
 - /docs/stable/sql/statements/checkpoint
+- /docs/current/sql/statements/checkpoint
+- /docs/lts/sql/statements/checkpoint
+- /docs/preview/sql/statements/checkpoint
 title: CHECKPOINT Statement
 ---
 
@@ -50,7 +52,7 @@ Starting with v1.4.0, in-memory tables support checkpointing. This has two key b
 
 <div id="rrdiagram1"></div>
 
-Checkpoint operations happen automatically based on the WAL size (see [Configuration]({% link docs/current/configuration/overview.md %})). This
+Checkpoint operations happen automatically based on the WAL size (see [Configuration]({% link docs/2.0/configuration/overview.md %})). This
 statement is for manual checkpoint actions.
 
 ## Behavior
@@ -59,7 +61,7 @@ The default `CHECKPOINT` command will fail if there are any running transactions
 can grab the checkpoint lock and then execute the checkpoint operation. In DuckDB versions before v1.4, `FORCE
 CHECKPOINT` instead aborted any in-progress transactions.
 
-Also see the related [`PRAGMA` option]({% link docs/current/configuration/pragmas.md %}#force-checkpoint) for further behavior modification.
+Also see the related [`PRAGMA` option]({% link docs/2.0/configuration/pragmas.md %}#force-checkpoint) for further behavior modification.
 
 ### Reclaiming Space
 
@@ -67,4 +69,4 @@ When performing a checkpoint (automatic or otherwise), the space occupied by del
 
 Since v1.4.0, checkpointing also applies to in-memory databases (see [Checkpointing In-Memory Tables](#checkpointing-in-memory-tables)), where it likewise vacuums deleted rows and reclaims space.
 
-> Warning The [`VACUUM` statement]({% link docs/current/sql/statements/vacuum.md %}) does _not_ trigger vacuuming deletes and hence does not reclaim space.
+> Warning The [`VACUUM` statement]({% link docs/2.0/sql/statements/vacuum.md %}) does _not_ trigger vacuuming deletes and hence does not reclaim space.

@@ -98,7 +98,7 @@ const SqlSourcePicker = ({ onPick, onClose }) => {
             else if (candidatas.length === 1) onPick({ path, query: candidatas[0].raw });
             else setPaso2({ path, statements: candidatas });
         } catch (err) {
-            setError(`No se pudo leer ${path}: ${err.message}`);
+            setError(`Could not read ${path}: ${err.message}`);
         } finally {
             setCargandoArchivo(false);
         }

@@ -1,10 +1,12 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/functions/numeric
 - /docs/sql/functions/numeric
 - /docs/stable/sql/functions/numeric
 - /docs/test/functions/math
+- /docs/current/sql/functions/numeric
+- /docs/lts/sql/functions/numeric
+- /docs/preview/sql/functions/numeric
 title: Numeric Functions
 ---
 
@@ -12,7 +14,7 @@ title: Numeric Functions
 
 ## Numeric Operators
 
-The table below shows the available mathematical operators for [numeric types]({% link docs/current/sql/data_types/numeric.md %}).
+The table below shows the available mathematical operators for [numeric types]({% link docs/2.0/sql/data_types/numeric.md %}).
 
 <!-- markdownlint-disable MD056 -->
 
@@ -41,9 +43,11 @@ There are two division operators: `/` and `//`.
 They are equivalent when at least one of the operands is a `FLOAT` or a `DOUBLE`.
 When both operands are integers, `/` performs floating points division (`5 / 2 = 2.5`) while `//` performs integer division (`5 // 2 = 2`).
 
+Integer division (`//`), modulo (`%`), and `INTERVAL / 0` throw an `Invalid Input Error` on division by zero instead of returning `NULL`. Wrap the expression in `TRY(...)` to return `NULL` for that expression, or `SET error_on_division_by_zero = false`{:.language-sql .highlight} to restore the old `NULL` result for all divisions by zero.
+
 ### Supported Types
 
-The modulo, bitwise, negation, and factorial operators work only on integral data types,
+The bitwise, bitwise negation, and factorial operators work only on integral data types,
 whereas the others are available for all numeric data types.
 
 ## Numeric Functions
@@ -62,20 +66,23 @@ The table below shows the available mathematical functions.
 | [`atan(x)`](#atanx) | Computes the inverse tangent of `x`. |
 | [`atanh(x)`](#atanhx) | Computes the inverse hyperbolic tangent of `x`. |
 | [`atan2(y, x)`](#atan2y-x) | Computes the inverse tangent of `(y, x)`. |
+| [`binom(n, k)`](#binomn-k) | Computes the binomial coefficient of `n` and `k`, i.e., the number of ways to choose `k` elements from a set of `n` elements. Returns a `HUGEINT`. |
 | [`bit_count(x)`](#bit_countx) | Returns the number of bits that are set. |
 | [`cbrt(x)`](#cbrtx) | Returns the cube root of the number. |
 | [`ceil(x)`](#ceilx) | Rounds the number up. |
 | [`ceiling(x)`](#ceilingx) | Rounds the number up. Alias of `ceil`. |
 | [`cos(x)`](#cosx) | Computes the cosine of `x`. |
+| [`cosh(x)`](#coshx) | Computes the hyperbolic cosine of `x`. |
 | [`cot(x)`](#cotx) | Computes the cotangent of `x`. |
+| [`decimal_division(x, y)`](#decimal_divisionx-y) | Divides `x` by `y` using exact decimal arithmetic, returning a `DECIMAL`. |
 | [`degrees(x)`](#degreesx) | Converts radians to degrees. |
 | [`divide(x, y)`](#dividex-y) | Alias for `x // y`. |
 | [`even(x)`](#evenx) | Round to next even number by rounding away from zero. |
 | [`exp(x)`](#expx) | Computes `e ** x`. |
 | [`factorial(x)`](#factorialx) | See the `!` operator. Computes the product of the current integer and all integers below it. |
-| [`fdiv(x, y)`](#fdivx-y) | Performs integer division (`x // y`) but returns a `DOUBLE` value. |
+| [`fdiv(x, y)`](#fdivx-y) | Performs integer division (`x // y`) using the floored definition and returns a `DOUBLE` value. |
 | [`floor(x)`](#floorx) | Rounds the number down. |
-| [`fmod(x, y)`](#fmodx-y) | Calculates the modulo value. Always returns a `DOUBLE` value. |
+| [`fmod(x, y)`](#fmodx-y) | Calculates the modulo value using the floored definition. Always returns a `DOUBLE` value. |
 | [`gamma(x)`](#gammax) | Interpolation of the factorial of `x - 1`. Fractional inputs are allowed. |
 | [`gcd(x, y)`](#gcdx-y) | Computes the greatest common divisor of `x` and `y`. |
 | [`greatest_common_divisor(x, y)`](#greatest_common_divisorx-y) | Computes the greatest common divisor of `x` and `y`. |
@@ -102,12 +109,14 @@ The table below shows the available mathematical functions.
 | [`roundbankers(v NUMERIC, s INTEGER)`](#round_evenv-numeric-s-integer) | Alias of `round_even(v, s)`. Round to `s` decimal places using the [_rounding half to even_ rule](https://en.wikipedia.org/wiki/Rounding#Rounding_half_to_even). Values `s < 0` are allowed. |
 | [`round(v NUMERIC, s INTEGER)`](#roundv-numeric-s-integer) | Round to `s` decimal places. Values `s < 0` are allowed. |
 | [`setseed(x)`](#setseedx) | Sets the seed to be used for the random function. |
-| [`sign(x)`](#signx) | Returns the sign of `x` as -1, 0 or 1. |
+| [`sign(x)`](#signx) | Returns the sign of `x` as -1, 0, or 1. |
 | [`signbit(x)`](#signbitx) | Returns whether the signbit is set or not. |
 | [`sin(x)`](#sinx) | Computes the sin of `x`. |
+| [`sinh(x)`](#sinhx) | Computes the hyperbolic sine of `x`. |
 | [`sqrt(x)`](#sqrtx) | Returns the square root of the number. |
 | [`subtract(x, y)`](#subtractx-y) | Alias for `x - y`. |
 | [`tan(x)`](#tanx) | Computes the tangent of `x`. |
+| [`tanh(x)`](#tanhx) | Computes the hyperbolic tangent of `x`. |
 | [`trunc(x)`](#truncx) | Truncates the number. |
 | [`xor(x, y)`](#xorx-y) | Bitwise XOR. |
 
@@ -193,6 +202,14 @@ The table below shows the available mathematical functions.
 | **Example** | `atan2(0.5, 0.5)` |
 | **Result** | `0.7853981633974483` |
 
+#### `binom(n, k)`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Computes the binomial coefficient of `n` and `k`, i.e., the number of ways to choose `k` elements from a set of `n` elements. Returns a `HUGEINT`. |
+| **Example** | `binom(5, 2)` |
+| **Result** | `10` |
+
 #### `bit_count(x)`
 
 <div class="nostroke_table"></div>
@@ -233,6 +250,14 @@ The table below shows the available mathematical functions.
 | **Example** | `cos(pi() / 3)` |
 | **Result** | `0.5000000000000001 ` |
 
+#### `cosh(x)`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Computes the hyperbolic cosine of `x`. |
+| **Example** | `cosh(1)` |
+| **Result** | `1.5430806348152437` |
+
 #### `cot(x)`
 
 <div class="nostroke_table"></div>
@@ -240,6 +265,16 @@ The table below shows the available mathematical functions.
 | **Description** | Computes the cotangent of `x`. |
 | **Example** | `cot(0.5)` |
 | **Result** | `1.830487721712452` |
+
+#### `decimal_division(x, y)`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Divides the `DECIMAL` value `x` by `y` using exact decimal arithmetic with round-half-to-even, returning a `DECIMAL` rather than a `DOUBLE`. An optional third argument sets the scale of the result. |
+| **Example** | `decimal_division(10.00, 4.00)` |
+| **Result** | `2.500000` |
+
+> New The `decimal_division` function was added in DuckDB 2.0.
 
 #### `degrees(x)`
 
@@ -281,11 +316,13 @@ The table below shows the available mathematical functions.
 | **Example** | `factorial(4)` |
 | **Result** | `24` |
 
+> Note In DuckDB 2.0, the `!` operator binds more tightly than in earlier versions. For example, `SELECT 2 * 3!;` now returns `12` (`2 * (3!)`), while in v1.5 it returned `720` (`(2 * 3)!`). Use parentheses to get the old behavior, e.g., `SELECT (2 * 3)!;`.
+
 #### `fdiv(x, y)`
 
 <div class="nostroke_table"></div>
 
-| **Description** | Performs integer division (`x // y`) but returns a `DOUBLE` value. |
+| **Description** | Performs integer division (`x // y`) using the floored definition and returns a `DOUBLE` value. |
 | **Example** | `fdiv(5, 2)` |
 | **Result** | `2.0` |
 
@@ -301,7 +338,7 @@ The table below shows the available mathematical functions.
 
 <div class="nostroke_table"></div>
 
-| **Description** | Calculates the modulo value. Always returns a `DOUBLE` value. |
+| **Description** | Calculates the modulo value using the floored definition. Always returns a `DOUBLE` value. |
 | **Example** | `fmod(5, 2)` |
 | **Result** | `1.0` |
 
@@ -516,7 +553,7 @@ The table below shows the available mathematical functions.
 
 <div class="nostroke_table"></div>
 
-| **Description** | Returns the sign of `x` as -1, 0 or 1. |
+| **Description** | Returns the sign of `x` as -1, 0, or 1. |
 | **Example** | `sign(-349)` |
 | **Result** | `-1` |
 
@@ -535,6 +572,14 @@ The table below shows the available mathematical functions.
 | **Description** | Computes the sin of `x`. |
 | **Example** | `sin(pi() / 6)` |
 | **Result** | `0.49999999999999994` |
+
+#### `sinh(x)`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Computes the hyperbolic sine of `x`. |
+| **Example** | `sinh(1)` |
+| **Result** | `1.1752011936438014` |
 
 #### `sqrt(x)`
 
@@ -559,6 +604,14 @@ The table below shows the available mathematical functions.
 | **Description** | Computes the tangent of `x`. |
 | **Example** | `tan(pi() / 4)` |
 | **Result** | `0.9999999999999999` |
+
+#### `tanh(x)`
+
+<div class="nostroke_table"></div>
+
+| **Description** | Computes the hyperbolic tangent of `x`. |
+| **Example** | `tanh(1)` |
+| **Result** | `0.7615941559557649` |
 
 #### `trunc(x)`
 

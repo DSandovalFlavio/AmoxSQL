@@ -1,0 +1,1863 @@
+/* ============================================================
+ * Execution Chain — DAG Builder Styles
+ * ============================================================ */
+
+/* ── Chain Editor Container ── */
+.chain-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--surface-base);
+  position: relative;
+}
+
+.chain-editor-body {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  padding: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* El lienzo es una tarjeta que se encoge cuando se abre la tabla. Lo que flota
+   sobre el —la barra de acciones, el nodo expandido— vive aqui dentro, asi que
+   se centra en el lienzo sin tener que descontar nada. */
+.chain-flow-area {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-base);
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Chain Canvas ── */
+.chain-canvas-container {
+  flex: 1;
+  height: 100%;
+}
+
+.chain-canvas-container .react-flow__pane {
+  cursor: grab;
+}
+
+.chain-canvas-container .react-flow__pane:active {
+  cursor: grabbing;
+}
+
+/* Minimap theming */
+.chain-minimap {
+  background: var(--surface-overlay) !important;
+  border: 1px solid var(--border-default) !important;
+  border-radius: 8px !important;
+  box-shadow: var(--shadow-md) !important;
+}
+
+/* ── Tool buttons (right side, icon + small label) ── */
+
+@keyframes chain-save-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── AI prompt bar — second toolbar row (docs/dev/auditoria_dataflow_ux.md
+   feedback: used to float over the canvas as a detached pill, covering
+   whatever node was underneath it; moved here for a permanent, non-
+   overlapping home). Deliberately quieter than Run All — a bordered
+   button, not a solid accent fill — so it reads as a secondary tool next
+   to the primary run action in the row above, not a competing CTA. */
+
+/* ── Chain Node (Base) ──
+   Nodes expose only --node-accent (category color, mode-neutral) and
+   optionally --node-border-override (states/errors). Background and border
+   are DERIVED from the accent + theme surfaces so they react to dark/light. */
+/* La tarjeta es NEUTRA. El color de categoría (--node-accent) vive solo en el
+   icono, el badge y el handle: informa en vez de decorar. Antes la tarjeta se
+   bañaba con un 7% del acento de categoría y el lienzo se leía como un mosaico.
+   --node-border-override se conserva: los estados de error sí tiñen el borde. */
+.chain-node {
+  background: var(--surface-raised);
+  border: 1px solid var(--node-border-override, var(--border-default));
+  border-radius: 10px;
+  padding: 8px 12px;
+  min-width: 180px;
+  max-width: 260px;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+  font-family: inherit;
+}
+
+.chain-node:hover {
+  box-shadow: 0 0 0 1px color-mix(in oklch, var(--node-accent, var(--accent-primary)) 45%, var(--border-strong)), var(--shadow-md);
+}
+
+.chain-node-selected {
+  box-shadow: 0 0 0 2px var(--accent-primary), var(--shadow-lg) !important;
+}
+
+.chain-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+/* -- Configuracion inline del nodo (fase 7) --
+   Los campos viven DENTRO de la tarjeta al expandirla. Solo entran los de texto
+   libre; el resto sigue en el panel, al que se llega con "More settings".
+   La tarjeta crece y react-flow re-mide su alto solo, asi que las aristas se
+   re-enrutan sin intervencion. */
+
+/* Este contenedor NUNCA tuvo regla propia: era un div sin estilar, o sea
+   display:block. Sus hijos (el boton de validacion, el estado, y ahora el de
+   ejecutar) son todos block-level, asi que se apilaban en vertical. No se veia
+   porque hasta ahora rara vez habia mas de uno a la vez; al anadir el boton de
+   ejecutar quedaron dos y la cabecera crecio a dos filas al pasar el raton. */
+.chain-node-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+/* El icono es el unico portador del color de categoria en la cabecera (junto al
+   handle). Sustituye al badge relleno, que compettia con la etiqueta del nodo. */
+.chain-node-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--node-accent, var(--accent-primary));
+}
+
+/* Ejecutar solo este nodo. Aparece con la barra de acciones para no llenar de
+   botones un lienzo en reposo. */
+.chain-node-run {
+  display: grid;
+  place-items: center;
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-success-text);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.chain-node-run:hover { background: var(--hover-bg); }
+
+.chain-node-status {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+}
+
+.chain-node-duration {
+  font-size: 11px;
+  opacity: 0.7;
+  font-family: var(--font-sans);
+}
+
+.chain-node-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+
+.chain-node-description {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+
+.chain-node-config-summary {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 3px 6px;
+  background: var(--surface-inset);
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
+.chain-node-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.chain-node-result-type {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-success-text);
+  text-transform: uppercase;
+}
+
+.chain-node-result-detail {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-sans);
+}
+
+/* Fase 5 — the config changed since this result was produced */
+.chain-node-stale-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+  color: var(--color-warning-text);
+  background: var(--color-warning-bg);
+  width: 100%;
+  margin-bottom: 3px;
+}
+
+.chain-node-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: var(--color-error-bg);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--color-error-text);
+}
+
+.chain-node-error span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Handles */
+.chain-handle {
+  width: 8px !important;
+  height: 8px !important;
+  background: color-mix(in oklch, var(--node-accent, var(--accent-primary)) 55%, var(--border-strong)) !important;
+  border: 2px solid var(--surface-raised) !important;
+}
+
+.chain-handle:hover {
+  background: var(--accent-primary) !important;
+}
+
+/* Spin animation */
+.chain-node-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ── Node action bar (Fase 1 — docs/dev/auditoria_dataflow_ux.md) ──
+   Floats above the node on hover/select: the actions the user needs live
+   where their attention already is, instead of a toolbar far away. */
+.chain-node-actionbar {
+  position: absolute;
+  left: 50%;
+  top: -34px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  box-shadow: var(--shadow-lg);
+  white-space: nowrap;
+  z-index: 20;
+}
+
+.chain-node-actionbar button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.chain-node-actionbar button:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-node-actionbar-key {
+  color: var(--accent-primary) !important;
+}
+
+.chain-node-actionbar-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--border-default);
+}
+
+/* Fase 4 — "+" quick-add, sitting clear of the output handle.
+   The handle (.react-flow__handle-right, from @xyflow/react's base
+   stylesheet) is centered exactly ON the node's right edge — ~12px wide
+   (8px + our 2px border from .chain-handle), spanning roughly -6px to
+   +6px from the edge. This button used to start at right:-13px (an 18px
+   circle spanning roughly -5px to +13px), overlapping nearly the whole
+   handle and rendering as one fused, illegible cluster instead of two
+   distinct controls. Pushed further out so there's a clear gap after
+   the handle's edge instead of sitting on top of it. */
+.chain-node-quickadd {
+  position: absolute;
+  right: -32px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 0;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  z-index: 5;
+}
+
+.chain-node-quickadd:hover {
+  color: var(--accent-primary);
+}
+
+/* Disabled node — a transparent passthrough, dimmed to read as "off" */
+.chain-node-disabled {
+  opacity: 0.5;
+}
+
+.chain-node-disabled-badge {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-tertiary);
+}
+
+/* ── Node "…" / right-click menu ── */
+.chain-node-menu {
+  position: fixed;
+  min-width: 178px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+  z-index: 10001;
+}
+
+.chain-node-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 9px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.chain-node-menu-item:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-node-menu-item-danger {
+  color: var(--color-error-text);
+}
+
+.chain-node-menu-item-danger:hover {
+  background: var(--color-error-bg);
+}
+
+.chain-node-menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-default);
+}
+
+/* ── Node type picker (Fase 4 — the "+" quick-add menu) ── */
+.chain-typepicker {
+  position: fixed;
+  width: 230px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 10001;
+  overflow: hidden;
+}
+
+.chain-typepicker-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+}
+
+.chain-typepicker-search input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.chain-typepicker-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.chain-typepicker-empty {
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+}
+
+.chain-typepicker-cat {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  padding: 7px 8px 3px;
+}
+
+.chain-typepicker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.chain-typepicker-item:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-typepicker-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: var(--surface-inset);
+  flex-shrink: 0;
+}
+
+/* Node documentation — modal (from palette) + Info tab (config panel) */
+.chain-doc-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+}
+
+.chain-doc-modal {
+  position: relative;
+  width: min(440px, 92vw);
+  max-height: 82vh;
+  overflow-y: auto;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: var(--shadow-lg);
+}
+
+.chain-doc-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.chain-doc-modal-close:hover {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+}
+
+.node-doc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.node-doc-empty {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.node-doc-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-right: 28px;
+}
+
+.node-doc-icon {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid;
+}
+
+.node-doc-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.node-doc-summary {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.node-doc-summary-lead {
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.node-doc-text {
+  margin: 0 0 12px;
+}
+
+.node-doc-io {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: var(--surface-overlay);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.node-doc-io-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.node-doc-io-in { color: var(--color-info-text); flex-shrink: 0; }
+.node-doc-io-out { color: var(--color-success-text); flex-shrink: 0; }
+
+.node-doc-io-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  min-width: 44px;
+}
+
+.node-doc-io-val {
+  flex: 1;
+  color: var(--text-secondary);
+}
+
+.node-doc-section {
+  margin-bottom: 12px;
+}
+
+.node-doc-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+
+.node-doc-options {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.node-doc-option dt {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 11.5px;
+}
+
+.node-doc-option dd {
+  margin: 1px 0 0;
+  color: var(--text-secondary);
+}
+
+.node-doc-list {
+  margin: 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.node-doc-list li {
+  color: var(--text-secondary);
+}
+
+.node-doc-tips {
+  list-style: none;
+  padding-left: 0;
+}
+
+.node-doc-tips li {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.node-doc-tip-icon {
+  color: var(--color-warning-text);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ── Config Panel ── */
+
+.chain-config-close {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.chain-config-close:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+.chain-config-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chain-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chain-config-field label,
+.chain-config-section label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.chain-config-input {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 120ms ease;
+  box-sizing: border-box;
+}
+
+.chain-config-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.chain-config-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color 120ms ease;
+  box-sizing: border-box;
+}
+
+.chain-config-textarea:focus {
+  border-color: var(--accent-primary);
+}
+
+.chain-config-sql {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.chain-config-select {
+  width: 100%;
+  padding: 6px 8px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.chain-config-select:focus {
+  border-color: var(--accent-primary);
+}
+
+.chain-config-separator {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 0;
+}
+
+.chain-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chain-config-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.chain-config-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.chain-config-action-btn:hover {
+  background: var(--hover-bg);
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.chain-config-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.chain-config-hint.chain-config-warning {
+  color: var(--color-warning-text);
+}
+
+.chain-config-hint-info {
+  color: var(--color-info-text);
+  background: var(--color-info-bg);
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 2px solid var(--feedback-info-border);
+  margin-top: 4px;
+}
+
+.chain-config-optional {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+/* ── Dynamic List Rows (Filter conditions, Group columns, etc.) ── */
+
+.chain-config-condition-row,
+.chain-config-inline-row,
+.chain-config-agg-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.chain-config-column-def {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+  padding: 6px;
+  background: var(--surface-overlay);
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  position: relative;
+}
+
+.chain-config-column-def .chain-config-remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+}
+
+.chain-config-column-builder {
+  margin-bottom: 8px;
+}
+
+.chain-config-column-builder .chain-config-column-def {
+  margin-bottom: 4px;
+}
+
+.chain-config-builder-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 2px;
+}
+
+.chain-config-snippet-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.chain-config-chip-btn {
+  padding: 2px 7px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.chain-config-chip-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--surface-raised, var(--surface-overlay));
+}
+
+.chain-config-input-sm {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px !important;
+  font-size: 11px !important;
+}
+
+.chain-config-select-sm {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 60px;
+  padding: 4px 6px !important;
+  font-size: 11px !important;
+}
+
+.chain-config-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px dashed var(--border-default);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+  margin-top: 4px;
+  width: 100%;
+  justify-content: center;
+}
+
+.chain-config-add-btn:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  background: var(--surface-overlay);
+}
+
+.chain-config-remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.chain-config-remove-btn:hover {
+  background: var(--color-error-bg);
+  border-color: var(--feedback-error-border);
+  color: var(--color-error-text);
+}
+
+/* ── SQL Preview ── */
+.chain-config-sql-preview {
+  margin-top: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.chain-config-sql-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--surface-overlay);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+  transition: background 120ms ease;
+}
+
+.chain-config-sql-preview-header:hover {
+  background: var(--hover-bg);
+}
+
+.chain-config-sql-copy {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+  padding: 2px 6px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  color: var(--text-tertiary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, opacity 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+}
+
+.chain-config-sql-copy:hover {
+  background: var(--surface-overlay);
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.chain-config-sql-preview-code {
+  margin: 0;
+  padding: 8px 10px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  background: var(--surface-base);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.chain-config-sql-preview-empty {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+/* ── Inspector (Fase 2) — permanent right panel; never conditionally
+   mounted, so it never depends on the chain having run. ── */
+/* Tarjeta hermana del lienzo, no encima de el. Flotando obligaba a que el
+   encuadre, la barra y el fondo de la configuracion la descontaran cada uno por
+   su cuenta, y cualquier elemento nuevo sobre el lienzo heredaba el problema.
+   Como hermana, no puede tapar nada. */
+.chain-inspector {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.chain-inspector-resize {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 6;
+}
+
+.chain-inspector-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.chain-inspector-empty p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.chain-inspector-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.chain-inspector-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain-inspector-pinned-tag {
+  font-size: 11px;
+  color: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 3px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.chain-inspector-body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chain-inspector-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+.chain-inspector-table-wrap {
+  overflow: auto;
+  flex: 1;
+}
+
+.chain-inspector-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+}
+
+.chain-inspector-table thead th {
+  position: sticky;
+  top: 0;
+  text-align: left;
+  padding: 5px 9px;
+  background: var(--surface-inset);
+  color: var(--text-active);
+  border-bottom: 1px solid var(--border-default);
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.chain-inspector-table tbody td {
+  padding: 4px 9px;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain-inspector-table tbody tr:hover td {
+  background: var(--hover-bg);
+}
+
+.chain-inspector-null {
+  opacity: 0.45;
+  font-style: italic;
+}
+
+.chain-inspector-schema {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.chain-inspector-schema-section label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin-bottom: 5px;
+}
+
+.chain-inspector-schema-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  color: var(--text-active);
+}
+
+.chain-inspector-schema-row:nth-child(odd) {
+  background: var(--surface-inset);
+}
+
+.chain-inspector-schema-type {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.chain-inspector-sql {
+  margin: 0;
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  white-space: pre;
+  overflow: auto;
+  flex: 1;
+}
+
+.chain-inspector-log {
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.9;
+  overflow: auto;
+}
+
+.chain-inspector-log-line {
+  display: flex;
+  gap: 8px;
+  color: var(--text-secondary);
+}
+
+.chain-inspector-log-time {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+.chain-inspector-log-error { color: var(--color-error-text); }
+.chain-inspector-log-success { color: var(--color-success-text); }
+.chain-inspector-log-sql { color: var(--text-tertiary); font-style: italic; }
+
+/* ── History Panel ── */
+.chain-history-panel {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 340px;
+  background: var(--surface-raised);
+  border-left: 1px solid var(--border-default);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+  box-shadow: var(--shadow-lg);
+}
+
+.chain-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chain-history-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.chain-history-loading,
+.chain-history-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+.chain-history-run {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+
+.chain-history-run-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: background 120ms ease;
+  font-size: 11px;
+}
+
+.chain-history-run-header:hover {
+  background: var(--hover-bg);
+}
+
+.chain-history-run-expand {
+  color: var(--text-tertiary);
+}
+
+.chain-history-run-date {
+  color: var(--text-primary);
+  flex: 1;
+  font-size: 11px;
+}
+
+.chain-history-run-mode {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  padding: 1px 5px;
+  background: var(--surface-inset);
+  border-radius: 3px;
+}
+
+.chain-history-run-count {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.chain-history-run-duration {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.chain-history-run-legacy {
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.chain-history-run-delete {
+  background: transparent;
+  border: none;
+  color: var(--text-disabled);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+}
+
+.chain-history-run-delete:hover {
+  color: var(--color-error-text);
+  background: var(--color-error-bg);
+}
+
+.chain-history-nodes {
+  padding: 4px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.chain-history-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  border-radius: 4px;
+}
+
+.chain-history-node:hover {
+  background: var(--hover-bg);
+}
+
+.chain-history-node-label {
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain-history-node-type {
+  color: var(--text-disabled);
+  font-size: 11px;
+}
+
+.chain-history-node-duration {
+  color: var(--text-tertiary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.chain-history-node-result {
+  color: var(--color-success-text);
+  font-size: 11px;
+}
+
+.chain-history-node-error {
+  color: var(--color-error-text);
+  font-size: 11px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain-history-resume {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 8px 8px;
+  padding: 6px;
+  background: var(--accent-primary);
+  color: var(--button-text-color);
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chain-history-resume:hover {
+  opacity: 0.9;
+}
+
+/* ── Status Bar ── */
+.chain-status-bar {
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.chain-status-running {
+  background: var(--color-info-bg);
+  color: var(--color-info-text);
+}
+
+.chain-status-completed {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.chain-status-failed {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+}
+
+.chain-status-paused {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.chain-status-cancelled {
+  background: var(--surface-inset);
+  color: var(--text-tertiary);
+}
+
+/* ── React Flow Edge Animations ── */
+.chain-canvas-container .react-flow__edge-path {
+  stroke: var(--border-strong);
+  stroke-width: 2;
+}
+
+.chain-canvas-container .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--accent-primary);
+  stroke-width: 3;
+}
+
+.chain-canvas-container .react-flow__connection-line {
+  stroke: var(--accent-primary);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+}
+
+/* ── Chain: Node validation indicators ── */
+.chain-node-validation-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  background: transparent;
+  transition: transform 0.15s;
+}
+
+.chain-node-validation-btn:hover {
+  transform: scale(1.2);
+}
+
+.chain-node-validation-popup {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 8px 10px;
+  min-width: 200px;
+  max-width: 280px;
+  box-shadow: var(--shadow-md);
+  margin-top: 4px;
+}
+
+.chain-node-validation-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 11px;
+  line-height: 1.4;
+  margin-bottom: 3px;
+}
+
+/* ── Chain: Node preview button ── */
+
+/* ── Chain: Log panel ── */
+.chain-log-panel {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border-default);
+  background: var(--surface-inset);
+  height: 200px;
+  min-height: 120px;
+  max-height: 400px;
+  position: relative;
+}
+
+.chain-log-panel-collapsed {
+  height: 32px;
+  min-height: 32px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.chain-log-panel-collapsed:hover {
+  background: var(--hover-bg);
+}
+
+.chain-log-panel-collapsed-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 32px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.chain-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border-default);
+  flex-shrink: 0;
+}
+
+.chain-log-header-left,
+.chain-log-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chain-log-panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.chain-log-count {
+  font-size: 11px;
+  background: var(--surface-overlay);
+  color: var(--text-muted);
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.chain-log-running-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+  animation: chain-log-pulse 1s ease-in-out infinite;
+}
+
+@keyframes chain-log-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.chain-log-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.chain-log-btn:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-log-filter-popup {
+  position: absolute;
+  top: 34px;
+  right: 80px;
+  z-index: 100;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.chain-log-filter-option {
+  display: block;
+  width: 100%;
+  padding: 6px 14px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.chain-log-filter-option:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.chain-log-filter-option.active {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.chain-log-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.chain-log-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: var(--font-sans);
+}
+
+.chain-log-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 10px;
+  line-height: 1.4;
+}
+
+.chain-log-entry:hover {
+  background: var(--hover-bg);
+}
+
+.chain-log-time {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  min-width: 86px;
+}
+
+.chain-log-prefix {
+  font-size: 11px;
+  min-width: 12px;
+}
+
+.chain-log-node-label {
+  color: var(--text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.chain-log-message {
+  flex: 1;
+  word-break: break-all;
+}
+
+.chain-log-sql {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+}
+/* 6.0 (M10 · T5): plegado a una línea hasta que se pide entero. */
+.chain-log-sql { cursor: pointer; }
+.chain-log-sql--plegado {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  opacity: 0.75;
+}
+
+.chain-log-scroll-bottom {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.chain-log-scroll-bottom:hover {
+  background: var(--accent-primary);
+  color: var(--button-text-color);
+  border-color: var(--accent-primary);
+}
+
+/* ── Chain: Data preview modal ── */
+
+.chain-preview-error {
+  padding: 20px;
+  color: var(--color-error-text);
+  font-size: 13px;
+  background: var(--color-error-bg);
+  border-radius: var(--radius-md);
+  margin: 8px;
+}
+
+/* ── Chain: File picker input group ── */
+.chain-config-input-with-btn {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.chain-config-input-with-btn .chain-config-input {
+  flex: 1;
+}
+
+.chain-config-browse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.chain-config-browse-btn:hover {
+  background: var(--accent-primary);
+  color: white;
+  border-color: var(--accent-primary);
+}
+
+.chain-config-drop-active {
+  outline: 2px dashed var(--accent-primary);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Chain: Window function row ── */
+.chain-config-window-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+}
+
+/* ── Chain: Clean operation row ── */
+.chain-config-clean-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+}
+
+/* ── Chain: Progress bar ── */
+.chain-progress-bar {
+  height: 3px;
+  background: var(--border-default);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.chain-progress-bar-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  transition: width 0.4s ease;
+  min-width: 3%;
+}
+
+/* ── Chain: Status bar enhancements ── */
+.chain-status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.chain-status-dot-running {
+  background: var(--color-success);
+  animation: chain-log-pulse 1s ease-in-out infinite;
+}
+
+.chain-status-progress {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── Chain: Template Gallery ── */
+

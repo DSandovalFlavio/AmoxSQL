@@ -1,17 +1,19 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/functions/dateformat
 - /docs/sql/functions/dateformat
 - /docs/stable/sql/functions/dateformat
+- /docs/current/sql/functions/dateformat
+- /docs/lts/sql/functions/dateformat
+- /docs/preview/sql/functions/dateformat
 title: Date Format Functions
 ---
 
-The `strftime` and `strptime` functions can be used to convert between [`DATE`]({% link docs/current/sql/data_types/date.md %}) / [`TIMESTAMP`]({% link docs/current/sql/data_types/timestamp.md %}) values and strings. This is often required when parsing CSV files, displaying output to the user or transferring information between programs. Because there are many possible date representations, these functions accept a [format string](#format-specifiers) that describes how the date or timestamp should be structured.
+The `strftime` and `strptime` functions can be used to convert between [`DATE`]({% link docs/2.0/sql/data_types/date.md %}) / [`TIMESTAMP`]({% link docs/2.0/sql/data_types/timestamp.md %}) values and strings. This is often required when parsing CSV files, displaying output to the user, or transferring information between programs. Because there are many possible date representations, these functions accept a [format string](#format-specifiers) that describes how the date or timestamp should be structured.
 
 ## `strftime` Examples
 
-The [`strftime(timestamp, format)`]({% link docs/current/sql/functions/timestamp.md %}#strftimetimestamp-format) converts timestamps or dates to strings according to the specified pattern.
+The [`strftime(timestamp, format)`]({% link docs/2.0/sql/functions/timestamp.md %}#strftimetimestamp-format) converts timestamps or dates to strings according to the specified pattern.
 
 ```sql
 SELECT strftime(DATE '1992-03-02', '%d/%m/%Y');
@@ -31,7 +33,7 @@ Monday, 2 March 1992 - 08:32:45 PM
 
 ## `strptime` Examples
 
-The [`strptime(text, format)` function]({% link docs/current/sql/functions/timestamp.md %}#strptimetext-format) converts strings to timestamps according to the specified pattern.
+The [`strptime(text, format)` function]({% link docs/2.0/sql/functions/timestamp.md %}#strptimetext-format) converts strings to timestamps according to the specified pattern.
 
 ```sql
 SELECT strptime('02/03/1992', '%d/%m/%Y');
@@ -63,7 +65,11 @@ Could not parse string "02/50/1992" according to format specifier "%d/%m/%Y"
 Error: Month out of range, expected a value between 1 and 12
 ```
 
-To return `NULL` on failure, use the [`try_strptime` function]({% link docs/current/sql/functions/timestamp.md %}#try_strptimetext-format):
+To return `NULL` on failure, use the [`try_strptime` function]({% link docs/2.0/sql/functions/timestamp.md %}#try_strptimetext-format):
+
+```sql
+SELECT try_strptime('02/50/1992', '%d/%m/%Y') AS x;
+```
 
 ```text
 NULL
@@ -71,7 +77,7 @@ NULL
 
 ## CSV Parsing
 
-The date formats can also be specified during CSV parsing, either in the [`COPY` statement]({% link docs/current/sql/statements/copy.md %}) or in the `read_csv` function. This can be done by either specifying a `DATEFORMAT` or a `TIMESTAMPFORMAT` (or both). `DATEFORMAT` will be used for converting dates, and `TIMESTAMPFORMAT` will be used for converting timestamps. Below are some examples for how to use this.
+The date formats can also be specified during CSV parsing, either in the [`COPY` statement]({% link docs/2.0/sql/statements/copy.md %}) or in the `read_csv` function. This can be done by either specifying a `DATEFORMAT` or a `TIMESTAMPFORMAT` (or both). `DATEFORMAT` will be used for converting dates, and `TIMESTAMPFORMAT` will be used for converting timestamps. Below are some examples for how to use this.
 
 In a `COPY` statement:
 

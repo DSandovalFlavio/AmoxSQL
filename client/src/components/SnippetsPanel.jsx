@@ -2,6 +2,7 @@ import { API_BASE } from '../api.js';
 import { useEtiqueta } from '../etiqueta';
 import { useState, useEffect, memo } from 'react';
 import { LuSearch, LuClipboardCopy, LuPlus, LuTrash2, LuCode, LuChevronRight, LuChevronDown } from 'react-icons/lu';
+import VariablesDelProyecto from './VariablesDelProyecto';
 
 const BUILT_IN_SNIPPETS = [
     {
@@ -229,6 +230,8 @@ const SnippetsPanel = ({ onInsert }) => {
 
             {/* Snippet List */}
             <div style={{ flex: 1, overflowY: 'auto', paddingTop: '6px' }}>
+                {/* 6.0 (Dec-98): the project's variables, read anywhere as $name. */}
+                <VariablesDelProyecto busqueda={search} onInsert={handleInsert} />
                 {filteredCategories.map(cat => {
                     const isExpanded = expandedCategories[cat.category] !== false; // default expanded
                     return (
@@ -237,14 +240,14 @@ const SnippetsPanel = ({ onInsert }) => {
                                 onClick={() => toggleCategory(cat.category)}
                                 style={{
                                     padding: '10px 14px 4px', display: 'flex', alignItems: 'center', gap: '6px',
-                                    cursor: 'pointer', fontSize: '10px', fontWeight: 600,
+                                    cursor: 'pointer', fontSize: '11px', fontWeight: 600,
                                     color: 'var(--text-disabled)', textTransform: 'uppercase', letterSpacing: '0.5px',
                                 }}
                             >
                                 {isExpanded ? <LuChevronDown size={10} /> : <LuChevronRight size={10} />}
                                 {cat.category}
                                 <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle)' }} />
-                                <span style={{ fontSize: '9px', color: 'var(--text-disabled)' }}>{cat.snippets.length}</span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-disabled)' }}>{cat.snippets.length}</span>
                             </div>
                             {isExpanded && cat.snippets.map((snip, idx) => (
                                 <div
@@ -280,7 +283,7 @@ const SnippetsPanel = ({ onInsert }) => {
                                         </div>
                                     </div>
                                     {snip.description && (
-                                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', paddingLeft: '18px' }}>{snip.description}</span>
+                                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', paddingLeft: '18px' }}>{snip.description}</span>
                                     )}
                                 </div>
                             ))}

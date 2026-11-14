@@ -7,7 +7,7 @@
  * temas entre ellos**, qué zonas están cubiertas dos veces y cuáles no lo está
  * ninguna. Es el mapa, no el plano de la casa.
  *
- * Se GENERA por el mismo motivo que el otro: lee `client/src/index.css` con el
+ * Se GENERA por el mismo motivo que el otro: lee los estilos de `client/src/estilos/` (en el orden de `index.css`) con el
  * resolvedor compartido (lib/themeTokens.cjs), así que no puede desfasarse de lo
  * que la aplicación pinta de verdad. Un mapa de color escrito a mano miente en
  * la primera calibración que nadie copia.
@@ -236,7 +236,7 @@ const html = `<!DOCTYPE html>
   cubiertas dos veces y cuáles no lo está ninguna. <b>L</b> es la claridad en
   OKLCH —el mismo espacio en el que este proyecto declara los acentos—, <b>C</b>
   el croma (0 = gris perfecto) y <b>H</b> el tono. Generado desde
-  <code>client/src/index.css</code>; si cambia un token, cambia esto.
+  <code>client/src/estilos/</code>; si cambia un token, cambia esto.
 </p>
 
 <h2>El eje de intensidad — los oscuros</h2>

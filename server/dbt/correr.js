@@ -249,7 +249,37 @@ async function correr({ raiz, args, entorno, dbManager = null, env = {}, alLinea
     return { codigo: r.codigo, cancelado: !!r.cancelado, ms: Date.now() - inicio.getTime(), inicio, comando, lineas, noArranco, error: r.error || null };
 }
 
+/**
+ * ¿Hay un dbt en este entorno, y cuál? (6.0, M10 · T12). Lanza `dbt --version`
+ * con el entorno tal como lo lanzaría `correr` (sin proyecto: no hace falta) y
+ * devuelve { encontrado, version, descripcion, error }. Treinta segundos como
+ * mucho: un `conda run` en frío tarda.
+ */
+async function comprobarEntorno(entorno, { espera = 30000 } = {}) {
+    let c;
+    try { c = comandoDeEntorno(entorno); }
+    catch (e) { return { encontrado: false, version: null, descripcion: null, error: e.message }; }
+    return new Promise((resolve) => {
+        let salida = '';
+        let hijo;
+        const fin = (r) => { clearTimeout(reloj); resolve({ descripcion: c.descripcion, ...r }); };
+        try {
+            hijo = spawn(c.exe, [...c.pre, '--version'], { env: { ...process.env, DBT_USE_COLORS: 'false', ...c.env }, windowsHide: true });
+        } catch (e) { resolve({ encontrado: false, version: null, descripcion: c.descripcion, error: e.message }); return; }
+        const reloj = setTimeout(() => { terminar(hijo); fin({ encontrado: false, version: null, error: 'dbt did not answer in time.' }); }, espera);
+        hijo.stdout.on('data', d => { salida += d; });
+        hijo.stderr.on('data', d => { salida += d; });
+        hijo.on('error', (e) => fin({ encontrado: false, version: null, error: e.code === 'ENOENT' ? `dbt was not found (${c.descripcion}).` : e.message }));
+        hijo.on('close', (codigo) => {
+            // dbt 1.x: «Core: - installed: 1.10.2»; otras: «installed version: 1.x» o «dbt 2.0.11».
+            const m = salida.match(/installed(?: version)?:\s*v?(\d+\.\d+[\w.-]*)/i) || salida.match(/\bdbt[^\d\n]{0,20}(\d+\.\d+\.\d+[\w.-]*)/i);
+            if (codigo === 0 && m) fin({ encontrado: true, version: m[1], error: null });
+            else fin({ encontrado: false, version: null, error: (salida.trim().split(/\r?\n/).slice(-3).join(' ') || `dbt exited with code ${codigo}.`).slice(0, 400) });
+        });
+    });
+}
+
 module.exports = {
     ErrorDeDbt, ACCIONES, analizarComando, partir, textoDe, escribe,
-    versionDelMotor, carpetaDelEntornoPropio, entornoDelProyecto, comandoDeEntorno, correr,
+    versionDelMotor, carpetaDelEntornoPropio, entornoDelProyecto, comandoDeEntorno, correr, comprobarEntorno,
 };

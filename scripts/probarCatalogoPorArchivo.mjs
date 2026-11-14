@@ -9,6 +9,12 @@
  *   - una base con vistas así se adjunta con su nombre, y las vistas se leen;
  *   - una base sin ellas sigue siendo `user_db`;
  *   - tras prestarla (dbt) y recuperarla, si dbt dejó vistas así, también.
+ *
+ * 6.0: DuckDB 2 guarda la vista SIN el catálogo (`… FROM main.pedidos`), así que lo
+ * que escribe un motor 2 se lee como `user_db` sin más. Las vistas que escribió un
+ * motor 1.x (un dbt de antes, una base de la 5.x) conservan el catálogo: ése es el
+ * caso que sigue necesitando el alias, con una base escrita por 1.5.6
+ * (`scripts/fixtures/motor/vistas_con_catalogo_v15.duckdb`).
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -53,14 +59,16 @@ try {
     const sql = (query) => post('/api/query', { query });
     await post('/api/project/open', { path: P });
 
-    await escribir('tienda', [
-        'CREATE TABLE tienda.main.pedidos AS SELECT 1 AS id, 10 AS importe',
-        'CREATE VIEW tienda.main.stg AS SELECT * FROM "tienda"."main"."pedidos"',
-        'CREATE VIEW tienda.main.mart AS SELECT sum(importe) AS total FROM tienda.main.stg',
+    // Escrita por DuckDB 1.5.6: sus vistas nombran «tienda» (`… FROM tienda.main.pedidos`).
+    fs.copyFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures/motor/vistas_con_catalogo_v15.duckdb'), path.join(P, 'tienda.duckdb'));
+    await escribir('nueva', [
+        'CREATE TABLE nueva.main.pedidos AS SELECT 1 AS id, 10 AS importe',
+        'CREATE VIEW nueva.main.stg AS SELECT * FROM "nueva"."main"."pedidos"',
+        'CREATE VIEW nueva.main.mart AS SELECT sum(importe) AS total FROM nueva.main.stg',
     ]);
     await escribir('plana', ['CREATE TABLE plana.main.t AS SELECT 1 AS x', 'CREATE VIEW plana.main.v AS SELECT * FROM t']);
 
-    console.log('\nal abrir');
+    console.log('\nal abrir una base escrita por un motor 1.x');
     let h = await post('/api/db/connect', { path: 'tienda.duckdb' });
     comprobar('se abre', !h.error, JSON.stringify(h).slice(0, 200));
     let q = await sql('SELECT total FROM mart');
@@ -69,6 +77,13 @@ try {
     comprobar('  porque se adjuntó como «tienda»', q.data?.[0]?.c === 'tienda', JSON.stringify(q.data));
     q = await sql('SELECT count(*) AS n FROM pedidos');
     comprobar('  y los nombres sin catálogo siguen funcionando', q.data?.[0]?.n == 1);
+
+    console.log('\nal abrir una base escrita por DuckDB 2');
+    h = await post('/api/db/connect', { path: 'nueva.duckdb' });
+    q = await sql('SELECT total FROM mart');
+    comprobar('sus vistas se leen', !h.error && q.data?.[0]?.total == 10, JSON.stringify(q).slice(0, 200));
+    q = await sql("SELECT current_database() AS c, (SELECT sql FROM duckdb_views() WHERE view_name = 'stg' AND NOT internal) AS s");
+    comprobar('  como user_db: 2.0 guardó la vista sin el catálogo', q.data?.[0]?.c === 'user_db' && !/nueva/.test(q.data[0].s), JSON.stringify(q.data));
 
     h = await post('/api/db/connect', { path: 'plana.duckdb' });
     q = await sql('SELECT current_database() AS c, (SELECT count(*) FROM v) AS n');

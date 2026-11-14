@@ -1,9 +1,14 @@
 ---
 layout: docu
+redirect_from:
+- /docs/current/sql/data_types/variant
+- /docs/lts/sql/data_types/variant
+- /docs/preview/sql/data_types/variant
+- /docs/stable/sql/data_types/variant
 title: Variant Type
 ---
 
-The `VARIANT` type stores typed, binary data where each row is self-contained with its own type information. This differs from the [JSON type]({% link docs/current/data/json/json_type.md %}), which is physically stored as text. Because type metadata is embedded per-value, `VARIANT` provides better compression and query performance than JSON for semi-structured data.
+The `VARIANT` type stores typed, binary data where each row is self-contained with its own type information. This differs from the [JSON type]({% link docs/2.0/data/json/json_type.md %}), which is physically stored as text. Because type metadata is embedded per-value, `VARIANT` provides better compression and query performance than JSON for semi-structured data.
 
 The `VARIANT` type is inspired by [Snowflake's semi-structured `VARIANT` data type](https://docs.snowflake.com/en/sql-reference/data-types-semistructured). It is available [in Parquet since 2025](https://github.com/apache/parquet-format/blob/master/VariantEncoding.md) and also supported by DuckDB's [Parquet reader](#parquet-support).
 
@@ -32,9 +37,11 @@ SELECT * FROM events;
 │     1 │ 42                         │
 │     2 │ hello world                │
 │     3 │ [1, 2, 3]                  │
-│     4 │ {'name': Alice, 'age': 30} │
+│     4 │ {'age': 30, 'name': Alice} │
 └───────┴────────────────────────────┘
 ```
+
+Note that the keys of `VARIANT` objects are sorted: `{'name': 'Alice', 'age': 30}::VARIANT` is returned as `{'age': 30, 'name': Alice}`.
 
 ### Checking the Type of a Value
 
@@ -53,7 +60,7 @@ FROM events;
 │     1 │ 42                         │ INT32             │
 │     2 │ hello world                │ VARCHAR           │
 │     3 │ [1, 2, 3]                  │ ARRAY(3)          │
-│     4 │ {'name': Alice, 'age': 30} │ OBJECT(name, age) │
+│     4 │ {'age': 30, 'name': Alice} │ OBJECT(age, name) │
 └───────┴────────────────────────────┴───────────────────┘
 ```
 
@@ -78,9 +85,21 @@ SELECT variant_extract(data, 'name') AS name FROM events WHERE id = 4;
 └─────────┘
 ```
 
+## Storage
+
+> New Shredding `VARIANT` columns in DuckDB's storage was introduced in DuckDB 2.0.
+
+When storing `VARIANT` columns in a DuckDB database file, DuckDB 2.0 automatically detects the common structure of the values and *shreds* them, i.e., stores the fields that share a type as separate, typed columns. Shredded data compresses well and can be scanned efficiently.
+
+Shredding is only applied to row groups with at least `variant_minimum_shredding_size` rows (by default, 30,000 rows, roughly one fourth of the default row group size). Setting it to `-1` disables shredding:
+
+```sql
+SET variant_minimum_shredding_size = -1;
+```
+
 ## Parquet Support
 
-DuckDB supports reading and writing `VARIANT` types from [Parquet files]({% link docs/current/data/parquet/overview.md %}), including *shredding,* a technique that stores nested data as flat values for more efficient access.
+DuckDB supports reading and writing `VARIANT` types from [Parquet files]({% link docs/2.0/data/parquet/overview.md %}), including *shredding,* a technique that stores nested data as flat values for more efficient access.
 
 ### Writing VARIANT to Parquet
 
@@ -98,3 +117,7 @@ COPY events TO 'events.parquet' (
 ### Reading Snowflake VARIANT from Parquet
 
 DuckDB can read shredded `VARIANT` Parquet files produced by Snowflake, automatically reconstructing the variant values from the shredded columns.
+
+## Functions
+
+See the [Variant Functions page]({% link docs/2.0/sql/functions/variant.md %}) for the functions that operate on `VARIANT` values.

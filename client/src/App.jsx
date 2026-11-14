@@ -6,37 +6,23 @@
 import { marcarReanudada } from './utils/copiaSinGuardar';
 import { API_BASE } from './api.js';
 import { importarRecientesUnaVez, requisitosQueFaltan, describirFaltantes, avisoDePurgaUnaVez } from './central.js';
-import { themeClassFor, modeClassFor, migrateTheme } from './theme.js';
-import { deriveLogoStops } from './utils/logoGradient.js';
-import { syncMonacoTheme } from './monacoTheme.js';
+import { AparienciaProvider, useApariencia } from './shell/Apariencia.jsx';
 import { tipoDePestana, nombreDe } from './utils/tiposDeArchivo.js';
 import { ATAJO_DE_EDITOR } from './utils/atajosEnMonaco.js';
-import { atajoDe } from './utils/atajos.js';
+import { atajoDe, teclasDe } from './utils/atajos.js';
 import { useState, useRef, useEffect, Suspense, lazy, useCallback, useMemo } from 'react';
 import FileExplorer from './components/FileExplorer';
 import DatabaseExplorer from './components/DatabaseExplorer';
-import ExtensionExplorer from './components/ExtensionExplorer';
-import SnippetsPanel from './components/SnippetsPanel';
-import DbtPanel from './components/DbtPanel';
-import GitPanel from './components/GitPanel';
-import SearchPanel from './components/SearchPanel';
-import QueryHistoryPanel from './components/QueryHistoryPanel';
 import SaveQueryModal from './components/SaveQueryModal';
-import ImportModal from './components/ImportModal';
-import ImportExcelModal from './components/ImportExcelModal';
 import LayoutManager from './components/LayoutManager';
 
 // New Components
 import WelcomeScreen from './components/WelcomeScreen';
-import WorkspaceWizard from './components/WorkspaceWizard';
 import WorkspacesHost from './components/workspaces/WorkspacesHost';
 import AvisoDeLlegadas from './components/fuentes/AvisoDeLlegadas';
 import AvisoProgramador from './components/AvisoProgramador';
-import FichaEjecucion from './components/FichaEjecucion';
 import VistaOperacion from './components/operacion/VistaOperacion';
-import ExportarProyecto from './components/paquete/ExportarProyecto';
 import AiAssistantPanel from './components/ai/AiAssistantPanel';
-import AiDivingPanel from './components/ai/AiDivingPanel';
 import ConversationList from './components/ai/ConversationList';
 // StatusBar removed — info redundant with ResultsTable + WindowTitleBar
 import CommandPalette, { buildDefaultActions } from './components/CommandPalette';
@@ -51,8 +37,22 @@ const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
 const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink, LuSearch, LuPin } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink, LuSearch, LuPin, LuLibraryBig, LuChevronRight } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
+// Paneles del lateral y diálogos que no hacen falta al arrancar: cada uno en su trozo (6.0, M8).
+const ExtensionExplorer = lazy(() => import('./components/ExtensionExplorer'));
+const SnippetsPanel = lazy(() => import('./components/SnippetsPanel'));
+const DbtPanel = lazy(() => import('./components/DbtPanel'));
+const GitPanel = lazy(() => import('./components/GitPanel'));
+const SearchPanel = lazy(() => import('./components/SearchPanel'));
+const QueryHistoryPanel = lazy(() => import('./components/QueryHistoryPanel'));
+const ImportModal = lazy(() => import('./components/ImportModal'));
+const ImportExcelModal = lazy(() => import('./components/ImportExcelModal'));
+const WorkspaceWizard = lazy(() => import('./components/WorkspaceWizard'));
+const FichaEjecucion = lazy(() => import('./components/FichaEjecucion'));
+const ExportarProyecto = lazy(() => import('./components/paquete/ExportarProyecto'));
+const Ayuda = lazy(() => import('./components/ayuda/Ayuda'));
+const PanelCargando = <div style={{ padding: 20, color: 'var(--text-muted)' }}>Loading...</div>;
 // Lazy: pulls react-markdown (for the curated docs' GFM tables) into its own chunk.
 const FunctionReference   = lazy(() => import('./components/FunctionReference'));
 import OnboardingHost from './components/onboarding/OnboardingHost';
@@ -64,6 +64,17 @@ import './index.css';
 import PopoutResultsPage from './components/PopoutResultsPage';
 import { escribirAmoxvis } from './components/DataVisualizer/vega/figura';
 import { focoDe } from './utils/memoriaDePestana';
+import { emitir } from './eventos.js';
+
+/** Una entrada del menú de una pestaña: icono, texto y, si lo tiene, su atajo. */
+function EntradaMenuPestana({ icono: Icono, texto, atajo, onClick }) {
+  return (
+    <div className="column-context-menu-item" role="menuitem" onClick={onClick}>
+      <Icono size={13} /> <span className="menu-pestana-texto">{texto}</span>
+      {atajo && <kbd className="menu-pestana-atajo">{atajo}</kbd>}
+    </div>
+  );
+}
 
 // App Phases
 const PHASE = {
@@ -74,12 +85,32 @@ const PHASE = {
 // Check if this window is a pop-out results window
 const isPopoutMode = new URLSearchParams(window.location.search).get('popout') === 'true';
 
-function App() {
-  // If this is a pop-out child window, render ONLY the results page
-  if (isPopoutMode) {
-    return <PopoutResultsPage />;
-  }
+// 6.0 (M3): which strip entry each sidebar panel belongs to.
+const GRUPO_DE_PANEL = {
+  files: 'files', search: 'search',
+  schema: 'data', extensions: 'data',
+  snippets: 'library', functions: 'library', history: 'library', vault: 'library',
+  dbt: 'dbt', git: 'git', deepdive: 'deepdive',
+};
+const PESTANAS_BIBLIOTECA = [
+  { id: 'snippets', label: 'Snippets', icon: LuCode, title: 'SQL snippets and project variables' },
+  { id: 'functions', label: 'Functions', icon: LuSquareFunction, title: 'DuckDB function reference' },
+  { id: 'history', label: 'History', icon: LuHistory, title: 'What you ran' },
+  { id: 'vault', label: 'Saved', icon: LuPackage, title: 'Saved analyses (Analysis Vault)' },
+];
 
+// La ventana emergente de resultados pinta sólo eso (y aplica el tema por su
+// cuenta); la principal es el shell, dentro de su apariencia (6.0, M8).
+function App() {
+  if (isPopoutMode) return <PopoutResultsPage />;
+  return (
+    <AparienciaProvider>
+      <Shell />
+    </AparienciaProvider>
+  );
+}
+
+function Shell() {
   const [appPhase, setAppPhase] = useState(PHASE.WELCOME);
   const toast = useToast();
   const dialog = useDialog();
@@ -144,6 +175,24 @@ function App() {
   useEffect(() => {
     setVisitedSidebarTabs(prev => prev.has(activeSidebarTab) ? prev : new Set(prev).add(activeSidebarTab));
   }, [activeSidebarTab]);
+  // 6.0 (M3): the strip shows groups, the panels keep their ids. Library holds four
+  // panels in tabs (it reopens on the last one used); Data holds the schema and,
+  // folded at the bottom, Extensions.
+  const [ultimaBiblioteca, setUltimaBiblioteca] = useState('snippets');
+  useEffect(() => { if (GRUPO_DE_PANEL[activeSidebarTab] === 'library') setUltimaBiblioteca(activeSidebarTab); }, [activeSidebarTab]);
+  const [extensionesAbiertas, setExtensionesAbiertas] = useState(false);
+  // dbt only shows when the folder is a dbt project, Git only when it is a repository.
+  const [proyectoTiene, setProyectoTiene] = useState({ dbt: false, git: false });
+  /**
+   * Open a panel by its id from anywhere (palette, shortcuts): unfolds the sidebar,
+   * and `extensions` is a section of Data, so it opens Data with that section unfolded.
+   */
+  const mostrarPanel = useCallback((id) => {
+    if (id === 'extensions') { setExtensionesAbiertas(true); id = 'schema'; }
+    setSidebarCollapsed(false);
+    setActiveSidebarTab(id);
+  }, []);
+  const abrirGaleria = useCallback(() => setIsGalleryOpen(true), []);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(
     () => parseInt(localStorage.getItem('amoxsql-sidebar-width')) || 280
@@ -179,62 +228,10 @@ function App() {
 
   /* --- Project Workflow Handlers --- */
 
-  // Theme State
-  const [theme, setTheme] = useState(() => migrateTheme(localStorage.getItem('amoxsql-theme')));
-  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('amoxsql-accent') || 'cyan'); // 'cyan' | 'linear' | 'amox-2' .. 'amox-10'
-  // Luminosidad del acento. null = sin personalizar, se usa la L propia del preset.
-  // Guardarla como null en vez de un número evita aplanar la rampa amox-2..amox-10,
-  // que varía L y tono a la vez: cada preset conserva su identidad hasta que el
-  // usuario decide apartarse de ella.
-  const [accentL, setAccentL] = useState(() => {
-    const v = parseFloat(localStorage.getItem('amoxsql-accent-l'));
-    return Number.isFinite(v) ? v : null;
-  });
-  // L efectiva (la del override si lo hay, si no la propia del preset). Se calcula
-  // aquí y no en el modal de ajustes: React corre los efectos de hijo ANTES que
-  // los del padre, así que el modal leería el estilo calculado antes de que este
-  // componente hubiera cambiado la clase o quitado el override — y mostraría el
-  // valor anterior.
-  const [effectiveAccentL, setEffectiveAccentL] = useState(0.73);
-  // Resplandor del fondo: esquina y fuerza.
-  const [glowCorner, setGlowCorner] = useState(() => localStorage.getItem('amoxsql-glow-corner') || 'tl');
-  const [glowStrength, setGlowStrength] = useState(() => {
-    const v = parseInt(localStorage.getItem('amoxsql-glow-strength'), 10);
-    return Number.isFinite(v) ? v : 30;
-  });
-  // Cambiar de preset devuelve el slider a la L propia de ese acento. Se hace en
-  // el manejador y NO en un efecto sobre accentColor: en StrictMode los efectos
-  // corren dos veces al montar y la segunda pasada borraba la preferencia
-  // guardada. Atarlo a la acción del usuario en vez de al ciclo de vida lo evita.
-  const handleAccentChange = useCallback((id) => {
-    setAccentColor(id);
-    setAccentL(null);
-  }, []);
-  const [interfaceFont, setInterfaceFont] = useState(() => localStorage.getItem('amoxsql-ui-font') || 'manrope'); // interface font (separate from editor font)
-  const [editorLayout, setEditorLayout] = useState(() => localStorage.getItem('amoxsql-editor-layout') || 'horizontal'); // 'horizontal' | 'vertical'
+  // La apariencia (tema, acento, resplandor, fuente, zoom, editor) vive en shell/Apariencia.jsx (6.0, M8).
+  const { theme, setTheme, editorLayout, setUiZoomLevel, editorSettings, setEditorSettings, mergedEditorSettings } = useApariencia();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Editor & UI Preferences (centralized)
-  const [uiZoomLevel, setUiZoomLevel] = useState(() => {
-    return parseFloat(localStorage.getItem('amoxsql-ui-zoom')) || 1.0;
-  });
-
-  // Persist zoom to localStorage (main process handles the actual zoom)
-  useEffect(() => {
-    const t = setTimeout(() => localStorage.setItem('amoxsql-ui-zoom', uiZoomLevel.toString()), 150);
-    return () => clearTimeout(t);
-  }, [uiZoomLevel]);
-
-  // Listen for zoom changes from main process (Ctrl+Plus/Minus/0)
-  useEffect(() => {
-    if (window.electronAPI?.zoom?.onChanged) {
-      const cleanup = window.electronAPI.zoom.onChanged((factor) => {
-        const rounded = Math.round(factor * 10) / 10;
-        setUiZoomLevel(rounded);
-      });
-      return cleanup;
-    }
-  }, []);
 
   // Tell main.js the current project root, so exported files (chart PNG,
   // HTML/Word/PPT reports) default their Save As dialog into this project's
@@ -257,6 +254,14 @@ function App() {
     return () => window.removeEventListener('amox_abrir_ajustes', abrir);
   }, []);
 
+  // Help (6.0, M8): los atajos y las guías, fuera de Settings. `detail` es la sección.
+  const [ayuda, setAyuda] = useState(null);
+  useEffect(() => {
+    const abrir = (e) => setAyuda(e.detail || 'shortcuts');
+    window.addEventListener('amox_abrir_ayuda', abrir);
+    return () => window.removeEventListener('amox_abrir_ayuda', abrir);
+  }, []);
+
   useEffect(() => {
     if (projectPath && window.electronAPI?.setProjectRoot) {
       window.electronAPI.setProjectRoot(projectPath);
@@ -269,47 +274,12 @@ function App() {
     return window.electronAPI.onDownloadCompleted(({ path: savedPath, filename }) => {
       toast.success(`Guardado: ${filename}`, {
         action: window.electronAPI?.showItemInFolder
-          ? { label: 'Revelar en el explorador', onClick: () => window.electronAPI.showItemInFolder(savedPath) }
+          ? { label: 'Reveal in the explorer', onClick: () => window.electronAPI.showItemInFolder(savedPath) }
           : undefined,
       });
     });
   }, [toast]);
 
-  const [editorSettings, setEditorSettings] = useState(() => {
-    try {
-      const saved = localStorage.getItem('amoxsql-editor-settings');
-      return saved ? JSON.parse(saved) : {};
-    } catch { return {}; }
-  });
-  // Memoized so its identity is stable across re-renders — otherwise a new object
-  // every render would re-render every consumer (LayoutManager/editor) on each nav.
-  const mergedEditorSettings = useMemo(() => ({
-    fontSize: 14,
-    fontFamily: "'JetBrains Mono', 'Consolas', monospace",
-    minimap: false,
-    wordWrap: 'off',
-    lineNumbers: 'on',
-    tabSize: 4,
-    resultsFontSize: 13,
-    showRowNumbers: true,
-    stickyRowNumbers: true,
-    defaultViewMode: 'table',
-    mouseWheelZoom: true,
-    bracketPairColorization: true,
-    renderWhitespace: 'none',
-    smoothScrolling: false,
-    cursorStyle: 'line',
-    cursorBlinking: 'blink',
-    formatOnSave: false,
-    formatOnPaste: false,
-    markdownDefaultView: 'edit',
-    markdownToolbarVisible: true,
-    showWelcomeOnStart: true,
-    confirmBeforeDrop: true,
-    queryResultLimit: 10000,
-    autoSaveInterval: 0,
-    ...editorSettings,
-  }), [editorSettings]);
 
   // Implement Auto-Save
   useEffect(() => {
@@ -324,114 +294,6 @@ function App() {
     return () => clearInterval(interval);
   }, [mergedEditorSettings.autoSaveInterval]);
 
-  // Apply Theme & Mode Classes
-  useEffect(() => {
-    localStorage.setItem('amoxsql-theme', theme);
-    // Remove all theme classes first
-    // Se barren por prefijo en vez de por lista: una lista hay que acordarse de
-    // actualizarla al anadir o retirar un tema, y si se olvida quedan dos clases
-    // de tema puestas a la vez.
-    [...document.body.classList]
-        .filter(c => c.startsWith('theme-'))
-        .forEach(c => document.body.classList.remove(c));
-    document.body.classList.remove('mode-light', 'mode-dark');
-    // Theme class carries per-theme surfaces (dark/obsidian = default, no class)
-    const themeClass = themeClassFor(theme);
-    if (themeClass) document.body.classList.add(themeClass);
-    // Mode class carries everything that only depends on light-vs-dark, so that
-    // every light theme (each with its OWN theme class) still receives the light
-    // scrollbars, editor chrome, feedback ramps, etc.
-    document.body.classList.add(modeClassFor(theme));
-    // Re-theme Monaco from the now-current tokens (single `amox` theme, global).
-    syncMonacoTheme();
-  }, [theme]);
-
-  useEffect(() => {
-    localStorage.setItem('amoxsql-accent', accentColor);
-    // Remove all accent classes first
-    const classes = [...document.body.classList].filter(c => c.startsWith('accent-'));
-    classes.forEach(c => document.body.classList.remove(c));
-    // Apply new accent class (cyan = default, no class needed)
-    if (accentColor !== 'cyan') {
-      document.body.classList.add(`accent-${accentColor}`);
-    }
-    // The accent changes --accent-primary → re-theme Monaco (cursor/highlight).
-    syncMonacoTheme();
-  }, [accentColor]);
-
-  // Luminosidad del acento. Se aplica como estilo inline sobre body para ganarle
-  // a la clase .accent-*; al quitarla reaparece la L propia del preset.
-  // Depende también de accentColor: al cambiar de preset sin override activo, la
-  // L efectiva cambia aunque accentL siga siendo null. Va declarado DESPUÉS del
-  // efecto del acento, así que la clase ya está puesta cuando se lee.
-  useEffect(() => {
-    if (accentL == null) {
-      document.body.style.removeProperty('--acc-l');
-      localStorage.removeItem('amoxsql-accent-l');
-    } else {
-      document.body.style.setProperty('--acc-l', String(accentL));
-      localStorage.setItem('amoxsql-accent-l', String(accentL));
-    }
-    const v = parseFloat(getComputedStyle(document.body).getPropertyValue('--acc-l'));
-    setEffectiveAccentL(Number.isFinite(v) ? v : 0.73);
-    syncMonacoTheme();
-  }, [accentL, accentColor]);
-
-  // Degradado del logo. Se calcula en JS y no en CSS porque hacen falta dos cosas
-  // que una hoja de estilos no puede expresar: buscar el croma maximo dentro del
-  // gamut sRGB para cada tono (busqueda binaria) y rotar el tono hacia el azul
-  // por el camino corto sin pasarse de largo. Ver utils/logoGradient.js.
-  useEffect(() => {
-    const probe = document.createElement('span');
-    probe.style.cssText = 'position:absolute;opacity:0;pointer-events:none';
-    probe.style.color = 'var(--accent-primary)';
-    document.body.appendChild(probe);
-    const mode = modeClassFor(theme) === 'mode-light' ? 'light' : 'dark';
-    const stops = deriveLogoStops(getComputedStyle(probe).color, mode);
-    probe.remove();
-    if (stops) {
-      document.body.style.setProperty('--logo-grad-a', stops.a);
-      document.body.style.setProperty('--logo-grad-b', stops.b);
-    }
-  }, [accentColor, accentL, theme]);
-
-  // Esquina del resplandor del fondo.
-  useEffect(() => {
-    localStorage.setItem('amoxsql-glow-corner', glowCorner);
-    [...document.body.classList].filter(c => c.startsWith('glow-')).forEach(c => document.body.classList.remove(c));
-    document.body.classList.add(`glow-${glowCorner}`);
-  }, [glowCorner]);
-
-  // Fuerza del resplandor. Se escribe --glow-strength-user (no el efectivo), para
-  // que el modo claro pueda seguir escalándolo y no se ensucie el fondo.
-  useEffect(() => {
-    localStorage.setItem('amoxsql-glow-strength', String(glowStrength));
-    document.body.style.setProperty('--glow-strength-user', `${glowStrength}%`);
-  }, [glowStrength]);
-
-  useEffect(() => {
-    localStorage.setItem('amoxsql-editor-layout', editorLayout);
-  }, [editorLayout]);
-
-  // Apply interface font (separate from the code editor font, which uses --font-mono)
-  useEffect(() => {
-    localStorage.setItem('amoxsql-ui-font', interfaceFont);
-    const FAMILIES = {
-      manrope: "'Manrope', system-ui, sans-serif",
-      inter: "'Inter', system-ui, sans-serif",
-      lato: "'Lato', system-ui, sans-serif",
-      'ibm-plex': "'IBM Plex Sans', system-ui, sans-serif",
-      'space-grotesk': "'Space Grotesk', system-ui, sans-serif",
-      lora: "'Lora', Georgia, serif",
-      system: "system-ui, -apple-system, 'Segoe UI', sans-serif",
-    };
-    document.documentElement.style.setProperty('--font-sans', FAMILIES[interfaceFont] || FAMILIES.manrope);
-  }, [interfaceFont]);
-
-  useEffect(() => {
-    const t = setTimeout(() => localStorage.setItem('amoxsql-editor-settings', JSON.stringify(editorSettings)), 300);
-    return () => clearTimeout(t);
-  }, [editorSettings]);
 
   useEffect(() => {
     const t = setTimeout(() => localStorage.setItem('amoxsql-sidebar-width', String(sidebarWidth)), 150);
@@ -492,7 +354,7 @@ function App() {
       archivos: () => setActiveSidebarTab('files'),
       esquema: () => setActiveSidebarTab('schema'),
       ajustes: () => setIsSettingsOpen(true),
-      lista: () => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); },
+      lista: () => setAyuda('shortcuts'),
       cerrar: () => layoutRef.current?.closeActiveTab(),
       nuevoSql: () => layoutRef.current?.createNew('sql'),
       nuevoCuaderno: () => layoutRef.current?.createNew('notebook'),
@@ -509,7 +371,7 @@ function App() {
         const conSeleccion = info?.id && focoDe(info.id)?.seleccion;
         if (conSeleccion) {
           setShowAiSidebar(true);
-          window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion: 'preguntar', tabId: info.id } }));
+          emitir('amox_asistir', { accion: 'preguntar', tabId: info.id });
         } else {
           setShowAiSidebar(v => !v);
         }
@@ -628,7 +490,7 @@ function App() {
   const handleActivateSkill = useCallback((skillId) => {
     setShowAiSidebar(true);
     setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('amox_activate_skill', { detail: { skillId } }));
+      emitir('amox_activate_skill', { skillId });
     }, 100);
   }, [setShowAiSidebar]);
 
@@ -687,15 +549,15 @@ function App() {
       return;
     }
     const newName = await dialog.promptAsync({
-      title: 'Renombrar archivo',
-      message: `Nuevo nombre para "${meta.name}"`,
+      title: 'Rename file',
+      message: `New name for "${meta.name}"`,
       defaultValue: meta.name,
       validate: (v) => (!v.trim() ? 'The name cannot be empty' : null),
     });
     if (!newName || newName.trim() === meta.name) return;
     const result = await layoutRef.current?.renameTab(tabId, newName.trim());
     if (result && !result.success) {
-      toast.error(`No se pudo renombrar: ${result.error}`);
+      toast.error(`Could not rename: ${result.error}`);
     }
   }, [findTabMeta, dialog, toast]);
 
@@ -764,6 +626,12 @@ function App() {
       case 'closeAll':
         layoutRef.current?.closeAllTabsInPane(paneId);
         break;
+      case 'closeSaved':
+        layoutRef.current?.closeSavedTabsInPane(paneId);
+        break;
+      case 'reopen':
+        layoutRef.current?.reabrirUltima();
+        break;
       default:
         break;
     }
@@ -801,7 +669,8 @@ function App() {
     return [
       ...buildDefaultActions({
         layoutRef,
-        setActiveSidebarTab,
+        setActiveSidebarTab: mostrarPanel,
+        onOpenGallery: abrirGaleria,
         setShowAiSidebar,
         showAiSidebar,
         setIsSettingsOpen,
@@ -855,6 +724,8 @@ function App() {
           const d = await response.json();
           setCurrentDb(d.path);
           setDbReadOnly(!!readOnly);
+          // 6.0: un lago de la 5.x — leerlo no lo cambia; la primera escritura sí.
+          if (d.aviso) toast.warning(d.aviso);
         } else {
           toast.warning("Connect failed. Starting in memory.");
           setCurrentDb(':memory:');
@@ -899,7 +770,7 @@ function App() {
         // abrir, no a mitad de una carga. Sin esperar: no retrasa la apertura.
         requisitosQueFaltan().then(f => { if (f) toast.warning(describirFaltantes(f)); });
         // Su workspace (B1): WorkspacesHost mira el enlace y, si toca, pregunta.
-        window.dispatchEvent(new CustomEvent('amox_proyecto_abierto', { detail: data.path }));
+        emitir('amox_proyecto_abierto', data.path);
 
         // Save to recent projects
         try {
@@ -934,12 +805,24 @@ function App() {
     // Reset everything to Welcome State
     setAppPhase(PHASE.WELCOME);
     setProjectPath('');
-    window.dispatchEvent(new CustomEvent('amox_proyecto_cerrado'));
+    emitir('amox_proyecto_cerrado');
   }, []);
 
 
   /* --- File Handlers --- */
-  const handleFileOpen = useCallback(async (path) => {
+  // 6.0 (M1, F2): un doble clic llamaba dos veces mientras la primera lectura aún no
+  // había llegado, y el archivo se abría en dos pestañas. La segunda espera a la primera.
+  const abriendoRef = useRef(new Map());
+  // `pane` (6.0, M11): en qué panel, si no el activo (soltar desde el explorador, «Open to the Side»).
+  const handleFileOpen = useCallback((path, pane) => {
+    const enCurso = abriendoRef.current.get(path);
+    if (enCurso) return enCurso;
+    const promesa = abrirArchivo(path, pane).finally(() => abriendoRef.current.delete(path));
+    abriendoRef.current.set(path, promesa);
+    return promesa;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toast]);
+  const abrirArchivo = async (path, pane) => {
     try {
       const response = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(path)}`);
       const data = await response.json();
@@ -952,7 +835,7 @@ function App() {
       // no supiéramos nada.
       // La firma viaja con el contenido: es lo que despues permite saber si el
       // archivo sigue siendo el que abrimos.
-      layoutRef.current?.openFile(path, data.content, tipoDePestana(path), { firma: data.firma });
+      layoutRef.current?.openFile(path, data.content, tipoDePestana(path), { firma: data.firma }, pane);
       // Los recientes son del USUARIO, no del proyecto: viven donde el tema y
       // el acento. Se guarda la ruta, no el contenido — si el archivo cambio,
       // lo que interesa es el de ahora.
@@ -965,7 +848,7 @@ function App() {
     } catch (err) {
       toast.error(`Failed to open file: ${err.message}`);
     }
-  }, [toast]);
+  };
 
   const handleFileClick = useCallback((path) => {
     // Ideally this is handled by LayoutManager if it's already open?
@@ -987,7 +870,7 @@ function App() {
     }
   }, []);
 
-  const performImport = useCallback(async (tableName, cleanColumns, overridePath = null, schema = null) => {
+  const performImport = useCallback(async (tableName, cleanColumns, overridePath = null, schema = null, opciones = {}) => {
     try {
       const finalPath = overridePath || importTargetFile;
       const response = await fetch(`${API_BASE}/api/db/import`, {
@@ -997,7 +880,8 @@ function App() {
           filePath: finalPath,
           tableName: tableName,
           cleanColumns: cleanColumns,
-          schema: schema
+          schema: schema,
+          comoVariant: !!opciones.comoVariant,
         })
       });
       const data = await response.json();
@@ -1243,6 +1127,32 @@ function App() {
     }
   };
 
+  // A strip entry (6.0, M3): a group opens its last panel; clicking the open group folds the sidebar.
+  const grupoActivo = GRUPO_DE_PANEL[activeSidebarTab] || activeSidebarTab;
+  const handleGrupoClick = (grupo) => {
+    if (grupo === grupoActivo && !sidebarCollapsed) {
+      if (editorSettings.toggleSidebarOnActiveTabClick ?? true) setSidebarCollapsed(true);
+      return;
+    }
+    if (sidebarCollapsed) setSidebarCollapsed(false);
+    setActiveSidebarTab(grupo === 'library' ? ultimaBiblioteca : grupo === 'data' ? 'schema' : grupo);
+  };
+
+  useEffect(() => {
+    if (appPhase !== PHASE.IDE || !projectPath) return;
+    let vivo = true;
+    const mirar = () => Promise.all([
+      fetch(`${API_BASE}/api/dbt/detect`).then(r => r.json()).then(d => !!d?.exists).catch(() => false),
+      fetch(`${API_BASE}/api/git/status`).then(r => r.json()).then(d => !!d?.isRepo).catch(() => false),
+    ]).then(([dbt, git]) => {
+      if (vivo) setProyectoTiene(p => (p.dbt === dbt && p.git === git ? p : { dbt, git }));
+    });
+    mirar();
+    // A `git init` or a new dbt project may happen outside: look again when the window comes back.
+    window.addEventListener('focus', mirar);
+    return () => { vivo = false; window.removeEventListener('focus', mirar); };
+  }, [appPhase, projectPath, fileRefreshTrigger]);
+
   /**
    * `onBuscarProyecto`, con identidad estable.
    *
@@ -1335,41 +1245,26 @@ function App() {
           onCloseProject={handleCloseProject}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenShortcuts={() => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); }}
+        onOpenShortcuts={() => setAyuda('shortcuts')}
           onSwitchProject={(path) => { setProjectPath(path); setAppPhase(PHASE.WELCOME); }}
         />
         <WorkspacesHost />
-        {fichaEjecucion && <FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} />}
+        {fichaEjecucion && <Suspense fallback={null}><FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} /></Suspense>}
         <WelcomeScreen 
           initialPath={projectPath}
           onSelectWorkspace={handleWorkspaceSelect} 
           onStartSession={startIdeSession} 
           onOpenSettings={() => setIsSettingsOpen(true)} 
         />
+        <Suspense fallback={null}>
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-          currentTheme={theme}
-          onThemeChange={setTheme}
-          currentAccent={accentColor}
-          onAccentChange={handleAccentChange}
-          accentL={accentL}
-          effectiveAccentL={effectiveAccentL}
-          isLightMode={modeClassFor(theme) === 'mode-light'}
-          onAccentLChange={setAccentL}
-          glowCorner={glowCorner}
-          onGlowCornerChange={setGlowCorner}
-          glowStrength={glowStrength}
-          onGlowStrengthChange={setGlowStrength}
-          currentInterfaceFont={interfaceFont}
-          onInterfaceFontChange={setInterfaceFont}
-          currentLayout={editorLayout}
-          onLayoutChange={setEditorLayout}
           initialTab={settingsInitialTab}
           onTabReset={() => setSettingsInitialTab(null)}
-          uiZoomLevel={uiZoomLevel}
-          onUiZoomChange={setUiZoomLevel}
         />
+        </Suspense>
+        {ayuda && <Suspense fallback={null}><Ayuda seccion={ayuda} onClose={() => setAyuda(null)} /></Suspense>}
       </div>
     );
   }
@@ -1409,7 +1304,7 @@ function App() {
         onCloseProject={handleCloseProject}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onOpenShortcuts={() => { setIsSettingsOpen(true); setSettingsInitialTab('shortcuts'); }}
+        onOpenShortcuts={() => setAyuda('shortcuts')}
         onSwitchProject={handleSwitchProject}
       />
 
@@ -1433,15 +1328,15 @@ function App() {
       <AvisoProgramador />
       {verOperacion && <VistaOperacion onClose={() => setVerOperacion(false)} />}
       {fichaEjecucion && (
-        <FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} onAbrirProceso={(ruta) => handleFileOpen(ruta)} />
+        <Suspense fallback={null}><FichaEjecucion runId={fichaEjecucion} onClose={() => setFichaEjecucion(null)} onAbrirProceso={(ruta) => handleFileOpen(ruta)} /></Suspense>
       )}
       {exportando && (
-        <ExportarProyecto plantilla={exportando.plantilla} proyecto={(projectPath || 'project').split(/[\\/]/).filter(Boolean).pop()} onClose={() => setExportando(null)} />
+        <Suspense fallback={null}><ExportarProyecto plantilla={exportando.plantilla} proyecto={(projectPath || 'project').split(/[\\/]/).filter(Boolean).pop()} onClose={() => setExportando(null)} /></Suspense>
       )}
 
       {/* Workspace Scaffolding Wizard — shown on first open of new projects */}
       {showWorkspaceWizard && (
-        <WorkspaceWizard
+        <Suspense fallback={null}><WorkspaceWizard
           projectPath={projectPath}
           onComplete={(created) => {
             setShowWorkspaceWizard(false);
@@ -1451,7 +1346,7 @@ function App() {
             }
           }}
           onSkip={() => setShowWorkspaceWizard(false)}
-        />
+        /></Suspense>
       )}
 
       {appPhase === PHASE.IDE && (
@@ -1459,107 +1354,33 @@ function App() {
 
           {/* Left Panel Card — Activity Bar + Sidebar unified */}
           <div className="left-panel-card">
-            <div className="activity-bar">
-              <button
-                onClick={() => handleSidebarTabClick('files')}
-                className={`activity-bar-btn ${activeSidebarTab === 'files' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Explorer (Ctrl+Shift+E)"
-              >
-                <LuFolder size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('search')}
-                className={`activity-bar-btn ${activeSidebarTab === 'search' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Search in project (Ctrl+Shift+F)"
-              >
-                <LuSearch size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('schema')}
-                className={`activity-bar-btn ${activeSidebarTab === 'schema' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Database Schema (Ctrl+Shift+D)"
-              >
-                <LuDatabase size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('extensions')}
-                className={`activity-bar-btn ${activeSidebarTab === 'extensions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Extensions"
-              >
-                <LuPuzzle size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('dbt')}
-                className={`activity-bar-btn ${activeSidebarTab === 'dbt' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="DBT Studio"
-              >
-                <LuContainer size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('snippets')}
-                className={`activity-bar-btn ${activeSidebarTab === 'snippets' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="SQL Snippets"
-              >
-                <LuCode size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('functions')}
-                className={`activity-bar-btn ${activeSidebarTab === 'functions' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="DuckDB Function Reference"
-              >
-                <LuSquareFunction size={20} />
-              </button>
-              <button
-                onClick={() => handleSidebarTabClick('history')}
-                className={`activity-bar-btn ${activeSidebarTab === 'history' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Query History"
-              >
-                <LuHistory size={20} />
-              </button>
-              {/* Analysis Vault */}
-              <button
-                onClick={() => handleSidebarTabClick('vault')}
-                className={`activity-bar-btn ${activeSidebarTab === 'vault' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Analysis Vault"
-              >
-                <LuPackage size={20} />
-              </button>
-              {/* Source Control */}
-              <button
-                onClick={() => handleSidebarTabClick('git')}
-                className={`activity-bar-btn ${activeSidebarTab === 'git' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Source Control"
-              >
-                <LuGitBranch size={20} />
-              </button>
-              {/* Deep Dive — autonomous analyst conversations */}
-              <button
-                onClick={() => handleSidebarTabClick('deepdive')}
-                className={`activity-bar-btn ${activeSidebarTab === 'deepdive' && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
-                title="Deep Dive — autonomous analyst conversations"
-              >
-                <LuSparkles size={20} />
-              </button>
+            <div className={`activity-bar ${editorSettings.activityBarLabels ? 'activity-bar--nombres' : ''}`}>
+              {/* 6.0 (M3): seven entries instead of fifteen. Each one is a group of the
+                  panels below (GRUPO_DE_PANEL); dbt and Git only when the folder is one.
+                  Chart Gallery and New Data Flow are actions: the "+" of the tabs, a new
+                  file's screen and Ctrl+K have them. */}
+              {[
+                { grupo: 'files', icon: LuFolder, nombre: 'Files', title: 'Files (Ctrl+Shift+E)' },
+                { grupo: 'search', icon: LuSearch, nombre: 'Search', title: 'Search in project (Ctrl+Shift+F)' },
+                { grupo: 'data', icon: LuDatabase, nombre: 'Data', title: 'Data: tables, sources, destinations and extensions (Ctrl+Shift+D)' },
+                { grupo: 'library', icon: LuLibraryBig, nombre: 'Library', title: 'Library: snippets and variables, functions, history, saved analyses' },
+                (proyectoTiene.dbt || grupoActivo === 'dbt') && { grupo: 'dbt', icon: LuContainer, nombre: 'dbt', title: 'DBT Studio' },
+                (proyectoTiene.git || grupoActivo === 'git') && { grupo: 'git', icon: LuGitBranch, nombre: 'Git', title: 'Source Control' },
+                { grupo: 'deepdive', icon: LuSparkles, nombre: 'Deep Dive', title: 'Deep Dive: autonomous analyst conversations' },
+              ].filter(Boolean).map(({ grupo, icon: Icono, nombre, title }) => (
+                <button
+                  key={grupo}
+                  onClick={() => handleGrupoClick(grupo)}
+                  className={`activity-bar-btn ${grupoActivo === grupo && !sidebarCollapsed ? 'activity-bar-btn--active' : ''}`}
+                  title={title}
+                  aria-label={nombre}
+                >
+                  <Icono size={20} />
+                  {editorSettings.activityBarLabels && <span className="activity-bar-nombre">{nombre}</span>}
+                </button>
+              ))}
 
               <div className="activity-bar-spacer" />
-
-              {/* Chart Gallery */}
-              <button
-                onClick={() => setIsGalleryOpen(true)}
-                className="activity-bar-btn"
-                title="Chart Gallery"
-              >
-                <LuLayoutGrid size={20} />
-              </button>
-
-              {/* Execution Chain */}
-              <button
-                onClick={() => layoutRef.current?.createNew('sqlchain')}
-                className="activity-bar-btn"
-                title="New Execution Chain"
-              >
-                <LuLink size={20} />
-              </button>
 
               <div className="activity-bar-separator" />
 
@@ -1581,6 +1402,23 @@ function App() {
 
             <div ref={sidebarElRef} className={`sidebar ${sidebarCollapsed ? 'sidebar--collapsed' : ''}`} style={sidebarCollapsed ? {} : { width: `${sidebarWidth}px` }}>
 
+            {grupoActivo === 'library' && (
+              <div className="sidebar-pestanas" role="tablist" aria-label="Library">
+                {PESTANAS_BIBLIOTECA.map(({ id, label, title }) => (
+                  <button
+                    key={id}
+                    role="tab"
+                    aria-selected={activeSidebarTab === id}
+                    className={`sidebar-pestana ${activeSidebarTab === id ? 'sidebar-pestana--activa' : ''}`}
+                    onClick={() => setActiveSidebarTab(id)}
+                    title={title}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Content Switcher — keep-alive: cada panel se monta en la primera visita
                 y permanece montado. display:none/flex controla visibilidad. */}
             {visitedSidebarTabs.has('files') && (
@@ -1588,6 +1426,16 @@ function App() {
                 <FileExplorer
                   editorSettings={editorSettings}
                   projectPath={projectPath}
+                  archivoActivo={activeTabInfo?.path || null}
+                  pestanas={titleBarTabs}
+                  onActivarPestana={(pane, id) => layoutRef.current?.getTabBarProps(pane)?.onTabClick(id)}
+                  onCerrarPestana={(id) => layoutRef.current?.getTabBarProps()?.onTabClose(id)}
+                  onAbrirAlLado={(ruta) => {
+                    // El otro panel; si no está partido, se parte y va a la derecha.
+                    const t = titleBarTabsRef.current;
+                    if (!t?.splitEnabled) layoutRef.current?.toggleSplit();
+                    handleFileOpen(ruta, t?.splitEnabled && t.paneId === 'right' ? 'left' : 'right');
+                  }}
                   onFileClick={handleFileClick}
                   onFileOpen={handleFileOpen}
                   onNewFile={handleNewFile}
@@ -1604,35 +1452,48 @@ function App() {
               </div>
             )}
 
-            {visitedSidebarTabs.has('schema') && (
-              <div className={activeSidebarTab === 'schema' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'schema' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <DatabaseExplorer
-                  currentDb={currentDb}
-                  onRefresh={refreshDbTrigger}
-                  onTablesLoaded={setAvailableTables}
-                  onSelectQuery={handleCreateSqlTab}
-                  onQualityCheck={handleOpenQualityCheck}
-                  onOpenErDiagram={handleOpenErDiagram}
-                />
+            {/* Data (6.0, M3): the database explorer (tables, sources, destinations) with
+                Extensions folded at the bottom — they belong to the engine and are seldom looked at. */}
+            {(visitedSidebarTabs.has('schema') || visitedSidebarTabs.has('extensions')) && (
+              <div className={grupoActivo === 'data' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: grupoActivo === 'data' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <DatabaseExplorer
+                    currentDb={currentDb}
+                    onRefresh={refreshDbTrigger}
+                    onTablesLoaded={setAvailableTables}
+                    onSelectQuery={handleCreateSqlTab}
+                    onQualityCheck={handleOpenQualityCheck}
+                    onOpenErDiagram={handleOpenErDiagram}
+                  />
+                </div>
+                <div className={`sidebar-seccion-plegable ${extensionesAbiertas ? 'sidebar-seccion-plegable--abierta' : ''}`}>
+                  <button
+                    className="sidebar-seccion-plegable__cabecera"
+                    onClick={() => setExtensionesAbiertas(v => !v)}
+                    aria-expanded={extensionesAbiertas}
+                  >
+                    <LuChevronRight size={12} className="sidebar-seccion-plegable__flecha" />
+                    <LuPuzzle size={13} />
+                    Extensions
+                  </button>
+                  {extensionesAbiertas && (
+                    <div className="sidebar-seccion-plegable__cuerpo">
+                      <Suspense fallback={PanelCargando}><ExtensionExplorer /></Suspense>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
-
-            {visitedSidebarTabs.has('extensions') && (
-              <div className={activeSidebarTab === 'extensions' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'extensions' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <ExtensionExplorer />
-              </div>
-            )}
-
 
             {visitedSidebarTabs.has('dbt') && (
               <div className={activeSidebarTab === 'dbt' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'dbt' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} onOpenDbtLineage={handleOpenDbtLineage} />
+                <Suspense fallback={PanelCargando}><DbtPanel projectPath={projectPath} onFileOpen={handleFileOpen} onOpenDbtLineage={handleOpenDbtLineage} /></Suspense>
               </div>
             )}
 
             {visitedSidebarTabs.has('snippets') && (
               <div className={activeSidebarTab === 'snippets' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'snippets' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <SnippetsPanel onInsert={handleCreateSqlTab} />
+                <Suspense fallback={PanelCargando}><SnippetsPanel onInsert={handleCreateSqlTab} /></Suspense>
               </div>
             )}
 
@@ -1646,7 +1507,7 @@ function App() {
 
             {visitedSidebarTabs.has('history') && (
               <div className={activeSidebarTab === 'history' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'history' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <QueryHistoryPanel onSelect={handleCreateSqlTab} onSaveAsFile={handleSaveHistoryQueryAsFile} />
+                <Suspense fallback={PanelCargando}><QueryHistoryPanel onSelect={handleCreateSqlTab} onSaveAsFile={handleSaveHistoryQueryAsFile} /></Suspense>
               </div>
             )}
 
@@ -1663,12 +1524,12 @@ function App() {
 
             {visitedSidebarTabs.has('search') && (
               <div className={activeSidebarTab === 'search' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'search' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <SearchPanel onOpenFile={handleFileOpen} projectPath={projectPath} />
+                <Suspense fallback={PanelCargando}><SearchPanel onOpenFile={handleFileOpen} projectPath={projectPath} /></Suspense>
               </div>
             )}
             {visitedSidebarTabs.has('git') && (
               <div className={activeSidebarTab === 'git' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: activeSidebarTab === 'git' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <GitPanel projectPath={projectPath} />
+                <Suspense fallback={PanelCargando}><GitPanel projectPath={projectPath} /></Suspense>
               </div>
             )}
             {visitedSidebarTabs.has('deepdive') && (
@@ -1781,6 +1642,8 @@ function App() {
               const idxInPane = paneTabs ? paneTabs.findIndex(t => t.id === tabContextMenu.tabId) : -1;
               const hasTabsToRight = idxInPane >= 0 && idxInPane < (paneTabs.length - 1);
               const hasOtherTabs = (paneTabs?.length || 0) > 1;
+              // Las guardadas que no están fijadas: lo que «Close saved» cerraría.
+              const hasSavedTabs = (paneTabs || []).some(t => t.path && !t.dirty && !t.fijada);
               const canReveal = !!(meta?.path && window.electronAPI?.showItemInFolder);
               return (
                 <div
@@ -1788,54 +1651,25 @@ function App() {
                   style={{ position: 'fixed', top: tabContextMenu.y, left: tabContextMenu.x, zIndex: 99999 }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('rename')}>
-                    <LuPencil size={13} /> Renombrar…
-                  </div>
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('save')}>
-                    <LuSave size={13} /> Guardar
-                  </div>
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('saveAs')}>
-                    <LuSave size={13} /> Guardar como…
-                  </div>
-                  {meta?.path && (
-                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('copyPath')}>
-                      <LuClipboardCopy size={13} /> Copiar ruta
-                    </div>
-                  )}
-                  {canReveal && (
-                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('reveal')}>
-                      <LuFolderOpen size={13} /> Revelar en el explorador
-                    </div>
-                  )}
+                  {/* 6.0 (M11): en inglés, como el resto de la interfaz, y con
+                      los atajos de utils/atajos.js al lado. */}
+                  <EntradaMenuPestana icono={LuPencil} texto="Rename…" onClick={() => handleTabMenuAction('rename')} />
+                  <EntradaMenuPestana icono={LuSave} texto="Save" atajo={teclasDe('guardar')} onClick={() => handleTabMenuAction('save')} />
+                  <EntradaMenuPestana icono={LuSave} texto="Save as…" atajo={teclasDe('guardarComo')} onClick={() => handleTabMenuAction('saveAs')} />
+                  {meta?.path && <EntradaMenuPestana icono={LuClipboardCopy} texto="Copy path" onClick={() => handleTabMenuAction('copyPath')} />}
+                  {canReveal && <EntradaMenuPestana icono={LuFolderOpen} texto="Reveal in the explorer" onClick={() => handleTabMenuAction('reveal')} />}
                   <div className="column-context-menu-separator" />
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('moveToOtherPane')}>
-                    <LuArrowLeftRight size={13} /> {tabContextMenu.paneId === 'left' ? 'Mover al panel derecho' : 'Mover al panel izquierdo'}
-                  </div>
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('duplicate')}>
-                    <LuCopyPlus size={13} /> Abrir una copia al lado
-                  </div>
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('fijar')}>
-                    <LuPin size={13} /> {meta?.fijada ? 'Soltar' : 'Fijar'}
-                  </div>
+                  <EntradaMenuPestana icono={LuArrowLeftRight} texto={tabContextMenu.paneId === 'left' ? 'Move to the right pane' : 'Move to the left pane'} onClick={() => handleTabMenuAction('moveToOtherPane')} />
+                  <EntradaMenuPestana icono={LuCopyPlus} texto="Open a copy to the side" atajo={teclasDe('duplicar')} onClick={() => handleTabMenuAction('duplicate')} />
+                  <EntradaMenuPestana icono={LuPin} texto={meta?.fijada ? 'Unpin' : 'Pin'} atajo={teclasDe('fijar')} onClick={() => handleTabMenuAction('fijar')} />
                   <div className="column-context-menu-separator" />
-                  <div className="column-context-menu-item" onClick={() => handleTabMenuAction('close')}>
-                    <LuX size={13} /> Cerrar
-                  </div>
-                  {hasOtherTabs && (
-                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeOthers')}>
-                      <LuX size={13} /> Cerrar las demás
-                    </div>
-                  )}
-                  {hasTabsToRight && (
-                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeToRight')}>
-                      <LuX size={13} /> Cerrar las de la derecha
-                    </div>
-                  )}
-                  {hasOtherTabs && (
-                    <div className="column-context-menu-item" onClick={() => handleTabMenuAction('closeAll')}>
-                      <LuX size={13} /> Cerrar todas
-                    </div>
-                  )}
+                  <EntradaMenuPestana icono={LuX} texto="Close" atajo={teclasDe('cerrar')} onClick={() => handleTabMenuAction('close')} />
+                  {hasOtherTabs && <EntradaMenuPestana icono={LuX} texto="Close others" onClick={() => handleTabMenuAction('closeOthers')} />}
+                  {hasTabsToRight && <EntradaMenuPestana icono={LuX} texto="Close to the right" onClick={() => handleTabMenuAction('closeToRight')} />}
+                  {hasSavedTabs && <EntradaMenuPestana icono={LuX} texto="Close saved" onClick={() => handleTabMenuAction('closeSaved')} />}
+                  {hasOtherTabs && <EntradaMenuPestana icono={LuX} texto="Close all" onClick={() => handleTabMenuAction('closeAll')} />}
+                  <div className="column-context-menu-separator" />
+                  <EntradaMenuPestana icono={LuHistory} texto="Reopen closed tab" atajo={teclasDe('reabrir')} onClick={() => handleTabMenuAction('reopen')} />
                 </div>
               );
             })()}
@@ -1846,6 +1680,7 @@ function App() {
                 <LayoutManager
                   ref={layoutRef}
                   onBuscarProyecto={handleBuscarProyecto}
+                  onAbrirArchivo={handleFileOpen}
                   projectPath={projectPath}
                   theme={theme}
                   editorLayout={editorLayout}
@@ -1916,28 +1751,8 @@ function App() {
         <SettingsModal
           isOpen={isSettingsOpen}
           onClose={() => { setIsSettingsOpen(false); setSettingsInitialTab(null); }}
-          currentTheme={theme}
-          onThemeChange={setTheme}
-          currentAccent={accentColor}
-          onAccentChange={handleAccentChange}
-          accentL={accentL}
-          effectiveAccentL={effectiveAccentL}
-          isLightMode={modeClassFor(theme) === 'mode-light'}
-          onAccentLChange={setAccentL}
-          glowCorner={glowCorner}
-          onGlowCornerChange={setGlowCorner}
-          glowStrength={glowStrength}
-          onGlowStrengthChange={setGlowStrength}
-          currentInterfaceFont={interfaceFont}
-          onInterfaceFontChange={setInterfaceFont}
-          currentLayout={editorLayout}
-          onLayoutChange={setEditorLayout}
-          editorSettings={mergedEditorSettings}
-          onEditorSettingsChange={(updates) => setEditorSettings(prev => ({ ...prev, ...updates }))}
           initialTab={settingsInitialTab}
           onTabReset={() => setSettingsInitialTab(null)}
-          uiZoomLevel={uiZoomLevel}
-          onUiZoomChange={setUiZoomLevel}
         />
 
 
@@ -1985,6 +1800,8 @@ function App() {
           onImport={(config) => performExcelImport(config)}
         />
       </Suspense>
+
+      {ayuda && <Suspense fallback={null}><Ayuda seccion={ayuda} onClose={() => setAyuda(null)} /></Suspense>}
 
       {/* Global onboarding host — owns all first-run/replay tour rendering */}
       <OnboardingHost />

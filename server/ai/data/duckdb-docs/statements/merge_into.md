@@ -2,8 +2,11 @@
 layout: docu
 railroad: statements/merge_into.js
 redirect_from:
-- /docs/preview/sql/statements/merge_into
 - /docs/stable/sql/statements/merge_into
+- /docs/current/sql/statements/merge_into
+- /docs/lts/sql/statements/merge_into
+- /docs/preview/sql/statements/merge_into
+tested: true
 title: MERGE INTO Statement
 ---
 
@@ -54,7 +57,7 @@ In the previous example we are updating the whole row if `id` matches. However, 
 MERGE INTO people
     USING (
         SELECT
-            1 AS id, 
+            1 AS id,
             98_000.0 AS salary
     ) AS salary_updates
     USING (id)
@@ -76,7 +79,7 @@ Another common pattern is to receive a _delete set_ of rows, which may only cont
 MERGE INTO people
     USING (
         SELECT
-            1 AS id, 
+            1 AS id,
     ) AS deletes
     USING (id)
     WHEN MATCHED THEN DELETE;
@@ -96,7 +99,7 @@ ORDER BY id;
 MERGE INTO people
     USING (
         SELECT
-            unnest([3, 2]) AS id, 
+            unnest([3, 2]) AS id,
     ) AS deletes
     USING (id)
     WHEN MATCHED AND people.salary >= 100_000.0 THEN DELETE;
@@ -154,6 +157,29 @@ MERGE INTO target
 | DELETE       | 2  |
 
 There is also the possibility of specifying `WHEN NOT MATCHED BY TARGET`. However, the behavior is, as you may expect, the same as `WHEN NOT MATCHED` since by default when specifying conditions, we look at the target.
+
+### Multiple Matching Source Rows
+
+A `MERGE INTO` statement may not affect the same target row more than once. If a target row matches multiple source rows and a `WHEN MATCHED` clause applies (e.g., `UPDATE` or `DELETE`), the statement throws an error:
+
+```sql
+CREATE TABLE target (id INTEGER, v INTEGER);
+INSERT INTO target VALUES (1, 0);
+CREATE TABLE source (id INTEGER, v INTEGER);
+INSERT INTO source VALUES (1, 10), (1, 20);
+
+MERGE INTO target
+    USING source
+    ON target.id = source.id
+    WHEN MATCHED THEN UPDATE SET v = source.v;
+```
+
+```console
+Invalid Input Error:
+MERGE INTO command cannot affect the same target row more than once. A target row matched more than one source row; ensure the source rows are deduplicated or the ON condition is unique.
+```
+
+To avoid this, deduplicate the source rows or make the `ON` condition unique. Note that this differs from [`UPDATE ... FROM`]({% link docs/2.0/sql/statements/update.md %}#multiple-matching-source-rows), which uses an arbitrary matching source row.
 
 ## Syntax
 

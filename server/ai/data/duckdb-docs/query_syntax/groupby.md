@@ -2,9 +2,11 @@
 layout: docu
 railroad: query_syntax/groupby.js
 redirect_from:
-- /docs/preview/sql/query_syntax/groupby
 - /docs/sql/query_syntax/groupby
 - /docs/stable/sql/query_syntax/groupby
+- /docs/current/sql/query_syntax/groupby
+- /docs/lts/sql/query_syntax/groupby
+- /docs/preview/sql/query_syntax/groupby
 title: GROUP BY Clause
 ---
 
@@ -12,7 +14,7 @@ The `GROUP BY` clause specifies which grouping columns should be used to perform
 If the `GROUP BY` clause is specified, the query is always an aggregate query, even if no aggregations are present in the `SELECT` clause.
 
 When a `GROUP BY` clause is specified, all tuples that have matching data in the grouping columns (i.e., all tuples that belong to the same group) will be combined.
-The values of the grouping columns themselves are unchanged, and any other columns can be combined using an [aggregate function]({% link docs/current/sql/functions/aggregates.md %}) (such as `count`, `sum`, `avg`, etc).
+The values of the grouping columns themselves are unchanged, and any other columns can be combined using an [aggregate function]({% link docs/2.0/sql/functions/aggregates.md %}) (such as `count`, `sum`, `avg`, etc).
 
 ## `GROUP BY ALL`
 
@@ -23,8 +25,27 @@ See examples below and additional examples in the [“Friendlier SQL with DuckDB
 ## Multiple Dimensions
 
 Normally, the `GROUP BY` clause groups along a single dimension.
-Using the [`GROUPING SETS`, `CUBE` or `ROLLUP` clauses]({% link docs/current/sql/query_syntax/grouping_sets.md %}) it is possible to group along multiple dimensions.
-See the [`GROUPING SETS`]({% link docs/current/sql/query_syntax/grouping_sets.md %}) page for more information.
+Using the [`GROUPING SETS`, `CUBE`, or `ROLLUP` clauses]({% link docs/2.0/sql/query_syntax/grouping_sets.md %}) it is possible to group along multiple dimensions.
+See the [`GROUPING SETS`]({% link docs/2.0/sql/query_syntax/grouping_sets.md %}) page for more information.
+
+## Grouping by `UNNEST`
+
+> New Grouping by `UNNEST` was introduced in DuckDB 2.0.
+
+[`UNNEST`]({% link docs/2.0/sql/query_syntax/unnest.md %}) can be used directly in the `GROUP BY` clause to group by the elements of a list. This is useful for aggregating over the individual values of a list column:
+
+```sql
+SELECT unnest(tags) AS tag, count(*) AS n
+FROM (VALUES (['a', 'b']), (['b', 'c']), (['b'])) t(tags)
+GROUP BY unnest(tags)
+ORDER BY tag;
+```
+
+| tag |   n |
+|-----|----:|
+| a   |   1 |
+| b   |   3 |
+| c   |   1 |
 
 ## Examples
 
@@ -36,7 +57,7 @@ FROM addresses
 GROUP BY city;
 ```
 
-Compute the average income per city per street_name:
+Compute the average income per `city` per `street_name`:
 
 ```sql
 SELECT city, street_name, avg(income)
@@ -46,7 +67,7 @@ GROUP BY city, street_name;
 
 ### `GROUP BY ALL` Examples
 
-Group by city and street_name to remove any duplicate values:
+Group by `city` and `street_name` to remove any duplicate values:
 
 ```sql
 SELECT city, street_name

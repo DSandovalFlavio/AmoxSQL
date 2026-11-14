@@ -23,7 +23,7 @@
 
 | | What it does | Guide |
 |---|---|---|
-| **SQL editor** | Monaco with autocomplete that knows your real schema (each alias's columns, CTEs, your metrics as functions), CTE debugging, variables, history and snippets. | [→](./docs/en/editor/sql-editor.md) |
+| **SQL editor** | Monaco with autocomplete that knows your real schema (each alias's columns, CTEs, your metrics as functions), CTE debugging, project variables written `$name`, history and snippets. | [→](./docs/en/editor/sql-editor.md) |
 | **Notebooks** | `.sqlnb` in plain markdown: each cell leaves a view named after it, the next one reads it, and **Refresh** runs them in dependency order. Parameters, drafts, export to Word and HTML. | [→](./docs/en/notebooks/notebooks.md) |
 | **Canvas** | An infinite canvas to think an analysis through: sources, queries, charts, numbers and notes connected by what each query reads. Presents as slides and exports to a deck, notebook or process. | [→](./docs/en/notebooks/canvas.md) |
 | **Story Flow** | Charts that tell something: 17 types in 6 stages (type, data, format, style, story, export), with takeaway, annotations and goal lines. | [→](./docs/en/visualization/story-flow.md) |
@@ -102,7 +102,9 @@ Full guide: [Installation](./docs/en/user-guide/installation.md).
 
 ## 🆕 What's new
 
-The current version is **v5.15.0 — The Canvas**: an infinite canvas to think an analysis through, with cards connected by what each query reads, a snapshot that opens without running anything, and export to a deck, a notebook or a process. It also gathers everything since 5.10: data where it lives (named sources, folders, buckets, lakes), processes that run on their own (scheduling, Excel and templates, parameters, Operations), dbt and DuckLake inside the editor, reliable flows (source contracts, "Needs attention", metrics as functions) and the day-to-day (where you left off, projects in one file, comparing deliveries).
+The current version is **v6.0.0 — The new engine**: AmoxSQL runs on **DuckDB 2.0**. Project variables written `$name` with their type, JSON with no fixed shape as VARIANT, sub-schemas, **Upgrade…** to move a 5.x database to the new format, and an execution plan that says which blocks it skipped. The interface gets tidier: a seven-entry sidebar, tabs and files you can find (whole-project search, tree view, Favorites), an accent per theme and a chart that gets it right first time. It also gathers 5.16 to 5.19: Vega-Lite charts with the code in view, Deep Dive as a report you read, the Assistant proposing changes inside each kind of file, and tabs that remember their own state.
+
+Coming from 5.x? Read **[What's new in 6.0](./docs/en/user-guide/whats-new-6.md)** first: new databases don't open in 5.x, and lambdas are written `lambda x: …`.
 
 > Full history in **[CHANGELOG.md](./CHANGELOG.md)**.
 
@@ -116,7 +118,7 @@ The current version is **v5.15.0 — The Canvas**: an infinite canvas to think a
 
 ## 🛠️ Tech stack
 
-Desktop (Electron) · Frontend [React](https://reactjs.org/) + [Vite](https://vitejs.dev/) + [Monaco](https://microsoft.github.io/monaco-editor/) + [Recharts](https://recharts.org/) · Backend [Node.js](https://nodejs.org/) + [Express](https://expressjs.com/) · Engine [DuckDB](https://duckdb.org/) · AI [Ollama](https://ollama.ai/) (local) + cloud (Google Gemini, Anthropic, OpenAI, Google Vertex) via [Vercel AI SDK](https://sdk.vercel.ai/).
+Desktop (Electron) · Frontend [React](https://reactjs.org/) + [Vite](https://vitejs.dev/) + [Monaco](https://microsoft.github.io/monaco-editor/) + [Vega-Lite](https://vega.github.io/vega-lite/) · Backend [Node.js](https://nodejs.org/) + [Express](https://expressjs.com/) · Engine [DuckDB](https://duckdb.org/) 2.0 · AI [Ollama](https://ollama.ai/) (local) + cloud (Google Gemini, Anthropic, OpenAI, Google Vertex) via [Vercel AI SDK](https://sdk.vercel.ai/).
 
 More in [Architecture](./docs/en/concepts/architecture.md).
 

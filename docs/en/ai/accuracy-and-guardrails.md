@@ -42,6 +42,9 @@ If the AI's stream **freezes** (a provider stops responding), a watchdog detects
 ### Rendering context (colors that read)
 The AI knows your **active theme and accent color** (light/dark). So it picks chart palettes that read well on your real background and harmonize with your accent, rather than colors that vanish or clash. See [Themes & appearance](../user-guide/themes-and-appearance.md).
 
+### Huge queries: it asks first
+Before running a query, the Assistant looks at the plan the engine estimates. If it would move more than **50 million rows**, it doesn't run it: it tells you what it would read and asks whether to run it as is, or proposes a narrower one (a date filter, a sample, fewer columns). It only runs it if you say yes.
+
 ### Prompt caching (speed and cost)
 With compatible providers (Anthropic), the stable part of the AI's instructions is **cached**, so later turns are faster and cheaper. It doesn't change the answers; only performance.
 

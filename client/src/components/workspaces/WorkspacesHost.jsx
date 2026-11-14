@@ -17,6 +17,7 @@ import EnlazarProyecto from './EnlazarProyecto';
 import { cargarEtiqueta } from '../../etiqueta';
 import { enlaceDelProyecto } from './api';
 import { refrescarMarca, olvidarMarca } from './marca';
+import { emitir } from '../../eventos.js';
 
 // ── el enlace de la carpeta abierta ─────────────────────────────────────────
 let enlaceActual = null;
@@ -37,7 +38,7 @@ export function useEnlace() {
 }
 
 /** Pide al usuario cambiar el enlace de la carpeta abierta. */
-export const pedirEnlazar = () => window.dispatchEvent(new CustomEvent('amox_enlazar_proyecto'));
+export const pedirEnlazar = () => emitir('amox_enlazar_proyecto');
 
 export default function WorkspacesHost() {
     const [eleccion, setEleccion] = useState(false);

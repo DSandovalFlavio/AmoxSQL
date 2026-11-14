@@ -1225,7 +1225,7 @@ const GroupAggregateConfig = ({ config, onChange, columnOptions = [] }) => {
                                         : groupColumns.filter(c => c !== name))}
                                 />
                                 <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-active)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                                {hint && <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>{hint}</span>}
+                                {hint && <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{hint}</span>}
                             </label>
                         );
                     })}

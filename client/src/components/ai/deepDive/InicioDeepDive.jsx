@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LuSparkles, LuTable, LuListChecks, LuDatabase, LuMessageSquareText } from 'react-icons/lu';
 import { API_BASE } from '../../../api.js';
+import SinModelo from '../SinModelo.jsx';
 
 /**
  * El inicio de Deep Dive (plan UX, F5): una pregunta de negocio, no una tabla.
@@ -11,7 +12,7 @@ import { API_BASE } from '../../../api.js';
  * dice qué datos puede mirar y cómo trabaja. Las acciones técnicas quedan como
  * enlaces pequeños para el analista.
  */
-export default function InicioDeepDive({ onPreguntar }) {
+export default function InicioDeepDive({ onPreguntar, sinModelo = false }) {
     const [datos, setDatos] = useState(null);
     useEffect(() => {
         let vivo = true;
@@ -31,6 +32,9 @@ export default function InicioDeepDive({ onPreguntar }) {
                 <h2>What do you want to understand from your data?</h2>
                 <p>Ask a business question. The analyst makes a plan, queries your tables on this computer and tells you what it finds, with the charts and the query behind every number.</p>
             </div>
+
+            {/* 6.0 (M10 · T17): sin modelo, se dice antes de preguntar. */}
+            {sinModelo && <SinModelo />}
 
             {preguntas.length > 0 && (
                 <div className="ddi0-ideas" role="list" aria-label="Suggested questions">

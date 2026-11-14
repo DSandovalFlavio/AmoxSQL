@@ -43,6 +43,15 @@ The bar also shows "Edited Xs ago · Ran Xs ago" for orientation.
 
 > **Export belongs to the query.** The editor's **Export** button exports the full result of the **current editor query** (re-running it), whereas the **Download** button in the results panel downloads only the rows already loaded in the table. See [Saving results](../results/saving-results.md).
 
+### DuckDB 2 lambdas
+Since 6.0 an anonymous function is written `lambda x: x * 2` (and `lambda x, i: …` with the index), not `x -> x * 2`. If a query has arrows — written in 5.x or copied from an old example — the engine returns an error, and next to it comes **Rewrite the lambda** (or *Rewrite 3 lambdas*), which rewrites them in that query; **Ctrl+Z** undoes it. JSON arrows (`data -> 'customer'`, `->>`) are left alone.
+
+```sql
+SELECT list_transform([1, 2, 3], lambda x: x * 2);   -- [2, 4, 6]
+```
+
+<img src="../../images/editor/lambda-rewrite.png" alt="a query with a 5.x arrow: the engine error and, next to it, Rewrite the lambda" width="100%" />
+
 ### Autocomplete
 As you type, the editor suggests DuckDB tables, columns, and functions based on the clause context (for example, it won't offer aggregates inside a `WHERE`). It even resolves the output columns of CTEs and subqueries by asking the engine itself. It's a topic of its own: see [Autocomplete](autocomplete.md).
 

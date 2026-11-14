@@ -14,19 +14,21 @@
 const {
     CSS, THEME_SELECTORS, LIGHT,
     themes, root, MODE_LIGHT,
-    ACCENT_DEFAULT, ACCENTS_LIGHT, ACCENTS_DARK,
+    ACCENT_DEFAULT, ACCENTS_LIGHT, ACCENTS_DARK, presetEnTema,
     col, shadowColor, over, contrast,
 } = require('./lib/themeTokens.cjs');
 
 // ── Pisos y rangos ──────────────────────────────────────────────────────────
-// text-tertiary en claro va a 4.5 (AA de texto normal). En oscuro se queda en
-// 3.0: es una decisión asumida — sobre fondo oscuro el ojo se adapta distinto.
-// text-disabled SOLO se mide en claro; en oscuro va en 1.7–2.4 a propósito.
+// text-tertiary en claro va a 5.0: AA de texto normal (4.5) CON MARGEN — los
+// tres temas claros quedaban en 4.56–4.61, y un retoque de superficie los tiraba
+// (6.0, M9). En oscuro se queda en 3.0: es una decisión asumida — sobre fondo
+// oscuro el ojo se adapta distinto. text-disabled SOLO se mide en claro, con
+// piso 3.3 (era 3.0 y quedaban en 3.09); en oscuro va en 1.7–2.4 a propósito.
 const floorsFor = (theme) => ({
     'text-primary': 10,
     'text-secondary': 5.5,
-    'text-tertiary': LIGHT.has(theme) ? 4.5 : 3.0,
-    'text-disabled': 3.0,
+    'text-tertiary': LIGHT.has(theme) ? 5.0 : 3.0,
+    'text-disabled': 3.3,
 });
 const textsFor = (theme) => LIGHT.has(theme)
     ? ['text-primary', 'text-secondary', 'text-tertiary', 'text-disabled']
@@ -168,7 +170,8 @@ for (const theme of list) {
     // puede cambiar, y era ahí donde fallaba (cuatro botones ilegibles en claro).
     const presets = { '(por defecto)': ACCENT_DEFAULT[theme] ? { '--accent-primary': ACCENT_DEFAULT[theme] } : null,
                       ...(esClaro ? ACCENTS_LIGHT : ACCENTS_DARK) };
-    for (const [nombre, tokensAcc] of Object.entries(presets)) {
+    for (const [nombre, general] of Object.entries(presets)) {
+        const tokensAcc = general && nombre !== '(por defecto)' ? presetEnTema(theme, nombre, general) : general;
         const acc = col(theme, '--accent-primary', tokensAcc);
         if (!acc) continue;
         const comoTexto = Math.min(...todas.map(s => contrast(acc, s)));
@@ -180,12 +183,11 @@ for (const theme of list) {
         const okTexto = comoTexto >= AA;
         const okBoton = enBoton == null || enBoton >= AA;
         const detalle = `texto ${comoTexto.toFixed(2)}${enBoton != null ? ` / en botón ${enBoton.toFixed(2)}` : ''}   (piso ${AA})`;
-        // En claro es FALLO: la rampa se calibró entera para que los 20 pasen.
-        // En oscuro es AVISO. El extremo profundo de la rampa (linear, amox-9,
-        // amox-10) nace con L 0.53–0.61, y sobre un near-black eso da 2.5–4.0
-        // como texto. Subirlo cambiaría el aspecto de los siete temas oscuros a
-        // la vez: es una decisión de diseño, no un arreglo. Queda medido.
-        (esClaro ? filaSiFalla : aviso)(okTexto && okBoton, 'acento ' + nombre, detalle);
+        // FALLO en los dos modos. Hasta la 5.19 en oscuro era aviso: el extremo
+        // profundo de la rampa de azules nacía con L 0.53–0.61 y daba 2.5–4.0
+        // como texto. Desde la 6.0 (M9) cada acento se calibró para leerse
+        // en los diez temas, así que uno nuevo que no se lea no entra.
+        filaSiFalla(okTexto && okBoton, 'acento ' + nombre, detalle);
     }
 
     // ── Velo de los diálogos: solo en claro ──

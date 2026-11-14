@@ -10,6 +10,7 @@
  * Chain definitions live as .sqlchain files in the project directory.
  * Only execution history is persisted in DuckDB.
  */
+const registrador = require('./registrador');
 const crypto = require('crypto');
 
 function generateId() {
@@ -55,9 +56,9 @@ class ChainPersistence {
                 )
             `);
 
-            console.log('[Chains] Schema initialized');
+            registrador.info('[Chains] Schema initialized');
         } catch (err) {
-            console.error('[Chains] Schema init failed:', err.message);
+            registrador.error('[Chains] Schema init failed:', err.message);
             throw err;
         }
     }

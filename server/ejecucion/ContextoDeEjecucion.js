@@ -21,6 +21,7 @@
  * El contexto aislado tiene la forma que el ejecutor espera de `dbManager`
  * —`query` y `systemQuery`—, así que el ejecutor no sabe la diferencia (Dec-4).
  */
+const registrador = require('../registrador');
 const fs = require('fs');
 const path = require('path');
 const { DuckDBInstance } = require('@duckdb/node-api');
@@ -276,10 +277,13 @@ async function abrirContexto(modo, { dbManager, proyecto, chainFile, fuera = fal
     // interfaz, así que monta el suyo. Si falla, el paso que lea una fuente lo dirá.
     if (proyecto) {
         try { await require('../fuentes').montar(ctx, { raiz: proyecto }); }
-        catch (e) { console.warn('[Fuentes] Contexto aislado sin catálogo:', e?.message || e); }
+        catch (e) { registrador.aviso('[Fuentes] Contexto aislado sin catálogo:', e?.message || e); }
         // 5.13 (Dec-41): las medidas del workspace, como en la interfaz.
         try { await require('../medidas').enContexto(ctx, proyecto); }
-        catch (e) { console.warn('[Medidas] Contexto aislado sin medidas:', e?.message || e); }
+        catch (e) { registrador.aviso('[Medidas] Contexto aislado sin medidas:', e?.message || e); }
+        // 6.0 (Dec-98): las variables del proyecto (`$nombre`), como en la interfaz.
+        try { await require('../variables').enContexto(ctx, proyecto); }
+        catch (e) { registrador.aviso('[Variables] Contexto aislado sin variables:', e?.message || e); }
     }
     return ctx;
 }

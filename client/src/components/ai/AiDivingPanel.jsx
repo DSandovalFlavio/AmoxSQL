@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { LuBot, LuX, LuLoader, LuHourglass, LuPause, LuSquarePen, LuSquare, LuPencil, LuSparkles, LuArrowUp, LuCircleHelp, LuTable, LuFile, LuChartColumn, LuDatabase, LuListChecks, LuLightbulb, LuAtSign, LuMessageSquareQuote, LuPaperclip } from 'react-icons/lu';
 import DecisionDelAnalista from './DecisionDelAnalista';
 import { AiModesGuideModal } from './AiModesGuide';
-import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from '../onboarding/tourRegistry';
 import PoliticaIAChip from '../workspaces/PoliticaIAChip';
 import { groupIntoTurns, buildSessionArtifacts } from './deepDiveTurns';
 import { armarInforme, seccionDeConsulta } from './informeDeepDive';
@@ -21,6 +21,8 @@ import useAiChat from './useAiChat';
 import { exportConversationToMarkdown } from './exportConversation';
 
 import { API_BASE as API } from '../../api.js';
+import { emitir } from '../../eventos.js';
+import { esSinModelo, BotonAjustesIA } from './SinModelo.jsx';
 
 // Remembers the transcript scroll position per conversation so switching tabs
 // (e.g. opening a chart in Story Flow and coming back) doesn't reset to the top.
@@ -48,7 +50,7 @@ function DeepDiveModelHint({ provider, model }) {
     return (
         <span
             title="Deep Dive runs multi-step analyses that reward a stronger model. This one will work, but a local model ≥25B (e.g. qwen3.5:27b, gemma4:26b) or a cloud model gives noticeably deeper analysis. Smaller models shine in the editor Assistant."
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: 'var(--text-tertiary)', cursor: 'default' }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text-tertiary)', cursor: 'default' }}
         >
             <LuLightbulb size={11} style={{ color: 'var(--warning, #e0a030)' }} />
             <span>small model for Deep Dive</span>
@@ -74,7 +76,7 @@ const AiDivingPanel = ({
 }) => {
     // First-run Deep Dive tour (rendered by the global OnboardingHost)
     useEffect(() => {
-        if (!hasSeenTour('deep-dive')) openTour('deep-dive');
+        ofrecerTour('deep-dive');
     }, []);
 
     const {
@@ -255,7 +257,7 @@ const AiDivingPanel = ({
     const raizRef = useRef(null);
     useEffect(() => {
         const ancho = raizRef.current?.getBoundingClientRect().width || 0;
-        if (ancho > 0 && ancho < 860) window.dispatchEvent(new Event('amox_plegar_barra_lateral'));
+        if (ancho > 0 && ancho < 860) emitir('amox_plegar_barra_lateral');
     }, []);
 
     // ─── Auto-select escalated conversation on mount ───
@@ -314,7 +316,7 @@ const AiDivingPanel = ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title: name }),
             });
-            window.dispatchEvent(new Event('amox_conversation_created'));
+            emitir('amox_conversation_created');
         } catch (err) {
             console.error('Failed to update session name:', err);
         }
@@ -327,7 +329,7 @@ const AiDivingPanel = ({
     useEffect(() => {
         onEsperaChange?.(esperando);
         if (conversationId) {
-            window.dispatchEvent(new CustomEvent('amox_deep_dive_espera', { detail: { conversationId, espera: esperando } }));
+            emitir('amox_deep_dive_espera', { conversationId, espera: esperando });
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [esperando, conversationId]);
@@ -385,7 +387,7 @@ const AiDivingPanel = ({
                             body: JSON.stringify({ type, name, data: tc.result }),
                         });
                         // Nudge the inventory panel to refetch its artifact list.
-                        window.dispatchEvent(new Event('amox_artifacts_changed'));
+                        emitir('amox_artifacts_changed');
                     } catch (err) {
                         console.error('Failed to auto-create artifact:', err);
                     }
@@ -393,7 +395,7 @@ const AiDivingPanel = ({
 
                 // Notebooks: refresh the file tree and open the file on first creation.
                 if (tc.toolName === 'build_notebook') {
-                    window.dispatchEvent(new Event('amox_files_changed'));
+                    emitir('amox_files_changed');
                     if (onOpenFile && tc.result.path) onOpenFile(tc.result.path);
                 }
             }
@@ -405,7 +407,7 @@ const AiDivingPanel = ({
 
     // ─── Empty state (no conversation yet) ───
     // A business question first, built from the project (plan UX, F5).
-    const emptyState = <InicioDeepDive onPreguntar={sendFollowUp} />;
+    const emptyState = <InicioDeepDive onPreguntar={sendFollowUp} sinModelo={!(selectedModel === 'custom' ? customModel : selectedModel)} />;
 
     // "Ask about this" → add reference + focus the input so the user types the question
     const handleAskAbout = useCallback((ref) => {
@@ -766,7 +768,7 @@ const AiDivingPanel = ({
             });
             const rutaDeck = `reports/${base}.amoxdeck`;
             await post('/api/file', { path: rutaDeck, content: deck });
-            window.dispatchEvent(new Event('amox_files_changed'));
+            emitir('amox_files_changed');
             onOpenFile?.(rutaDeck);
             toast.success(`Saved ${rutaDeck}, with ${graficos.size} ${graficos.size === 1 ? 'chart' : 'charts'}. Export it to PowerPoint or Word from Report Flow.`);
         } catch (err) {
@@ -886,6 +888,7 @@ const AiDivingPanel = ({
                         {errorMsg && (
                             <div className="ai-error-bar">
                                 <span>{errorMsg}</span>
+                                {esSinModelo(errorMsg) && <BotonAjustesIA />}
                                 <button onClick={() => setErrorMsg(null)}>
                                     <LuX size={12} />
                                 </button>

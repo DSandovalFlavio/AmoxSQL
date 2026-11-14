@@ -23,7 +23,7 @@ import {
 } from "react-icons/lu";
 import { useToast } from './ToastProvider';
 import FEATURED_EXTENSIONS from '../data/featuredExtensions';
-import { openTour, hasSeenTour } from './onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from './onboarding/tourRegistry';
 
 // Core extensions known to ship with DuckDB — never need FROM community
 const KNOWN_CORE = new Set([
@@ -87,7 +87,7 @@ const ExtensionExplorer = () => {
 
     // First-run Extensions tour (rendered by the global OnboardingHost)
     useEffect(() => {
-        if (!hasSeenTour('extensions')) openTour('extensions');
+        ofrecerTour('extensions');
     }, []);
 
     // Refresh when SQL editor triggers a LOAD externally
@@ -293,7 +293,7 @@ const ExtensionExplorer = () => {
                             }}
                             disabled={!!busyExt}
                             title={`Install "${query.trim()}"`}
-                            className="ext-install-btn"
+                            className="btn-primario btn--peq"
                         >
                             {busyExt === query.trim()
                                 ? <LuLoader size={12} className="ext-spin" />
@@ -357,7 +357,7 @@ const ExtensionExplorer = () => {
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '6px',
-                                        fontSize: '10px',
+                                        fontSize: '11px',
                                         fontWeight: '600',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.5px',
@@ -368,7 +368,7 @@ const ExtensionExplorer = () => {
                                     <LuStar size={9} style={{ color: 'var(--color-warning)' }} />
                                     Featured
                                     <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle)' }} />
-                                    <span style={{ fontSize: '9px' }}>{featuredItems.length}</span>
+                                    <span style={{ fontSize: '11px' }}>{featuredItems.length}</span>
                                 </button>
 
                                 {featuredOpen && featuredItems.map(feat => (
@@ -406,7 +406,7 @@ const ExtensionExplorer = () => {
                                 <div key={group.label}>
                                     <div style={{
                                         padding: '10px 14px 4px',
-                                        fontSize: '10px',
+                                        fontSize: '11px',
                                         fontWeight: '600',
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.5px',
@@ -418,7 +418,7 @@ const ExtensionExplorer = () => {
                                         <LuCircle size={5} fill={group.color} color={group.color} />
                                         {group.label}
                                         <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--border-subtle)' }} />
-                                        <span style={{ fontSize: '9px' }}>{group.items.length}</span>
+                                        <span style={{ fontSize: '11px' }}>{group.items.length}</span>
                                     </div>
                                     {group.items.map(ext => (
                                         <ExtCard
@@ -478,7 +478,7 @@ const FeaturedCard = ({ feat, busy, onInstall, onLoad, onContextMenu }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                     <span className="ext-card-name">{feat.name}</span>
                     <span style={{
-                        fontSize: '9px', fontWeight: '600', padding: '1px 5px',
+                        fontSize: '11px', fontWeight: '600', padding: '1px 5px',
                         borderRadius: '6px', background: `color-mix(in oklch, ${categoryColor} 15%, transparent)`,
                         color: categoryColor, border: `1px solid color-mix(in oklch, ${categoryColor} 25%, transparent)`,
                     }}>
@@ -498,8 +498,7 @@ const FeaturedCard = ({ feat, busy, onInstall, onLoad, onContextMenu }) => {
                     <button
                         onClick={() => onInstall(feat.name, feat.fromCommunity)}
                         disabled={busy}
-                        className="ext-install-btn"
-                        style={{ fontSize: '10px', padding: '3px 8px' }}
+                        className="btn-secundario btn--peq"
                     >
                         {busy
                             ? <LuLoader size={10} className="ext-spin" />
@@ -513,8 +512,7 @@ const FeaturedCard = ({ feat, busy, onInstall, onLoad, onContextMenu }) => {
                     <button
                         onClick={() => onLoad(feat.name)}
                         disabled={busy}
-                        className="ext-install-btn"
-                        style={{ fontSize: '10px', padding: '3px 8px', background: 'var(--feedback-success-text)' }}
+                        className="btn-secundario btn--peq"
                     >
                         {busy ? <LuLoader size={10} className="ext-spin" /> : <LuPlay size={10} />}
                         Load
@@ -529,7 +527,7 @@ const FeaturedCard = ({ feat, busy, onInstall, onLoad, onContextMenu }) => {
                     rel="noopener noreferrer"
                     style={{
                         marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '3px',
-                        fontSize: '10px', color: 'var(--text-tertiary)', textDecoration: 'none',
+                        fontSize: '11px', color: 'var(--text-tertiary)', textDecoration: 'none',
                     }}
                     title="Open documentation"
                     onClick={(e) => e.stopPropagation()}
@@ -557,7 +555,7 @@ const ExtCard = ({ ext, core, busy, onInstall, onLoad, onContextMenu }) => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                     <span className="ext-card-name">{ext.extension_name}</span>
                     {ext.extension_version && (
-                        <span className="badge badge-neutral" style={{ fontSize: '9px', padding: '1px 5px' }}>
+                        <span className="badge badge-neutral" style={{ fontSize: '11px', padding: '1px 5px' }}>
                             v{ext.extension_version}
                         </span>
                     )}
@@ -575,8 +573,7 @@ const ExtCard = ({ ext, core, busy, onInstall, onLoad, onContextMenu }) => {
                     <button
                         onClick={() => onInstall(ext.extension_name, !core)}
                         disabled={busy}
-                        className="ext-install-btn"
-                        style={{ fontSize: '10px', padding: '3px 8px' }}
+                        className="btn-secundario btn--peq"
                     >
                         {busy ? <LuLoader size={10} className="ext-spin" /> : <LuDownload size={10} />}
                         Install
@@ -586,8 +583,7 @@ const ExtCard = ({ ext, core, busy, onInstall, onLoad, onContextMenu }) => {
                     <button
                         onClick={() => onLoad(ext.extension_name)}
                         disabled={busy}
-                        className="ext-install-btn"
-                        style={{ fontSize: '10px', padding: '3px 8px', background: 'var(--feedback-success-text)' }}
+                        className="btn-secundario btn--peq"
                     >
                         {busy ? <LuLoader size={10} className="ext-spin" /> : <LuPlay size={10} />}
                         Load
@@ -596,10 +592,10 @@ const ExtCard = ({ ext, core, busy, onInstall, onLoad, onContextMenu }) => {
 
                 {installed && <span className="ext-status-installed"><LuCheck size={10} /> Installed</span>}
                 {loaded && <span className="ext-status-loaded"><LuCircle size={8} fill="currentColor" /> Loaded</span>}
-                {!installed && !loaded && <span style={{ fontSize: '10px', color: 'var(--text-disabled)' }}>Not installed</span>}
+                {!installed && !loaded && <span style={{ fontSize: '11px', color: 'var(--text-disabled)' }}>Not installed</span>}
 
                 {ext.install_mode && installed && (
-                    <span style={{ fontSize: '10px', color: 'var(--text-disabled)', marginLeft: 'auto' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-disabled)', marginLeft: 'auto' }}>
                         {ext.install_mode}
                     </span>
                 )}
@@ -610,7 +606,7 @@ const ExtCard = ({ ext, core, busy, onInstall, onLoad, onContextMenu }) => {
                         rel="noopener noreferrer"
                         style={{
                             marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '3px',
-                            fontSize: '10px', color: 'var(--text-tertiary)', textDecoration: 'none',
+                            fontSize: '11px', color: 'var(--text-tertiary)', textDecoration: 'none',
                         }}
                         onClick={(e) => e.stopPropagation()}
                     >

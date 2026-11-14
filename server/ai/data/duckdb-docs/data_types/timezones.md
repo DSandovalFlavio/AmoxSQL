@@ -2,9 +2,11 @@
 blurb: A reference list for Time Zones
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/timezones
 - /docs/sql/data_types/timezones
 - /docs/stable/sql/data_types/timezones
+- /docs/current/sql/data_types/timezones
+- /docs/lts/sql/data_types/timezones
+- /docs/preview/sql/data_types/timezones
 title: Time Zone Reference List
 ---
 
@@ -124,6 +126,7 @@ ORDER BY name;
 | America/Coral_Harbour            | EST                              |
 | America/Cordoba                  | America/Cordoba                  |
 | America/Costa_Rica               | America/Costa_Rica               |
+| America/Coyhaique                | America/Coyhaique                |
 | America/Creston                  | MST                              |
 | America/Cuiaba                   | America/Cuiaba                   |
 | America/Curacao                  | PRT                              |
@@ -194,7 +197,7 @@ ORDER BY name;
 | America/Montreal                 | America/Montreal                 |
 | America/Montserrat               | PRT                              |
 | America/Nassau                   | America/Nassau                   |
-| America/New_York                 | EST5EDT                          |
+| America/New_York                 | America/New_York                 |
 | America/Nipigon                  | America/Nipigon                  |
 | America/Nome                     | America/Nome                     |
 | America/Noronha                  | America/Noronha                  |
@@ -404,7 +407,7 @@ ORDER BY name;
 | CET                              | CET                              |
 | CNT                              | CNT                              |
 | CST                              | CST                              |
-| CST6CDT                          | CST                              |
+| CST6CDT                          | CST6CDT                          |
 | CTT                              | CTT                              |
 | Canada/Atlantic                  | Canada/Atlantic                  |
 | Canada/Central                   | Canada/Central                   |
@@ -558,7 +561,7 @@ ORDER BY name;
 | MET                              | CET                              |
 | MIT                              | MIT                              |
 | MST                              | MST                              |
-| MST7MDT                          | Navajo                           |
+| MST7MDT                          | MST7MDT                          |
 | Mexico/BajaNorte                 | Mexico/BajaNorte                 |
 | Mexico/BajaSur                   | Mexico/BajaSur                   |
 | Mexico/General                   | Mexico/General                   |
@@ -572,7 +575,7 @@ ORDER BY name;
 | PRC                              | CTT                              |
 | PRT                              | PRT                              |
 | PST                              | PST                              |
-| PST8PDT                          | PST                              |
+| PST8PDT                          | PST8PDT                          |
 | Pacific/Apia                     | MIT                              |
 | Pacific/Auckland                 | NZ                               |
 | Pacific/Bougainville             | Pacific/Bougainville             |
@@ -643,7 +646,7 @@ ORDER BY name;
 | US/Arizona                       | MST                              |
 | US/Central                       | CST                              |
 | US/East-Indiana                  | IET                              |
-| US/Eastern                       | EST5EDT                          |
+| US/Eastern                       | US/Eastern                       |
 | US/Hawaii                        | HST                              |
 | US/Indiana-Starke                | US/Indiana-Starke                |
 | US/Michigan                      | US/Michigan                      |

@@ -27,6 +27,33 @@ Cada archivo abierto es una pestaña en el panel. La pestaña activa está resal
 
 <img src="../../images/editor/tab-bar.png" alt="barra de pestañas con el botón + y el menú de nuevo archivo" width="100%" />
 
+### Pestañas que se distinguen
+Una pestaña nueva se llama por lo que es y lleva número: **Query 1.sql**, **Query 2.sql**, **Notebook 1.sqlnb**… (el número más bajo libre). Si dos pestañas abiertas tienen el mismo nombre (`cierre.sql` de `informes/2023` y de `informes/2024`), cada una enseña al lado la carpeta que las distingue.
+
+### Ver todas cuando no caben
+- La **rueda del ratón** sobre la barra la desplaza de lado a lado, y la pestaña activa siempre se trae a la vista.
+- Cuando hay pestañas que no se ven, aparece al final de la barra un botón con **cuántas quedan fuera**. Abre la lista de todas las abiertas, con un buscador: escribe parte del nombre y Enter.
+- En el explorador de archivos, **Open Editors** lista también las abiertas de los dos paneles (ver [Explorador de archivos](../data/file-explorer.md)).
+
+### El menú de una pestaña
+Clic derecho sobre una pestaña, con el atajo al lado de lo que lo tiene:
+
+| Entrada | Qué hace |
+|---|---|
+| Rename… · Save · Save as… | Renombrar el archivo · guardar · guardar con otro nombre |
+| Copy path · Reveal in the explorer | La ruta del archivo · mostrarlo en el explorador de archivos |
+| Move to the other pane · Open a copy to the side | Llevarla al otro panel · abrir otra igual en el otro panel |
+| Pin / Unpin | Fijarla: no se cierra con Ctrl+W ni de golpe |
+| Close · Close others · Close to the right | Esta · todas menos esta · las de su derecha |
+| **Close saved** | Las que no tienen cambios: lo que abriste sólo para mirar |
+| Close all | Todas las del panel |
+| Reopen closed tab | La última que cerraste |
+
+Cerrar varias a la vez nunca cierra las **fijadas**, y pregunta **una sola vez** si alguna tiene cambios sin guardar.
+
+### Reabrir lo que cerraste
+**Ctrl+Shift+T** (o **Reopen closed tab**) trae de vuelta la última pestaña cerrada, y la anterior si lo repites. También vuelve una pestaña **que nunca se guardó**, con su texto: al cerrarla, un aviso dice «… was not saved.» con un botón **Reopen**.
+
 ### Dividir en dos paneles
 Arrastra una pestaña hacia el **borde derecho** (o izquierdo) de la ventana para abrir un segundo panel y soltarla ahí. Con la vista dividida, cada panel tiene su propia barra de pestañas y su pestaña activa. Cuando el panel derecho se queda **sin pestañas**, la división **se colapsa sola** y vuelves a un único panel.
 
@@ -78,7 +105,11 @@ Si ejecutas un archivo con varias sentencias separadas por `;`, AmoxSQL te propo
 |---|---|
 | Ctrl+N · Ctrl+Shift+N | Nueva query SQL · nuevo Notebook |
 | Ctrl+W | Cerrar pestaña activa |
-| Ctrl+Tab · Ctrl+Shift+Tab | Pestaña siguiente · anterior |
+| Ctrl+Shift+T | Reabrir la última que cerraste (también una sin guardar) |
+| Alt+P | Fijar o soltar la pestaña |
+| Ctrl+Tab · Ctrl+Shift+Tab | La usada más recientemente · al revés |
+| Alt+← · Alt+→ | Atrás · adelante por las pestañas visitadas |
+| Ctrl+\ · Ctrl+Shift+\ | Dividir la pantalla · duplicar la pestaña al otro panel |
 | Ctrl+S | Guardar la pestaña activa |
 
 ## Relacionado

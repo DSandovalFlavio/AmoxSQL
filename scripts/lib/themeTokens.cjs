@@ -13,7 +13,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const CSS = fs.readFileSync(path.join(__dirname, '..', '..', 'client', 'src', 'index.css'), 'utf8');
+const CSS = require('./estilosDelCliente.cjs').leer();
 
 function srgbToLinear(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
 
@@ -114,10 +114,15 @@ function extractBlock(selector, ultimo = false) {
 }
 
 // Reglas de una línea o de bloque cuyo selector no es un selector "limpio"
+// Junta TODAS las reglas con ese selector, en orden: un selector puede salir en
+// varias (el de Deep Dark está en la de su acento y en la del error bermellón),
+// y con la primera sola se perdía lo que dice la otra.
 function extractRule(selectorRe) {
-    const re = new RegExp(selectorRe + String.raw`\s*\{([^}]*)\}`, 'm');
-    const m = CSS.match(re);
-    return m ? tokensOf(m[1].replace(/;\s*/g, ';\n  ')) : {};
+    const re = new RegExp(selectorRe + String.raw`\s*\{([^}]*)\}`, 'gm');
+    const out = {};
+    let m;
+    while ((m = re.exec(CSS)) !== null) Object.assign(out, tokensOf(m[1].replace(/;\s*/g, ';\n  ')));
+    return out;
 }
 
 const themes = {};
@@ -133,12 +138,16 @@ const BODY = extractBlock('body');
 const LIGHT = new Set(['mist', 'amoxlight', 'sterlinglight']);
 
 // Acento por defecto de cada tema: vive en `.theme-X:not([class*="accent-"])`,
-// que extractBlock ignora a propósito.
+// que extractBlock ignora a propósito. Obsidian tiene sus superficies en :root,
+// pero su acento propio cuelga de `.theme-obsidian`.
+const claseDeTema = (name, sel) => (sel === ':root' ? `.theme-${name}` : sel);
 const ACCENT_DEFAULT = {};
 for (const [name, sel] of Object.entries(THEME_SELECTORS)) {
-    if (sel === ':root') continue;
-    const t = extractRule(sel.replace(/[.]/g, String.raw`\.`) + String.raw`:not\(\[class\*="accent-"\]\)`);
+    const t = extractRule(claseDeTema(name, sel).replace(/[.]/g, String.raw`\.`) + String.raw`:not\(\[class\*="accent-"\]\)`);
     if (t['--accent-primary']) ACCENT_DEFAULT[name] = t['--accent-primary'];
+    // Un tema puede darlo por componentes, para que `body` lo componga y la
+    // barra de intensidad lo mueva (Obsidian, Deep Dark).
+    else if (t['--acc-h']) ACCENT_DEFAULT[name] = `oklch(${t['--acc-l']} ${t['--acc-c']} ${t['--acc-h']})`;
 }
 
 // Presets de acento. En claro cada uno fija --accent-primary ya compuesto; en
@@ -154,6 +163,16 @@ function accentPresets(modoClaro) {
 }
 const ACCENTS_LIGHT = accentPresets(true);
 const ACCENTS_DARK = accentPresets(false);
+
+/**
+ * Un preset tal como lo ve un tema: el preset general más el ajuste que ese
+ * tema le haga (`.theme-nord.accent-red { --acc-l: … }`), que gana por
+ * especificidad. Sin esto el verificador mediría un color que no se pinta.
+ */
+function presetEnTema(theme, id, tokens) {
+    const sel = claseDeTema(theme, THEME_SELECTORS[theme]).replace(/[.]/g, String.raw`\.`);
+    return { ...tokens, ...extractRule(sel + String.raw`\.accent-` + id) };
+}
 
 /**
  * Cadena de resolución, en el mismo orden que la cascada real de <body>:
@@ -220,7 +239,7 @@ module.exports = {
     CSS,
     THEME_SELECTORS, LIGHT,
     themes, root, MODE_LIGHT, BODY,
-    ACCENT_DEFAULT, ACCENTS_LIGHT, ACCENTS_DARK,
+    ACCENT_DEFAULT, ACCENTS_LIGHT, ACCENTS_DARK, presetEnTema,
     rawTok, expand, parseColor, col, shadowColor,
     over, luminance, contrast, hexToRGB, srgbToLinear, toHex,
 };

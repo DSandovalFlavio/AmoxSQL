@@ -1,13 +1,15 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/dialect/indexing
 - /docs/sql/dialect/indexing
 - /docs/stable/sql/dialect/indexing
+- /docs/current/sql/dialect/indexing
+- /docs/lts/sql/dialect/indexing
+- /docs/preview/sql/dialect/indexing
 title: Indexing
 ---
 
-DuckDB uses 1-based indexing except for [JSON objects]({% link docs/current/data/json/overview.md %}), which use 0-based indexing.
+DuckDB uses 1-based indexing except for [JSON objects]({% link docs/2.0/data/json/overview.md %}), which use 0-based indexing.
 
 ## Examples
 

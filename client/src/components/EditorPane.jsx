@@ -28,6 +28,9 @@ import AiDivingPanel from './ai/AiDivingPanel';
 import BarraModelo from './dbt/BarraModelo';
 import { textoAmoxvis, mismoGrafico } from './DataVisualizer/vega/figura';
 import { guardarBorrador } from '../utils/borradorGrafico';
+import { reescribirLambdas, esErrorDeFlecha } from '../utils/lambdas';
+import { editorDe } from '../utils/memoriaDePestana';
+import { emitir } from '../eventos.js';
 
 // Discreet fallback while a lazy pane chunk loads (matches ChainEditor's style)
 /**
@@ -92,6 +95,7 @@ const EditorPane = ({
     onDragStart,
     onReorder,
     onFileDrop,       // (filePath) -> handle dropped file
+    onArchivoSoltado, // (ruta) -> un archivo arrastrado desde el explorador (6.0, M11)
     isActive,
     theme,
     editorLayout,
@@ -461,7 +465,25 @@ const EditorPane = ({
 
     // The doors to Assist from the error and the results (plan del Assistant, E2).
     // App opens the panel; the panel turns the action into the question.
-    const asistir = (accion) => window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId: activeTab.id } }));
+    const asistir = (accion) => emitir('amox_asistir', { accion, tabId: activeTab.id });
+
+    // 6.0 (Dec-67): DuckDB 2 rejects `x -> …`; the editor offers to write `lambda x: …`.
+    // One edit in Monaco, so Ctrl+Z gives the old text back.
+    const reescribirFlechas = () => {
+        const { sql: nuevo, cambios } = reescribirLambdas(activeTab.content || '');
+        if (!cambios) return;
+        const ed = editorDe(activeTab.id);
+        const modelo = ed?.getModel?.();
+        if (modelo) {
+            ed.pushUndoStop();
+            ed.executeEdits('amox-lambdas', [{ range: modelo.getFullModelRange(), text: nuevo }]);
+            ed.pushUndoStop();
+        } else {
+            onContentChange(activeTab.id, nuevo);
+        }
+    };
+    const flechas = activeTab.resultsError && esErrorDeFlecha(activeTab.resultsError)
+        ? reescribirLambdas(activeTab.content || '').cambios : 0;
 
     // Results panel content (shared between both layouts)
     const resultsContent = (
@@ -477,6 +499,12 @@ const EditorPane = ({
             {activeTab.resultsError && (
                 <div className="ep-error">
                     <span className="ep-error-texto">Error: {activeTab.resultsError}</span>
+                    {flechas > 0 && (
+                        <button type="button" className="ep-error-asistir" onClick={reescribirFlechas}
+                            title="DuckDB 2 writes lambdas as lambda x: … — rewrite the arrows in this query">
+                            <LuWrench size={12} /> Rewrite {flechas === 1 ? 'the lambda' : `${flechas} lambdas`}
+                        </button>
+                    )}
                     {/* E2: the error is a door to Assist — it already knows the error and the query. */}
                     {activeTab.type === 'sql' && activeTab.path && (
                         <button type="button" className="ep-error-asistir" onClick={() => asistir('arreglar_error')}>
@@ -556,14 +584,14 @@ const EditorPane = ({
                 else if (onPaneFocus) onPaneFocus();
             }}
             onDragEnter={(e) => {
-                if (e.dataTransfer.types.includes('Files')) {
+                if (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-amox-archivo')) {
                     e.preventDefault();
                     dropCounterRef.current++;
                     setShowDropZone(true);
                 }
             }}
             onDragOver={(e) => {
-                if (e.dataTransfer.types.includes('Files')) {
+                if (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-amox-archivo')) {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'copy';
                 }
@@ -579,6 +607,8 @@ const EditorPane = ({
                 e.preventDefault();
                 dropCounterRef.current = 0;
                 setShowDropZone(false);
+                const delExplorador = e.dataTransfer.getData('application/x-amox-archivo');
+                if (delExplorador) { onArchivoSoltado?.(delExplorador); return; }
                 const files = e.dataTransfer.files;
                 if (files && files.length > 0 && onFileDrop) {
                     for (const file of files) {

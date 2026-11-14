@@ -9,7 +9,7 @@
  * pestaña (LayoutManager): antes se quedaba flotando encima de lo que abrieras,
  * Deep Dive incluido. Si no hay nada que contar, no sale.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     LuHistory, LuCircleAlert, LuTriangleAlert, LuCircleCheck, LuCalendarClock, LuGitBranch, LuInbox, LuFiles, LuArrowRight,
 } from 'react-icons/lu';
@@ -17,6 +17,7 @@ import { API_BASE } from '../api.js';
 import { ESTADOS } from './workspaces/VistaWorkspaces';
 import { marcarVistas } from './operacion/Atencion';
 import { useEscape } from '../hooks/useEscape';
+import { emitir } from '../eventos.js';
 
 const ESTADO = Object.fromEntries(ESTADOS.map(([k, t]) => [k, t]));
 
@@ -49,7 +50,7 @@ function entrega(fecha) {
 }
 
 const abrirFicha = (runId) => {
-    window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId } }));
+    emitir('amox_abrir_ejecucion', { runId });
     marcarVistas([runId]);
 };
 
@@ -57,6 +58,16 @@ export default function Retomar({ pestanas = [], onAbrirArchivo, onClose }) {
     const [d, setD] = useState(null);
     // Escape también la cierra: flota encima de lo que abras después.
     useEscape(onClose, !!d && (d.hayAlgo || pestanas.length > 0));
+    // The card arrives after a request: it takes the focus (Enter = Continue) only if
+    // nothing has it. With autoFocus it pulled the focus out of the editor while the
+    // user was already typing (6.0, seen once a tour no longer covered it — M4).
+    const continuarRef = useRef(null);
+    const visible = !!d && (d.hayAlgo || pestanas.length > 0);
+    useEffect(() => {
+        if (!visible) return;
+        const a = document.activeElement;
+        if (!a || a === document.body) continuarRef.current?.focus();
+    }, [visible]);
 
     useEffect(() => {
         let vivo = true;
@@ -152,7 +163,7 @@ export default function Retomar({ pestanas = [], onAbrirArchivo, onClose }) {
                         Open {d.procesos[0].nombre}
                     </button>
                 )}
-                <button type="button" className="rtm-btn rtm-btn--principal" onClick={onClose} autoFocus>Continue</button>
+                <button type="button" ref={continuarRef} className="rtm-btn rtm-btn--principal" onClick={onClose}>Continue</button>
             </footer>
         </section>
     );

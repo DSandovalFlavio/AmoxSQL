@@ -3,6 +3,7 @@ import { LuRefreshCw, LuLoader, LuCircleAlert, LuZoomIn, LuZoomOut, LuMaximize2 
 import { API_BASE as _API } from '../api.js';
 import useCorrerDbt from './dbt/useCorrerDbt';
 import { LuPlay, LuChevronsLeft, LuFileCode, LuTable, LuX, LuCheck, LuTriangleAlert } from 'react-icons/lu';
+import { emitir } from '../eventos.js';
 const API = `${_API}/api`;
 
 const NODE_W = 180;
@@ -112,7 +113,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
             const r = await fetch(`${API}/dbt/linaje/filas-de-test`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ test: id }) });
             const d = await r.json();
             if (!r.ok) throw new Error(d.error);
-            window.dispatchEvent(new CustomEvent('amox_nueva_consulta', { detail: { sql: `-- Rows that fail ${d.nombre}\n${d.sql}`, ejecutar: true } }));
+            emitir('amox_nueva_consulta', { sql: `-- Rows that fail ${d.nombre}\n${d.sql}`, ejecutar: true });
         } catch (e) { alert(e.message); }
     };
 
@@ -176,9 +177,17 @@ const DbtLineageGraph = ({ onFileOpen }) => {
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-tertiary)' }}>
                 <LuCircleAlert size={24} style={{ marginBottom: '8px', color: 'var(--color-warning)' }} />
                 <p style={{ fontSize: '12px', marginBottom: '12px' }}>{error}</p>
-                <button className="dbt-btn dbt-btn--ghost" onClick={fetchManifest}>
-                    <LuRefreshCw size={13} /> Retry
-                </button>
+                {/* 6.0 (M10 · T12): sin manifest, compilar desde aquí; al
+                    terminar, amox_dbt_cambio recarga el linaje. */}
+                <div className="fila dbt-linaje-acciones">
+                    <button className="btn-primario btn--peq" onClick={() => dbt.correr('dbt compile')} disabled={!!dbt.ocupado}>
+                        {dbt.ocupado ? <LuLoader size={13} className="dbt-spin" /> : <LuPlay size={13} />} {dbt.ocupado ? 'Compiling…' : 'Compile'}
+                    </button>
+                    <button className="btn-texto btn--peq" onClick={fetchManifest} disabled={!!dbt.ocupado}>
+                        <LuRefreshCw size={13} /> Retry
+                    </button>
+                </div>
+                {dbt.error && <p className="dbt-linaje-error">{dbt.error}</p>}
             </div>
         );
     }
@@ -210,7 +219,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                 <button className="dbt-icon-btn" onClick={() => setZoom(z => Math.min(3, z + 0.15))} title="Zoom In"><LuZoomIn size={14} /></button>
                 <button className="dbt-icon-btn" onClick={() => setZoom(z => Math.max(0.2, z - 0.15))} title="Zoom Out"><LuZoomOut size={14} /></button>
                 <button className="dbt-icon-btn" onClick={resetView} title="Reset View"><LuMaximize2 size={14} /></button>
-                <span style={{ fontSize: '10px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginLeft: 'auto' }}>
                     {data.nodes.length} nodes · {data.edges.length} edges · {Math.round(zoom * 100)}%
                 </span>
                 <button className="dbt-icon-btn" onClick={fetchManifest} title="Refresh"><LuRefreshCw size={13} /></button>
@@ -357,17 +366,17 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                             pointerEvents: 'none',
                         }}>
                             <div style={{ fontWeight: '600', marginBottom: '4px' }}>{node.name}</div>
-                            <div style={{ color: 'var(--text-tertiary)', fontSize: '10px' }}>
+                            <div style={{ color: 'var(--text-tertiary)', fontSize: '11px' }}>
                                 {node.resourceType}{node.materialized ? ` · ${node.materialized}` : ''}
                                 {node.schema ? ` · ${node.schema}` : ''}
                             </div>
                             {node.description && (
-                                <div style={{ marginTop: '4px', color: 'var(--text-secondary)', fontSize: '10px' }}>
+                                <div style={{ marginTop: '4px', color: 'var(--text-secondary)', fontSize: '11px' }}>
                                     {node.description.slice(0, 120)}
                                 </div>
                             )}
                             {node.path && (
-                                <div style={{ marginTop: '4px', fontFamily: "'JetBrains Mono', monospace", fontSize: '9px', color: 'var(--accent-primary)' }}>
+                                <div style={{ marginTop: '4px', fontFamily: "'JetBrains Mono', monospace", fontSize: '11px', color: 'var(--accent-primary)' }}>
                                     {node.path}
                                 </div>
                             )}
@@ -435,7 +444,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                             {dbt.resumen && (
                                 <div className={`lin-panel-resumen lin-panel-resumen--${dbt.resumen.estado}`}>
                                     <span>{dbt.resumen.linea}</span>
-                                    {dbt.resumen.runId && <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId: dbt.resumen.runId } }))}>Details</button>}
+                                    {dbt.resumen.runId && <button type="button" onClick={() => emitir('amox_abrir_ejecucion', { runId: dbt.resumen.runId })}>Details</button>}
                                 </div>
                             )}
                         </div>
@@ -446,7 +455,7 @@ const DbtLineageGraph = ({ onFileOpen }) => {
                 <div style={{
                     position: 'absolute', top: '8px', right: '8px',
                     display: 'flex', gap: '8px', flexWrap: 'wrap',
-                    fontSize: '9px', color: 'var(--text-tertiary)',
+                    fontSize: '11px', color: 'var(--text-tertiary)',
                 }}>
                     {Object.entries(TYPE_COLORS).map(([type, colors]) => (
                         <span key={type} style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>

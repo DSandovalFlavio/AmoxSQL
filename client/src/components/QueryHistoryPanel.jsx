@@ -260,7 +260,7 @@ const QueryHistoryPanel = ({ onSelect, onInsertQuery, onSaveAsFile, onClose }) =
                         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                             {viewTab === 'history' ? 'No query history yet' : 'No saved queries'}
                         </span>
-                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
                             {viewTab === 'history' ? 'Run a query to see it here' : '★ Star queries from history to save them'}
                         </span>
                     </div>
@@ -281,7 +281,7 @@ const QueryHistoryPanel = ({ onSelect, onInsertQuery, onSaveAsFile, onClose }) =
 
                 {/* Hidden items note */}
                 {hiddenCount > 0 && (
-                    <div style={{ padding: '8px 14px', textAlign: 'center', fontSize: '10px', color: 'var(--text-tertiary)' }}>
+                    <div style={{ padding: '8px 14px', textAlign: 'center', fontSize: '11px', color: 'var(--text-tertiary)' }}>
                         +{hiddenCount} more — use search to find older queries
                     </div>
                 )}

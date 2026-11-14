@@ -3,19 +3,21 @@ blurb: The QUALIFY clause is used to filter the results of WINDOW functions.
 layout: docu
 railroad: query_syntax/qualify.js
 redirect_from:
-- /docs/preview/sql/query_syntax/qualify
 - /docs/sql/query_syntax/qualify
 - /docs/stable/sql/query_syntax/qualify
+- /docs/current/sql/query_syntax/qualify
+- /docs/lts/sql/query_syntax/qualify
+- /docs/preview/sql/query_syntax/qualify
 title: QUALIFY Clause
 ---
 
-The `QUALIFY` clause is used to filter the results of [`WINDOW` functions]({% link docs/current/sql/functions/window_functions.md %}). This filtering of results is similar to how a [`HAVING` clause]({% link docs/current/sql/query_syntax/having.md %}) filters the results of aggregate functions applied based on the [`GROUP BY` clause]({% link docs/current/sql/query_syntax/groupby.md %}).
+The `QUALIFY` clause is used to filter the results of [`WINDOW` functions]({% link docs/2.0/sql/functions/window_functions.md %}). This filtering of results is similar to how a [`HAVING` clause]({% link docs/2.0/sql/query_syntax/having.md %}) filters the results of aggregate functions applied based on the [`GROUP BY` clause]({% link docs/2.0/sql/query_syntax/groupby.md %}).
 
-The `QUALIFY` clause avoids the need for a subquery or [`WITH` clause]({% link docs/current/sql/query_syntax/with.md %}) to perform this filtering (much like `HAVING` avoids a subquery). An example using a `WITH` clause instead of `QUALIFY` is included below the `QUALIFY` examples.
+The `QUALIFY` clause avoids the need for a subquery or [`WITH` clause]({% link docs/2.0/sql/query_syntax/with.md %}) to perform this filtering (much like `HAVING` avoids a subquery). An example using a `WITH` clause instead of `QUALIFY` is included below the `QUALIFY` examples.
 
-Note that this is filtering based on [`WINDOW` functions]({% link docs/current/sql/functions/window_functions.md %}), not necessarily based on the [`WINDOW` clause]({% link docs/current/sql/query_syntax/window.md %}). The `WINDOW` clause is optional and can be used to simplify the creation of multiple `WINDOW` function expressions.
+Note that this is filtering based on [`WINDOW` functions]({% link docs/2.0/sql/functions/window_functions.md %}), not necessarily based on the [`WINDOW` clause]({% link docs/2.0/sql/query_syntax/window.md %}). The `WINDOW` clause is optional and can be used to simplify the creation of multiple `WINDOW` function expressions.
 
-The position of where to specify a `QUALIFY` clause is following the [`WINDOW` clause]({% link docs/current/sql/query_syntax/window.md %}) in a `SELECT` statement (`WINDOW` does not need to be specified), and before the [`ORDER BY`]({% link docs/current/sql/query_syntax/orderby.md %}).
+The position of where to specify a `QUALIFY` clause is following the [`WINDOW` clause]({% link docs/2.0/sql/query_syntax/window.md %}) in a `SELECT` statement (`WINDOW` does not need to be specified), and before the [`ORDER BY`]({% link docs/2.0/sql/query_syntax/orderby.md %}).
 
 ## Examples
 
@@ -94,10 +96,10 @@ WHERE
 
 | schema_name |  function_name  | function_rank |
 |:---|:---|:---|
-| main        | !__postfix      | 1             |
-| main        | !~~             | 2             |
-| pg_catalog  | col_description | 1             |
-| pg_catalog  | format_pg_type  | 2             |
+| main        | !=               | 1             |
+| main        | !__postfix       | 2             |
+| pg_catalog  | col_description  | 1             |
+| pg_catalog  | current_database | 2             |
 
 ## Syntax
 

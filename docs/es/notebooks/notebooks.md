@@ -47,10 +47,10 @@ seleccionar la celda; en reposo el canalón sólo lleva el punto de estado.
 |---|---|
 | **Punto de estado** | Lo único visible en reposo. Cuatro estados; ver más abajo |
 | **Ejecutar** | `Ctrl+Enter` |
-| **Mando de tres posiciones** | Código y resultado · sólo el código · sólo el resultado. Se recuerda, y con él si estaba en tabla o en gráfico. El reparto parte de 40 % para el código y 60 % para el resultado, y el tirador del medio lo cambia |
-| **Materializar** | Guarda el resultado en vez de recalcularlo cada vez que se lea |
-| **Pantalla completa** | La celda ocupa la pestaña entera. `Esc` vuelve, y vuelve por donde estabas |
-| **Subir · Bajar · Borrar** | |
+| **Vista** | Un botón que pasa por código y resultado · sólo el código · sólo el resultado (su ayuda dice qué muestra el siguiente clic). Se recuerda, y con él si estaba en tabla o en gráfico. El reparto parte de 40 % para el código y 60 % para el resultado, y el tirador del medio lo cambia |
+| **…** | Todo lo demás, con nombre: Assist sobre la celda, **Take the whole tab** (`Esc` vuelve, y vuelve por donde estabas), **Materialize** (guarda el resultado en vez de recalcularlo cada vez que se lea), **Mark as draft**, **Move up · Move down · Delete** |
+
+Desde la 6.0 el canalón tiene estos tres mandos en vez de diez. El **?** al final de la barra del cuaderno repite su recorrido.
 
 ## Lectura
 
@@ -87,7 +87,7 @@ Una celda que no se puede envolver —varias sentencias, un `INSERT`, un `COPY`�
 
 ### Borradores
 
-El **lápiz** del canalón marca una celda como **borrador**: sigue corriendo y dejando su vista, pero **no sale** en Word ni en el tablero. Se ve apagada, con el filo punteado y la etiqueta «draft». Antes de exportar, AmoxSQL dice cuántas se quedan fuera.
+**… › Mark as draft** marca una celda como **borrador**: sigue corriendo y dejando su vista, pero **no sale** en Word ni en el tablero. Se ve apagada, con el filo punteado y la etiqueta «draft». Antes de exportar, AmoxSQL dice cuántas se quedan fuera.
 
 En el archivo es una marca más de la directiva: `<!-- celda: prueba borrador -->` (o `<!-- celda borrador -->` sin nombre); una celda de texto lleva `<!-- texto borrador -->` delante. Un cuaderno sin borradores se guarda igual que antes.
 

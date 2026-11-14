@@ -85,9 +85,19 @@ function buildHints(root, metrics, mode) {
     if (filterAfterScan) hints.push({ severity: 'mid', text: `A filter drops most rows after scanning ${fmtRows(filterAfterScan.children[0].cardinality)}. Pushing the condition into the source (a WHERE on the table/file) reads far less data.` });
 
     // Full scan with no filter anywhere.
-    const hasFilter = nodes.some((n) => /FILTER/.test(n.name || ''));
+    // The engine pushes a WHERE into the scan itself (extra_info.Filters), with no FILTER node.
+    const hasFilter = nodes.some((n) => /FILTER/.test(n.name || '')
+        || (n.extra_info && typeof n.extra_info === 'object' && String(n.extra_info.Filters ?? n.extra_info.filters ?? '').trim() !== ''));
     const bigScan = nodes.find((n) => isScan(n) && (n.cardinality || n.estimated_cardinality || 0) >= 100000);
     if (bigScan && !hasFilter) hints.push({ severity: 'info', text: `${friendly(bigScan.name)} reads the full source (${fmtRows(bigScan.cardinality || bigScan.estimated_cardinality)} rows) with no filter. If you don't need every row, add a WHERE to read less.` });
+
+    // 6.0 (O2): a filter that could not skip a single block of rows. The engine skips a
+    // row group when its min/max (zone map) rule the filter out; data in random order
+    // on that column has nothing to skip.
+    if (mode === 'analyze' && metrics && hasFilter && metrics.rowGroupsToScan >= 4
+        && metrics.rowGroupsScanned === metrics.rowGroupsToScan) {
+        hints.push({ severity: 'info', text: `The filter could not skip any block of rows (read ${fmtRows(metrics.rowGroupsScanned)} of ${fmtRows(metrics.rowGroupsToScan)} row groups). If you filter by this column often, storing the table sorted by it (CREATE TABLE … AS SELECT … ORDER BY that column) lets the engine skip most of them.` });
+    }
 
     // Expensive sort that isn't a Top-N.
     const sort = nodes.find((n) => n.name === 'ORDER_BY' && typeof n.timing === 'number');
@@ -196,16 +206,16 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true, total = 0, slowest = nu
                     onClick={() => hasChildren && setExpanded(!expanded)}
                 >
                     {hasChildren && (
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{expanded ? '▼' : '▶'}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{expanded ? '▼' : '▶'}</span>
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                         <span style={{ fontWeight: 600, color: 'var(--text-active)', fontSize: '13px' }}>{friendly(node.name)}</span>
                         {friendly(node.name) !== node.name && (
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.02em' }}>{node.name}</span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', letterSpacing: '0.02em' }}>{node.name}</span>
                         )}
                     </div>
                     {isBottleneck && (
-                        <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--color-error)', border: '1px solid color-mix(in srgb, var(--color-error) 50%, transparent)', borderRadius: '4px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-error)', border: '1px solid color-mix(in srgb, var(--color-error) 50%, transparent)', borderRadius: '4px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                             slowest
                         </span>
                     )}
@@ -221,7 +231,7 @@ const QueryPlanNode = ({ node, depth = 0, isLast = true, total = 0, slowest = nu
                 </div>
 
                 {badEstimate && (
-                    <div style={{ marginTop: '5px', fontSize: '10px', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <div style={{ marginTop: '5px', fontSize: '11px', color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <LuTriangleAlert size={11} />
                         Off estimate: the optimizer expected ~{fmtRows(estRows)} rows, got {fmtRows(realRows)}.
                     </div>

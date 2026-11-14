@@ -2,9 +2,12 @@
 layout: docu
 railroad: statements/update.js
 redirect_from:
-- /docs/preview/sql/statements/update
 - /docs/sql/statements/update
 - /docs/stable/sql/statements/update
+- /docs/current/sql/statements/update
+- /docs/lts/sql/statements/update
+- /docs/preview/sql/statements/update
+tested: true
 title: UPDATE Statement
 ---
 
@@ -13,6 +16,13 @@ The `UPDATE` statement modifies the values of rows in a table.
 ## Examples
 
 For every row where `i` is `NULL`, set the value to 0 instead:
+
+<!-- test:setup
+CREATE TABLE tbl (i INTEGER, j INTEGER);
+INSERT INTO tbl VALUES (0, 1), (1, 2);
+CREATE TABLE new_tbl (i INTEGER, j INTEGER, id INTEGER);
+INSERT INTO new_tbl VALUES (5, 6, 1);
+-->
 
 ```sql
 UPDATE tbl
@@ -32,6 +42,20 @@ SET i = 1, j = 2;
 <div id="rrdiagram"></div>
 
 `UPDATE` changes the values of the specified columns in all rows that satisfy the condition. Only the columns to be modified need be mentioned in the `SET` clause; columns not explicitly modified retain their previous values.
+
+## `RETURNING` Clause
+
+The `RETURNING` clause returns the values of the rows that were updated. It uses the same syntax as the `SELECT` clause, except the `DISTINCT` modifier is not supported. The returned values reflect the state of the rows after the update.
+
+```sql
+CREATE TABLE tbl (i INTEGER, j INTEGER);
+INSERT INTO tbl VALUES (0, 1), (1, 2);
+UPDATE tbl SET j = j + 10 WHERE i = 1 RETURNING *;
+```
+
+| i | j  |
+|--:|---:|
+| 1 | 12 |
 
 ## Update from Other Table
 
@@ -86,6 +110,24 @@ FROM original;
 | 1   | new value   |
 | 2   | new value 2 |
 
+### Multiple Matching Source Rows
+
+If a target row matches multiple rows in the `FROM` clause, the target row is updated only once, using the values of one of the matching source rows. Which source row is used is not specified. For example, the following query sets `v` to either `10` or `20`:
+
+```sql
+CREATE TABLE target (id INTEGER, v INTEGER);
+INSERT INTO target VALUES (1, 0);
+CREATE TABLE source (id INTEGER, v INTEGER);
+INSERT INTO source VALUES (1, 10), (1, 20);
+
+UPDATE target
+    SET v = source.v
+    FROM source
+    WHERE target.id = source.id;
+```
+
+To get deterministic results, ensure that each target row matches at most one source row, e.g., by deduplicating the source. In contrast, the sub-select form throws an error if the subquery returns more than one row (unless the [`scalar_subquery_error_on_multiple_rows` setting]({% link docs/2.0/configuration/overview.md %}#configuration-reference) is set to `false`), and [`MERGE INTO`]({% link docs/2.0/sql/statements/merge_into.md %}) throws an error if a target row matches more than one source row.
+
 ## Update from Same Table
 
 The only difference between this case and the above is that a different table alias must be specified on both the target table and the source table.
@@ -135,4 +177,4 @@ FROM city;
 
 ## Upsert (Insert or Update)
 
-See the [Insert documentation]({% link docs/current/sql/statements/insert.md %}#on-conflict-clause) for details.
+See the [Insert documentation]({% link docs/2.0/sql/statements/insert.md %}#on-conflict-clause) for details.

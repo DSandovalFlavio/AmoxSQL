@@ -89,7 +89,7 @@ It proposes the whole diagram, but **as a graph**, never as mermaid text: the ed
 When a query fails, **Fix with Assist** appears next to the error message. The Assistant already knows the error and the query: no need to paste anything. When you start a conversation with the query in error, the first suggestion is **Fix the error**.
 
 ### Ask about a result
-In the results bar of a `.sql`, **Explain** asks what stands out and **Chart it** asks for a chart of that result.
+In the results bar of a `.sql`, **Explain** asks what stands out; for a chart, the **Chart** tab has its own **Assist** button (and "Chart the result" is still among Assist's suggestions).
 
 ### Accept or reject an edit
 In a `.sql` or a text file, the Assistant proposes **only the lines that change**, and the change is shown **in the editor itself**: what goes out, in red on its line; what comes in, in green below it; above, a bar with **Accept** / **Reject**. While it is pending, those lines can't be edited. If you type elsewhere in the file, the proposal follows its lines. **Review**, in the chat, takes you to it.
@@ -133,7 +133,7 @@ In the chat's bottom bar you pick the **model** (see [Providers & models](provid
 | Answer questions | About your query, your data, or DuckDB SQL in general |
 | Generate / explain / optimize SQL | Writes or rewrites the active file's query |
 | Propose edits | Change with **Accept** / **Reject**; accepting loads it in the editor unsaved. Only the part that changes (lines, a cell, a slide, some panels), reviewed where it lives |
-| Ask from the editor | The bar over a selection, **Fix with Assist** on an error, **Explain** / **Chart it** on results |
+| Ask from the editor | The bar over a selection, **Fix with Assist** on an error, **Explain** on results, **Assist** in their Chart tab |
 | Propose new files | Path and content with **Create**; never overwrites |
 | Propose charts | Configured chart with **Apply to chart** into Story Flow |
 | Cite numbers | Values link back to their source query ("Source Query") |

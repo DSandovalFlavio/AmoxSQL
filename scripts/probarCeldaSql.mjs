@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * Ejercita `utils/celdaSql.js` — lo que se deduce de una celda sin ejecutarla.
  *

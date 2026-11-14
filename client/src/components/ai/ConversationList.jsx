@@ -3,6 +3,7 @@ import { LuSearch, LuPlus, LuStar, LuTrash2, LuMessageSquare, LuPencil, LuCheck,
 
 import { API_BASE as API } from '../../api.js';
 import { useDialog } from '../dialogs/DialogProvider';
+import { emitir } from '../../eventos.js';
 const PAGE_SIZE = 20;
 
 /**
@@ -74,7 +75,7 @@ const ConversationList = ({ activeId, onSelect, onNew, mode }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ sessionName: title }),
             });
-            window.dispatchEvent(new Event('amox_conversation_created'));
+            emitir('amox_conversation_created');
         } catch (err) { console.error('Rename failed:', err); }
     };
 

@@ -35,14 +35,14 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     LuPlus, LuFileText, LuSave, LuRefreshCw, LuFileType2, LuPresentation, LuLoaderCircle,
-    LuBookOpen, LuPencil, LuSparkles } from 'react-icons/lu';
+    LuBookOpen, LuPencil, LuSparkles, LuCircleHelp } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { leerCuaderno, escribirCuaderno, indiceDe, tituloDe } from '../../utils/cuadernoFile.js';
 import { analizarCelda } from '../../utils/celdaSql.js';
 import { componerCelda, nombrePorOmision } from '../../utils/vistaDeCelda.js';
 import { useDialog } from '../dialogs/DialogProvider';
 import { useToast } from '../ToastProvider';
-import { openTour, hasSeenTour } from '../onboarding/tourRegistry';
+import { openTour, hasSeenTour, ofrecerTour } from '../onboarding/tourRegistry';
 import Celda from './Celda.jsx';
 import Barra from './Barra.jsx';
 import CeldaTexto from './CeldaTexto.jsx';
@@ -60,6 +60,7 @@ import { fijarProveedorDeFoco, fijarAplicador } from '../../utils/memoriaDePesta
 import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
 import { estructuraDeCuaderno, ubicarCelda, aplicarACeldas, esDeCelda, describirCelda } from '../ai/archivos/cuaderno.js';
 import { RevisionDeCelda, CeldaFantasma } from './PropuestaEnCuaderno.jsx';
+import { emitir } from '../../eventos.js';
 
 const idNuevo = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
@@ -182,7 +183,7 @@ const CuadernoEditor = ({
     // El recorrido de la primera vez lo lanzaba el componente anterior; al
     // retirarlo se quedaba sin quien lo abriera.
     useEffect(() => {
-        if (!hasSeenTour('notebooks')) openTour('notebooks');
+        ofrecerTour('notebooks');
     }, []);
 
     /**
@@ -428,7 +429,7 @@ const CuadernoEditor = ({
     const asistirCelda = useCallback((id, accion) => {
         alDia.current = { ...alDia.current, seleccionada: id };
         setSeleccionada(id);
-        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+        emitir('amox_asistir', { accion, tabId });
     }, [tabId]);
 
     /**
@@ -622,6 +623,7 @@ const CuadernoEditor = ({
                     preparacion,
                     lector,
                     vista,
+                    historial: texto,
                     // Que va a dejar puesto: el servidor lo necesita para saber
                     // si hay que relevar un objeto temporal del otro tipo.
                     deja,
@@ -951,12 +953,17 @@ const CuadernoEditor = ({
                     celda. */}
                 <div className="cdn-doc">
                     <div className="cdn-doc-txt">
-                        <input
+                        {/* 6.0 (M1, F4): un `textarea` como la descripción, para que un
+                            título largo pase a dos líneas en vez de cortarse («Ventas 20»). */}
+                        <textarea
                             className="cdn-doc-titulo"
+                            rows={1}
                             value={doc.meta?.titulo || ''}
                             readOnly={lectura}
                             placeholder={lectura ? '' : 'Untitled'}
-                            onChange={(e) => cambiarMeta('titulo', e.target.value)}
+                            onChange={(e) => cambiarMeta('titulo', e.target.value.replace(/\s*[\r\n]+\s*/g, ' '))}
+                            onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
+                            ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
                         />
                         {/* Un `textarea` y no un `input`: una descripción larga
                             en un input se corta a media palabra, y lo único que
@@ -1043,6 +1050,10 @@ const CuadernoEditor = ({
                                 Assist
                             </button>
                         )}
+                        {/* 6.0 (M4): the notebook tour is offered once; here it is always at hand. */}
+                        <button type="button" className="cdn-btn cdn-btn--icono" onClick={() => openTour('notebooks')} title="How notebooks work (tour)" aria-label="How notebooks work">
+                            <LuCircleHelp size={13} />
+                        </button>
                     </div>
                 </div>
 

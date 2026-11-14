@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { LuSparkles } from 'react-icons/lu';
 import QueryPlanViewer from './QueryPlanViewer';
 import { useEscape } from '../hooks/useEscape';
+import { emitir } from '../eventos.js';
 
 const fmtMs = (s) => {
     if (s == null) return '—';
@@ -20,7 +21,7 @@ const fmtBytes = (b) => {
 
 const Metric = ({ label, value }) => (
     <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
         <span style={{ fontSize: '13px', color: 'var(--text-active)', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{value}</span>
     </div>
 );
@@ -37,7 +38,7 @@ function sumTimings(node) {
 const PhaseBar = ({ plan, metrics }) => {
     if (!metrics || !(metrics.latency > 0)) return null;
     const p = metrics.phases || {};
-    const planning = (p.planner || 0) + (p.optimizer || 0) + (p.physicalPlanner || 0);
+    const planning = (p.parser || 0) + (p.planner || 0) + (p.optimizer || 0) + (p.physicalPlanner || 0);
     const execution = sumTimings(planRoot(plan));
     const other = Math.max(0, metrics.latency - planning - execution);
     const segs = [
@@ -53,7 +54,7 @@ const PhaseBar = ({ plan, metrics }) => {
                     <div key={i} style={{ width: `${(s.v / tot) * 100}%`, background: s.c }} title={`${s.label}: ${fmtMs(s.v)}`} />
                 ))}
             </div>
-            <div style={{ display: 'flex', gap: '16px', fontSize: '10px', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: 'var(--text-muted)' }}>
                 {segs.map((s, i) => (
                     <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{ width: 8, height: 8, background: s.c, borderRadius: 2 }} />
@@ -121,10 +122,10 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query, mode = 'analyze', metric
     const askAi = () => {
         const summary = summarizeTree(planRoot(plan)).join('\n');
         const head = (mode === 'analyze' && metrics)
-            ? `Total latency: ${fmtMs(metrics.latency)} · rows returned: ${metrics.rowsReturned} · rows scanned: ${metrics.rowsScanned} · peak memory: ${fmtBytes(metrics.peakMemory)}\n`
+            ? `Total latency: ${fmtMs(metrics.latency)} · rows returned: ${metrics.rowsReturned} · rows scanned: ${metrics.rowsScanned} · peak memory: ${fmtBytes(metrics.peakMemory)}${metrics.rowGroupsToScan > 0 ? ` · row groups read: ${metrics.rowGroupsScanned} of ${metrics.rowGroupsToScan}` : ''}\n`
             : '';
         const prompt = `Optimize this DuckDB SQL query. Below is the query and its ${mode === 'analyze' ? 'actual (EXPLAIN ANALYZE)' : 'estimated'} execution plan.\n\nQuery:\n\`\`\`sql\n${query}\n\`\`\`\n\nExecution plan:\n\`\`\`\n${head}${summary}\n\`\`\`\n\nSuggest concrete optimizations (query rewrites, predicate pushdown / filters, sorting & limits, join order) and briefly explain why each helps.`;
-        window.dispatchEvent(new CustomEvent('amox_ai_prompt', { detail: { prompt } }));
+        emitir('amox_ai_prompt', { prompt });
         if (onClose) onClose();
     };
 
@@ -231,6 +232,13 @@ const QueryPlanModal = ({ isOpen, onClose, plan, query, mode = 'analyze', metric
                         <Metric label="CPU" value={fmtMs(metrics.cpuTime)} />
                         <Metric label="Peak memory" value={fmtBytes(metrics.peakMemory)} />
                         <Metric label="Bytes read" value={fmtBytes(metrics.bytesRead)} />
+                        {/* 6.0 (O2): blocks of rows the engine read out of the ones it had; fewer = it skipped data. */}
+                        {metrics.rowGroupsToScan > 0 && (
+                            <span title="Blocks of rows (row groups) read, out of those in the tables. The engine skips a block when its min/max show no row can match the filter.">
+                                <Metric label="Row groups" value={`${fmtNum(metrics.rowGroupsScanned)} / ${fmtNum(metrics.rowGroupsToScan)}`} />
+                            </span>
+                        )}
+                        {metrics.bytesWritten > 0 && <Metric label="Bytes written" value={fmtBytes(metrics.bytesWritten)} />}
                     </div>
                 )}
 

@@ -10,7 +10,7 @@
 
 **Compare results** lets you take a **snapshot** of the current result and, after running another query, diff it against the new one. AmoxSQL computes the **diff by a key column** and splits the rows into three groups: **Added**, **Removed**, and **Unchanged** (rows whose key exists on both sides).
 
-It lives in the [results table](results-table.md), in the toolbar's **Store A** and **Compare** buttons.
+It lives in the [results table](results-table.md), in **Save / Share › Store for comparison** and the **Compare** button that then appears.
 
 ## When to use it
 
@@ -22,7 +22,7 @@ It's not a cell-by-cell diff: it compares **row presence** by the key column you
 
 ## How to use it
 
-1. Run the first query. In the results bar, press **Store A** — a snapshot of the current rows is stored (a toast confirms it).
+1. Run the first query. In the results bar, open **Save / Share** and choose **Store for comparison** — a snapshot of the current rows is stored (a toast confirms it).
 2. Run the second query (or change the filter and re-run).
 3. Press **Compare**. The compare modal opens.
 4. Choose the **key column** in the dropdown. This is the column that identifies each row (for example `id`). With "— No key (show all) —" all rows from each side are shown without pairing.
@@ -33,7 +33,7 @@ It's not a cell-by-cell diff: it compares **row presence** by the key column you
 
 | Element | What it does |
 |---|---|
-| **Store A** | Takes a snapshot of the current result (already filtered and sorted) |
+| **Store for comparison** | Takes a snapshot of the current result (already filtered and sorted) |
 | **Compare** | Opens the diff between the snapshot (A) and the current result (B) |
 | **✕** (clear) | Discards the stored snapshot |
 | **Key Column** | Column that pairs rows between A and B |
@@ -45,7 +45,7 @@ It's not a cell-by-cell diff: it compares **row presence** by the key column you
 
 - **Pick the key wisely:** the diff is based on it. A unique column (an `id`) gives crisp results; a repeated column may pair rows you didn't intend.
 - **Compare apples to apples:** it works best when both results share the schema (same columns). You can compare two different queries as long as the key column exists in both.
-- **The snapshot is the view, not the query:** **Store A** stores the rows as they are (with your filter and sort applied); it doesn't re-run anything.
+- **The snapshot is the view, not the query:** **Store for comparison** stores the rows as they are (with your filter and sort applied); it doesn't re-run anything.
 - **Bounded preview:** each group shows up to 100 rows in the modal, with a note of how many more there are; for the full detail, export each result separately (see [Saving results](saving-results.md)).
 
 ## Related

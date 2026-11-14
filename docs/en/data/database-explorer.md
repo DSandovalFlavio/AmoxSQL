@@ -53,6 +53,16 @@ The **Quality Check** runs automated checks: `SUMMARIZE`, duplicate rows, null %
 ### Descriptions
 If a table, view or column has a description, the explorer shows it: the table's under its name, each column's next to it (and in full on hover). It comes from the comment the database keeps (`COMMENT ON`, or dbt's `persist_docs`). In the database of a dbt project without `persist_docs`, it comes from the project's YAML; the database's comment wins. **The assistant reads them** with the schema and in `describe_table`.
 
+### Schemas inside schemas
+DuckDB 2 allows nested schemas: `CREATE SCHEMA sales.raw`. The explorer shows them with their path (`sales.raw`), and so do the ER diagram, a table's view, importing, Data Flow and the Assistant; two "raw" schemas under different parents don't get mixed up. To create one: right-click a schema → **New schema inside…**. Empty schemas are shown too.
+
+### Upgrading the database format (Upgrade…)
+A database created with 5.x opens and works as it is. When the open database is in that format, the explorer says so in a line at the top ("*shop.duckdb* uses AmoxSQL 5's format") with an **Upgrade…** button: it copies the database into the DuckDB 2 format with everything it had — in the example it goes from 22.8 MB to 18.3 MB — and keeps the original next to it as `<name>.before-6.duckdb`. The session carries on, temporary views included.
+
+It is never automatic, because it has a consequence: afterwards **5.x can no longer open the upgraded file** (nor can a dbt with DuckDB 1.x). If you share the database with someone still on 5.x, wait. The database picker lists the backups last, marked "backup".
+
+<img src="../../images/data/upgrade-format.png" alt="the database explorer with the line about the 5.x format and the Upgrade… button" width="100%" />
+
 ### Lakes
 The lake button in the header (**New lake…**) creates a DuckLake lake. With a lake open, the tree has **Lake versions** and each table's menu, **As it was…**. See [Lakes (DuckLake)](lakes.md).
 

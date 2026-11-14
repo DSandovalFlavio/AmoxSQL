@@ -1,0 +1,75 @@
+name: Pruebas
+
+# Corre las suites de scripts/probar*.mjs (scripts/correrSuites.mjs).
+# - rapidas: las marcadas «@suite rapida» (sin motor, segundos). Obligatorias.
+# - motor: todas. Tardan unos minutos y algunas dependen de lo que haya en la
+#   máquina (dbt, Python): van en Windows, como la app, y no bloquean el PR.
+# Cada suite corre con un AMOXSQL_HOME temporal propio.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rapidas:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Sin scripts de instalación: las rápidas no cargan ni el motor ni Electron.
+      - name: Install deps (root)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install deps (client)
+        run: pnpm install --frozen-lockfile --ignore-scripts
+        working-directory: client
+
+      - name: Suites rápidas
+        run: pnpm test:rapidas
+
+  motor:
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install deps (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install deps (client)
+        run: pnpm install --frozen-lockfile
+        working-directory: client
+
+      - name: Todas las suites
+        run: pnpm test -- --log suites-log
+
+      - name: Salida de cada suite
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: suites-log
+          path: suites-log
+          if-no-files-found: ignore

@@ -1,0 +1,11 @@
+{
+  "_que_es": "What a column's NAME says about its role (6.0, M2/R3). One list for the chart's default axes and the Data Profiler (client/src/utils/columnas.js) and the Deep Dive suggested questions (server/ai/preguntasSugeridas.js). Regex sources, case-insensitive; Spanish and English.",
+  "identificador": "^(id|uuid|guid|key|clave|codigo|código|code|sku|ean|folio|lugar|rank|ranking|puesto|posici[oó]n|position|pos|orden|order_?num|row_?number|rn|n|num|numero|número|#)$|(^id_|_id$|_key$|_uuid$|_code$|_codigo$)",
+  "importe": "(importe|monto|amount|revenue|venta|ventas|sales|total|precio|price|costo|cost|ingreso|income|valor|value|margen|margin|profit|ganancia|gasto|spend|presupuesto|budget|meta|target)",
+  "cantidad": "(cantidad|unidades|units|qty|quantity|count|conteo|clientes|customers|pedidos|orders|visitas|visits|usuarios|users|clicks?|impresiones|impressions|lineas|líneas|casos|cases)",
+  "cociente": "(_por_|_per_|pct|porcentaje|percent|ratio|tasa|rate|promedio|avg|average|media|mean|ctr|share|participacion)",
+  "periodo": "^(fecha|date|dia|día|day|dow|semana|week|mes|month|trimestre|quarter|año|anio|ano|year|periodo|period|hora|hour|ym|yyyymm)(_|$)|(_fecha|_date|_mes|_month|_year|_anio|_dia|_day|_week|_hora|_hour)$",
+  "noDimension": "(direcci|address|archivo|file|email|correo|phone|tel[eé]fono|nombre_completo|full_name|descripci|comment|coment|url|hash|uuid|json|nota|note)",
+  "correo": "(mail|correo)",
+  "ordenDimensiones": ["categor", "category", "segment", "region", "regi", "familia", "family", "canal", "channel", "tipo", "type", "marca", "brand", "pais", "país", "country", "estado", "state", "ciudad", "city", "tienda", "store", "producto", "product", "campa", "cliente", "customer", "vendedor", "seller"]
+}

@@ -2,20 +2,23 @@
 layout: docu
 railroad: expressions/cast.js
 redirect_from:
-- /docs/preview/sql/expressions/cast
 - /docs/sql/expressions/cast
 - /docs/stable/sql/expressions/cast
+- /docs/current/sql/expressions/cast
+- /docs/lts/sql/expressions/cast
+- /docs/preview/sql/expressions/cast
+tested: true
 title: Casting
 ---
 
 <div id="rrdiagram"></div>
 
 Casting refers to the operation of converting a value in a particular data type to the corresponding value in another data type.
-Casting can occur either implicitly or explicitly. The syntax described here performs an explicit cast. More information on casting can be found on the [typecasting page]({% link docs/current/sql/data_types/typecasting.md %}).
+Casting can occur either implicitly or explicitly. The syntax described here performs an explicit cast. More information on casting can be found on the [typecasting page]({% link docs/2.0/sql/data_types/typecasting.md %}).
 
 ## Explicit Casting
 
-The standard SQL syntax for explicit casting is `CAST(expr AS TYPENAME)`, where `TYPENAME` is a name (or alias) of one of [DuckDB's data types]({% link docs/current/sql/data_types/overview.md %}). DuckDB also supports the shorthand `expr::TYPENAME`, which is also present in PostgreSQL.
+The standard SQL syntax for explicit casting is `CAST(expr AS TYPENAME)`, where `TYPENAME` is a name (or alias) of one of [DuckDB's data types]({% link docs/2.0/sql/data_types/overview.md %}). DuckDB also supports the shorthand `expr::TYPENAME`, which is also present in PostgreSQL.
 
 ```sql
 SELECT CAST(i AS VARCHAR) AS i
@@ -54,7 +57,7 @@ Could not convert string 'hello' to INT32
 
 The exact behavior of the cast depends on the source and destination types. For example, when casting from `VARCHAR` to any other type, the string will be attempted to be converted.
 
-Casting between numeric types might have rounding implications. The applicable rounding rules can be found on the [`NUMERIC type page`]({% link docs/current/sql/data_types/numeric.md %}#rounding).
+Casting between numeric types might have rounding implications. The applicable rounding rules can be found on the [`NUMERIC type page`]({% link docs/2.0/sql/data_types/numeric.md %}#rounding).
 
 ### `TRY_CAST`
 
@@ -86,7 +89,7 @@ SELECT cast_to_type('42', NULL::INTEGER) AS result;
 └───────┘
 ```
 
-This function is primarily useful in [macros]({% link docs/current/guides/snippets/sharing_macros.md %}), as it allows you to maintain types.
+This function is primarily useful in [macros]({% link docs/2.0/guides/snippets/sharing_macros.md %}), as it allows you to maintain types.
 This helps with making generic macros that operate on different types. For example, the following macro adds to a number if the input is an `INTEGER`:
 
 ```sql

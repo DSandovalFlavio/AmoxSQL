@@ -1,3 +1,4 @@
+// @suite rapida: no carga el motor; corre en cada PR (pnpm test:rapidas).
 /**
  * El worker de completado del editor, en Node: lo que se ofrece tras «alias.».
  *

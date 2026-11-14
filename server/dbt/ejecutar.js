@@ -6,6 +6,7 @@
  * --select …») y su resumen (de `run_results.json`) en `resumen`. No hace falta una
  * migración: una fila de dbt se reconoce porque su proceso empieza por «dbt ».
  */
+const registrador = require('../registrador');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -36,7 +37,7 @@ async function ejecutarDbt({ base = null, dbManager = null, raiz, args, entorno,
     // El target activo del proyecto, si la orden no dice otro (I4).
     args = dbtProyecto.conTarget(raiz, args);
     const comandoProvisional = ['dbt', ...args].join(' ');
-    const anotar = async (sql, params) => { if (base?.estaAbierta?.()) await base.query(sql, params).catch((e) => console.warn('[dbt] historial:', e.message)); };
+    const anotar = async (sql, params) => { if (base?.estaAbierta?.()) await base.query(sql, params).catch((e) => registrador.aviso('[dbt] historial:', e.message)); };
     await anotar(
         `INSERT INTO ejecuciones (id, proceso, proyecto, workspace_id, origen, inicio, estado, programacion_id, prevista)
          VALUES ($1, $2, $3, $4, $5, current_timestamp, 'en_curso', $6, $7)`,

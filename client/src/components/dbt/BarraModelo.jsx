@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { LuCode, LuEye, LuPlay, LuChevronsRight, LuChevronsLeft, LuFlaskConical, LuLoader, LuCircleAlert, LuCheck, LuX, LuTriangleAlert, LuCopy } from 'react-icons/lu';
 import { API_BASE } from '../../api.js';
 import { PromoverAModelo } from './PuenteDbt';
+import { emitir } from '../../eventos.js';
 
 const API = `${API_BASE}/api`;
 
@@ -69,7 +70,7 @@ const BarraModelo = ({ archivo, onRunSql, version = 0, contenido = '', onOpenFil
             const d = await pedir('/dbt/modelo/compilar', { archivo });
             setInfo(i => ({ ...i, ...d }));
             setVerCompilado(true);
-            window.dispatchEvent(new Event('amox_dbt_cambio'));
+            emitir('amox_dbt_cambio');
         } catch (e) { setError(e.message); }
         setOcupado(null);
     };
@@ -113,7 +114,7 @@ const BarraModelo = ({ archivo, onRunSql, version = 0, contenido = '', onOpenFil
                 }
             }
             cargar();
-            window.dispatchEvent(new Event('amox_dbt_cambio'));
+            emitir('amox_dbt_cambio');
         } catch (e) {
             if (e.name !== 'AbortError') setError(e.message);
         }
@@ -161,7 +162,7 @@ const BarraModelo = ({ archivo, onRunSql, version = 0, contenido = '', onOpenFil
                 <div className={`dbt-modelo-aviso dbt-modelo-aviso--${resumen.estado}`}>
                     {resumen.estado === 'ok' ? <LuCheck size={13} /> : <LuCircleAlert size={13} />}
                     <span>{resumen.linea}{resumen.fallidos?.length ? ` — ${resumen.fallidos.slice(0, 3).map(f => f.nombre).join(', ')}` : ''}</span>
-                    {resumen.runId && <button type="button" className="dbt-modelo-btn" onClick={() => window.dispatchEvent(new CustomEvent('amox_abrir_ejecucion', { detail: { runId: resumen.runId } }))}>Details</button>}
+                    {resumen.runId && <button type="button" className="dbt-modelo-btn" onClick={() => emitir('amox_abrir_ejecucion', { runId: resumen.runId })}>Details</button>}
                     <button type="button" className="dbt-modelo-btn" onClick={() => setResumen(null)}><LuX size={12} /></button>
                 </div>
             )}

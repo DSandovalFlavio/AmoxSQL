@@ -47,10 +47,10 @@ carries only the status dot.
 |---|---|
 | **Status dot** | The only thing visible at rest. Four states; see below |
 | **Run** | `Ctrl+Enter` |
-| **Three-way control** | Code and result · code only · result only. Remembered, and with it whether it was a table or a chart. The split starts at 40 % code / 60 % result, and the handle in the middle changes it |
-| **Materialize** | Stores the result instead of recomputing it on every read |
-| **Full screen** | The cell takes the whole tab. `Esc` goes back, and back to where you were |
-| **Up · Down · Delete** | |
+| **View** | One button that steps through code and result · code only · result only (its tooltip says what the next click shows). Remembered, and with it whether it was a table or a chart. The split starts at 40 % code / 60 % result, and the handle in the middle changes it |
+| **…** | Everything else, named: Assist on this cell, **Take the whole tab** (`Esc` goes back, and back to where you were), **Materialize** (stores the result instead of recomputing it on every read), **Mark as draft**, **Move up · Move down · Delete** |
+
+Since 6.0 the gutter has these three controls instead of ten. The **?** at the end of the notebook's bar replays its tour.
 
 ## Reading
 
@@ -89,7 +89,7 @@ A cell that cannot be wrapped — several statements, an `INSERT`, a `COPY` — 
 
 ### Drafts
 
-The **pencil** in the gutter marks a cell as a **draft**: it keeps running and leaving its view, but it **stays out** of Word and the deck. It looks dimmed, with a dotted edge and the «draft» label. Before exporting, AmoxSQL says how many stay out.
+**… › Mark as draft** marks a cell as a **draft**: it keeps running and leaving its view, but it **stays out** of Word and the deck. It looks dimmed, with a dotted edge and the «draft» label. Before exporting, AmoxSQL says how many stay out.
 
 In the file it is one more mark on the directive: `<!-- celda: prueba borrador -->` (or `<!-- celda borrador -->` without a name); a text cell gets `<!-- texto borrador -->` in front. A notebook without drafts is saved exactly as before.
 

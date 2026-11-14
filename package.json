@@ -1,7 +1,7 @@
 {
   "name": "amoxsql",
   "license": "SEE LICENSE IN LICENSE",
-  "version": "5.19.0",
+  "version": "6.0.0",
   "description": "The Modern Codex for Local Data Analysis",
   "author": {
     "name": "Flavio Sandoval",
@@ -14,6 +14,9 @@
     "client:dev": "cd client && pnpm dev",
     "client:build": "cd client && pnpm build",
     "dist": "pnpm run client:build && electron-builder",
+    "test": "node scripts/correrSuites.mjs",
+    "test:rapidas": "node scripts/correrSuites.mjs --rapidas",
+    "test:app": "node scripts/probarInteraccion.mjs",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {
@@ -21,7 +24,7 @@
     "@ai-sdk/google": "^3.0.53",
     "@ai-sdk/google-vertex": "^3.0.137",
     "@ai-sdk/openai": "^3.0.58",
-    "@duckdb/node-api": "1.5.6-r.1",
+    "@duckdb/node-api": "2.0.0-r.1",
     "@google/generative-ai": "^0.24.1",
     "ai": "^6.0.137",
     "ai-sdk-ollama": "^3.8.2",

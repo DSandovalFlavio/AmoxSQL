@@ -1,3 +1,4 @@
+const registrador = require('../registrador');
 const fs = require('fs');
 const path = require('path');
 
@@ -26,7 +27,7 @@ async function leerReglas(rulesPath) {
             return content || null;
         }
     } catch (error) {
-        console.warn(`[AI User Rules] Error reading RULES.md at ${rulesPath}:`, error.message);
+        registrador.aviso(`[AI User Rules] Error reading RULES.md at ${rulesPath}:`, error.message);
     }
     return null;
 }

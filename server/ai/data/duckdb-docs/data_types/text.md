@@ -2,9 +2,11 @@
 blurb: In DuckDB, strings can be stored in the VARCHAR field.
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/text
 - /docs/sql/data_types/text
 - /docs/stable/sql/data_types/text
+- /docs/current/sql/data_types/text
+- /docs/lts/sql/data_types/text
+- /docs/preview/sql/data_types/text
 title: Text Types
 ---
 
@@ -18,7 +20,7 @@ The field allows storage of Unicode characters. Internally, the data is encoded 
 
 ## Specifying a Length Limit
 
-Specifying the length for the `VARCHAR`, `STRING` and `TEXT` types is not required and has no effect on the system. Specifying the length will not improve performance or reduce storage space of the strings in the database. These variants are supported for compatibility with other systems that do require a length to be specified for strings.
+Specifying the length for the `VARCHAR`, `STRING`, and `TEXT` types is not required and has no effect on the system. Specifying the length will not improve performance or reduce storage space of the strings in the database. These variants are supported for compatibility with other systems that do require a length to be specified for strings.
 
 If you wish to restrict the number of characters in a `VARCHAR` column for data integrity reasons the `CHECK` constraint should be used, for example:
 
@@ -44,13 +46,13 @@ CREATE TABLE tbl (s VARCHAR USING COMPRESSION zstd);
 Values of the text type are character strings, also known as string values or simply strings. At runtime, string values are constructed in one of the following ways:
 
 * referencing columns whose declared or implied type is the text data type
-* [string literals]({% link docs/current/sql/data_types/literal_types.md %}#string-literals)
-* [casting]({% link docs/current/sql/expressions/cast.md %}#explicit-casting) expressions to a text type
-* applying a [string operator]({% link docs/current/sql/functions/text.md %}#text-functions-and-operators), or invoking a function that returns a text type value
+* [string literals]({% link docs/2.0/sql/data_types/literal_types.md %}#string-literals)
+* [casting]({% link docs/2.0/sql/expressions/cast.md %}#explicit-casting) expressions to a text type
+* applying a [string operator]({% link docs/2.0/sql/functions/text.md %}#text-functions-and-operators), or invoking a function that returns a text type value
 
 ## Strings with Special Characters
 
-To use special characters in a string, use [escape string literals]({% link docs/current/sql/data_types/literal_types.md %}#escape-string-literals) or [dollar-quoted string literals]({% link docs/current/sql/data_types/literal_types.md %}#dollar-quoted-string-literals). Alternatively, you can use concatenation and the [`chr` character function]({% link docs/current/sql/functions/text.md %}):
+To use special characters in a string, use [escape string literals]({% link docs/2.0/sql/data_types/literal_types.md %}#escape-string-literals) or [dollar-quoted string literals]({% link docs/2.0/sql/data_types/literal_types.md %}#dollar-quoted-string-literals). Alternatively, you can use concatenation and the [`chr` character function]({% link docs/2.0/sql/functions/text.md %}):
 
 ```sql
 SELECT 'Hello' || chr(10) || 'world' AS msg;
@@ -67,4 +69,4 @@ SELECT 'Hello' || chr(10) || 'world' AS msg;
 
 ## Functions
 
-See [Text Functions]({% link docs/current/sql/functions/text.md %}) and [Pattern Matching]({% link docs/current/sql/functions/pattern_matching.md %}).
+See [Text Functions]({% link docs/2.0/sql/functions/text.md %}) and [Pattern Matching]({% link docs/2.0/sql/functions/pattern_matching.md %}).

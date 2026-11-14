@@ -2,9 +2,11 @@
 layout: docu
 railroad: statements/alter.js
 redirect_from:
-- /docs/preview/sql/statements/alter_table
 - /docs/sql/statements/alter_table
 - /docs/stable/sql/statements/alter_table
+- /docs/current/sql/statements/alter_table
+- /docs/lts/sql/statements/alter_table
+- /docs/preview/sql/statements/alter_table
 title: ALTER TABLE Statement
 ---
 
@@ -100,6 +102,13 @@ ALTER TABLE integers
 ADD PRIMARY KEY (i);
 ```
 
+Add a unique constraint to a column of a table:
+
+```sql
+ALTER TABLE integers
+ADD UNIQUE (j);
+```
+
 ## Syntax
 
 <div id="rrdiagram"></div>
@@ -118,12 +127,14 @@ RENAME TO integers_old;
 
 The `RENAME TO` clause renames an entire table, changing its name in the schema. Note that any views that rely on the table are **not** automatically updated.
 
+> New As of DuckDB 2.0, `ALTER TABLE ⟨view⟩ RENAME TO ⟨new_name⟩` can also rename a view, for compatibility with PostgreSQL. The equivalent [`ALTER VIEW ⟨view⟩ RENAME TO ⟨new_name⟩`]({% link docs/2.0/sql/statements/alter_view.md %}) continues to work as well.
+
 ## `RENAME COLUMN`
 
 To rename a column of a table, use the `RENAME` or `RENAME COLUMN` clauses:
 
 ```sql
-ALTER TABLE integers 
+ALTER TABLE integers
 RENAME COLUMN i TO j;
 ```
 
@@ -183,8 +194,8 @@ The `DROP [COLUMN]` clause can be used to remove a column from a table. Note tha
 If you attempt to drop a column with an index on it, DuckDB will return the following error message:
 
 ```console
-Dependency Error:
-Cannot alter entry "..." because there are entries that depend on it.
+Catalog Error:
+Cannot drop this column: an index depends on it!
 ```
 
 ## `[SET [DATA]] TYPE`
@@ -198,7 +209,7 @@ ALTER i TYPE VARCHAR;
 
 > Instead of
 > `ALTER ⟨column_name⟩ TYPE ⟨type⟩`{:.language-sql .highlight}, you can also use the equivalent
-> `ALTER ⟨column_name⟩ SET TYPE ⟨type⟩`{:.language-sql .highlight} and the 
+> `ALTER ⟨column_name⟩ SET TYPE ⟨type⟩`{:.language-sql .highlight} and the
 > `ALTER ⟨column_name⟩ SET DATA TYPE ⟨type⟩`{:.language-sql .highlight} clauses.
 
 Change the type of the column `i` to the type `VARCHAR`, using the specified expression to convert the data for each row:
@@ -212,7 +223,7 @@ The `[SET [DATA]] TYPE` clause changes the type of a column in a table. Any data
 
 ### Handling Structs
 
-There are two options to change the sub-schema of a [`STRUCT`]({% link docs/current/sql/data_types/struct.md %})-typed column.
+There are two options to change the sub-schema of a [`STRUCT`]({% link docs/2.0/sql/data_types/struct.md %})-typed column.
 
 #### `ALTER TABLE` with `struct_insert`
 
@@ -227,8 +238,8 @@ ALTER col TYPE USING struct_insert(col, a := 42, b := NULL::VARCHAR);
 
 #### `ALTER TABLE` with `ADD COLUMN` / `DROP COLUMN` / `RENAME COLUMN`
 
-Starting with DuckDB v1.3.0, `ALTER TABLE` supports the
-[`ADD COLUMN`, `DROP COLUMN` and `RENAME COLUMN` clauses]({% link docs/current/sql/data_types/struct.md %}#updating-the-schema)
+Starting with DuckDB 1.3.0, `ALTER TABLE` supports the
+[`ADD COLUMN`, `DROP COLUMN`, and `RENAME COLUMN` clauses]({% link docs/2.0/sql/data_types/struct.md %}#updating-the-schema)
 to update the sub-schema of a `STRUCT`.
 
 ## `SET` / `DROP DEFAULT`
@@ -249,9 +260,11 @@ ALTER COLUMN i DROP DEFAULT;
 
 The `SET/DROP DEFAULT` clause modifies the `DEFAULT` value of an existing column. Note that this does not modify any existing data in the column. Dropping the default is equivalent to setting the default value to NULL.
 
-> Warning At the moment DuckDB will not allow you to alter a table if there are any dependencies. That means that if you have an index on a column you will first need to drop the index, alter the table, and then recreate the index. Otherwise, you will get a `Dependency Error`.
+> Warning At the moment, DuckDB does not allow most `ALTER TABLE` operations (e.g., renaming the table, renaming, dropping, or changing the type of columns, or setting or dropping `NOT NULL`) on a table that has an index. Adding columns and setting or dropping column defaults are allowed. For other changes, drop the index, alter the table, and then recreate the index. Otherwise, you will get a `Dependency Error`.
 
-## `ADD PRIMARY KEY`
+## `ADD PRIMARY KEY` / `ADD UNIQUE`
+
+The `ADD [CONSTRAINT ⟨name⟩] PRIMARY KEY` and `ADD [CONSTRAINT ⟨name⟩] UNIQUE` clauses add a [primary key or unique constraint]({% link docs/2.0/sql/constraints.md %}#primary-key-and-unique-constraint) to an existing table.
 
 Add a primary key to a column of a table:
 
@@ -267,9 +280,35 @@ ALTER TABLE integers
 ADD PRIMARY KEY (i, j);
 ```
 
+Add a unique constraint to a column of a table:
+
+```sql
+ALTER TABLE integers
+ADD UNIQUE (j);
+```
+
+The constraint can also be introduced with the `CONSTRAINT ⟨name⟩` keyword:
+
+```sql
+ALTER TABLE integers
+ADD CONSTRAINT j_unique UNIQUE (j);
+```
+
+```sql
+ALTER TABLE integers
+ADD CONSTRAINT i_pk PRIMARY KEY (i);
+```
+
+If the existing data violates the constraint, the statement fails:
+
+```console
+Constraint Error:
+Data contains duplicates on indexed column(s)
+```
+
 ## `SET` / `RESET` (Table Options)
 
-> This feature was introduced in DuckDB v1.5.
+> This feature was introduced in DuckDB 1.5.
 
 Modify table options after table creation.
 
@@ -301,7 +340,9 @@ RESET ('option1', 'option2');
 
 ## `ADD` / `DROP CONSTRAINT`
 
-> `ADD CONSTRAINT` and `DROP CONSTRAINT` clauses are not yet supported in DuckDB.
+`ADD [CONSTRAINT ⟨name⟩]` is supported for `PRIMARY KEY` and `UNIQUE` constraints, see [above](#add-primary-key--add-unique).
+
+> Adding `CHECK` and `FOREIGN KEY` constraints with `ALTER TABLE` and the `DROP CONSTRAINT` clause are not yet supported in DuckDB.
 
 ## Limitations
 

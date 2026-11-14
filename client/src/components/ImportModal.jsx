@@ -6,6 +6,8 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
     const [tableName, setTableName] = useState('');
     const [targetSchema, setTargetSchema] = useState('');
     const [cleanColumns, setCleanColumns] = useState(true);
+    // 6.0 (O5): a JSON whose records don't share a shape, kept as one VARIANT column.
+    const [comoVariant, setComoVariant] = useState(false);
     const [fileType, setFileType] = useState('csv'); // csv | parquet | json
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -18,6 +20,7 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
             setError(null);
             setLoading(false);
             setTargetSchema('');
+            setComoVariant(false);
 
             if (initialFile) {
                 // Suggest table name from folder/filename
@@ -28,6 +31,7 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
     }, [isOpen, initialFile]);
 
     if (!isOpen) return null;
+    const esJson = isFolder ? fileType === 'json' : /\.(json|jsonl|ndjson)$/i.test(initialFile || '');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -44,7 +48,7 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
         setError(null);
 
         try {
-            const result = await onImport(tableName, cleanColumns, isFolder ? finalPath : null, targetSchema.trim() || null);
+            const result = await onImport(tableName, cleanColumns, isFolder ? finalPath : null, targetSchema.trim() || null, { comoVariant: esJson && comoVariant });
 
             if (result && result.success) {
                 setSuccessSummary(result.summary || "Import completed successfully.");
@@ -160,7 +164,19 @@ const ImportModal = ({ isOpen, onClose, onImport, initialFile = '', isFolder = f
                                     </div>
                                 )}
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {esJson && (
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                        <input type="checkbox" id="comoVariant" checked={comoVariant} onChange={(e) => setComoVariant(e.target.checked)} style={{ marginTop: '2px' }} />
+                                        <label htmlFor="comoVariant" style={{ fontSize: '12px', cursor: 'pointer', lineHeight: 1.4 }}>
+                                            Keep each record as it is (one VARIANT column)
+                                            <span style={{ display: 'block', fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                                For records that don't share the same fields. Read them with <code>datos.field</code>; the profile says which keys appear and how often.
+                                            </span>
+                                        </label>
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', ...(esJson && comoVariant ? { opacity: 0.5, pointerEvents: 'none' } : {}) }}>
                                     <input
                                         type="checkbox"
                                         id="cleanCols"

@@ -64,7 +64,7 @@ The targets are another source, `metas`, over the workbook. When importing it, A
 
 ## 3. Explore with queries
 
-`queries/` goes from general to specific: the monthly overview with growth (`01`), the mix by category (`02`), top products (`03`), target vs actual (`04`), cities (`05`), seasonality (`06`), a quality check before delivering (`07`) and an example of [variables](../editor/variables.md) (`08`).
+`queries/` goes from general to specific: the monthly overview with growth (`01`), the mix by category (`02`), top products (`03`), target vs actual (`04`), cities (`05`), seasonality (`06`), a quality check before delivering (`07`) and an example of [project variables](../editor/variables.md) with `$anio` and `$categoria` (`08`).
 
 <img src="../../images/editor/cte-debug-modal.png" alt="Debugging a CTE of the monthly overview: its intermediate result in a window" width="100%" />
 

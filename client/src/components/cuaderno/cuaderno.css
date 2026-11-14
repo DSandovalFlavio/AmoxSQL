@@ -80,7 +80,7 @@
     border-bottom: 1px solid var(--border-subtle);
     margin-bottom: var(--space-2);
 }
-.cdn-doc-txt { min-width: 0; flex: 1; }
+.cdn-doc-txt { min-width: 0; flex: 1 1 260px; }
 .cdn-doc-titulo,
 .cdn-doc-desc {
     display: block;
@@ -93,6 +93,8 @@
     color: var(--text-primary);
 }
 .cdn-doc-titulo {
+    resize: none;
+    overflow: hidden;
     font-size: 26px;
     font-weight: var(--weight-bold, 700);
     letter-spacing: -0.02em;
@@ -109,7 +111,7 @@
 }
 .cdn-doc-titulo::placeholder { color: var(--text-disabled); }
 .cdn-doc-desc::placeholder { color: var(--text-disabled); font-style: italic; }
-.cdn-doc-acciones { display: flex; align-items: center; gap: 7px; flex: none; padding-top: 4px; }
+.cdn-doc-acciones { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 7px; flex: 0 1 auto; padding-top: 4px; }
 
 /* ── una fila del documento: canalón + contenido ────────────────────────── */
 .cdn-fila {
@@ -557,7 +559,7 @@
 .cdn-md h1:first-child, .cdn-md h2:first-child, .cdn-md h3:first-child { margin-top: 0; }
 .cdn-md p { font-size: 14.5px; line-height: 1.72; margin: 0 0 12px; }
 .cdn-md ul, .cdn-md ol { font-size: 14.5px; line-height: 1.72; margin: 0 0 12px; }
-.cdn-md > :last-child { margin-bottom: 0; }
+.cdn-md :last-child { margin-bottom: 0; }
 /* Sin la almohadilla de los encabezados.
    El visor de markdown la saca al pasar el ratón para enlazar a una sección, y
    eso tiene sentido en un documento con dirección propia. En una celda no hay
@@ -767,7 +769,7 @@ button.cdn-vista:hover { background: var(--hover-bg); }
     border-radius: 7px;
     background: var(--accent-primary);
     color: var(--surface-base);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: var(--weight-semibold, 600);
 }
 
@@ -784,7 +786,7 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 }
 .cdn-param-huerfano {
     font-family: var(--font-sans, inherit);
-    font-size: 10px;
+    font-size: 11px;
     color: var(--text-disabled);
     border: 1px dashed var(--border-subtle);
     border-radius: var(--radius-sm);
@@ -866,7 +868,7 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 /* ── Las propuestas del Assistant en el cuaderno (plan del Assistant, E3) ── */
 .cdn-propuesta { margin: 6px 0 10px; display: flex; flex-direction: column; gap: 4px; }
 .cdn-propuesta .ai-edit-proposal { margin-top: 0; border-color: var(--accent-primary); }
-.cdn-propuesta-etq, .cdn-fantasma-etq { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent-primary); }
+.cdn-propuesta-etq, .cdn-fantasma-etq { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--accent-primary); }
 .cdn-fila--fantasma { margin: 8px 0; }
 .cdn-fantasma { position: relative; border: 1.5px dashed var(--accent-primary); border-radius: var(--radius-md, 8px); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; background: var(--surface-base); }
 .cdn-fantasma-cab { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
@@ -880,3 +882,15 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 .cdn-asistir-menu button { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: none; border-radius: 5px; background: none; color: var(--text-primary); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer; white-space: nowrap; }
 .cdn-asistir-menu button:hover { background: var(--hover-bg); }
 .cdn-texto-asistir { margin-top: 6px; display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 6px; border: 1px solid var(--border-subtle); background: transparent; color: var(--accent-primary); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; font-style: normal; }
+
+/* 6.0 (M4): the tour button at the end of the notebook actions */
+.cdn-btn--icono { padding: 0 7px; }
+/* 6.0 (M5): the cell's «…» menu */
+.cdn-menu-sep { height: 1px; background: var(--border-subtle); margin: 3px 2px; }
+.cdn-asistir-menu button svg { color: var(--text-secondary); flex-shrink: 0; }
+.cdn-asistir-menu button[aria-pressed="true"] svg { color: var(--accent-primary); }
+.cdn-asistir-menu .cdn-menu-peligro:hover { color: var(--feedback-error, var(--color-error)); }
+/* 6.0 (M5, U6): a text cell measures what it says. The last paragraph's margin and
+   the cell's bottom padding added ~20 px on top of the gap between cells. */
+.cdn-md :last-child { margin-bottom: 0; }
+.cdn-celda--texto { padding-bottom: 0; }

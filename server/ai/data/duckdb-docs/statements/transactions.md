@@ -1,9 +1,11 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/statements/transactions
 - /docs/sql/statements/transactions
 - /docs/stable/sql/statements/transactions
+- /docs/current/sql/statements/transactions
+- /docs/lts/sql/statements/transactions
+- /docs/preview/sql/statements/transactions
 title: Transaction Management
 ---
 
@@ -54,7 +56,7 @@ If you are not in an active transaction, the `ROLLBACK` and `ABORT` statements w
 
 ## Multi-Statement Transactions
 
-When multiple SQL statements are submitted together (e.g., separated by semicolons), they are executed within a single implicit transaction. If any statement fails, all preceding statements in the batch are rolled back. This also applies to `PRAGMA` commands that decompose into multiple internal operations, such as `COPY FROM DATABASE`.
+When multiple SQL statements are submitted together (e.g., separated by semicolons), they are executed one after another in auto-commit mode: each statement that succeeds is committed immediately, and execution stops at the first statement that fails. Statements that ran before the failing one are *not* rolled back. To make a batch atomic, wrap it in an explicit transaction using `BEGIN TRANSACTION` and `COMMIT`.
 
 ## Isolation Level
 

@@ -2,9 +2,12 @@
 layout: docu
 railroad: expressions/collate.js
 redirect_from:
-- /docs/preview/sql/expressions/collations
 - /docs/sql/expressions/collations
 - /docs/stable/sql/expressions/collations
+- /docs/current/sql/expressions/collations
+- /docs/lts/sql/expressions/collations
+- /docs/preview/sql/expressions/collations
+tested: true
 title: Collations
 ---
 
@@ -20,7 +23,7 @@ By default, the `BINARY` collation is used. That means that strings are ordered 
 
 ## Using Collations
 
-In the stand-alone installation of DuckDB three collations are included: `NOCASE`, `NOACCENT` and `NFC`. The `NOCASE` collation compares characters as equal regardless of their casing. The `NOACCENT` collation compares characters as equal regardless of their accents. The `NFC` collation performs NFC-normalized comparisons, see [Unicode normalization](https://en.wikipedia.org/wiki/Unicode_equivalence#Normalization) for more information.
+In the stand-alone installation of DuckDB three collations are included: `NOCASE`, `NOACCENT`, and `NFC`. The `NOCASE` collation compares characters as equal regardless of their casing. The `NOACCENT` collation compares characters as equal regardless of their accents. The `NFC` collation performs NFC-normalized comparisons, see [Unicode normalization](https://en.wikipedia.org/wiki/Unicode_equivalence#Normalization) for more information.
 
 ```sql
 SELECT 'hello' = 'hElLO';
@@ -151,9 +154,11 @@ WHERE names.name COLLATE NOACCENT.NOCASE = other_names.name COLLATE NOACCENT.NOC
 
 ## ICU Collations
 
-The collations we have seen so far are not region-dependent, and do not follow any specific regional rules. If you wish to follow the rules of a specific region or language, you will need to use one of the ICU collations. For that, you need to [load the ICU extension]({% link docs/current/core_extensions/icu.md %}#installing-and-loading).
+The collations we have seen so far are not region-dependent, and do not follow any specific regional rules. If you wish to follow the rules of a specific region or language, you will need to use one of the ICU collations. For that, you need to [load the ICU extension]({% link docs/2.0/core_extensions/icu.md %}#installing-and-loading).
 
 Loading this extension will add a number of language and region specific collations to your database. These can be queried using the `PRAGMA collations` command, or by querying the `pragma_collations` function.
+
+<!-- test:skip the collation list depends on the ICU build shipped with each release -->
 
 ```sql
 PRAGMA collations;
@@ -165,6 +170,8 @@ SELECT list(collname) FROM pragma_collations();
 ```
 
 These collations can then be used as the other collations would be used before. They can also be combined with the `NOCASE` collation. For example, to use the German collation rules you could use the following code snippet:
+
+<!-- test:skip the result below is written as prose, not as the CLI's one row per line -->
 
 ```sql
 CREATE TABLE strings (s VARCHAR COLLATE DE);

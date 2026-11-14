@@ -88,7 +88,7 @@ const TextEditor = ({ tab, onChange, editorSettings = {} }) => {
             <div className="txe">
                 <div className="txe-vacio">
                     <LuFileLock2 size={26} strokeWidth={1.6} />
-                    <p className="txe-vacio-t">Esto no es texto</p>
+                    <p className="txe-vacio-t">This is not text</p>
                     <p className="txe-vacio-d">
                         {tab.name} es un archivo binario. Abrirlo aquí sólo enseñaría ruido.
                     </p>
@@ -103,7 +103,7 @@ const TextEditor = ({ tab, onChange, editorSettings = {} }) => {
                 <LuFileText size={12} strokeWidth={2.2} />
                 <span className="txe-idioma">{ROTULO[info.idioma] || info.idioma}</span>
                 <span className="txe-sep" />
-                <span className="txe-nota">Este archivo no se ejecuta</span>
+                <span className="txe-nota">This file does not run</span>
             </div>
             <div className="txe-lienzo">
                 <Editor

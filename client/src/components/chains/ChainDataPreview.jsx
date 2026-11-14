@@ -34,7 +34,7 @@ const ChainDataPreview = ({ tableName, chainFile = '', base = null, onClose }) =
     }, [tableName, chainFile, base]);
 
     const formatCell = (value) => {
-        if (value === null || value === undefined) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 10 }}>null</span>;
+        if (value === null || value === undefined) return <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: 11 }}>null</span>;
         if (typeof value === 'object') return JSON.stringify(value);
         return String(value);
     };
@@ -119,7 +119,7 @@ const ChainDataPreview = ({ tableName, chainFile = '', base = null, onClose }) =
                                     {data.columns.map(col => (
                                         <th key={col.name} style={{ position: 'sticky', top: 0, background: 'var(--surface-raised)', border: '1px solid var(--border-default)', padding: '5px 8px', textAlign: 'left', whiteSpace: 'nowrap', zIndex: 1 }}>
                                             <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-active)' }}>{col.name}</span>
-                                            <span style={{ display: 'block', fontSize: 10, color: 'var(--text-muted)', fontWeight: 400 }}>{col.type}</span>
+                                            <span style={{ display: 'block', fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>{col.type}</span>
                                         </th>
                                     ))}
                                 </tr>

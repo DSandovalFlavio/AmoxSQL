@@ -2,9 +2,12 @@
 blurb: The table below shows all the built-in general-purpose data types.
 layout: docu
 redirect_from:
-- /docs/preview/sql/data_types/overview
 - /docs/sql/data_types/overview
 - /docs/stable/sql/data_types/overview
+- /docs/current/sql/data_types/overview
+- /docs/lts/sql/data_types/overview
+- /docs/preview/sql/data_types/overview
+tested: true
 title: Data Types
 ---
 
@@ -23,10 +26,11 @@ The table below shows all the built-in general-purpose data types. The alternati
 | `DECIMAL(prec, scale)`     | `NUMERIC(prec, scale)`             | Fixed-precision number with the given width (precision) and scale, defaults to `prec = 18` and `scale = 3` |
 | `DOUBLE`                   | `FLOAT8`                           | Double precision floating-point number (8 bytes)                                                           |
 | `FLOAT`                    | `FLOAT4`, `REAL`                   | Single precision floating-point number (4 bytes)                                                           |
+| `GEOMETRY`                 |                                    | Geospatial entity, see the [`GEOMETRY` data type]({% link docs/2.0/sql/data_types/geometry.md %})              |
 | `HUGEINT`                  |                                    | Signed sixteen-byte integer                                                                                |
 | `INTEGER`                  | `INT4`, `INT`, `SIGNED`            | Signed four-byte integer                                                                                   |
 | `INTERVAL`                 |                                    | Date / time delta                                                                                          |
-| `JSON`                     |                                    | JSON object (via the [`json` extension]({% link docs/current/data/json/overview.md %}))                    |
+| `JSON`                     |                                    | JSON object (via the [`json` extension]({% link docs/2.0/data/json/overview.md %}))                    |
 | `SMALLINT`                 | `INT2`, `SHORT`                    | Signed two-byte integer                                                                                    |
 | `TIME`                     |                                    | Time of day (no time zone)                                                                                 |
 | `TIMESTAMP WITH TIME ZONE` | `TIMESTAMPTZ`                      | Combination of time and date that uses the current time zone                                               |
@@ -37,37 +41,38 @@ The table below shows all the built-in general-purpose data types. The alternati
 | `UINTEGER`                 |                                    | Unsigned four-byte integer                                                                                 |
 | `USMALLINT`                |                                    | Unsigned two-byte integer                                                                                  |
 | `UTINYINT`                 |                                    | Unsigned one-byte integer                                                                                  |
-| `UUID`                     |                                    | [UUID data type]({% link docs/current/sql/data_types/numeric.md %}#universally-unique-identifiers-uuids)   |
+| `UUID`                     |                                    | [UUID data type]({% link docs/2.0/sql/data_types/numeric.md %}#universally-unique-identifiers-uuids)   |
 | `VARCHAR`                  | `CHAR`, `BPCHAR`, `TEXT`, `STRING` | Variable-length character string                                                                           |
 
-Implicit and explicit typecasting is possible between numerous types, see the [Typecasting]({% link docs/current/sql/data_types/typecasting.md %}) page for details.
+Implicit and explicit typecasting is possible between numerous types, see the [Typecasting]({% link docs/2.0/sql/data_types/typecasting.md %}) page for details.
 
 ## Nested / Composite Types
 
-DuckDB supports five nested data types: `ARRAY`, `LIST`, `MAP`, `STRUCT` and `UNION`. Each supports different use cases and has a different structure.
+DuckDB supports the following nested data types: `ARRAY`, `LIST`, `MAP`, `STRUCT`, `TUPLE`, `UNION`, and `VARIANT`. Each supports different use cases and has a different structure.
 
 | Name                                                         | Description                                                                                                                                                                                     | Rules when used in a column                                                                                    | Build from values         | Define in DDL/CREATE               |
 | :----------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------- | :------------------------ | :--------------------------------- |
-| [`ARRAY`]({% link docs/current/sql/data_types/array.md %})   | An ordered, fixed-length sequence of data values of the same type.                                                                                                                              | Each row must have the same data type within each instance of the `ARRAY` and the same number of elements.     | `[1, 2, 3]`               | `INTEGER[3]`                       |
-| [`LIST`]({% link docs/current/sql/data_types/list.md %})     | An ordered sequence of data values of the same type.                                                                                                                                            | Each row must have the same data type within each instance of the `LIST`, but can have any number of elements. | `[1, 2, 3]`               | `INTEGER[]`                        |
-| [`MAP`]({% link docs/current/sql/data_types/map.md %})       | A dictionary of multiple named values, each key having the same type and each value having the same type. Keys and values can be any type and can be different types from one another.          | Rows may have different keys.                                                                                  | `map([1, 2], ['a', 'b'])` | `MAP(INTEGER, VARCHAR)`            |
-| [`STRUCT`]({% link docs/current/sql/data_types/struct.md %}) | A dictionary of multiple named values, where each key is a string, but the value can be a different type for each key.                                                                          | Each row must have the same keys.                                                                              | `{'i': 42, 'j': 'a'}`     | `STRUCT(i INTEGER, j VARCHAR)`     |
-| [`UNION`]({% link docs/current/sql/data_types/union.md %})       | A union of multiple alternative data types, storing one of them in each value at a time. A union also contains a discriminator “tag” value to inspect and access the currently set member type. | Rows may be set to different member types of the union.                                                        | `union_value(num := 2)`   | `UNION(num INTEGER, text VARCHAR)` |
-| [`VARIANT`]({% link docs/current/sql/data_types/variant.md %}) | A semi-structured type where each value is self-contained with its own type information.                                                                                                        | Each row may hold a value of a different type.                                                                 | `42::VARIANT`             | `VARIANT`                          |
+| [`ARRAY`]({% link docs/2.0/sql/data_types/array.md %})   | An ordered, fixed-length sequence of data values of the same type.                                                                                                                              | Each row must have the same data type within each instance of the `ARRAY` and the same number of elements.     | `[1, 2, 3]`               | `INTEGER[3]`                       |
+| [`LIST`]({% link docs/2.0/sql/data_types/list.md %})     | An ordered sequence of data values of the same type.                                                                                                                                            | Each row must have the same data type within each instance of the `LIST`, but can have any number of elements. | `[1, 2, 3]`               | `INTEGER[]`                        |
+| [`MAP`]({% link docs/2.0/sql/data_types/map.md %})       | A dictionary of multiple named values, each key having the same type and each value having the same type. Keys and values can be any type and can be different types from one another.          | Rows may have different keys.                                                                                  | `map([1, 2], ['a', 'b'])` | `MAP(INTEGER, VARCHAR)`            |
+| [`STRUCT`]({% link docs/2.0/sql/data_types/struct.md %}) | A dictionary of multiple named values, where each key is a string, but the value can be a different type for each key.                                                                          | Each row must have the same keys.                                                                              | `{'i': 42, 'j': 'a'}`     | `STRUCT(i INTEGER, j VARCHAR)`     |
+| [`TUPLE`]({% link docs/2.0/sql/data_types/struct.md %}#tuples) | A sequence of multiple unnamed values, accessed by position, where the value can be a different type for each position. | Each row must have the same number of entries with the same types. | `(42, 'a')` | `TUPLE(INTEGER, VARCHAR)` |
+| [`UNION`]({% link docs/2.0/sql/data_types/union.md %})       | A union of multiple alternative data types, storing one of them in each value at a time. A union also contains a discriminator “tag” value to inspect and access the currently set member type. | Rows may be set to different member types of the union.                                                        | `union_value(num := 2)`   | `UNION(num INTEGER, text VARCHAR)` |
+| [`VARIANT`]({% link docs/2.0/sql/data_types/variant.md %}) | A semi-structured type where each value is self-contained with its own type information.                                                                                                        | Each row may hold a value of a different type.                                                                 | `42::VARIANT`             | `VARIANT`                          |
 
 ### Rules for Case Sensitivity
 
 The keys of `MAP`s are case-sensitive, while keys of `UNION`s and `STRUCT`s are case-insensitive.
-For examples, see the [Rules for Case Sensitivity section]({% link docs/current/sql/dialect/overview.md %}#case-sensitivity-of-keys-in-nested-data-structures).
+For examples, see the [Rules for Case Sensitivity section]({% link docs/2.0/sql/dialect/overview.md %}#case-sensitivity-of-keys-in-nested-data-structures).
 
 ### Updating Values of Nested Types
 
 When performing _updates_ on values of nested types, DuckDB performs a _delete_ operation followed by an _insert_ operation.
-When used in a table with ART indexes (either via explicit indexes or primary keys/unique constraints), this can lead to [unexpected constraint violations]({% link docs/current/sql/indexes.md %}#constraint-checking-in-update-statements).
+When used in a table with ART indexes (either via explicit indexes or primary keys/unique constraints), this can lead to [unexpected constraint violations]({% link docs/2.0/sql/indexes.md %}#constraint-checking-in-update-statements).
 
 ## Nesting
 
-`ARRAY`, `LIST`, `MAP`, `STRUCT` and `UNION` types can be arbitrarily nested to any depth, so long as the type rules are observed.
+`ARRAY`, `LIST`, `MAP`, `STRUCT`, `TUPLE`, and `UNION` types can be arbitrarily nested to any depth, so long as the type rules are observed.
 
 Struct with `LIST`s:
 
@@ -89,4 +94,4 @@ SELECT [union_value(num := 2), union_value(str := 'ABC')::UNION(str VARCHAR, num
 
 ## Performance Implications
 
-The choice of data types can have a strong effect on performance. Please consult the [Performance Guide]({% link docs/current/guides/performance/schema.md %}) for details.
+The choice of data types can have a strong effect on performance. Please consult the [Performance Guide]({% link docs/2.0/guides/performance/schema.md %}) for details.

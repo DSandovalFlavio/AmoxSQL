@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { marcarPropuestas, conEstado, estadoDe, esArchivoNuevo } from './propuestas';
 import { API_BASE as API } from '../../api.js';
+import { migrateTheme } from '../../theme.js';
 import { guardarBorrador, leerBorrador, borrarBorrador } from '../../utils/borradorDeAnalisis';
+import { emitir } from '../../eventos.js';
+import { TEXTO_SIN_MODELO } from './SinModelo.jsx';
 
 /** Stable client-side message id (survives the streaming→historical handoff). */
 function genId() {
@@ -339,7 +342,7 @@ export default function useAiChat({
             if (res.ok) {
                 const conv = await res.json();
                 setConversationId(conv.id);
-                window.dispatchEvent(new CustomEvent('amox_conversation_created', { detail: { id: conv.id } }));
+                emitir('amox_conversation_created', { id: conv.id });
                 return conv.id;
             }
         } catch (err) {
@@ -420,7 +423,7 @@ export default function useAiChat({
         setErrorMsg(null);
         const currentModel = selectedModel === 'custom' ? customModel : selectedModel;
         if (!currentModel) {
-            setErrorMsg('Please select or enter a model name.');
+            setErrorMsg(TEXTO_SIN_MODELO);
             return;
         }
 
@@ -615,7 +618,7 @@ export default function useAiChat({
                 const cs = getComputedStyle(document.body);
                 requestBody.uiTheme = {
                     mode: document.body.classList.contains('mode-light') ? 'light' : 'dark',
-                    theme: localStorage.getItem('amoxsql-theme') || 'dark',
+                    theme: migrateTheme(localStorage.getItem('amoxsql-theme')),
                     accent: localStorage.getItem('amoxsql-accent') || 'default',
                     accentColor: cs.getPropertyValue('--accent-primary').trim() || null,
                 };
@@ -857,7 +860,7 @@ export default function useAiChat({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ defaultModel: currentModel, modelPerMode: { [mode]: currentModel } }),
             }).then(() => {
-                window.dispatchEvent(new Event('amox_settings_updated'));
+                emitir('amox_settings_updated');
             }).catch(() => {});
 
         } catch (e) {

@@ -2,9 +2,12 @@
 layout: docu
 railroad: expressions/star.js
 redirect_from:
-- /docs/preview/sql/expressions/star
 - /docs/sql/expressions/star
 - /docs/stable/sql/expressions/star
+- /docs/current/sql/expressions/star
+- /docs/lts/sql/expressions/star
+- /docs/preview/sql/expressions/star
+tested: true
 title: Star Expression
 ---
 
@@ -13,6 +16,13 @@ title: Star Expression
 <div id="rrdiagram"></div>
 
 The `*` expression can be used in a `SELECT` statement to select all columns that are projected in the `FROM` clause.
+
+<!-- test:setup
+CREATE TABLE tbl (id INTEGER, col INTEGER, col1 INTEGER, col2 INTEGER);
+CREATE TABLE other_tbl (id INTEGER, other INTEGER);
+INSERT INTO tbl VALUES (1, 10, 1000, 2000);
+INSERT INTO other_tbl VALUES (1, 5);
+-->
 
 ```sql
 SELECT *
@@ -31,7 +41,7 @@ JOIN other_tbl USING (id);
 
 Similarly, the `*` expression can also be used to retrieve all keys from a struct as separate columns.
 This is particularly useful when a prior operation creates a struct of unknown shape, or if a query must handle any potential struct keys.
-See the [`STRUCT` data type]({% link docs/current/sql/data_types/struct.md %}) and [`STRUCT` functions]({% link docs/current/sql/functions/struct.md %}) pages for more details on working with structs.
+See the [`STRUCT` data type]({% link docs/2.0/sql/data_types/struct.md %}) and [`STRUCT` functions]({% link docs/2.0/sql/functions/struct.md %}) pages for more details on working with structs.
 
 For example:
 
@@ -53,6 +63,13 @@ SELECT * EXCLUDE (col)
 FROM tbl;
 ```
 
+> New As of DuckDB 2.0, `EXCEPT` is accepted as a synonym for `EXCLUDE`, matching the SQL-standard and BigQuery spelling. The two keywords are interchangeable and may be mixed in the same query.
+>
+> ```sql
+> SELECT * EXCEPT (col)
+> FROM tbl;
+> ```
+
 ### `REPLACE` Clause
 
 `REPLACE` allows you to replace specific columns by alternative expressions.
@@ -73,7 +90,7 @@ FROM tbl;
 
 ### Column Filtering via Pattern Matching Operators
 
-The [pattern matching operators]({% link docs/current/sql/functions/pattern_matching.md %}) `LIKE`, `GLOB`, `SIMILAR TO` and their variants allow you to select columns by matching their names to patterns.
+The [pattern matching operators]({% link docs/2.0/sql/functions/pattern_matching.md %}) `LIKE`, `GLOB`, `SIMILAR TO`, and their variants allow you to select columns by matching their names to patterns.
 
 ```sql
 SELECT * LIKE 'col%'
@@ -119,7 +136,7 @@ SELECT
 FROM numbers;
 ```
 
-| id | min(number := (number + id)) | id |
+| id | min((number + id)) | id |
 |---:|-----------------------------:|---:|
 | 1  | 11                           | 3  |
 
@@ -177,7 +194,7 @@ WHERE greatest(UNPACK(COLUMNS(*) = 'a')); -- equivalent to: x = 'a' OR y = 'a'
 
 ### `COLUMNS` Expression in `DISTINCT ON`
 
-`COLUMNS` expressions can be used in [`DISTINCT ON`]({% link docs/current/sql/query_syntax/select.md %}#distinct-on-clause) clauses to specify distinct columns by pattern:
+`COLUMNS` expressions can be used in [`DISTINCT ON`]({% link docs/2.0/sql/query_syntax/select.md %}#distinct-on-clause) clauses to specify distinct columns by pattern:
 
 ```sql
 SELECT DISTINCT ON (COLUMNS('x|y')) *
@@ -214,13 +231,15 @@ For example, to select the first three letters of column names, run:
 SELECT COLUMNS('(\w{3}).*') AS '\1' FROM numbers;
 ```
 
-| id | num  |
-|---:|-----:|
-| 1  | 10   |
-| 2  | 20   |
-| 3  | NULL |
+| num  |
+|-----:|
+| 10   |
+| 20   |
+| NULL |
 
 To remove a colon (`:`) character in the middle of a column name, run:
+
+<!-- test:setup DROP TABLE tbl; -->
 
 ```sql
 CREATE TABLE tbl ("Foo:Bar" INTEGER, "Foo:Baz" INTEGER, "Foo:Qux" INTEGER);
@@ -239,7 +258,13 @@ SELECT min(COLUMNS(*)) AS "min_\0" FROM numbers;
 
 ### `COLUMNS` Lambda Function
 
-`COLUMNS` also supports passing in a lambda function. The lambda function will be evaluated for all columns present in the `FROM` clause, and only columns that match the lambda function will be returned. This allows the execution of arbitrary expressions in order to select and rename columns.
+`COLUMNS` also supports passing in a [lambda function]({% link docs/2.0/sql/functions/lambda.md %}).
+The lambda function is evaluated for all columns present in the `FROM` clause.
+Only columns for which the lambda function evaluates to `TRUE` are retained, and discarded otherwise.
+
+`COLUMNS`-clause lambdas have a mandatory parameter that receives the column name.
+Optionally, a second parameter may be declared to receive the (1-based) index of the column.
+`COLUMNS`-clause lambdas allow the execution of arbitrary expressions in order to select and rename columns.
 
 ```sql
 SELECT COLUMNS(lambda c: c LIKE '%num%') FROM numbers;
@@ -257,11 +282,11 @@ SELECT COLUMNS(lambda c: c LIKE '%num%') FROM numbers;
 `COLUMNS` also supports passing in a list of column names.
 
 ```sql
-SELECT COLUMNS(['id', 'num']) FROM numbers;
+SELECT COLUMNS(['id', 'number']) FROM numbers;
 ```
 
-| id | num  |
-|---:|-----:|
+| id | number |
+|---:|-------:|
 | 1  | 10   |
 | 2  | 20   |
 | 3  | NULL |
@@ -304,12 +329,12 @@ FROM (SELECT NULL a, 42 AS b, true AS c);
 | 42     |
 
 > Warning In the following example, replacing `UNPACK` by `*` results in a syntax error:
-> 
+>
 > ```sql
 > SELECT greatest(UNPACK(COLUMNS(*) + 1)) AS result
 > FROM (SELECT 1 AS a, 2 AS b, 3 AS c);
 > ```
-> 
+>
 > | result |
 > |-------:|
 > | 4      |
@@ -318,7 +343,7 @@ FROM (SELECT NULL a, 42 AS b, true AS c);
 
 The `*` expression can also be used to retrieve all keys from a struct as separate columns.
 This is particularly useful when a prior operation creates a struct of unknown shape, or if a query must handle any potential struct keys.
-See the [`STRUCT` data type]({% link docs/current/sql/data_types/struct.md %}) and [`STRUCT` functions]({% link docs/current/sql/functions/struct.md %}) pages for more details on working with structs.
+See the [`STRUCT` data type]({% link docs/2.0/sql/data_types/struct.md %}) and [`STRUCT` functions]({% link docs/2.0/sql/functions/struct.md %}) pages for more details on working with structs.
 
 For example:
 

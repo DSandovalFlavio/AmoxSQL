@@ -79,6 +79,9 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    // 6.0 (R3): rules shared with the server (`server/compartido/*.json`) are
+    // imported from outside `client/`; the dev server only serves what is allowed.
+    fs: { allow: [resolve(__dirname), resolve(__dirname, '../server/compartido')] },
   },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),

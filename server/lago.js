@@ -31,6 +31,47 @@ function tipoDeLago(ruta) {
     return null;
 }
 
+// ── El formato del catálogo (6.0) ─────────────────────────────────────────────
+//
+// Comprobado en la fase 0 de la 6.0: un lago de la 5.x (DuckDB 1.x) se abre y se lee
+// con DuckDB 2 sin cambiarlo, pero la PRIMERA escritura de 2 pasa su catálogo al
+// formato 2 y desde entonces no lo abren ni la 5.x ni un dbt con DuckDB 1.x. No hay
+// opción de ATTACH que lo evite, así que se avisa al abrirlo.
+//
+// El formato está en la cabecera del archivo: dos cabeceras de base (bytes 4096 y
+// 8192), la válida es la de mayor iteración, y su octavo campo (uint64) es la versión
+// de serialización: 1–7 en las bases de DuckDB 1.x, 69 en las de DuckDB 2.0.
+const FORMATO_DE_DUCKDB_2 = 69;
+
+/** La versión de serialización de un archivo de DuckDB, o null si no lo es. */
+function formatoDelArchivo(ruta) {
+    let fd = null;
+    try {
+        fd = fs.openSync(ruta, 'r');
+        const firma = Buffer.alloc(4);
+        fs.readSync(fd, firma, 0, 4, 8);
+        if (firma.toString('latin1') !== 'DUCK') return null;
+        let mejor = null;
+        for (const desde of [4096, 8192]) {
+            const b = Buffer.alloc(64);
+            if (fs.readSync(fd, b, 0, 64, desde) < 64) continue;
+            const iteracion = b.readBigUInt64LE(8);
+            const version = Number(b.readBigUInt64LE(56));
+            if (!mejor || iteracion > mejor.iteracion) mejor = { iteracion, version };
+        }
+        return mejor ? mejor.version : null;
+    } catch { return null; }
+    finally { if (fd !== null) try { fs.closeSync(fd); } catch { /* ya cerrado */ } }
+}
+
+/** Si el catálogo de este lago es de la 5.x, lo que hay que decir al abrirlo; si no, null. */
+function avisoDeFormato(ruta) {
+    if (tipoDeLago(ruta) !== 'duckdb') return null;          // SQLite: no depende del motor
+    const v = formatoDelArchivo(ruta);
+    if (v === null || v >= FORMATO_DE_DUCKDB_2) return null;
+    return `${path.basename(ruta)} was made with AmoxSQL 5 (DuckDB 1). Reading it changes nothing; the first change you make updates it for AmoxSQL 6, and then AmoxSQL 5 and dbt with DuckDB 1 can no longer open it.`;
+}
+
 /** Crea un lago vacío en la carpeta del proyecto. */
 async function crear(raiz, { nombre, catalogo = 'duckdb' } = {}) {
     const n = String(nombre || '').trim().replace(/[^\w.-]+/g, '_').replace(/\.ducklake(\.sqlite)?$/i, '');
@@ -158,4 +199,4 @@ async function mantener(dbManager, { compactar = true, expirarDias = null, limpi
     return r;
 }
 
-module.exports = { ErrorDeLago, tipoDeLago, crear, versiones, comoEstaba, queCambio, previsualizar, mantener, cambiosATexto };
+module.exports = { ErrorDeLago, tipoDeLago, formatoDelArchivo, avisoDeFormato, FORMATO_DE_DUCKDB_2, crear, versiones, comoEstaba, queCambio, previsualizar, mantener, cambiosATexto };

@@ -41,11 +41,16 @@ Drag the right edge of a column header to adjust its width (minimum 50 px). Widt
 - **Copy All Column Names** — copies all names, comma-separated.
 - **Sort Ascending / Sort Descending** — sorts by that column.
 
+### Nested values
+A value with structure — a VARIANT, a STRUCT, a list, a MAP or a JSON — shows on one line; **one click opens it as a tree**, with each key and its type, foldable by level.
+
+<img src="../../images/results/nested-value.png" alt="a VARIANT column with one value opened as a tree: customer, order and their keys" width="100%" />
+
 ### Paginate
 At the bottom, move between pages with **‹ ›** and choose how many rows to show per page: **50 / 100 / 500 / 1000**.
 
 ### Pop out to a separate window
-The **Pop-out** button sends the results to a standalone window — handy for viewing them on a second monitor while you keep editing. The window belongs to that tab: running in another one doesn't change it. See [Tabs and panes](../editor/layout-tabs-and-panes.md).
+**Save / Share › Pop out** sends the results to a standalone window — handy for viewing them on a second monitor while you keep editing. The window belongs to that tab: running in another one doesn't change it. See [Tabs and panes](../editor/layout-tabs-and-panes.md).
 
 ## Value-formatting reference
 
@@ -67,17 +72,15 @@ The table formats each value by its type for readability; hover a cell to see th
 | **Table / Chart / Profile** | Switch view mode |
 | **Filters** | Show/hide the per-column filter row (Table only) |
 | **Search** | Global search across all columns |
-| **Store A / Compare** | Store and compare result sets (see [Compare results](compare-results.md)) |
-| **Save as table…** | Materialize the full query as a table or view (see [Saving results](saving-results.md)) |
-| **Vault** | Save the analysis to the Vault (see [Analysis Vault](../ai/analysis-vault.md)) |
-| **Download ▾** | Download the shown rows (CSV/JSON/clipboard) |
-| **Pop-out** | Open the results in a separate window |
+| **Explain** | Ask Assist what stands out in this result |
+| **Save / Share ▾** | One menu (since 6.0): **Save as table or view…** (see [Saving results](saving-results.md)), **Save to Analysis Vault…** (see [Analysis Vault](../ai/analysis-vault.md)), **Store for comparison** and **Compare with the other pane** (see [Compare results](compare-results.md)), **Pop out** (a separate window) and the download of the shown rows (CSV, JSON, clipboard) |
+| **Compare** | Shown while a result is stored for comparison |
 
 ## Tips & gems
 
-- **Truncation warning:** if your query returns more rows than the "Max Rows" limit (Settings → Editor), you'll see "⚠ first N rows". With Max Rows at 0, a safety limit of 1,000,000 rows or 256 MB still applies. For the full set, use **Export** in the editor or add your own `LIMIT` (see [Saving results](saving-results.md)).
+- **Truncation warning:** if your query returns more rows than the "Max Rows" limit (Settings → Editor), you'll see a warning, "first N rows". With Max Rows at 0, a safety limit of 1,000,000 rows or 256 MB still applies. For the full set, use **Export** in the editor or add your own `LIMIT` (see [Saving results](saving-results.md)).
 - **Searching doesn't re-run:** search, filters, and sorting operate **in memory** on the already-loaded rows — they're instant and don't re-query the engine.
-- **Download ≠ Export:** **Download** grabs only the rows loaded in the table (already filtered and sorted); the editor's **Export** re-runs the whole query. The distinction is explained in [Saving results](saving-results.md).
+- **Download ≠ Export:** **Save / Share › Download** grabs only the rows loaded in the table (already filtered and sorted); the editor's **Export** re-runs the whole query. The distinction is explained in [Saving results](saving-results.md).
 
 ## Related
 

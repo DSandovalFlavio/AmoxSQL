@@ -71,14 +71,14 @@
   background: var(--surface-overlay); border: 1px solid var(--border-default);
   box-shadow: 0 12px 30px rgba(0, 0, 0, .4);
 }
-.lz-menu h4 { margin: 4px 8px 6px; font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lz-menu h4 { margin: 4px 8px 6px; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lz-menu button {
   display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 6px 8px; border-radius: 5px; border: 0;
   background: transparent; color: var(--text-primary); font: inherit; font-size: 12.5px; text-align: left; cursor: pointer;
 }
 .lz-menu button:hover { background: var(--hover-bg); }
-.lz-menu small { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--text-tertiary); }
+.lz-menu small { margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
 .lz-menu-nada { margin: 4px 8px 8px; font-size: 12px; color: var(--text-secondary); }
 .lz-menu--herr { left: 50px; top: 0; }
 .lz-menu--derecha { right: 0; top: 32px; }
@@ -128,7 +128,7 @@
 .lz-est--foto { background: transparent; border: 1.5px solid var(--text-tertiary); }
 .lz-est--nunca { background: var(--text-tertiary); }
 .lz-est--falla { background: var(--color-error); }
-.lz-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border-default); color: var(--text-secondary); white-space: nowrap; }
+.lz-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border-default); color: var(--text-secondary); white-space: nowrap; }
 .lz-chip--vieja { color: var(--color-warning-text); border-color: color-mix(in oklch, var(--color-warning) 40%, transparent); }
 .lz-modos { display: inline-flex; gap: 1px; padding: 1px; border-radius: 5px; background: var(--surface-inset); }
 .lz-modos button { width: 20px; height: 18px; border: 0; border-radius: 4px; background: transparent; color: var(--text-tertiary); display: grid; place-items: center; cursor: pointer; }
@@ -157,7 +157,7 @@
 .lz-vacio { padding: 10px; font-size: 12px; color: var(--text-tertiary); display: flex; align-items: center; gap: 6px; }
 .lz-error { flex: 1; min-height: 0; overflow: auto; padding: 8px 10px; font-family: var(--font-mono); font-size: 11.5px; color: var(--color-error-text); white-space: pre-wrap; }
 .lz-problema { display: flex; align-items: center; gap: 6px; padding: 6px 10px; font-size: 11.5px; color: var(--color-warning-text); border-bottom: 1px solid var(--border-subtle); }
-.lz-pie { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 10.5px; color: var(--text-tertiary); border-top: 1px solid var(--border-subtle); margin-top: auto; white-space: nowrap; }
+.lz-pie { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 11px; color: var(--text-tertiary); border-top: 1px solid var(--border-subtle); margin-top: auto; white-space: nowrap; }
 
 /* Las asas: la de salida se ve al acercarse; la de entrada sólo marca dónde llega la flecha. */
 .lz-asa { width: 11px !important; height: 11px !important; background: var(--surface-base) !important; border: 2px solid var(--accent-primary) !important; opacity: 0; transition: opacity .12s; }
@@ -174,7 +174,7 @@
   padding: 22px 12px 10px; overflow: hidden;
 }
 .lz-nota.lz-sel { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
-.lz-nota-tipo { position: absolute; left: 10px; top: 5px; display: flex; align-items: center; gap: 4px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; opacity: .55; }
+.lz-nota-tipo { position: absolute; left: 10px; top: 5px; display: flex; align-items: center; gap: 4px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; opacity: .55; }
 .lz-nota p { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.35; white-space: pre-wrap; }
 .lz-nota-edit { width: 100%; height: 100%; resize: none; background: transparent; border: 0; outline: 0; color: inherit; font: inherit; font-size: 14px; font-weight: 600; line-height: 1.35; }
 
@@ -203,7 +203,7 @@
 /* Las flechas */
 .lz-flujo .react-flow__edge.lz-arista .react-flow__edge-path { stroke: var(--border-strong); stroke-width: 1.6; }
 .lz-flujo .react-flow__edge.lz-arista--lit .react-flow__edge-path { stroke: var(--accent-primary); stroke-width: 2.2; }
-.lz-flujo .react-flow__edge-text { font-family: var(--font-mono); font-size: 10.5px; fill: var(--text-secondary); }
+.lz-flujo .react-flow__edge-text { font-family: var(--font-mono); font-size: 11px; fill: var(--text-secondary); }
 .lz-flujo .react-flow__edge.lz-arista--lit .react-flow__edge-text { fill: var(--accent-primary); }
 .lz-flujo .react-flow__edge-textbg { fill: var(--surface-base); stroke: var(--border-default); }
 .lz-flujo .react-flow__connection-path { stroke: var(--accent-primary); stroke-dasharray: 5 5; stroke-width: 1.8; }

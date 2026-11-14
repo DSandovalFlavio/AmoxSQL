@@ -13,7 +13,7 @@ export const panelStyles = {
         borderRadius: '6px', border: '1px solid var(--border-color)',
     },
     sectionTitle: {
-        margin: '0 0 10px 0', fontSize: '10px',
+        margin: '0 0 10px 0', fontSize: '11px',
         color: 'var(--text-active)', textTransform: 'uppercase',
         fontWeight: '600', letterSpacing: '0.4px',
     },
@@ -23,7 +23,7 @@ export const panelStyles = {
         fontWeight: '500',
     },
     labelSmall: {
-        display: 'block', fontSize: '10px',
+        display: 'block', fontSize: '11px',
         color: 'var(--text-tertiary)', marginBottom: '4px',
     },
     select: {
@@ -192,7 +192,7 @@ export const SimpleColorPicker = memo(({ color, onChange, swatches }) => {
                         ) : (
                             Object.entries(COLOR_PALETTES).map(([category, colors]) => (
                                 <div key={category} style={{ marginBottom: '6px' }}>
-                                    <div style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>
+                                    <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '3px' }}>
                                         {category}
                                     </div>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
@@ -220,7 +220,7 @@ export const SimpleColorPicker = memo(({ color, onChange, swatches }) => {
                         display: 'flex', alignItems: 'center', gap: '5px',
                         borderTop: '1px solid var(--border-color)', paddingTop: '8px'
                     }}>
-                        <span style={{ fontSize: '10px', color: 'var(--text-tertiary)' }}>Hex:</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>Hex:</span>
                         <input
                             type="text" value={color || ''}
                             onChange={e => onChange(e.target.value)}

@@ -295,7 +295,7 @@ const WelcomeScreen = ({ initialPath, onSelectWorkspace, onStartSession, onOpenS
                                                 className="ws-select"
                                             >
                                                 {scannedDbs.map(f => (
-                                                    <option key={f.path} value={f.path}>{f.name}</option>
+                                                    <option key={f.path} value={f.path}>{f.respaldo ? `${f.name} — backup` : f.name}</option>
                                                 ))}
                                             </select>
                                         </div>

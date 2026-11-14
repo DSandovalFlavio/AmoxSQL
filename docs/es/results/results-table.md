@@ -41,11 +41,16 @@ Haz **clic derecho** sobre el encabezado de una columna para:
 - **Copy All Column Names** — copia todos los nombres, separados por comas.
 - **Sort Ascending / Sort Descending** — ordena por esa columna.
 
+### Valores anidados
+Un valor con estructura —un VARIANT, un STRUCT, una lista, un MAP o un JSON— se ve en una línea; **un clic lo abre como árbol**, con cada clave y su tipo, plegable por niveles.
+
+<img src="../../images/results/nested-value.png" alt="una columna VARIANT con un valor abierto como árbol: cliente, pedido y sus claves" width="100%" />
+
 ### Paginar
 En la parte inferior, navega entre páginas con **‹ ›** y elige cuántas filas mostrar por página: **50 / 100 / 500 / 1000**.
 
 ### Sacar a una ventana aparte
-El botón **Pop-out** envía los resultados a una ventana independiente, útil para verlos en un segundo monitor mientras sigues editando. La ventana es de esa pestaña: ejecutar en otra no la cambia. Ver [Pestañas y paneles](../editor/layout-tabs-and-panes.md).
+**Save / Share › Pop out** envía los resultados a una ventana independiente, útil para verlos en un segundo monitor mientras sigues editando. La ventana es de esa pestaña: ejecutar en otra no la cambia. Ver [Pestañas y paneles](../editor/layout-tabs-and-panes.md).
 
 ## Referencia de formato de valores
 
@@ -67,17 +72,15 @@ La tabla formatea cada valor según su tipo para que se lea mejor; pasa el curso
 | **Table / Chart / Profile** | Cambia el modo de vista |
 | **Filters** | Muestra/oculta la fila de filtros por columna (solo en Table) |
 | **Search** | Búsqueda global sobre todas las columnas |
-| **Store A / Compare** | Guarda y compara conjuntos de resultados (ver [Comparar resultados](compare-results.md)) |
-| **Save as table…** | Materializa la query completa como tabla o vista (ver [Guardar resultados](saving-results.md)) |
-| **Vault** | Guarda el análisis en el Baúl (ver [Baúl de análisis](../ai/analysis-vault.md)) |
-| **Download ▾** | Descarga las filas mostradas (CSV/JSON/portapapeles) |
-| **Pop-out** | Abre los resultados en una ventana aparte |
+| **Explain** | Pregunta a Assist qué destaca en este resultado |
+| **Save / Share ▾** | Un solo menú (desde la 6.0): **Save as table or view…** (ver [Guardar resultados](saving-results.md)), **Save to Analysis Vault…** (ver [Baúl de análisis](../ai/analysis-vault.md)), **Store for comparison** y **Compare with the other pane** (ver [Comparar resultados](compare-results.md)), **Pop out** (una ventana aparte) y la descarga de las filas mostradas (CSV, JSON, portapapeles) |
+| **Compare** | Aparece mientras hay un resultado guardado para comparar |
 
 ## Tips y gemas
 
-- **Aviso de truncado:** si tu query devuelve más filas que el límite de "Max Rows" (Ajustes → Editor), verás "⚠ primeras N filas". Con Max Rows en 0 sigue habiendo un tope de seguridad de 1.000.000 de filas o 256 MB. Para el conjunto completo, usa **Export** en el editor o añade tu propio `LIMIT` (ver [Guardar resultados](saving-results.md)).
+- **Aviso de truncado:** si tu query devuelve más filas que el límite de "Max Rows" (Ajustes → Editor), verás un aviso, "primeras N filas". Con Max Rows en 0 sigue habiendo un tope de seguridad de 1.000.000 de filas o 256 MB. Para el conjunto completo, usa **Export** en el editor o añade tu propio `LIMIT` (ver [Guardar resultados](saving-results.md)).
 - **Buscar no re-ejecuta:** la búsqueda, los filtros y el orden operan **en memoria** sobre las filas ya cargadas —son instantáneos y no vuelven a consultar el motor—.
-- **Descargar ≠ Exportar:** **Download** baja solo las filas cargadas en la tabla (ya filtradas y ordenadas); el **Export** del editor re-ejecuta la query completa. La distinción se explica en [Guardar resultados](saving-results.md).
+- **Descargar ≠ Exportar:** **Save / Share › Download** baja solo las filas cargadas en la tabla (ya filtradas y ordenadas); el **Export** del editor re-ejecuta la query completa. La distinción se explica en [Guardar resultados](saving-results.md).
 
 ## Relacionado
 

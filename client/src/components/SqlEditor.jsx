@@ -1,7 +1,7 @@
 import { API_BASE } from '../api.js';
 import React, { useEffect, useMemo, useRef } from 'react';
 import Editor from '@monaco-editor/react';
-import { format } from 'sql-formatter';
+// sql-formatter pesa ~280 kB: se carga la primera vez que se formatea (6.0, M8).
 import { getSharedSqlWorkerBridge, initSharedSqlWorkerBridge } from '../utils/sqlWorkerBridge';
 import { registerMonaco, MONACO_THEME_NAME } from '../monacoTheme.js';
 import { splitSqlStatements } from '../utils/sqlSplitter';
@@ -154,6 +154,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     const workerBridgeRef = useRef(null);
     const docIdRef = useRef(`sqldoc_${++__sqlDocSeq}`);
     const activeTabIdRef = useRef(props.tabId);
+    // The tab as of THIS render. Monaco loads asynchronously and calls `onMount`
+    // with the closure of an earlier render: if the tab changed meanwhile (a
+    // restore that runs twice, a click while the editor loads), `props.tabId`
+    // there is a tab that no longer exists. Its model was then thrown away by
+    // `olvidarPestanas` on the next change and the editor went blank (6.0, found
+    // while testing M3).
+    const tabIdActualRef = useRef(props.tabId);
+    tabIdActualRef.current = props.tabId;
+    const valorActualRef = useRef(value);
+    valorActualRef.current = value;
+    const idiomaActualRef = useRef(props.language);
+    idiomaActualRef.current = props.language;
 
     // Last value we emitted through onChange. While the parent's `value` prop
     // lags behind this (debounced state, slow renders), any differing incoming
@@ -388,14 +400,17 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         disposablesRef.current = [];
 
         // El modelo de esta pestaña, si ya lo tenía: vuelve con su historia.
-        if (props.modeloPorPestana && props.tabId) {
+        const tabIdAlMontar = tabIdActualRef.current;
+        if (tabIdAlMontar) activeTabIdRef.current = tabIdAlMontar;
+        if (props.modeloPorPestana && tabIdAlMontar) {
             const inicial = editor.getModel();
-            const modelo = modeloDe(monaco, props.tabId, value, props.language);
+            const valorAlMontar = valorActualRef.current;
+            const modelo = modeloDe(monaco, tabIdAlMontar, valorAlMontar, idiomaActualRef.current);
             if (modelo !== inicial) {
                 editor.setModel(modelo);
                 inicial?.dispose();
             }
-            if (modelo.getValue() !== (value ?? '')) setValueSilently(editor, value);
+            if (modelo.getValue() !== (valorAlMontar ?? '')) setValueSilently(editor, valorAlMontar);
         }
 
         // El Assistant en el editor (plan del Assistant, E2): el foco, la barra
@@ -490,7 +505,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         });
 
         // 4. Format Code
-        const formatSql = () => {
+        const formatSql = async () => {
             if (props.language === 'markdown') return;
             const model = editor.getModel();
             let textToFormat = model.getValue();
@@ -510,6 +525,10 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             };
 
             try {
+                const version = model.getAlternativeVersionId();
+                const { format } = await import('sql-formatter');
+                // La primera vez la carga tarda un instante: si el texto cambió entretanto, no se pisa.
+                if (model.isDisposed() || model.getAlternativeVersionId() !== version) return;
                 const formatted = format(textToFormat, getFormatterConfig());
 
                 if (range) {
@@ -1073,6 +1092,38 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 }
             });
 
+            // 6.0 (Dec-98): `$` offers the project's variables (window.__amoxVariables,
+            // published by utils/variablesProyecto). Its own provider: the main one
+            // routes to a worker that knows nothing about them.
+            const describirVariable = (v) => {
+                const valor = v.tipo === 'lista' ? `[${(v.valor || []).join(', ')}]` : v.tipo === 'logico' ? (v.valor ? 'true' : 'false') : String(v.valor ?? '');
+                const tipos = { texto: 'text', numero: 'number', fecha: 'date', logico: 'yes/no', lista: 'list' };
+                return `**$${v.nombre}** · ${tipos[v.tipo] || v.tipo} = \`${valor}\`${v.descripcion ? `\n\n${v.descripcion}` : ''}\n\n_Project variable (Library › Snippets › Variables)._`;
+            };
+            monaco.languages.registerCompletionItemProvider('sql', {
+                triggerCharacters: ['$'],
+                provideCompletionItems: (model, position) => {
+                    const antes = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
+                    const m = /\$([A-Za-z_]\w*)?$/.exec(antes);
+                    // `${` is a text placeholder, not an engine variable.
+                    if (!m || /\$\{$/.test(antes)) return { suggestions: [] };
+                    const desde = position.column - m[0].length;
+                    const range = new monaco.Range(position.lineNumber, desde, position.lineNumber, position.column);
+                    return {
+                        suggestions: (window.__amoxVariables || []).map(v => ({
+                            label: `$${v.nombre}`,
+                            kind: monaco.languages.CompletionItemKind.Variable,
+                            detail: 'Project variable',
+                            documentation: { value: describirVariable(v) },
+                            insertText: `$${v.nombre}`,
+                            filterText: `$${v.nombre}`,
+                            sortText: `0_${v.nombre}`,
+                            range,
+                        })),
+                    };
+                },
+            });
+
             // --- HOVER PROVIDER: DuckDB Function Documentation ---
             // Build lookup lazily from same catalog used by autocomplete
             const hoverLookup = {};
@@ -1096,6 +1147,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                     }
                     const word = model.getWordAtPosition(position);
                     if (!word) return null;
+                    // 6.0 (Dec-98): `$nombre`, una variable del proyecto.
+                    if (word.startColumn > 1 && model.getLineContent(position.lineNumber)[word.startColumn - 2] === '$') {
+                        const v = (window.__amoxVariables || []).find(x => x.nombre.toLowerCase() === word.word.toLowerCase());
+                        if (v) return {
+                            range: new monaco.Range(position.lineNumber, word.startColumn - 1, position.lineNumber, word.endColumn),
+                            contents: [{ value: describirVariable(v) }],
+                        };
+                    }
                     // 5.13 (Dec-41): una medida del workspace o del proyecto.
                     const medida = (window.__amoxMedidas || []).find(m => m.nombre.toLowerCase() === word.word.toLowerCase());
                     if (medida) {

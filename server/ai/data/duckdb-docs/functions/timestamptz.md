@@ -1,18 +1,20 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/functions/timestamptz
 - /docs/sql/functions/timestamptz
 - /docs/stable/sql/functions/timestamptz
+- /docs/current/sql/functions/timestamptz
+- /docs/lts/sql/functions/timestamptz
+- /docs/preview/sql/functions/timestamptz
 title: Timestamp with Time Zone Functions
 ---
 
 <!-- markdownlint-disable MD001 -->
 
 This section describes functions and operators for examining and manipulating [`TIMESTAMP WITH TIME ZONE`
-(or `TIMESTAMPTZ`) values]({% link docs/current/sql/data_types/timestamp.md %}). See also the related [`TIMESTAMP` functions]({% link docs/current/sql/functions/timestamp.md %}).
+(or `TIMESTAMPTZ`) values]({% link docs/2.0/sql/data_types/timestamp.md %}). See also the related [`TIMESTAMP` functions]({% link docs/2.0/sql/functions/timestamp.md %}).
 
-Time zone support is provided by the built-in [ICU extension]({% link docs/current/core_extensions/icu.md %}).
+Time zone support is provided by the built-in [ICU extension]({% link docs/2.0/core_extensions/icu.md %}).
 
 In the examples below, the current time zone is presumed to be `America/Los_Angeles`
 using the Gregorian calendar.
@@ -106,7 +108,7 @@ they are always available.
 
 | **Description** | Converts seconds since the epoch to a timestamp with time zone. |
 | **Example** | `to_timestamp(1284352323.5)` |
-| **Result** | `2010-09-13 04:32:03.5+00` |
+| **Result** | `2010-09-12 21:32:03.5-07` |
 
 #### `transaction_timestamp()`
 
@@ -153,11 +155,11 @@ provided by the ICU extension.
 | `-` | subtraction of `TIMESTAMPTZ`s | `TIMESTAMPTZ '1992-03-27' - TIMESTAMPTZ '1992-03-22'` | `5 days` |
 | `-` | subtraction of an `INTERVAL` | `TIMESTAMPTZ '1992-03-27 01:02:03' - INTERVAL 5 DAY` | `1992-03-22 01:02:03` |
 
-Adding to or subtracting from [infinite values]({% link docs/current/sql/data_types/timestamp.md %}#special-values) produces the same infinite value.
+Adding to or subtracting from [infinite values]({% link docs/2.0/sql/data_types/timestamp.md %}#special-values) produces the same infinite value.
 
-Addition and subtraction of intervals uses the [ICU Calendar add function](https://unicode-org.github.io/icu-docs/apidoc/released/icu4c/classicu_1_1Calendar.html#aa6e19a88ca2225eddcbbe82313c9c095).
-For positive intervals (forwards in time) the fields are incremented from least to most significant.
-For negative intervals (backwards in time) the fields are decremented from most to least significant.
+Addition and subtraction of intervals follows the semantics of the [ICU Calendar add function](https://unicode-org.github.io/icu-docs/apidoc/released/icu4c/classicu_1_1Calendar.html#aa6e19a88ca2225eddcbbe82313c9c095), which the `icu` extension implements natively since DuckDB 2.0.
+For positive intervals (forwards in time) the fields are incremented from most to least significant.
+For negative intervals (backwards in time) the fields are decremented from least to most significant.
 This produces the same results as Postgres, but does not match some [more recent calendar RFCs](https://www.rfc-editor.org/rfc/rfc5545).
 
 ## ICU Timestamp with Time Zone Functions
@@ -168,20 +170,20 @@ The table below shows the ICU provided scalar functions for `TIMESTAMP WITH TIME
 |:--|:-------|
 | [`age(timestamptz, timestamptz)`](#agetimestamptz-timestamptz) | Subtract arguments, resulting in the time difference between the two timestamps. |
 | [`age(timestamptz)`](#agetimestamptz) | Subtract from current_date. |
-| [`date_diff(part, starttimestamptz, endtimestamptz)`](#date_diffpart-starttimestamptz-endtimestamptz) | The number of [`part`]({% link docs/current/sql/functions/datepart.md %}) boundaries between `starttimestamptz` and `endtimestamptz` inclusive of the larger timestamp and exclusive of the smaller timestamp. |
-| [`date_part([part, ...], timestamp)`](#date_partpart--timestamptz) | Get the listed [subfields]({% link docs/current/sql/functions/datepart.md %}) as a `struct`. The list must be constant. |
-| [`date_part(part, timestamp)`](#date_partpart-timestamptz) | Get [subfield]({% link docs/current/sql/functions/datepart.md %}) (equivalent to `extract`). |
-| [`date_sub(part, starttimestamptz, endtimestamptz)`](#date_subpart-starttimestamptz-endtimestamptz) | The signed length of the interval between `starttimestamptz` and `endtimestamptz`, truncated to whole multiples of [`part`]({% link docs/current/sql/functions/datepart.md %}). |
-| [`date_trunc(part, timestamptz)`](#date_truncpart-timestamptz) | Truncate to specified [precision]({% link docs/current/sql/functions/datepart.md %}). |
+| [`date_diff(part, starttimestamptz, endtimestamptz)`](#date_diffpart-starttimestamptz-endtimestamptz) | The number of [`part`]({% link docs/2.0/sql/functions/datepart.md %}) boundaries between `starttimestamptz` and `endtimestamptz` inclusive of the larger timestamp and exclusive of the smaller timestamp. |
+| [`date_part([part, ...], timestamp)`](#date_partpart--timestamptz) | Get the listed [subfields]({% link docs/2.0/sql/functions/datepart.md %}) as a `struct`. The list must be constant. |
+| [`date_part(part, timestamp)`](#date_partpart-timestamptz) | Get [subfield]({% link docs/2.0/sql/functions/datepart.md %}) (equivalent to `extract`). |
+| [`date_sub(part, starttimestamptz, endtimestamptz)`](#date_subpart-starttimestamptz-endtimestamptz) | The signed length of the interval between `starttimestamptz` and `endtimestamptz`, truncated to whole multiples of [`part`]({% link docs/2.0/sql/functions/datepart.md %}). |
+| [`date_trunc(part, timestamptz)`](#date_truncpart-timestamptz) | Truncate to specified [precision]({% link docs/2.0/sql/functions/datepart.md %}). |
 | [`epoch_ns(timestamptz)`](#epoch_nstimestamptz) | Converts a timestamptz to nanoseconds since the epoch. |
 | [`epoch_us(timestamptz)`](#epoch_ustimestamptz) | Converts a timestamptz to microseconds since the epoch. |
-| [`extract(field FROM timestamptz)`](#extractfield-from-timestamptz) | Get [subfield]({% link docs/current/sql/functions/datepart.md %}) from a `TIMESTAMP WITH TIME ZONE`. |
+| [`extract(field FROM timestamptz)`](#extractfield-from-timestamptz) | Get [subfield]({% link docs/2.0/sql/functions/datepart.md %}) from a `TIMESTAMP WITH TIME ZONE`. |
 | [`last_day(timestamptz)`](#last_daytimestamptz) | The last day of the month. |
 | [`make_timestamptz(bigint, bigint, bigint, bigint, bigint, double, string)`](#make_timestamptzbigint-bigint-bigint-bigint-bigint-double-string) | The `TIMESTAMP WITH TIME ZONE` for the given parts and time zone. |
 | [`make_timestamptz(bigint, bigint, bigint, bigint, bigint, double)`](#make_timestamptzbigint-bigint-bigint-bigint-bigint-double) | The `TIMESTAMP WITH TIME ZONE` for the given parts in the current time zone. |
 | [`make_timestamptz(microseconds)`](#make_timestamptzmicroseconds) | The `TIMESTAMP WITH TIME ZONE` for the given µs since the epoch. |
-| [`strftime(timestamptz, format)`](#strftimetimestamptz-format) | Converts a `TIMESTAMP WITH TIME ZONE` value to string according to the [format string]({% link docs/current/sql/functions/dateformat.md %}#format-specifiers). |
-| [`strptime(text, format)`](#strptimetext-format) | Converts string to `TIMESTAMP WITH TIME ZONE` according to the [format string]({% link docs/current/sql/functions/dateformat.md %}#format-specifiers) if `%Z` is specified. |
+| [`strftime(timestamptz, format)`](#strftimetimestamptz-format) | Converts a `TIMESTAMP WITH TIME ZONE` value to string according to the [format string]({% link docs/2.0/sql/functions/dateformat.md %}#format-specifiers). |
+| [`strptime(text, format)`](#strptimetext-format) | Converts string to `TIMESTAMP WITH TIME ZONE` according to the [format string]({% link docs/2.0/sql/functions/dateformat.md %}#format-specifiers) if `%Z` is specified. |
 | [`time_bucket(bucket_width, timestamptz[, offset])`](#time_bucketbucket_width-timestamptz-offset) | Truncate `timestamptz` to a grid of width `bucket_width`. The grid is anchored at `2000-01-01 00:00:00+00:00[ + offset]` when `bucket_width` is a number of months or coarser units, else `2000-01-03 00:00:00+00:00[ + offset]`. Note that `2000-01-03` is a Monday. |
 | [`time_bucket(bucket_width, timestamptz[, origin])`](#time_bucketbucket_width-timestamptz-origin) | Truncate `timestamptz` to a grid of width `bucket_width`. The grid is anchored at the `origin` timestamp, which defaults to `2000-01-01 00:00:00+00:00` when `bucket_width` is a number of months or coarser units, else `2000-01-03 00:00:00+00:00`. Note that `2000-01-03` is a Monday. |
 | [`time_bucket(bucket_width, timestamptz[, timezone])`](#time_bucketbucket_width-timestamptz-origin) | Truncate `timestamptz` to a grid of width `bucket_width`. The grid is anchored at the `origin` timestamp, which defaults to `2000-01-01 00:00:00` in the provided `timezone` when `bucket_width` is a number of months or coarser units, else `2000-01-03 00:00:00` in the provided `timezone`. The default timezone is `'UTC'`. Note that `2000-01-03` is a Monday. |
@@ -208,7 +210,7 @@ The table below shows the ICU provided scalar functions for `TIMESTAMP WITH TIME
 
 <div class="nostroke_table"></div>
 
-| **Description** | The signed number of [`part`]({% link docs/current/sql/functions/datepart.md %}) boundaries between `starttimestamptz` and `endtimestamptz`, inclusive of the larger timestamp and exclusive of the smaller timestamp. |
+| **Description** | The signed number of [`part`]({% link docs/2.0/sql/functions/datepart.md %}) boundaries between `starttimestamptz` and `endtimestamptz`, inclusive of the larger timestamp and exclusive of the smaller timestamp. |
 | **Example** | `date_diff('hour', TIMESTAMPTZ '1992-09-30 23:59:59', TIMESTAMPTZ '1992-10-01 01:58:00')` |
 | **Result** | `2` |
 
@@ -216,7 +218,7 @@ The table below shows the ICU provided scalar functions for `TIMESTAMP WITH TIME
 
 <div class="nostroke_table"></div>
 
-| **Description** | Get the listed [subfields]({% link docs/current/sql/functions/datepart.md %}) as a `struct`. The list must be constant. |
+| **Description** | Get the listed [subfields]({% link docs/2.0/sql/functions/datepart.md %}) as a `struct`. The list must be constant. |
 | **Example** | `date_part(['year', 'month', 'day'], TIMESTAMPTZ '1992-09-20 20:38:40-07')` |
 | **Result** | `{year: 1992, month: 9, day: 20}` |
 
@@ -224,7 +226,7 @@ The table below shows the ICU provided scalar functions for `TIMESTAMP WITH TIME
 
 <div class="nostroke_table"></div>
 
-| **Description** | Get [subfield]({% link docs/current/sql/functions/datepart.md %}) (equivalent to *extract*). |
+| **Description** | Get [subfield]({% link docs/2.0/sql/functions/datepart.md %}) (equivalent to *extract*). |
 | **Example** | `date_part('minute', TIMESTAMPTZ '1992-09-20 20:38:40')` |
 | **Result** | `38` |
 
@@ -232,7 +234,7 @@ The table below shows the ICU provided scalar functions for `TIMESTAMP WITH TIME
 
 <div class="nostroke_table"></div>
 
-| **Description** | The signed length of the interval between `starttimestamptz` and `endtimestamptz`, truncated to whole multiples of [`part`]({% link docs/current/sql/functions/datepart.md %}). |
+| **Description** | The signed length of the interval between `starttimestamptz` and `endtimestamptz`, truncated to whole multiples of [`part`]({% link docs/2.0/sql/functions/datepart.md %}). |
 | **Example** | `date_sub('hour', TIMESTAMPTZ '1992-09-30 23:59:59', TIMESTAMPTZ '1992-10-01 01:58:00')` |
 | **Result** | `1` |
 
@@ -240,7 +242,7 @@ The table below shows the ICU provided scalar functions for `TIMESTAMP WITH TIME
 
 <div class="nostroke_table"></div>
 
-| **Description** | Truncate to specified [precision]({% link docs/current/sql/functions/datepart.md %}). |
+| **Description** | Truncate to specified [precision]({% link docs/2.0/sql/functions/datepart.md %}). |
 | **Example** | `date_trunc('hour', TIMESTAMPTZ '1992-09-20 20:38:40')` |
 | **Result** | `1992-09-20 20:00:00` |
 
@@ -264,7 +266,7 @@ The table below shows the ICU provided scalar functions for `TIMESTAMP WITH TIME
 
 <div class="nostroke_table"></div>
 
-| **Description** | Get [subfield]({% link docs/current/sql/functions/datepart.md %}) from a `TIMESTAMP WITH TIME ZONE`. |
+| **Description** | Get [subfield]({% link docs/2.0/sql/functions/datepart.md %}) from a `TIMESTAMP WITH TIME ZONE`. |
 | **Example** | `extract('hour' FROM TIMESTAMPTZ '1992-09-20 20:38:48')` |
 | **Result** | `20` |
 
@@ -298,13 +300,13 @@ The table below shows the ICU provided scalar functions for `TIMESTAMP WITH TIME
 
 | **Description** | The `TIMESTAMP WITH TIME ZONE` for the given µs since the epoch. |
 | **Example** | `make_timestamptz(1667810584123456)` |
-| **Result** | `2022-11-07 16:43:04.123456-08` |
+| **Result** | `2022-11-07 00:43:04.123456-08` |
 
 #### `strftime(timestamptz, format)`
 
 <div class="nostroke_table"></div>
 
-| **Description** | Converts a `TIMESTAMP WITH TIME ZONE` value to string according to the [format string]({% link docs/current/sql/functions/dateformat.md %}#format-specifiers). |
+| **Description** | Converts a `TIMESTAMP WITH TIME ZONE` value to string according to the [format string]({% link docs/2.0/sql/functions/dateformat.md %}#format-specifiers). |
 | **Example** | `strftime(timestamptz '1992-01-01 20:38:40', '%a, %-d %B %Y - %I:%M:%S %p')` |
 | **Result** | `Wed, 1 January 1992 - 08:38:40 PM` |
 
@@ -312,7 +314,7 @@ The table below shows the ICU provided scalar functions for `TIMESTAMP WITH TIME
 
 <div class="nostroke_table"></div>
 
-| **Description** | Converts string to `TIMESTAMP WITH TIME ZONE` according to the [format string]({% link docs/current/sql/functions/dateformat.md %}#format-specifiers) if `%Z` is specified. |
+| **Description** | Converts string to `TIMESTAMP WITH TIME ZONE` according to the [format string]({% link docs/2.0/sql/functions/dateformat.md %}#format-specifiers) if `%Z` is specified. |
 | **Example** | `strptime('Wed, 1 January 1992 - 08:38:40 PST', '%a, %-d %B %Y - %H:%M:%S %Z')` |
 | **Result** | `1992-01-01 08:38:40-08` |
 
@@ -340,7 +342,7 @@ The table below shows the ICU provided scalar functions for `TIMESTAMP WITH TIME
 | **Example** | `time_bucket(INTERVAL '2 days', TIMESTAMPTZ '1992-04-20 15:26:00-07', 'Europe/Berlin')` |
 | **Result** | `1992-04-19 15:00:00-07` (=`1992-04-20 00:00:00 Europe/Berlin`) |
 
-There are also dedicated extraction functions to get the [subfields]({% link docs/current/sql/functions/datepart.md %}).
+There are also dedicated extraction functions to get the [subfields]({% link docs/2.0/sql/functions/datepart.md %}).
 
 ## ICU Timestamp Table Functions
 
@@ -367,7 +369,7 @@ The table below shows the available table functions for `TIMESTAMP WITH TIME ZON
 | **Description** | Generate a table of timestamps in the half open range (including the starting timestamp, but stopping before the ending timestamp), stepping by the interval. |
 | **Example** | `range(TIMESTAMPTZ '2001-04-10', TIMESTAMPTZ '2001-04-11', INTERVAL 30 MINUTE)` |
 
-## ICU Timestamp Without Time Zone Functions
+## ICU Timestamp without Time Zone Functions
 
 The table below shows the ICU provided scalar functions that operate on plain `TIMESTAMP` values.
 These functions assume that the `TIMESTAMP` is a “local timestamp”.
@@ -382,8 +384,8 @@ Often the same functionality can be implemented more reliably using the `struct`
 | [`current_localtimestamp()`](#current_localtimestamp) | Returns a `TIMESTAMP` whose GMT bin values correspond to local date and time in the current time zone. |
 | [`localtime`](#localtime) | Synonym for the `current_localtime()` function call. |
 | [`localtimestamp`](#localtimestamp) | Synonym for the `current_localtimestamp()` function call. |
-| [`timezone(text, timestamp)`](#timezonetext-timestamp) | Use the [date parts]({% link docs/current/sql/functions/datepart.md %}) of the timestamp in GMT to construct a timestamp in the given time zone. Effectively, the argument is a “local” time. |
-| [`timezone(text, timestamptz)`](#timezonetext-timestamptz) | Use the [date parts]({% link docs/current/sql/functions/datepart.md %}) of the timestamp in the given time zone to construct a timestamp. Effectively, the result is a “local” time. |
+| [`timezone(text, timestamp)`](#timezonetext-timestamp) | Use the [date parts]({% link docs/2.0/sql/functions/datepart.md %}) of the timestamp in GMT to construct a timestamp in the given time zone. Effectively, the argument is a “local” time. |
+| [`timezone(text, timestamptz)`](#timezonetext-timestamptz) | Use the [date parts]({% link docs/2.0/sql/functions/datepart.md %}) of the timestamp in the given time zone to construct a timestamp. Effectively, the result is a “local” time. |
 
 #### `current_localtime()`
 
@@ -421,7 +423,7 @@ Often the same functionality can be implemented more reliably using the `struct`
 
 <div class="nostroke_table"></div>
 
-| **Description** | Use the [date parts]({% link docs/current/sql/functions/datepart.md %}) of the timestamp in GMT to construct a timestamp in the given time zone. Effectively, the argument is a “local” time. |
+| **Description** | Use the [date parts]({% link docs/2.0/sql/functions/datepart.md %}) of the timestamp in GMT to construct a timestamp in the given time zone. Effectively, the argument is a “local” time. |
 | **Example** | `timezone('America/Denver', TIMESTAMP '2001-02-16 20:38:40')` |
 | **Result** | `2001-02-16 19:38:40-08` |
 
@@ -429,7 +431,7 @@ Often the same functionality can be implemented more reliably using the `struct`
 
 <div class="nostroke_table"></div>
 
-| **Description** | Use the [date parts]({% link docs/current/sql/functions/datepart.md %}) of the timestamp in the given time zone to construct a timestamp. Effectively, the result is a “local” time. |
+| **Description** | Use the [date parts]({% link docs/2.0/sql/functions/datepart.md %}) of the timestamp in the given time zone to construct a timestamp. Effectively, the result is a “local” time. |
 | **Example** | `timezone('America/Denver', TIMESTAMPTZ '2001-02-16 20:38:40-05')` |
 | **Result** | `2001-02-16 18:38:40` |
 
@@ -472,7 +474,7 @@ the result will be `NULL`.
 
 ## Calendars
 
-The ICU extension also supports [non-Gregorian calendars]({% link docs/current/sql/data_types/timestamp.md %}#calendar-support).
+The ICU extension also supports [non-Gregorian calendars]({% link docs/2.0/sql/data_types/timestamp.md %}#calendar-support).
 If such a calendar is current, then the display and binning operations will use that calendar.
 
 

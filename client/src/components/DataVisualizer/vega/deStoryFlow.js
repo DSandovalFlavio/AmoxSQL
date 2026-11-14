@@ -107,7 +107,7 @@ function seriesDe(c, filas, plegado) {
  * @param {string[]} [op.colores] La paleta activa.
  * @returns {object} spec de Vega-Lite (o de Vega para el treemap), con `data: {name: 'dataset'}`.
  */
-export function deStoryFlow(config, { filas = [], colores = ['#9b87f5'] } = {}) {
+export function deStoryFlow(config, { filas = [], colores = ['#00c4c6'] } = {}) {
     const c = { ...DEFAULT_CONFIG, ...config };
     const { tipo, apilado, horizontal, burbuja } = tipoEfectivo(c);
     const X = c.xAxisKey;

@@ -1,4 +1,5 @@
 'use strict';
+const registrador = require('../registrador');
 
 /**
  * AmoxSQL AI — Context-as-Code Loader
@@ -259,7 +260,7 @@ async function loadContextDir(contextDir) {
         return hasContent ? ctx : null;
 
     } catch (err) {
-        console.warn('[ContextLoader] Failed to load project context:', err.message);
+        registrador.aviso('[ContextLoader] Failed to load project context:', err.message);
         return null;
     }
 }
@@ -289,6 +290,16 @@ function buildProjectContextSection(ctx) {
             if (m.table)  parts.push(`  Table: ${m.table}`);
             parts.push('');
         }
+    }
+
+    // ── 6.0 (Dec-98): the project's variables, read with $name ──
+    let vars = [];
+    try { vars = require('../variables').actuales(); } catch { /* sin variables */ }
+    if (vars.length) {
+        parts.push('### Project Variables\n');
+        parts.push('Session variables the user declared for this project. In SQL write them as `$name` (typed, no quotes needed: `WHERE region = $region`, `LIMIT $n`, `list_contains($stores, store)`). Prefer them over hard-coded values when the user refers to them.');
+        parts.push(require('../variables').paraElAsistente(vars));
+        parts.push('');
     }
 
     // ── Joins ──

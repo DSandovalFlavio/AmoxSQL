@@ -2,7 +2,7 @@
  * AmoxSQL AI — DuckDB documentation lookup (offline-first).
  *
  * The official DuckDB SQL docs are plain markdown files in the public repo
- * duckdb/duckdb-web (docs/current/sql/**). We bundle a full snapshot with the
+ * duckdb/duckdb-web (docs/<version>/sql/**). We bundle a full snapshot with the
  * app for 100% offline use, and can refresh it on demand or on a schedule.
  * No headless browser — just raw-markdown fetches + a small local index.
  *
@@ -22,7 +22,16 @@ const { homeAmox } = require('../rutas');
 
 const REPO = 'duckdb/duckdb-web';
 const REF = 'main';
-const DOCS_SUBPATH = 'docs/current/sql';
+// The docs of the engine AmoxSQL runs (2.0 → docs/2.0/sql). duckdb-web keeps one
+// folder per version since 2.0; `docs/current` no longer exists.
+function versionDeLaDocumentacion() {
+    try {
+        const v = String(require('@duckdb/node-api').version()).replace(/^v/, '').split('.');
+        if (v.length >= 2 && /^\d+$/.test(v[0]) && /^\d+$/.test(v[1])) return `${v[0]}.${v[1]}`;
+    } catch { /* sin motor: la de la versión que se publicó con él */ }
+    return '2.0';
+}
+const DOCS_SUBPATH = `docs/${versionDeLaDocumentacion()}/sql`;
 
 // Curated "gotcha" aliases: the DuckDB-specific syntax small models most often
 // get wrong → the doc file (relative to DOCS_SUBPATH) + the exact heading that
@@ -38,8 +47,15 @@ const GOTCHA_MAP = [
     { re: /\bqualify\b/i, file: 'query_syntax/qualify.md' },
     { re: /\bunpivot\b/i, file: 'statements/unpivot.md' },
     { re: /\bpivot\b/i, file: 'statements/pivot.md' },
-    { re: /\basof\b|as[- ]of join/i, file: 'query_syntax/from.md', heading: 'ASOF' },
-    { re: /\blambda\b|list comprehension|comprensi[oó]n/i, file: 'functions/lambda.md' },
+    { re: /\basof\b|as[- ]of join/i, file: 'query_syntax/from.md', heading: 'As-of Joins' },
+    // DuckDB 2.0 (6.0): what the engine added, and what the 1.x docs taught wrong.
+    { re: /\bnearest\b.*join|join.*\bnearest\b/i, file: 'query_syntax/from.md', heading: 'Nearest Joins' },
+    { re: /\bvariant\b|semi[- ]?structured|semiestructurad/i, file: 'functions/variant.md' },
+    { re: /\$[a-z_]\w*|\bset variable\b|getvariable|variable de sesi[oó]n/i, file: 'statements/set_variable.md' },
+    { re: /\btrigger\b|disparador/i, file: 'statements/create_trigger.md' },
+    { re: /nested schema|esquema anidado|schema.*inside.*schema/i, file: 'statements/create_schema.md', heading: 'Nested Schemas' },
+    // 2.0: `lambda x: …` (the arrow `x -> …` is gone): the examples show the new form.
+    { re: /\blambda\b|list comprehension|comprensi[oó]n|->/i, file: 'functions/lambda.md', heading: 'Examples' },
     { re: /\blist\b|\barray\b|arreglo/i, file: 'functions/list.md' },
     { re: /\bstruct\b/i, file: 'data_types/struct.md' },
     { re: /\bmap\b/i, file: 'data_types/map.md' },
@@ -96,7 +112,12 @@ function userDir() {
 /** The active snapshot: the user refresh if it has a manifest, else the bundle. */
 function activeDir() {
     const u = userDir();
-    if (fs.existsSync(path.join(u, 'manifest.json'))) return u;
+    // A refresh made with another engine's docs (a 5.x snapshot of docs/current, 1.x)
+    // would teach the old syntax: only the snapshot of this engine's version counts.
+    try {
+        const m = JSON.parse(fs.readFileSync(path.join(u, 'manifest.json'), 'utf8'));
+        if (m?.basePath === DOCS_SUBPATH) return u;
+    } catch { /* sin copia del usuario */ }
     return bundledDir();
 }
 

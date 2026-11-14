@@ -2,9 +2,12 @@
 layout: docu
 railroad: query_syntax/filter.js
 redirect_from:
-- /docs/preview/sql/query_syntax/filter
 - /docs/sql/query_syntax/filter
 - /docs/stable/sql/query_syntax/filter
+- /docs/current/sql/query_syntax/filter
+- /docs/lts/sql/query_syntax/filter
+- /docs/preview/sql/query_syntax/filter
+tested: true
 title: FILTER Clause
 ---
 
@@ -12,9 +15,22 @@ The `FILTER` clause may optionally follow an aggregate function in a `SELECT` st
 
 There are multiple types of situations where this is useful, including when evaluating multiple aggregates with different filters, and when creating a pivoted view of a dataset. `FILTER` provides a cleaner syntax for pivoting data when compared with the more traditional `CASE WHEN` approach discussed below.
 
-Some aggregate functions also do not filter out `NULL` values, so using a `FILTER` clause will return valid results when at times the `CASE WHEN` approach will not. This occurs with the functions `first` and `last`, which are desirable in a non-aggregating pivot operation where the goal is to simply re-orient the data into columns rather than re-aggregate it. `FILTER` also improves `NULL` handling when using the `list` and `array_agg` functions, as the `CASE WHEN` approach will include `NULL` values in the list result, while the `FILTER` clause will remove them.
+Some aggregate functions also do not filter out `NULL` values, so using a `FILTER` clause will return valid results when at times the `CASE WHEN` approach will not. This occurs with the functions `first` and `last`, which are desirable in a non-aggregating pivot operation where the goal is to simply re-orient the data into columns rather than re-aggregate it. For `list` and `array_agg`, `FILTER` excludes rows that do not satisfy its condition, whereas a `CASE WHEN` expression can contribute `NULL` placeholders for those rows. However, `FILTER` does **not** automatically remove `NULL` values from rows that do satisfy the condition. To omit them, include an explicit condition on the aggregated value, such as `list(x) FILTER (WHERE x IS NOT NULL)`.
 
 ## Examples
+
+### Filtering `NULL` Values from Lists
+
+A `FILTER` condition acts on rows, not on the values stored in the resulting list. Here the first expression keeps the `NULL` value because `y` is `true` for that row, while the second explicitly excludes null values from `x`:
+
+```sql
+SELECT
+    list(x) FILTER (WHERE y) AS selected_rows,
+    list(x) FILTER (WHERE x IS NOT NULL) AS non_null_values
+FROM (VALUES (NULL::INTEGER, true), (2, true), (1, false)) t(x, y);
+```
+
+The results are `[NULL, 2]` for `selected_rows` and `[2, 1]` for `non_null_values`.
 
 Return the following:
 
@@ -110,6 +126,8 @@ However, the `CASE WHEN` approach will not work as expected when using an aggreg
 
 “Pivot” the data out by year (move each year out to a separate column):
 
+<!-- test:run-only `first` picks an arbitrary row from a parallel scan -->
+
 ```sql
 SELECT
     first(i) FILTER (year = 2022) AS "2022",
@@ -127,6 +145,8 @@ FROM stacked_data;
 | 1474561 | 25804801 | 50749441 | 76431361 | 87500001 |
 
 This will produce `NULL` values whenever the first evaluation of the `CASE WHEN` clause returns a `NULL`:
+
+<!-- test:run-only `first` picks an arbitrary row from a parallel scan -->
 
 ```sql
 SELECT

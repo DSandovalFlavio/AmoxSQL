@@ -23,10 +23,12 @@
  * encontraría en otro sitio. Dejando que el gesto ocurra podemos **explicarlo
  * la primera vez** en lugar de que lo descubra a base de intentarlo.
  */
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import {
     ReactFlow, Background, MiniMap, Controls, BackgroundVariant, useReactFlow,
 } from '@xyflow/react';
+import { encuadreLegible } from '../../utils/encuadreLegible';
+import { useEncuadreInicial } from '../../hooks/useEncuadreInicial';
 import '@xyflow/react/dist/style.css';
 import DiagramNode from './DiagramNode';
 import DiagramGroupNode from './DiagramGroupNode';
@@ -39,7 +41,21 @@ const DiagramCanvas = ({
     onElegirNodo, onElegirGrupo, onElegirArista, onLimpiarSeleccion,
     onConectar, onDobleClicLienzo, onIntentarMover,
 }) => {
-    const { fitView } = useReactFlow();
+    const { fitView, getNodesBounds, setViewport, viewportInitialized } = useReactFlow();
+
+    // El encuadre inicial, legible (6.0, M10 · T9): «que quepa todo» dejaba siete
+    // cajas al 42 %. Una vez, cuando el lienzo tiene tamaño (una pestaña restaurada
+    // se monta oculta); las cajas traen su tamaño de diagramGraph.js. El botón
+    // Fit sigue encuadrando todo.
+    const caja = useRef(null);
+    useEncuadreInicial(caja, viewportInitialized && nodos.length > 0, () => {
+        const r = caja.current.getBoundingClientRect();
+        if (r.width < 80 || r.height < 80) return false;
+        const vp = encuadreLegible(getNodesBounds(nodos), r.width, r.height, { relleno: 0.14, maximo: 1.1 });
+        if (!vp) return false;
+        setViewport(vp, { duration: 0 });
+        return true;
+    });
 
     const opcionesDeArista = useMemo(() => ({
         type: 'smoothstep',
@@ -48,6 +64,7 @@ const DiagramCanvas = ({
 
     return (
         <div
+            ref={caja}
             className="dgm-canvas"
             onDoubleClick={(e) => {
                 // Sólo cuando el doble clic cae en el vacío: sobre una caja es el
@@ -80,8 +97,6 @@ const DiagramCanvas = ({
                 deleteKeyCode={null}
                 minZoom={0.2}
                 maxZoom={2.5}
-                fitView
-                fitViewOptions={{ padding: 0.14, maxZoom: 1.1 }}
                 proOptions={{ hideAttribution: true }}
             >
                 <Background variant={BackgroundVariant.Dots} gap={17} size={0.9} color={colores.puntos} />

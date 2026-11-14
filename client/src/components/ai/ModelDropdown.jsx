@@ -14,7 +14,7 @@ function StatusDot({ name, modelStatus }) {
         if (entry.onCpu) { color = 'var(--warning, #e0a030)'; glyph = '◐'; title = 'Loaded, partly on CPU (slower)'; }
         else { color = 'var(--success, #3ba55d)'; glyph = '●'; title = 'Hot in memory — instant response'; }
     }
-    return <span title={title} style={{ color, fontSize: '9px', lineHeight: 1, flexShrink: 0 }}>{glyph}</span>;
+    return <span title={title} style={{ color, fontSize: '11px', lineHeight: 1, flexShrink: 0 }}>{glyph}</span>;
 }
 
 function ModelDropdown({ provider, selectedModel, setSelectedModel, installedModels, cloudModelsList, isModelsLoading, modelStatus = [] }) {

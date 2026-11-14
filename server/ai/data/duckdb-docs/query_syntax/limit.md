@@ -2,9 +2,11 @@
 layout: docu
 railroad: query_syntax/orderby.js
 redirect_from:
-- /docs/preview/sql/query_syntax/limit
 - /docs/sql/query_syntax/limit
 - /docs/stable/sql/query_syntax/limit
+- /docs/current/sql/query_syntax/limit
+- /docs/lts/sql/query_syntax/limit
+- /docs/preview/sql/query_syntax/limit
 title: LIMIT and OFFSET Clauses
 ---
 
@@ -47,6 +49,36 @@ Select 10% of the rows from the addresses table:
 SELECT *
 FROM addresses
 LIMIT 10%;
+```
+
+## `FETCH FIRST`
+
+> New The SQL-standard `FETCH FIRST` syntax was introduced in DuckDB 2.0.
+
+As an alternative to `LIMIT`, DuckDB supports the SQL-standard `FETCH FIRST ... ROWS ONLY` syntax. It can be combined with `OFFSET`, in which case `FETCH NEXT` reads better:
+
+```sql
+SELECT *
+FROM addresses
+ORDER BY city
+FETCH FIRST 5 ROWS ONLY;
+```
+
+```sql
+SELECT *
+FROM addresses
+ORDER BY city
+OFFSET 5 ROWS
+FETCH NEXT 10 ROWS ONLY;
+```
+
+`FIRST` and `NEXT` are interchangeable, as are `ROW` and `ROWS`. Omitting the row count fetches a single row:
+
+```sql
+SELECT *
+FROM addresses
+ORDER BY city
+FETCH FIRST ROW ONLY;
 ```
 
 ## Syntax

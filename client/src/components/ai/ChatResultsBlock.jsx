@@ -1,6 +1,7 @@
 import { memo, useMemo, useState, useEffect, useRef, Component } from 'react';
 import { LuMaximize2, LuDownload, LuFileJson, LuImage, LuCheck, LuChartColumn, LuMessageSquareQuote, LuEllipsis } from 'react-icons/lu';
-import html2canvas from 'html2canvas-pro';
+// html2canvas pesa ~225 kB y sólo hace falta al exportar: se carga entonces (6.0, M8).
+const html2canvas = async (...args) => (await import('html2canvas-pro')).default(...args);
 import FiguraVega from '../DataVisualizer/vega/FiguraVega';
 import { deStoryFlow } from '../DataVisualizer/vega/deStoryFlow';
 import { COLOR_PALETTES } from '../DataVisualizer/constants';

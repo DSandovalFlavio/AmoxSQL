@@ -27,7 +27,7 @@
  * variables; "Export to PowerPoint" builds native, editable charts where a
  * mapping exists (image fallback needs Present view mounted).
  */
-import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect, useLayoutEffect } from 'react';
 import Editor from '@monaco-editor/react';
 import {
     LuPencilLine, LuPresentation, LuRefreshCw, LuSave, LuChevronDown,
@@ -53,6 +53,10 @@ import { useToast } from '../ToastProvider';
 import { slideTitle } from '../../utils/deckTemplates';
 import '../MarkdownEditor.css';
 import './deck.css';
+import { emitir } from '../../eventos.js';
+
+// Por debajo de este ancho del editor, el esquema de láminas empieza plegado.
+const ANCHO_HOLGADO = 1100;
 
 // El lienzo no es configurable: 16:9 y nada más. Cada reparto del contrato
 // visual (docs/dev/sistema_deck.html) está calculado sobre 1600 x 900, y
@@ -87,6 +91,17 @@ const DeckEditor = ({
         return ['slides', 'charts', 'images'].includes(guardado) ? guardado : 'slides';
     });
     const [sidePanelCollapsed, setSidePanelCollapsed] = useState(() => localStorage.getItem('amoxsql-deck-panel-collapsed') === '1');
+    // Con poco ancho la lámina se quedaba en 537×301 px (6.0, M10 · T7): entre el
+    // esquema y el inspector, la columna central no pasaba de ~540 px. Si nunca
+    // se eligió (no hay nada guardado) y el editor mide menos de ANCHO_HOLGADO,
+    // el esquema empieza plegado; plegarlo o desplegarlo a mano se recuerda como
+    // siempre. Se mide antes de pintar para que la lámina no salte.
+    const estudioRef = useRef(null);
+    useLayoutEffect(() => {
+        if (localStorage.getItem('amoxsql-deck-panel-collapsed') !== null) return;
+        const ancho = estudioRef.current?.getBoundingClientRect().width || 0;
+        if (ancho > 0 && ancho < ANCHO_HOLGADO) setSidePanelCollapsed(true);
+    }, []);
     const [activeSlideIndex, setActiveSlideIndex] = useState(0);
     const [refreshToken, setRefreshToken] = useState(0);
     // Marca de refresco para las láminas SIN figura: las que la tienen usan la
@@ -373,7 +388,7 @@ const DeckEditor = ({
 
     /** Una pregunta sobre la lámina activa, al panel. */
     const asistir = useCallback((accion) => {
-        window.dispatchEvent(new CustomEvent('amox_asistir', { detail: { accion, tabId } }));
+        emitir('amox_asistir', { accion, tabId });
     }, [tabId]);
 
     // Aceptar: con el historial del Studio (Ctrl+Z lo deshace), cambiando solo esa lámina.
@@ -541,7 +556,7 @@ const DeckEditor = ({
     ) : null;
 
     return (
-        <div className={`deck-studio${isActive ? ' active' : ''}`}>
+        <div className={`deck-studio${isActive ? ' active' : ''}`} ref={estudioRef}>
             <div className="ep-editor-card deck-studio-card">
 
                 {/* ── Toolbar ── */}

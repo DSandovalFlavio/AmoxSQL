@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "variables": [
+    { "nombre": "anio", "tipo": "numero", "valor": 2024, "descripcion": "El año del cierre que se está revisando" },
+    { "nombre": "categoria", "tipo": "texto", "valor": "Portátiles", "descripcion": "La categoría que pide Dirección este mes" }
+  ]
+}

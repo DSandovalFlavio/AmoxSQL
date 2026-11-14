@@ -33,7 +33,15 @@ app.setName('AmoxSQL capturas');
 app.setPath('userData', path.join(os.tmpdir(), 'amox-capturador'));
 
 app.whenReady().then(() => {
-    const win = new BrowserWindow({ width: ANCHO, height: ALTO, useContentSize: true, frame: false, show: false, backgroundColor: '#0b0d12' });
+    // Oculta pero sin estrangular: una ventana oculta y estrangulada deja de pintar,
+    // y capturePage devuelve el último fotograma (una paleta recién abierta no
+    // salía, ni los colores que Monaco pone al terminar de tokenizar).
+    const win = new BrowserWindow({ width: ANCHO, height: ALTO, useContentSize: true, frame: false, show: false, backgroundColor: '#0b0d12',
+        webPreferences: { backgroundThrottling: false } });
+    // Mostrada fuera de la pantalla y sin foco: así compone fotogramas de verdad
+    // (oculta, capturePage podía devolver uno viejo) y no estorba a quien trabaja.
+    win.setPosition(-ANCHO - 400, 0);
+    win.showInactive();
     win.loadURL(URL_INICIAL);
 
     const ordenes = {
@@ -56,6 +64,9 @@ app.whenReady().then(() => {
         texto: async ({ texto }) => { await win.webContents.insertText(texto); return 'ok'; },
         tam: async ({ ancho, alto }) => { win.setContentSize(ancho, alto); return 'ok'; },
         foto: async ({ ruta, recorte }) => {
+            // Un fotograma nuevo antes de la foto.
+            win.webContents.invalidate();
+            await new Promise(r => setTimeout(r, 250));
             let img = await win.webContents.capturePage(recorte);
             const { width } = img.getSize();
             const destino = recorte ? Math.round(width / 1.5 * (SALIDA / ANCHO)) : SALIDA;

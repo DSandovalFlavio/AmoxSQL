@@ -2,9 +2,11 @@
 layout: docu
 railroad: statements/createtable.js
 redirect_from:
-- /docs/preview/sql/statements/create_table
 - /docs/sql/statements/create_table
 - /docs/stable/sql/statements/create_table
+- /docs/current/sql/statements/create_table
+- /docs/lts/sql/statements/create_table
+- /docs/preview/sql/statements/create_table
 title: CREATE TABLE Statement
 ---
 
@@ -30,7 +32,7 @@ Create a table with a composite primary key:
 CREATE TABLE t1 (id INTEGER, j VARCHAR, PRIMARY KEY (id, j));
 ```
 
-Create a table with various different types, constraints and default values:
+Create a table with various different types, constraints, and default values:
 
 ```sql
 CREATE TABLE t1 (
@@ -79,7 +81,7 @@ Temporary tables are session scoped, meaning that only the specific connection t
 
 They can be created using the `CREATE TEMP TABLE` or the `CREATE TEMPORARY TABLE` statement (see diagram below) and are part of the `temp.main` schema. While discouraged, their names can overlap with the names of the regular database tables. In these cases, temporary tables take priority in name resolution and full qualification is required to refer to a regular table e.g., `memory.main.t1`.
 
-Temporary tables reside in memory rather than on disk even when connecting to a persistent DuckDB, but if the `temp_directory` [configuration]({% link docs/current/configuration/overview.md %}) is set, data will be spilled to disk if memory becomes constrained.
+Temporary tables reside in memory rather than on disk even when connecting to a persistent DuckDB, but if the `temp_directory` [configuration]({% link docs/2.0/configuration/overview.md %}) is set, data will be spilled to disk if memory becomes constrained.
 
 Create a temporary table from a CSV file (automatically detecting column names and types):
 
@@ -125,7 +127,7 @@ CREATE TABLE nums AS
     FROM range(0, 3) t(i);
 ```
 
-This syntax can be used in combination with the [CSV reader]({% link docs/current/data/csv/overview.md %}), the shorthand to read directly from CSV files without specifying a function, the [`FROM`-first syntax]({% link docs/current/sql/query_syntax/from.md %}), and the [HTTP(S) support]({% link docs/current/core_extensions/httpfs/https.md %}), yielding concise SQL commands such as the following:
+This syntax can be used in combination with the [CSV reader]({% link docs/2.0/data/csv/overview.md %}), the shorthand to read directly from CSV files without specifying a function, the [`FROM`-first syntax]({% link docs/2.0/sql/query_syntax/from.md %}), and the [HTTP(S) support]({% link docs/2.0/core_extensions/httpfs/https.md %}), yielding concise SQL commands such as the following:
 
 ```sql
 CREATE TABLE flights AS
@@ -281,7 +283,7 @@ Foreign keys have the following limitations.
 
 Foreign keys with cascading deletes (`FOREIGN KEY ... REFERENCES ... ON DELETE CASCADE`) are not supported.
 
-Inserting into tables with self-referencing foreign keys is currently not supported and will result in the following error:
+Inserting a row that references another row inserted in the same statement (or itself) into a table with a self-referencing foreign key is currently not supported and will result in the following error:
 
 ```console
 Constraint Error:

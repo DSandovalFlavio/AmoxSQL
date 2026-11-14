@@ -53,6 +53,16 @@ El **Chequeo de calidad** corre comprobaciones automáticas: `SUMMARIZE`, filas 
 ### Descripciones
 Si una tabla, una vista o una columna tiene descripción, el explorador la enseña: la de la tabla bajo su nombre, la de cada columna a su lado (y entera al pasar el ratón). Sale del comentario que guarda la base (`COMMENT ON`, o el `persist_docs` de dbt). En la base de un proyecto dbt sin `persist_docs`, sale del YAML del proyecto; el comentario de la base gana. **El asistente las lee** con el esquema y en `describe_table`.
 
+### Esquemas dentro de esquemas
+DuckDB 2 permite esquemas anidados: `CREATE SCHEMA ventas.crudo`. El explorador los enseña con su ruta (`ventas.crudo`), igual que el diagrama ER, la vista de una tabla, la importación, Data Flow y el Assistant, y dos esquemas «crudo» de padres distintos no se mezclan. Para crear uno: clic derecho en un esquema → **New schema inside…**. Los esquemas vacíos también se ven.
+
+### Actualizar el formato de la base (Upgrade…)
+Una base creada con la 5.x se abre y se usa tal cual. Cuando la base abierta está en ese formato, el explorador lo dice en una línea arriba («*tienda.duckdb* uses AmoxSQL 5's format») con el botón **Upgrade…**: copia la base al formato de DuckDB 2 con todo lo que tenía —en el ejemplo pasa de 22,8 MB a 18,3 MB— y deja la original al lado como `<nombre>.before-6.duckdb`. La sesión sigue, vistas temporales incluidas.
+
+Nunca es automático, porque tiene una consecuencia: después, **la 5.x ya no abre el archivo actualizado** (ni un dbt con DuckDB 1.x). Si compartes la base con alguien que sigue en la 5.x, espera. El selector de bases deja los respaldos al final, marcados como «backup».
+
+<img src="../../images/data/upgrade-format.png" alt="el explorador de base con la línea que avisa del formato de la 5.x y el botón Upgrade…" width="100%" />
+
 ### Lagos
 El botón de lago de la cabecera (**New lake…**) crea un lago DuckLake. Con un lago abierto, el árbol tiene **Lake versions** y el menú de cada tabla, **As it was…**. Ver [Lagos (DuckLake)](lakes.md).
 

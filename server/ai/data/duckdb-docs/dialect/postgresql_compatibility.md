@@ -1,10 +1,12 @@
 ---
 layout: docu
 redirect_from:
-- /docs/preview/sql/dialect/postgresql_compatibility
 - /docs/sql/dialect/postgresql_compatibility
 - /docs/sql/postgresl_compatibility
 - /docs/stable/sql/dialect/postgresql_compatibility
+- /docs/current/sql/dialect/postgresql_compatibility
+- /docs/lts/sql/dialect/postgresql_compatibility
+- /docs/preview/sql/dialect/postgresql_compatibility
 title: PostgreSQL Compatibility
 ---
 
@@ -121,7 +123,7 @@ ERROR:  relation "preservedcase" does not exist
 Therefore, case-insensitivity in PostgreSQL only works if you never use quoted identifiers with different cases.
 
 For DuckDB, this behavior was problematic when interfacing with other tools (e.g., Parquet, Pandas) that are case-sensitive by default – since all identifiers would be lowercased all the time.
-Therefore, DuckDB achieves case insensitivity by making identifiers fully case insensitive throughout the system but [_preserving their case_]({% link docs/current/sql/dialect/keywords_and_identifiers.md %}#rules-for-case-sensitivity).
+Therefore, DuckDB achieves case insensitivity by making identifiers fully case insensitive throughout the system but [_preserving their case_]({% link docs/2.0/sql/dialect/keywords_and_identifiers.md %}#rules-for-case-sensitivity).
 
 In DuckDB, the scripts above complete successfully:
 
@@ -130,27 +132,27 @@ CREATE TABLE MyTaBLe (x INTEGER);
 SELECT * FROM "MyTaBLe";
 CREATE TABLE "PreservedCase" (x INTEGER);
 SELECT * FROM PreservedCase;
-SELECT tbl FROM duckdb_tables();
+SELECT table_name FROM duckdb_tables();
 ```
 
 <div class="monospace_table"></div>
 
-| tbl    |
+| table_name    |
 | ------------- |
 | MyTaBLe       |
 | PreservedCase |
 
-PostgreSQL's behavior of lowercasing identifiers is accessible using the [`preserve_identifier_case` option]({% link docs/current/configuration/overview.md %}#local-configuration-options):
+PostgreSQL's behavior of lowercasing identifiers is accessible using the [`preserve_identifier_case` option]({% link docs/2.0/configuration/overview.md %}#local-configuration-options):
 
 ```sql
-SET preserve_identifier_case = false;
+SET preserve_identifier_case = 'lowercase';
 CREATE TABLE MyTaBLe (x INTEGER);
-SELECT tbl FROM duckdb_tables();
+SELECT table_name FROM duckdb_tables();
 ```
 
 <div class="monospace_table"></div>
 
-| tbl |
+| table_name |
 | ---------- |
 | mytable    |
 
@@ -177,8 +179,8 @@ Note that the use of `==` is not encouraged due to its limited portability.
 ## Vacuuming Tables
 
 In PostgreSQL, the `VACUUM` statement garbage collects tables and analyzes tables.
-In DuckDB, the [`VACUUM` statement]({% link docs/current/sql/statements/vacuum.md %}) is only used to rebuild statistics.
-For instruction on reclaiming space, refer to the [“Reclaiming space” page]({% link docs/current/operations_manual/footprint_of_duckdb/reclaiming_space.md %}).
+In DuckDB, the [`VACUUM` statement]({% link docs/2.0/sql/statements/vacuum.md %}) is only used to rebuild statistics.
+For instruction on reclaiming space, refer to the [“Reclaiming space” page]({% link docs/2.0/operations_manual/footprint_of_duckdb/reclaiming_space.md %}).
 
 ## Strings
 
@@ -212,15 +214,19 @@ Unlike PostgreSQL's `regexp_substr` function, DuckDB's `regexp_extract` returns 
 ### `to_date` Function
 
 DuckDB does not support the [`to_date` PostgreSQL date formatting function](https://www.postgresql.org/docs/17/functions-formatting.html).
-Instead, please use the [`strptime` function]({% link docs/current/sql/functions/dateformat.md %}#strptime-examples).
+Instead, please use the [`strptime` function]({% link docs/2.0/sql/functions/dateformat.md %}#strptime-examples).
 
 ### `date_part` Function
 
-Most parts extracted by the [`date_part` function]({% link docs/current/sql/functions/datepart.md %}) are returned as integers. Since there are no infinite integer values in DuckDB, `NULL`s are returned for infinite timestamps.
+Most parts extracted by the [`date_part` function]({% link docs/2.0/sql/functions/datepart.md %}) are returned as integers. Since there are no infinite integer values in DuckDB, `NULL`s are returned for infinite timestamps.
+
+### `pg_size_pretty` Function
+
+DuckDB's `pg_size_pretty` function (an alias of [`format_bytes`]({% link docs/2.0/sql/functions/text.md %}#format_bytesinteger)) formats sizes using binary (IEC) units such as `KiB` and `MiB`, whereas PostgreSQL uses `kB` and `MB`. For example, `pg_size_pretty(1024)` returns `1.0 KiB` in DuckDB and `1024 bytes` in PostgreSQL, and `pg_size_pretty(1048576)` returns `1.0 MiB` in DuckDB and `1024 kB` in PostgreSQL.
 
 ## Resolution of Type Names in the Schema
 
-For [`CREATE TABLE` statements]({% link docs/current/sql/statements/create_table.md %}), DuckDB attempts to resolve type names in the schema where a table is created. For example:
+For [`CREATE TABLE` statements]({% link docs/2.0/sql/statements/create_table.md %}), DuckDB attempts to resolve type names in the schema where a table is created. For example:
 
 ```sql
 CREATE SCHEMA myschema;
@@ -268,17 +274,14 @@ column "j" must appear in the GROUP BY clause or must be part of an aggregate fu
 Either add it to the GROUP BY list, or use "ANY_VALUE(j)" if the exact value of "j" is not important.
 ```
 
-To work around this, add the other attributes or use the [`GROUP BY ALL` clause]({% link docs/current/sql/query_syntax/groupby.md %}#group-by-all).
+To work around this, add the other attributes or use the [`GROUP BY ALL` clause]({% link docs/2.0/sql/query_syntax/groupby.md %}#group-by-all).
 
 ## Behavior of Regular Expression Match Operators
 
-PostgreSQL supports the [POSIX regular expression matching operators]({% link docs/current/sql/functions/pattern_matching.md %}) `~` (case-sensitive partial regex matching) and `~*` (case-insensitive partial regex matching) as well as their negated variants, `!~` and `!~*`, respectively.
+PostgreSQL supports the [POSIX regular expression matching operators]({% link docs/2.0/sql/functions/pattern_matching.md %}) `~` (case-sensitive partial regex matching) and `~*` (case-insensitive partial regex matching) as well as their negated variants, `!~` and `!~*`, respectively.
 
-In DuckDB, `~` is equivalent to [`regexp_full_match`]({% link docs/current/sql/functions/text.md %}#regexp_full_matchstring-regex) and `!~` is equivalent to `NOT regexp_full_match`.
-The operators `~*` and `!~*` are not supported.
-
-The table below shows that the correspondence between these functions in PostgreSQL and DuckDB is almost non-existent.
-Avoid using the POSIX regular expression matching operators in DuckDB.
+By default, DuckDB follows the same semantics: `~` maps to [`regexp_matches`]({% link docs/2.0/sql/functions/text.md %}#regexp_matchesstring-regex-options) (case-sensitive partial matching), `~*` performs case-insensitive partial matching, and `!~` and `!~*` are their negated variants.
+The results therefore match PostgreSQL:
 
 <div class="monospace_table"></div>
 
@@ -286,9 +289,11 @@ Avoid using the POSIX regular expression matching operators in DuckDB.
 
 | Expression          | PostgreSQL | DuckDB |
 | :------------------ | ---------- | ------ |
-| `'aaa' ~ '(a|b)'`   | true       | false  |
-| `'AAA' ~* '(a|b)'`  | true       | error  |
-| `'aaa' !~ '(a|b)'`  | false      | true   |
-| `'AAA' !~* '(a|b)'` | false      | error  |
+| `'aaa' ~ '(a|b)'`   | true       | true   |
+| `'AAA' ~* '(a|b)'`  | true       | true   |
+| `'aaa' !~ '(a|b)'`  | false      | false  |
+| `'AAA' !~* '(a|b)'` | false      | false  |
 
 <!-- markdownlint-enable MD056 -->
+
+The legacy behavior, in which `~` mapped to [`regexp_full_match`]({% link docs/2.0/sql/functions/text.md %}#regexp_full_matchstring-regex-col2) and `~*` and `!~*` were unsupported, can be restored using the deprecated `regex_match_operator_semantics` setting with the value `full`.
