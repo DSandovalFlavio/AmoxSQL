@@ -40,6 +40,9 @@ Con un lago abierto, el árbol del explorador tiene **Lake versions**: cada vers
 
 En el menú de una tabla del lago, **As it was…** pide una versión o una fecha y abre la consulta.
 
+### Un lago de la 5.x
+Un lago creado con la 5.x se abre y se lee sin cambiarlo. AmoxSQL lo avisa al abrirlo porque **la primera escritura** (una tabla nueva, un `INSERT`) lo pasa al formato de DuckDB 2, y desde ahí sólo lo abre la 6. Un lago que viajó con su carpeta (a otra máquina o a una carpeta sincronizada) se abre con los datos que tiene al lado.
+
 ### Mantenimiento
 
 La llave inglesa de **Lake versions** abre el mantenimiento. **Antes de hacer nada**, dice lo que va a pasar:

@@ -79,6 +79,11 @@ try {
 
     console.log('\nel arranque');
     comprobar('el servidor entra en modo llavero', await esperar(async () => (await get('/api/secretos')).modo === 'llavero'));
+    // El modo llavero llega un instante antes de que termine la copia de lo que la
+    // 5.8 tenía en claro (y de la purga de config.json): se espera a que quede
+    // anotada. Sin esto la prueba fallaba a veces, según cuánto tardara el disco.
+    await esperar(async () => (await baseCentral.preferencia('migracion_credenciales'))?.estado === 'copiadas'
+        && !sinSecretos(fs.readFileSync(RUTA_CONFIG, 'utf8')).length);
     const lista = (await get('/api/secretos')).credenciales;
     const nombres = lista.map(c => c.nombre).sort();
     comprobar('copia lo que la 5.8 tenía en claro, y sólo eso',

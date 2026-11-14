@@ -5,9 +5,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
-## [Unreleased] — 6.0: el motor nuevo (DuckDB 2.0)
+## [6.0.0] — 2026-11-14 — El motor nuevo (DuckDB 2.0)
 
-AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_duckdb_2.md`. Fases 0 a 3 hechas; se publicará con DuckDB 2.0.1.
+AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS** (cliente `@duckdb/node-api` 2.0.0-r.1). Se publica con la 2.0.0 sin esperar a la 2.0.1. Plan en `docs/dev/plan_6_0_duckdb_2.md`. Reúne además la 5.16 a la 5.19, que no se publicaron por separado: la última versión publicada era la 5.15.1.
+
+Si vienes de la 5.x, lee antes [Novedades de la 6.0](docs/es/user-guide/whats-new-6.md): las bases nuevas no abren en la 5.x y las lambdas se escriben `lambda x: …`.
 
 ### Cambiado
 - **El motor es DuckDB 2.0.** Las bases que crea AmoxSQL quedan en el formato de 2.0: una 5.x ya no las abre. Las bases que ya existían se siguen abriendo y siguen abriendo en la 5.x aunque la 6.0 escriba en ellas. Las zonas horarias son más rápidas (−39 % en el proyecto de ejemplo) y las bases ocupan menos (−10 a −17 %).
@@ -59,6 +61,7 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 - Una ruta con apóstrofo ya no rompe (ni altera) el SQL de importar, Data Flow o el modo sin herramientas.
 
 ### Arreglado
+- **Un Canvas abierto solo enseñaba sus títulos sin estilo** y con la almohadilla del ancla (`#`) delante: la hoja de estilos del texto en markdown sólo llegaba si antes se había abierto un cuaderno, un deck o un `.md`.
 - **Abrir un proceso de Data Flow ya no lo marca como modificado.**
 - **Una entrega vencida aparece en la tarjeta del cliente** («Overdue: …»); antes, si la fecha había pasado sin entregarse, la tarjeta decía «No due dates».
 - **Sin modelo de IA**, el Assistant y Deep Dive dicen qué falta y llevan a Settings › AI (antes: «Please select or enter a model name.»); Deep Dive lo avisa antes de preguntar.
@@ -83,6 +86,7 @@ AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS**. Plan en `docs/dev/plan_6_0_du
 - El título del cuaderno se parte en líneas en vez de cortarse; el recorrido de Story Flow sólo empieza con el gráfico a la vista; el explorador oculta `.sqlnb.state.json`, `.wal` y `.amoxtmp`; Intro funciona en los diálogos que piden un nombre y el error de validación se ve; un centenar de textos de la interfaz que seguían en español están en inglés; abrir el editor con muchas tablas ya no hace una consulta por tabla.
 
 ### Interno
+- **Las capturas de la documentación con una orden:** `scripts/ejemplos/capturas.mjs` recorre unas 50 recetas sobre el proyecto de ejemplo (cada una prepara pestañas, tema y paneles y saca su foto). El capturador ya no devuelve fotogramas viejos (ventana fuera de pantalla, sin estrangular). La documentación de usuario estrena «Novedades de la 6.0» y cuenta las variables `$nombre`, las lambdas, VARIANT, Upgrade…, subesquemas y los bloques de filas del plan.
 - `@duckdb/node-api` fijado a `2.0.0-r.1` (Dec-62). `server/planDeEjecucion.js` (Dec-65), `server/esquemas.js` (esquemas anidados por `schema_oid`), `client/src/utils/lambdas.js`, `motor.js` con `http_retry_backoff`. Guardas nuevas: `probarPlanDeEjecucion`, `probarSqlGenerado` (Dec-66: todo el SQL que escribe AmoxSQL contra el motor), `probarEsquemasAnidados`, `probarLagoDeLaCinco`, `probarLambdas`. Fixtures de los dos motores en `scripts/fixtures/planDeEjecucion/` y bases escritas por 1.5.6 en `scripts/fixtures/motor/`.
 - **Las pruebas con un comando** (M6): `pnpm test` corre todas las suites `scripts/probar*.mjs`, cada una en su proceso y con un `AMOXSQL_HOME` temporal; `pnpm test:rapidas`, las 28 que no cargan el motor (marca `@suite rapida`, comprobada: corren con `scripts/lib/sinMotor.mjs`, que hace fallar cualquier carga del motor), en unos segundos; `pnpm test:app`, la prueba en Electron real. `--solo <texto>`, `--log <carpeta>` y `--sondear` (qué suites podrían ser rápidas). El workflow `.github/workflows/pruebas.yml` corre las rápidas en cada PR y todas, sin bloquear, en Windows.
 - **El servidor por partes** (M7): `server/index.js` pasa de 7 672 a ~670 líneas; las ~300 rutas viven en doce archivos de `server/api/` (una familia cada uno, ninguna URL cambia), con lo compartido en `server/api/compartido.js`. Los doce pasos de transformación de Data Flow se definen una vez (`server/flujos/pasos.js`): lo que corre y el «SQL equivalente» que se exporta ya no pueden separarse. El servidor escribe con nivel y hora (`server/registrador.js`, `AMOXSQL_LOG=error|aviso|info|depurar`). Guardas nuevas: `probarRutasDeArchivos`, `probarRegistrador`, `probarSesionesDeepDive`.

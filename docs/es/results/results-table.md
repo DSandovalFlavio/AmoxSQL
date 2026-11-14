@@ -41,6 +41,11 @@ Haz **clic derecho** sobre el encabezado de una columna para:
 - **Copy All Column Names** — copia todos los nombres, separados por comas.
 - **Sort Ascending / Sort Descending** — ordena por esa columna.
 
+### Valores anidados
+Un valor con estructura —un VARIANT, un STRUCT, una lista, un MAP o un JSON— se ve en una línea; **un clic lo abre como árbol**, con cada clave y su tipo, plegable por niveles.
+
+<img src="../../images/results/nested-value.png" alt="una columna VARIANT con un valor abierto como árbol: cliente, pedido y sus claves" width="100%" />
+
 ### Paginar
 En la parte inferior, navega entre páginas con **‹ ›** y elige cuántas filas mostrar por página: **50 / 100 / 500 / 1000**.
 

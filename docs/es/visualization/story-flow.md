@@ -35,6 +35,9 @@ La figura se dibuja con **Vega-Lite**, la gramática de gráficos abierta, y se 
 2. En el panel de resultados, cambia de **Table** a **Chart** con el conmutador de vista de la barra superior.
 3. Aparece Story Flow con el gráfico y la barra lateral de seis etapas. AmoxSQL preselecciona ejes razonables a partir de las columnas.
 
+### El gráfico que sugiere
+La primera vez que abres el gráfico de un resultado, AmoxSQL mira qué es cada columna: una fecha va al eje X como línea; un ranking o un id no es el eje si hay algo mejor; al eje Y va la medida principal (un importe antes que un conteo, nunca un cociente); y una lista larga de categorías sale en barras horizontales, de mayor a menor. Arriba dice lo que eligió («Suggested: …») con **Undo** por si preferías otra cosa. Un gráfico que ya se recordaba no se toca.
+
 ### El gráfico de un `.sql` se recuerda con el archivo
 El gráfico que armas sobre el resultado de un `.sql` guardado es **una vista de esa consulta**: no hay que guardarlo. Cambia de pestaña, cierra el archivo, vuelve mañana: al ejecutarlo de nuevo, el resultado aparece como lo dejaste (tabla o gráfico, con su configuración). Debajo de la cabecera de Story Flow lo dice: **Kept with ventas.sql**.
 

@@ -2,75 +2,80 @@
 
 **🌐 English · [Español](../../es/editor/variables.md)**
 
-> Define reusable `${var}` values once and AmoxSQL substitutes them into your SQL every time you run, analyze, or export.
+> Declare a value once — the region, the year, the threshold — and use it in any query of the project as `$name`, with its type and no quotes by hand. Since 6.0.
 
 ## What it is
 
-Session variables let you parameterize a query without editing the SQL by hand. You write `${name}` wherever you want a value, define it once in the editor's **Variables** panel, and AmoxSQL resolves it right before the query runs.
+A **project variable** has a name, a type, a value and, if you like, a description of what it is for. You write `$name` inside the SQL and the engine reads it **with its type**: a number is a number, a date is a date. That is why it needs no quotes and no value can change the query (a text like `'; DROP TABLE sales; --` is just a text).
 
-Each variable has three fields: **name**, **value**, and **type** (`text`, `date`, or `number`). Variables live in the editor session and apply to every action that runs SQL from that tab.
-
-Note: these editor `${...}` variables are **distinct** from a [Notebook](../notebooks/notebooks.md)'s `{{var}}` environment variables, which belong to each `.sqlnb` file.
+Variables belong to the **project**, not to a tab: they are saved in `.amoxsql/variables.json`, travel with the folder (Git, an `.amoxproject`) and work in everything that runs inside it: the editor, notebook cells, Canvas cards, saved charts and Data Flow processes, scheduled runs included.
 
 ## When to use it
 
-- When you test the same query with different parameters: change the value of `${start_date}` and re-run, without touching the SQL.
-- For dates, thresholds, or IDs that repeat across several clauses of the same query.
-- When you want to share a "template" query and let someone else change only the values.
+- When the same value shows up in several queries: the closing year, the report's region, an alert's threshold.
+- To save a chart, a cell or a process that **keeps working**: they carry `$region`, not the value.
+- So someone else on the project can change the value without touching the SQL.
 
 ## How to use it
 
-### Open the panel
-In the editor action bar, click **Variables**. The button shows a badge with how many variables you've defined. The **+** button next to it adds a new variable directly.
+### Declare them
+In **Library › Snippets › Variables**, **New variable**:
 
-<img src="../../images/editor/variables-bar.png" alt="variables panel expanded below the action bar" width="100%" />
+1. **Name**: letters, digits and `_`, not starting with a digit.
+2. **Type**: *Text*, *Number*, *Date*, *Yes / no* or *List*.
+3. **Value**. A list is written comma-separated: `north, south, east`.
+4. **Description** (optional): what it is. The editor shows it on hover, and the Assistant reads it.
 
-### Define a variable
-1. Click **+** to add a row.
-2. Type the **name** (letters, numbers, and underscore only).
-3. Type the **value**. If the type is `date`, a date picker appears.
-4. Choose the **type** from the dropdown: `text`, `date`, or `number`.
-5. The trash icon removes the variable.
+A click on a variable in the list inserts `$name` into the editor. The pencil edits it and the bin removes it.
 
-### Use the variable in SQL
-Write `${name}` anywhere in your query:
+### Use them in SQL
+
+```sql
+SELECT region, sum(amount) AS sales
+FROM sales
+WHERE year(date) = $year
+  AND region = $region
+  AND amount > $threshold
+GROUP BY region;
+```
+
+A list and a yes/no:
 
 ```sql
 SELECT *
-FROM orders
-WHERE date >= ${start_date}
-  AND region = ${region}
-  AND amount > ${threshold};
+FROM sales
+WHERE list_contains($regions, region)
+  AND $active_only;
 ```
 
-On run, AmoxSQL replaces each `${...}` with its value before sending the query to the engine.
+Typing `$` makes the editor offer the variables with their type and description, and hovering `$region` shows its value.
 
-### When they resolve
-Substitution happens on any action that triggers SQL from the editor: **Run**, **Analyze** (execution plan), [data export](../data/exporting-data.md), and also [CTE debugging](cte-debugging.md).
+### The editor's Variables bar
+The **Variables** button in the action bar (with the number of variables) unfolds the same list under the bar, to change a value without leaving the query: change `$year` and run again. The **+** next to it adds one. List and yes/no variables are edited in Library.
 
-## Type reference
+<img src="../../images/editor/variables-bar.png" alt="the Variables bar unfolded under the action bar, with two project variables" width="100%" />
 
-| Type | How it's substituted | Example (value → SQL) |
+### If a variable doesn't exist
+The error says it in words: "$region is not a project variable. Declare it in Library › Snippets › Variables". If someone hands you a query with `$something`, declare it and run again.
+
+## `$name`, `${name}` and `{{name}}`
+
+| Written as | What it does | What for |
 |---|---|---|
-| `text` | Raw value, no quotes. **You** decide whether to quote in the SQL | `north` → `north` (use `'${region}'` to quote) |
-| `date` | Value wrapped in single quotes automatically | `2026-01-01` → `'2026-01-01'` |
-| `number` | Raw value, no quotes | `1000` → `1000` |
+| `$name` | The engine reads the project variable **with its type** | Values: dates, numbers, texts, lists |
+| `${name}` | Pastes the variable's **text** into the SQL before running it | Templates: a table name, a piece of SQL |
+| `{{name}}` | A **notebook** or **deck** parameter, belonging to that file | Texts and values of a report (see [Notebooks](../notebooks/notebooks.md)) |
 
-> For text that must be quoted in SQL, wrap the placeholder yourself: `WHERE region = '${region}'`. Dates already quote themselves, so write `WHERE date >= ${start_date}` with no quotes around it.
+For a value, use `$name`. `${name}` still works as before, but pastes the text as it is: a text needs its quotes (`'${region}'`) and nothing protects it.
 
 ## Tips & gems
 
-- **Reuse the same `${name}`** as many times as you like in the query: every occurrence is replaced.
-- **The button badge** reminds you at a glance how many variables are active.
-- **Different from Notebooks:** if your workflow needs variables that persist with the file and are shared across cells, use the [Notebook](../notebooks/notebooks.md) `{{var}}` environment instead of these.
-- **Raw number for expressions:** because `number` doesn't quote, you can use it inside calculations (`amount * ${factor}`).
-
-## Shortcuts / formats
-
-- SQL syntax: `${variable_name}`.
-- No dedicated keyboard shortcut; managed from the **Variables** button in the action bar.
+- **What you saved keeps working:** an `.amoxvis`, a cell or a process with `$year` is recomputed with the project's current value.
+- **`LIMIT $n` works**, like anywhere else in the query.
+- **The Assistant knows them:** their names, types, values and descriptions, and uses them when it writes SQL.
+- **In Data Flow**, a process's typed parameters are also read as `$x` (see [Command line and parameters](../data-flow/command-line.md)).
 
 ## Related
 
-- [SQL editor](sql-editor.md) · [Debugging CTEs](cte-debugging.md) · [Snippets](snippets.md)
-- [Notebooks](../notebooks/notebooks.md) · [Exporting data](../data/exporting-data.md)
+- [SQL editor](sql-editor.md) · [Snippets](snippets.md) · [Autocomplete](autocomplete.md)
+- [Notebooks](../notebooks/notebooks.md) · [What's new in 6.0](../user-guide/whats-new-6.md)

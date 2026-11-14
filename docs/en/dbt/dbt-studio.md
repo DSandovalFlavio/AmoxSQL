@@ -26,7 +26,7 @@ If you only want to query DuckDB, use the [SQL Editor](../editor/sql-editor.md).
 
 dbt is a Python program. Under **Environment** you choose which one runs this project:
 
-- **AmoxSQL's own.** **Set up dbt…** creates it for you: it looks for Python 3.10 to 3.13 on the computer, creates an environment inside AmoxSQL's folder and installs dbt with **the same engine version AmoxSQL uses** (DuckDB 1.5.6). It takes a minute or two and shows its progress. This is the recommended option: dbt and AmoxSQL read and write the same database with no format surprises.
+- **AmoxSQL's own.** **Set up dbt…** creates it for you: it looks for Python 3.11 to 3.13 on the computer, creates an environment inside AmoxSQL's folder and installs dbt with **the same engine version AmoxSQL uses** (DuckDB 2.0). An older environment, with DuckDB 1.x, still runs, but AmoxSQL warns you: it cannot open the databases 6.0 creates. It takes a minute or two and shows its progress. This is the recommended option: dbt and AmoxSQL read and write the same database with no format surprises.
 - **A Python environment you already have** (a folder with dbt installed), **a Conda environment**, or **dbt on the system PATH**.
 
 The choice is saved in the project (`.amoxsql/project.json`), so it travels with it. If that environment's DuckDB package is not AmoxSQL's engine version, the **Output** panel says so before running.

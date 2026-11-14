@@ -46,6 +46,12 @@ temporal de AmoxSQL:
 Hechas: 44 en `docs/images/` y las 9 de `images/` que usa el README, rehechas con el
 ejemplo (02 es ahora el Canvas).
 
+### Desde la 6.0: con una orden (2026-11-14)
+
+`node scripts/ejemplos/capturas.mjs --ejemplos <carpeta>` (con `servirEjemplos.mjs` en 3911 y `pnpm client:dev` en marcha) rehace todas las capturas: una receta por imagen, que prepara pestañas, tema y paneles recargando con `?reanudar=1`. `--solo <texto>` corre las recetas cuyo nombre lo contiene; si ya hay un capturador abierto en 3999, lo reutiliza y lo deja abierto (para probar una receta y seguir mirando con `/js`). Conviene crear los ejemplos en una carpeta con una ruta normal (`Documents\Ejemplos AmoxSQL`): la ruta sale en la bienvenida, el nodo Excel y el registro de Data Flow.
+
+Nuevas en la 6.0: `editor/lambda-rewrite.png`, `results/nested-value.png`, `data/upgrade-format.png`.
+
 ## Pendientes
 
 Necesitan un modelo de IA conectado o un servicio externo:

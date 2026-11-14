@@ -62,7 +62,7 @@ Las metas son otra fuente, `metas`, sobre el Excel. Al importarlo, AmoxSQL ense�
 
 ## 3. Explorar con consultas
 
-`queries/` va de lo general a lo particular: el panorama mensual con su crecimiento (`01`), la mezcla por categoría (`02`), los productos líderes (`03`), meta contra real (`04`), ciudades (`05`), estacionalidad (`06`), una revisión de calidad antes de entregar (`07`) y un ejemplo de [variables](../editor/variables.md) (`08`).
+`queries/` va de lo general a lo particular: el panorama mensual con su crecimiento (`01`), la mezcla por categoría (`02`), los productos líderes (`03`), meta contra real (`04`), ciudades (`05`), estacionalidad (`06`), una revisión de calidad antes de entregar (`07`) y un ejemplo de [variables del proyecto](../editor/variables.md) con `$anio` y `$categoria` (`08`).
 
 <img src="../../images/editor/cte-debug-modal.png" alt="Depurar una CTE del panorama mensual: su resultado intermedio en una ventana" width="100%" />
 

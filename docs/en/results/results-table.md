@@ -41,6 +41,11 @@ Drag the right edge of a column header to adjust its width (minimum 50 px). Widt
 - **Copy All Column Names** — copies all names, comma-separated.
 - **Sort Ascending / Sort Descending** — sorts by that column.
 
+### Nested values
+A value with structure — a VARIANT, a STRUCT, a list, a MAP or a JSON — shows on one line; **one click opens it as a tree**, with each key and its type, foldable by level.
+
+<img src="../../images/results/nested-value.png" alt="a VARIANT column with one value opened as a tree: customer, order and their keys" width="100%" />
+
 ### Paginate
 At the bottom, move between pages with **‹ ›** and choose how many rows to show per page: **50 / 100 / 500 / 1000**.
 

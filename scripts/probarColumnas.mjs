@@ -39,6 +39,9 @@ for (const s of [
     `CREATE TABLE catalogo_regiones AS SELECT * FROM (VALUES ('Occidente', 'Jalisco'), ('Norte', 'Nuevo León'), ('Centro', 'CDMX'), ('Centro', 'Puebla')) t(region, estado)`,
     `CREATE TABLE historico_campanias AS SELECT DATE '2023-01-01' + i::INTEGER AS fecha, 'Curso ' || (i % 4) AS campania, 900 + i AS impresiones, 5 + i % 30 AS clicks, (20 + i % 40)::DOUBLE AS costo FROM range(500) r(i)`,
 ]) await con.run(s);
+// Las variables del proyecto de la tienda (`.amoxsql/variables.json`), como las pone la app.
+await con.run("SET VARIABLE anio = 2024");
+await con.run("SET VARIABLE categoria = 'Monitores'");
 
 const leer = (rel) => fs.readFileSync(path.join(RAIZ, 'scripts/ejemplos/proyectos', rel), 'utf8')
     .replace(/\$\{anio\}/g, '2024').replace(/'\$\{categoria\}'/g, "'Monitores'");

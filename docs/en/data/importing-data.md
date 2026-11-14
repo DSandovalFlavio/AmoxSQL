@@ -29,6 +29,17 @@ As an alternative, DuckDB can **read files directly** without creating a table: 
 4. Leave **Clean Column Names** checked to normalize spaces and odd characters to underscores.
 5. Click **Import**. The table is created and appears in the [Database explorer](database-explorer.md).
 
+### JSON with no fixed shape (VARIANT)
+Some JSON files have records that don't share their fields: one event has `customer`, another `order`, another both at different depths. When importing it, instead of forcing columns tick **Keep each record as it is (one VARIANT column)**: each record is kept whole in a single column, `datos`, and read with dots:
+
+```sql
+SELECT datos.customer.name, datos.order.total
+FROM events
+WHERE datos.type = 'purchase';
+```
+
+In the results table a nested value opens as a tree with one click, and the [data profiler](../results/data-profiler.md) says which keys there are, in how many rows and with which types.
+
 ### Import a folder (by type)
 1. Right-click a folder → **Import Folder to Database…**.
 2. Choose the **file type** (CSV, Parquet, or JSON): all matching that pattern are imported (e.g. `*.csv`).

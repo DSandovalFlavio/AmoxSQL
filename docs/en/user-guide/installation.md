@@ -23,6 +23,9 @@ Go to [GitHub Releases](https://github.com/dsandovalflavio/amoxsql/releases/late
 
 > **Note:** the macOS installer targets **Apple Silicon (arm64)**. Official signing/notarization (double-click launch without the Terminal step) will come later. Continuous pre-built installers are available to [GitHub Sponsors](https://github.com/sponsors/dsandovalflavio); building from source is always free.
 
+### If you already have 5.x
+The 6.0 installer replaces 5.x and keeps your projects, theme, settings and credentials. Your databases open as before; what is worth knowing first (new databases 5.x can't open, lambdas, dbt) is in [What's new in 6.0](whats-new-6.md).
+
 ## Option B — Build from source
 
 ### Requirements

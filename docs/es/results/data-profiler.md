@@ -31,6 +31,9 @@ Por debajo usa DuckDB (`SUMMARIZE` más un enriquecimiento de estadísticas) par
 ### Tipos semánticos
 Además del tipo SQL, el perfil infiere un tipo con significado y le pone un icono: **Identificador** (id/uuid/clave o casi todo único), **Fecha**, **Booleano**, **Número**, **Email**, **Categoría** (pocos valores distintos) o **Texto**.
 
+### Columnas VARIANT
+Una columna VARIANT (o STRUCT, lista, MAP) no guarda categorías sino valores anidados, así que el perfil la describe por sus **claves**: cuáles aparecen, en qué porcentaje de filas y con qué tipos («total · decimal / text»). Una clave con tipos mezclados sale aparte: suele ser el primer síntoma de un dato sucio.
+
 ### Graficar una columna (Plot)
 Al expandir una columna, el botón **Plot** abre un **gráfico nuevo y editable** en su propia pestaña, con una consulta derivada y agregada (histograma para numéricas, serie temporal para fechas, top-20 para categóricas). No grafica el millón de filas crudas: construye justo los datos del gráfico.
 

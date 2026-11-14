@@ -42,6 +42,9 @@ Si el flujo de la IA se **congela** (un proveedor deja de responder), un vigilan
 ### Contexto de renderizado (colores que se leen)
 La IA conoce tu **tema y color de acento activos** (claro/oscuro). Así elige paletas de gráfico que se lean bien sobre tu fondo real y armonicen con tu acento, en lugar de colores que se pierden o chocan. Ver [Temas y apariencia](../user-guide/themes-and-appearance.md).
 
+### Consultas enormes: pregunta antes
+Antes de correr una consulta, el Assistant mira el plan que estima el motor. Si movería más de **50 millones de filas**, no la corre: te dice qué leería y pregunta si la ejecuta así o propone acotarla (un filtro por fecha, una muestra, menos columnas). Sólo la corre si dices que sí.
+
 ### Prompt caching (velocidad y costo)
 Con proveedores compatibles (Anthropic), la parte estable de las instrucciones de la IA se **cachea**, de modo que los turnos siguientes son más rápidos y baratos. No cambia las respuestas; solo el rendimiento.
 

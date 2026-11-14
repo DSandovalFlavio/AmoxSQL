@@ -8,6 +8,11 @@ import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import { renderMermaid, idDeRender } from './mermaidRuntime';
+// Sus clases (.mde-preview-body, el ancla de los encabezados…) viven ahí. Antes
+// llegaban porque el editor de Markdown, el cuaderno o el deck ya la habían
+// cargado; desde que los paneles se cargan al abrirlos (6.0, M8), un Canvas
+// abierto solo pintaba su texto sin estilos y con la almohadilla del ancla a la vista.
+import '../MarkdownEditor.css';
 import { parsearFlujo } from './mermaidFlow';
 import { frontmatterRange } from './markdownModel.js';
 import 'katex/dist/katex.min.css';

@@ -15,6 +15,7 @@ Status legend: 🟢 written · ⚪ planned (see [dev/plan_documentacion.md](dev/
 | Page | Español | English | Status |
 |---|---|---|---|
 | Introduction | [es](es/user-guide/introduction.md) | [en](en/user-guide/introduction.md) | 🟢 |
+| What's new in 6.0 · Novedades de la 6.0 | [es](es/user-guide/whats-new-6.md) | [en](en/user-guide/whats-new-6.md) | 🟢 |
 | Installation | [es](es/user-guide/installation.md) | [en](en/user-guide/installation.md) | 🟢 |
 | First steps | [es](es/user-guide/first-steps.md) | [en](en/user-guide/first-steps.md) | 🟢 |
 | Example project · Proyecto de ejemplo | [es](es/user-guide/example-project.md) | [en](en/user-guide/example-project.md) | 🟢 |
