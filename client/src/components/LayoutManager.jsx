@@ -18,7 +18,7 @@ import { fusionar, envoltorio, MOTIVOS } from './diagram/diagramMerge';
 import { bloquesCercados } from './markdown/fencedBlocks';
 import { invalidateSchema } from '../state/sidebarCache';
 import { splitSqlStatements } from '../utils/sqlSplitter';
-import { tipoDePestana } from '../utils/tiposDeArchivo';
+import { tipoDePestana, tipoDeArchivo } from '../utils/tiposDeArchivo';
 import { decidirAviso, decidirGuardado, ACCIONES } from '../utils/conflictoArchivo';
 import { vigilar } from '../state/vigilante';
 import Retomar from './Retomar';
@@ -84,7 +84,7 @@ const setSqlFilePref = (path, pref) => {
     } catch { /* non-fatal */ }
 };
 
-const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onExportAmoxvis, onShowHistorySidebar, onBuscarProyecto }, ref) => {
+const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSettings, onDbChange, onRequestSaveAs, onQueryResult, showAiSidebar, onToggleAi, onTabsChange, availableTables, onExportNotebook, onExportAmoxvis, onShowHistorySidebar, onBuscarProyecto, onAbrirArchivo }, ref) => {
     const toast = useToast();
     const dialog = useDialog();
     // Layout State
@@ -2528,6 +2528,14 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
     // Same reasoning for an OS file dropped onto one specific pane's drop zone.
     const handleLeftFileDrop = useCallback((path) => handleQueryFile(path, 'left'), [handleQueryFile]);
     const handleRightFileDrop = useCallback((path) => handleQueryFile(path, 'right'), [handleQueryFile]);
+    // 6.0 (M11): un archivo arrastrado desde el explorador se abre en el panel
+    // donde se suelta; uno de datos se consulta, como uno soltado desde el sistema.
+    const soltarDesdeExplorador = useCallback((ruta, pane) => {
+        if (tipoDeArchivo(ruta).tipo === 'datos') handleQueryFile(ruta, pane);
+        else onAbrirArchivo?.(ruta, pane);
+    }, [handleQueryFile, onAbrirArchivo]);
+    const handleLeftArchivoSoltado = useCallback((ruta) => soltarDesdeExplorador(ruta, 'left'), [soltarDesdeExplorador]);
+    const handleRightArchivoSoltado = useCallback((ruta) => soltarDesdeExplorador(ruta, 'right'), [soltarDesdeExplorador]);
 
     // --- Results ratio (Fase 3/4) ---
     // Called by EditorPane on drag-release with the new ratio (0-1). While
@@ -2682,6 +2690,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                         onDragStart={handleDragStart}
                         onReorder={handleReorder}
                         onFileDrop={handleLeftFileDrop}
+                        onArchivoSoltado={handleLeftArchivoSoltado}
                         onCreateNew={handleLeftCreateNew}
                         onRequestSaveAs={handlePaneRequestSaveAs}
                         showAiSidebar={showAiSidebar}
@@ -2741,6 +2750,7 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                                 onDragStart={handleDragStart}
                                 onReorder={handleReorder}
                                 onFileDrop={handleRightFileDrop}
+                                onArchivoSoltado={handleRightArchivoSoltado}
                                 onCreateNew={handleRightCreateNew}
                                 onRequestSaveAs={handlePaneRequestSaveAs}
                                 showAiSidebar={showAiSidebar}

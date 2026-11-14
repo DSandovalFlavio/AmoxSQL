@@ -9,7 +9,7 @@ import {
     LuFileCode2, LuPackage, LuBot,
     LuFolderInput, LuEyeOff, LuExternalLink, LuScissors, LuCheck, LuSquare, LuSquareCheck, LuFiles, LuSparkles,
     LuPresentation, LuPlus, LuEllipsis, LuLink,
-    LuChevronsDownUp, LuChevronRight, LuStar,
+    LuChevronsDownUp, LuChevronRight, LuStar, LuFilter, LuColumns2,
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -23,6 +23,7 @@ import { tipoDeArchivo } from '../utils/tiposDeArchivo';
 import { vigilar } from '../state/vigilante';
 import { leerAmoxvis } from './DataVisualizer/vega/figura';
 import { anidarRelacionados } from '../utils/anidarArchivos';
+import { TIPOS_DE_FILTRO, buscarEnProyecto, carpetasConCambios } from '../utils/filtroDeArchivos';
 import { EditoresAbiertos, Favoritos } from './explorador/SeccionesExplorador';
 
 /**
@@ -56,7 +57,7 @@ function haceCuanto(ms) {
     return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = null, pestanas = null, onActivarPestana, onCerrarPestana, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
+const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = null, pestanas = null, onActivarPestana, onCerrarPestana, onAbrirAlLado, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
     const { confirmAsync } = useDialog();
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
@@ -101,6 +102,13 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
         try { localStorage.setItem(claveFavoritos, JSON.stringify(lista)); } catch { /* sólo esta sesión */ }
     };
     const rutaNorm = (p) => String(p || '').replace(/\\/g, '/');
+    // La ruta en el disco, con las barras del sistema (6.0, M11: «Copy Path»).
+    const rutaAbsoluta = (f) => {
+        if (f.fullPath) return f.fullPath;
+        const base = String(projectPath || '').replace(/[\\/]+$/, '');
+        const ruta = `${base}/${rutaNorm(f.path)}`;
+        return /^[A-Za-z]:/.test(base) ? ruta.replace(/\//g, '\\') : ruta;
+    };
     const esFavorito = (f) => favoritos.some(x => x.path === rutaNorm(f.path));
     const alternarFavorito = (f) => {
         const ruta = rutaNorm(f.path);
@@ -113,6 +121,43 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     const deferredSearchQuery = useDeferredValue(searchQuery);
+    // 6.0 (M11): con texto o con un tipo marcado se busca en TODO el proyecto
+    // (el índice de /api/files/index), no sólo en la carpeta en pantalla.
+    const [tiposFiltro, setTiposFiltro] = useState(() => {
+        try { return new Set(JSON.parse(localStorage.getItem('amoxsql-fe-tipos') || '[]')); } catch { return new Set(); }
+    });
+    const guardarTipos = (n) => {
+        try { localStorage.setItem('amoxsql-fe-tipos', JSON.stringify([...n])); } catch { /* sólo esta sesión */ }
+        return n;
+    };
+    const alternarTipo = (id) => setTiposFiltro(prev => {
+        const n = new Set(prev);
+        if (n.has(id)) n.delete(id); else n.add(id);
+        return guardarTipos(n);
+    });
+    const limpiarTipos = () => setTiposFiltro(guardarTipos(new Set()));
+    const [menuFiltro, setMenuFiltro] = useState(false);
+    const menuFiltroRef = useRef(null);
+    useEffect(() => {
+        if (!menuFiltro) return;
+        const fuera = (e) => { if (!menuFiltroRef.current?.contains(e.target)) setMenuFiltro(false); };
+        const tecla = (e) => { if (e.key === 'Escape') setMenuFiltro(false); };
+        document.addEventListener('mousedown', fuera);
+        document.addEventListener('keydown', tecla);
+        return () => { document.removeEventListener('mousedown', fuera); document.removeEventListener('keydown', tecla); };
+    }, [menuFiltro]);
+    const buscandoEnProyecto = !!deferredSearchQuery.trim() || tiposFiltro.size > 0;
+    const [indice, setIndice] = useState(null);
+    useEffect(() => {
+        if (!buscandoEnProyecto || indice !== null) return;
+        let vigente = true;
+        fetch(`${API_BASE}/api/files/index`)
+            .then(r => (r.ok ? r.json() : []))
+            .then(data => { if (vigente) setIndice(limpiarListado(data)); })
+            .catch(() => { if (vigente) setIndice([]); });
+        return () => { vigente = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [buscandoEnProyecto, indice]);
 
     // Context Menu State
     const [contextMenu, setContextMenu] = useState(null); // { x, y, file }
@@ -341,6 +386,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                 return a.isDirectory ? -1 : 1;
             });
             setFiles(data);
+            setIndice(null);   // se vuelve a leer la próxima vez que haga falta
             if (vistaArbolRef.current) recargarAbiertas();
             fetchGitStatus(); // non-blocking — update badges independently
         } catch (err) {
@@ -832,7 +878,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
             e.preventDefault();
             e.stopPropagation();
             setMultiSelectMode(true);
-            const allPaths = (vistaArbol ? visiblesRef.current : sortedFiles).map(f => f.path);
+            const allPaths = (vistaArbol || buscandoEnProyecto ? visiblesRef.current : sortedFiles).map(f => f.path);
             const fromIdx = allPaths.indexOf(lastClickedRef.current);
             const toIdx = allPaths.indexOf(file.path);
             if (fromIdx >= 0 && toIdx >= 0) {
@@ -854,7 +900,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
         return false;
     };
 
-    const getSelectedFileObjects = () => (vistaArbol ? visiblesRef.current : sortedFiles).filter(f => selectedFiles.has(f.path));
+    const getSelectedFileObjects = () => (vistaArbol || buscandoEnProyecto ? visiblesRef.current : sortedFiles).filter(f => selectedFiles.has(f.path));
 
     // Fase 4 — consolidar: turn a multi-selection of .sql / .amoxvis / .md
     // files into one notebook. Each becomes a cell in the SAME order they're
@@ -1071,10 +1117,37 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="fe-search-input"
                     />
+                    <div className="fe-filtro" ref={menuFiltroRef}>
+                        <button
+                            type="button"
+                            className={`fe-filtro-boton${tiposFiltro.size ? ' fe-filtro-boton--activo' : ''}`}
+                            title="Filter by type"
+                            aria-expanded={menuFiltro}
+                            onClick={() => setMenuFiltro(v => !v)}
+                        >
+                            <LuFilter size={12} />
+                            {tiposFiltro.size > 0 && <span>{tiposFiltro.size}</span>}
+                        </button>
+                        {menuFiltro && (
+                            <div className="fe-filtro-menu" role="menu">
+                                <div className="fe-filtro-titulo">Show only</div>
+                                {TIPOS_DE_FILTRO.map(t => (
+                                    <button key={t.id} type="button" role="menuitemcheckbox" aria-checked={tiposFiltro.has(t.id)} className="fe-filtro-opcion" onClick={() => alternarTipo(t.id)}>
+                                        {tiposFiltro.has(t.id) ? <LuCheck size={13} /> : <span className="fe-hueco-icono" />} {t.etiqueta}
+                                    </button>
+                                ))}
+                                {tiposFiltro.size > 0 && (
+                                    <button type="button" className="fe-filtro-opcion fe-filtro-opcion--limpiar" onClick={() => { limpiarTipos(); setMenuFiltro(false); }}>
+                                        <span className="fe-hueco-icono" /> Show all types
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Breadcrumbs / path — depth shown by a color gradient (dim root → bright current) */}
-                {!vistaArbol && <div className="fe-breadcrumb">
+                {!vistaArbol && !buscandoEnProyecto && <div className="fe-breadcrumb">
                     {currentPath && (
                         <button onClick={handleUp} className="fe-breadcrumb-up" title="Go up">
                             <LuArrowUp size={12} />
@@ -1148,7 +1221,8 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                 {!loading && !error && (() => {
                     // Con flecha: en árbol, o si en esta carpeta hay algún .sql con gráficos (alinea los nombres).
                     let conFlechas = vistaArbol;
-                    const renderFileItem = (file, nivel = 0, conHijos = false) => (
+                    const carpetasGit = carpetasConCambios(Object.keys(gitStatusMap));
+                    const renderFileItem = (file, nivel = 0, conHijos = false, conCarpeta = false) => (
                         <li
                             key={file.path}
                             data-ruta={file.path.replace(/\\/g, '/')}
@@ -1158,7 +1232,9 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                             onDragStart={(e) => {
                                 e.dataTransfer.setData('text/plain', file.name);
                                 e.dataTransfer.setData('application/json', JSON.stringify({ type: file.isDirectory ? 'folder' : 'file', path: file.path, name: file.name }));
-                                e.dataTransfer.effectAllowed = 'move';
+                                // 6.0 (M11): soltado sobre el editor, se abre ahí.
+                                if (!file.isDirectory) e.dataTransfer.setData('application/x-amox-archivo', file.path);
+                                e.dataTransfer.effectAllowed = 'copyMove';
                             }}
                             onDragOver={file.isDirectory ? (e) => { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = 'move'; setDragOverFolder(file.path); } : undefined}
                             onDragLeave={file.isDirectory ? () => setDragOverFolder(null) : undefined}
@@ -1227,7 +1303,13 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                                             suele ser lo que lo distingue. */}
                                         <span className={`fe-nombre-cabeza${baseName.length > 16 ? ' fe-nombre-cabeza--larga' : ''}`}>{baseName.length > 16 ? baseName.slice(0, -6) : baseName}</span>
                                         <span className="fe-nombre-cola">{baseName.length > 16 ? baseName.slice(-6) : ''}{extName}</span>
+                                        {conCarpeta && fileNorm.includes('/') && (
+                                            <span className="fe-carpeta-pista">{fileNorm.slice(0, fileNorm.lastIndexOf('/'))}</span>
+                                        )}
                                     </span>
+                                    {file.isDirectory && carpetasGit.has(fileNorm) && (
+                                        <span className="fe-git-punto" title="Has changes" />
+                                    )}
                                     {gitStatus && (
                                         <span
                                             className={`fe-git-badge fe-git-badge--${gitStatus}`}
@@ -1270,6 +1352,13 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                         </li>
                     );
 
+                    if (buscandoEnProyecto) {
+                        if (!indice) return <div className="fe-aviso-lista texto-tenue">Searching the project…</div>;
+                        const hallados = buscarEnProyecto(indice, deferredSearchQuery, tiposFiltro).filter(esVisible);
+                        visiblesRef.current = hallados;
+                        if (!hallados.length) return <div className="fe-aviso-lista texto-tenue">Nothing in the project matches.</div>;
+                        return hallados.map(f => renderFileItem(f, 0, false, true));
+                    }
                     if (vistaArbol) {
                         const q = deferredSearchQuery.trim().toLowerCase();
                         const filas = [];
@@ -1372,6 +1461,11 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                       * enseñaría ruido, y ofrecer algo que no va a servir es
                       * otra forma de mentir.
                       */}
+                    {!contextMenu.file.isDirectory && onAbrirAlLado && !['binario', 'datos'].includes(tipoDeArchivo(contextMenu.file.name).tipo) && (
+                        <div onClick={() => { const f = contextMenu.file; setContextMenu(null); onAbrirAlLado(f.path); }} className="context-menu-item">
+                            <LuColumns2 size={14} /> Open to the Side
+                        </div>
+                    )}
                     {tipoDeArchivo(contextMenu.file.name).tipo !== 'binario' && (
                         <div
                             onClick={() => {
@@ -1577,6 +1671,9 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                     {/* "Copy Path" (backslash identity regex) was a redundant duplicate of the
                         normalized relative path below, and its label implied an absolute path it
                         never produced — removed. */}
+                    <div onClick={() => { navigator.clipboard.writeText(rutaAbsoluta(contextMenu.file)); setContextMenu(null); }} className="context-menu-item">
+                        <LuClipboard size={14} /> Copy Path
+                    </div>
                     <div onClick={() => { navigator.clipboard.writeText(contextMenu.file.path.replace(/\\/g, '/')); setContextMenu(null); }} className="context-menu-item">
                         <LuClipboard size={14} /> Copy Relative Path
                     </div>

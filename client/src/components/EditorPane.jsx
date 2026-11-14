@@ -95,6 +95,7 @@ const EditorPane = ({
     onDragStart,
     onReorder,
     onFileDrop,       // (filePath) -> handle dropped file
+    onArchivoSoltado, // (ruta) -> un archivo arrastrado desde el explorador (6.0, M11)
     isActive,
     theme,
     editorLayout,
@@ -583,14 +584,14 @@ const EditorPane = ({
                 else if (onPaneFocus) onPaneFocus();
             }}
             onDragEnter={(e) => {
-                if (e.dataTransfer.types.includes('Files')) {
+                if (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-amox-archivo')) {
                     e.preventDefault();
                     dropCounterRef.current++;
                     setShowDropZone(true);
                 }
             }}
             onDragOver={(e) => {
-                if (e.dataTransfer.types.includes('Files')) {
+                if (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-amox-archivo')) {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'copy';
                 }
@@ -606,6 +607,8 @@ const EditorPane = ({
                 e.preventDefault();
                 dropCounterRef.current = 0;
                 setShowDropZone(false);
+                const delExplorador = e.dataTransfer.getData('application/x-amox-archivo');
+                if (delExplorador) { onArchivoSoltado?.(delExplorador); return; }
                 const files = e.dataTransfer.files;
                 if (files && files.length > 0 && onFileDrop) {
                     for (const file of files) {

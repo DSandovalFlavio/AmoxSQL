@@ -1197,3 +1197,32 @@
 }
 .fe-seccion-fila:hover .fe-seccion-quitar { visibility: visible; }
 .fe-seccion-quitar:hover { color: var(--text-primary); background: var(--hover-bg); }
+
+/* 6.0 (M11): filtrar por tipo, buscar en todo el proyecto, cambios de git en carpetas. */
+.fe-search .fe-search-input { padding-right: 34px; }
+.fe-filtro { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); }
+.fe-filtro-boton {
+  display: flex; align-items: center; gap: 3px; padding: 3px 5px; border: none; border-radius: 4px;
+  background: none; color: var(--text-tertiary); cursor: pointer; font-size: var(--text-xs);
+}
+.fe-filtro-boton:hover { color: var(--text-primary); background: var(--hover-bg); }
+.fe-filtro-boton--activo { color: var(--accent-primary); }
+.fe-filtro-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 50; min-width: 220px; padding: 4px;
+  background: var(--surface-overlay); border: 1px solid var(--border-default); border-radius: 8px; box-shadow: var(--shadow-md);
+}
+.fe-filtro-titulo { padding: 4px 8px; font-size: var(--text-xs); color: var(--text-tertiary); }
+.fe-filtro-opcion {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 5px 8px; border: none; border-radius: 5px;
+  background: none; color: var(--text-secondary); cursor: pointer; font-size: var(--text-sm); text-align: left;
+}
+.fe-filtro-opcion:hover { background: var(--hover-bg); color: var(--text-primary); }
+.fe-filtro-opcion--limpiar { border-top: 1px solid var(--border-subtle); margin-top: 2px; border-radius: 0 0 5px 5px; }
+.fe-carpeta-pista {
+  flex: 1; min-width: 0; margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-xs); color: var(--text-tertiary);
+}
+.fe-aviso-lista { padding: 10px 14px; font-size: var(--text-sm); }
+.fe-git-punto { width: 6px; height: 6px; border-radius: 50%; background: var(--color-warning); flex-shrink: 0; margin-left: 6px; }
+/* El menú del filtro va por encima de la lista que tiene debajo. */
+.fe-search { z-index: 20; }

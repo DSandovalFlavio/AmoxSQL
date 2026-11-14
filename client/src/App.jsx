@@ -813,15 +813,16 @@ function Shell() {
   // 6.0 (M1, F2): un doble clic llamaba dos veces mientras la primera lectura aún no
   // había llegado, y el archivo se abría en dos pestañas. La segunda espera a la primera.
   const abriendoRef = useRef(new Map());
-  const handleFileOpen = useCallback((path) => {
+  // `pane` (6.0, M11): en qué panel, si no el activo (soltar desde el explorador, «Open to the Side»).
+  const handleFileOpen = useCallback((path, pane) => {
     const enCurso = abriendoRef.current.get(path);
     if (enCurso) return enCurso;
-    const promesa = abrirArchivo(path).finally(() => abriendoRef.current.delete(path));
+    const promesa = abrirArchivo(path, pane).finally(() => abriendoRef.current.delete(path));
     abriendoRef.current.set(path, promesa);
     return promesa;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast]);
-  const abrirArchivo = async (path) => {
+  const abrirArchivo = async (path, pane) => {
     try {
       const response = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(path)}`);
       const data = await response.json();
@@ -834,7 +835,7 @@ function Shell() {
       // no supiéramos nada.
       // La firma viaja con el contenido: es lo que despues permite saber si el
       // archivo sigue siendo el que abrimos.
-      layoutRef.current?.openFile(path, data.content, tipoDePestana(path), { firma: data.firma });
+      layoutRef.current?.openFile(path, data.content, tipoDePestana(path), { firma: data.firma }, pane);
       // Los recientes son del USUARIO, no del proyecto: viven donde el tema y
       // el acento. Se guarda la ruta, no el contenido — si el archivo cambio,
       // lo que interesa es el de ahora.
@@ -1429,6 +1430,12 @@ function Shell() {
                   pestanas={titleBarTabs}
                   onActivarPestana={(pane, id) => layoutRef.current?.getTabBarProps(pane)?.onTabClick(id)}
                   onCerrarPestana={(id) => layoutRef.current?.getTabBarProps()?.onTabClose(id)}
+                  onAbrirAlLado={(ruta) => {
+                    // El otro panel; si no está partido, se parte y va a la derecha.
+                    const t = titleBarTabsRef.current;
+                    if (!t?.splitEnabled) layoutRef.current?.toggleSplit();
+                    handleFileOpen(ruta, t?.splitEnabled && t.paneId === 'right' ? 'left' : 'right');
+                  }}
                   onFileClick={handleFileClick}
                   onFileOpen={handleFileOpen}
                   onNewFile={handleNewFile}
@@ -1673,6 +1680,7 @@ function Shell() {
                 <LayoutManager
                   ref={layoutRef}
                   onBuscarProyecto={handleBuscarProyecto}
+                  onAbrirArchivo={handleFileOpen}
                   projectPath={projectPath}
                   theme={theme}
                   editorLayout={editorLayout}
