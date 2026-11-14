@@ -170,13 +170,20 @@ rutas.get('/api/files', (req, res) => {
                     mtimeMs = stats.mtimeMs;
                 } catch (e) { /* ignore */ }
             }
+            // Un gráfico dice de qué consulta sale (6.0, M11): el explorador lo
+            // anida bajo su .sql. Se lee sólo en los .amoxvis, que son pequeños.
+            let origen;
+            if (!file.isDirectory() && /\.amoxvis$/i.test(file.name)) {
+                try { origen = (amoxvis.leer(fs.readFileSync(itemFullPath, 'utf8')).source || '').replace(/\\/g, '/') || undefined; } catch { /* ilegible: sin anidar */ }
+            }
             return {
                 name: file.name,
                 isDirectory: file.isDirectory(),
                 path: path.relative(ctx.ROOT_DIR, itemFullPath).replace(/\\/g, '/'),
                 fullPath: itemFullPath,
                 sizeBytes,
-                mtimeMs
+                mtimeMs,
+                ...(origen ? { origen } : {}),
             };
         });
 

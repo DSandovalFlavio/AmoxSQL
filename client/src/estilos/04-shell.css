@@ -1166,3 +1166,34 @@
 .fe-nombre-cabeza { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fe-nombre-cabeza--larga { min-width: 3.5em; }
 .fe-nombre-cola { flex-shrink: 0; }
+
+/* 6.0 (M11): encima del árbol, las pestañas abiertas y los favoritos. */
+.fe-secciones { flex-shrink: 0; }
+.fe-seccion { border-bottom: 1px solid var(--border-subtle); padding-bottom: 2px; }
+.fe-seccion-cabecera {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  padding: 4px 10px; background: none; border: none; cursor: pointer;
+  color: var(--text-tertiary); font-size: var(--text-xs); font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.fe-seccion-cabecera:hover { color: var(--text-secondary); }
+.fe-seccion-titulo { flex: 1; text-align: left; }
+.fe-seccion-n { font-weight: 500; opacity: 0.8; }
+.fe-seccion-lista { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow-y: auto; }
+.fe-seccion-grupo { padding: 2px 14px; font-size: var(--text-xs); color: var(--text-tertiary); }
+.fe-seccion-fila {
+  display: flex; align-items: center; gap: 6px; margin: 1px 6px; padding: 3px 8px 3px 22px;
+  border-radius: 6px; cursor: pointer; color: var(--text-secondary); font-size: var(--text-sm);
+  white-space: nowrap; min-width: 0;
+}
+.fe-seccion-fila:hover { background: var(--hover-bg); color: var(--text-primary); }
+.fe-seccion-fila--activa { color: var(--text-primary); background: var(--active-bg); }
+.fe-seccion-nombre { overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 2em; }
+.fe-seccion-carpeta { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--text-xs); color: var(--text-tertiary); }
+.fe-seccion-sucia { width: 7px; height: 7px; border-radius: 50%; background: var(--text-secondary); flex-shrink: 0; }
+.fe-seccion-quitar {
+  margin-left: auto; display: flex; align-items: center; padding: 2px; flex-shrink: 0;
+  background: none; border: none; color: var(--text-tertiary); cursor: pointer; border-radius: 4px; visibility: hidden;
+}
+.fe-seccion-fila:hover .fe-seccion-quitar { visibility: visible; }
+.fe-seccion-quitar:hover { color: var(--text-primary); background: var(--hover-bg); }

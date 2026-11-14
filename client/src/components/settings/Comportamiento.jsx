@@ -89,6 +89,13 @@ export default function Comportamiento({
                     {/* 6.0 (M11): la vista de árbol, opcional; carpeta a carpeta es la de serie. */}
                     <div className="stg-row">
                         <div>
+                            <span className="stg-row-label">Nest Related Files</span>
+                            <p className="stg-row-desc">Show the charts saved from a query under its .sql file</p>
+                        </div>
+                        <Toggle on={(editorSettings.anidarArchivos ?? true)} onChange={() => onEditorSettingsChange?.({ anidarArchivos: !(editorSettings.anidarArchivos ?? true) })} />
+                    </div>
+                    <div className="stg-row">
+                        <div>
                             <span className="stg-row-label">Explorer View</span>
                             <p className="stg-row-desc">One folder at a time with a path on top, or the whole project as a tree you unfold</p>
                         </div>

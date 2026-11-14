@@ -1426,6 +1426,9 @@ function Shell() {
                   editorSettings={editorSettings}
                   projectPath={projectPath}
                   archivoActivo={activeTabInfo?.path || null}
+                  pestanas={titleBarTabs}
+                  onActivarPestana={(pane, id) => layoutRef.current?.getTabBarProps(pane)?.onTabClick(id)}
+                  onCerrarPestana={(id) => layoutRef.current?.getTabBarProps()?.onTabClose(id)}
                   onFileClick={handleFileClick}
                   onFileOpen={handleFileOpen}
                   onNewFile={handleNewFile}

@@ -9,7 +9,7 @@ import {
     LuFileCode2, LuPackage, LuBot,
     LuFolderInput, LuEyeOff, LuExternalLink, LuScissors, LuCheck, LuSquare, LuSquareCheck, LuFiles, LuSparkles,
     LuPresentation, LuPlus, LuEllipsis, LuLink,
-    LuChevronsDownUp, LuChevronRight,
+    LuChevronsDownUp, LuChevronRight, LuStar,
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -22,6 +22,8 @@ import { comoAbrir, recordarApertura, olvidarApertura, moverPreferencia } from '
 import { tipoDeArchivo } from '../utils/tiposDeArchivo';
 import { vigilar } from '../state/vigilante';
 import { leerAmoxvis } from './DataVisualizer/vega/figura';
+import { anidarRelacionados } from '../utils/anidarArchivos';
+import { EditoresAbiertos, Favoritos } from './explorador/SeccionesExplorador';
 
 /**
  * A partir de aquí se pregunta antes de abrir en el editor.
@@ -54,7 +56,7 @@ function haceCuanto(ms) {
     return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = null, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
+const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = null, pestanas = null, onActivarPestana, onCerrarPestana, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
     const { confirmAsync } = useDialog();
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
@@ -76,6 +78,36 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
         try { return new Set(JSON.parse(localStorage.getItem(claveAbiertas) || '[]')); } catch { return new Set(); }
     });
     const [hijos, setHijos] = useState(() => new Map());   // carpeta → su contenido
+    // 6.0 (M11): un .amoxvis bajo el .sql del que sale (Settings › Nest Related Files).
+    const anidar = editorSettings?.anidarArchivos ?? true;
+    // Qué .sql tienen sus gráficos a la vista (no son carpetas: no se leen ni se recuerdan).
+    const [conGraficosAbiertos, setConGraficosAbiertos] = useState(() => new Set());
+    const alternarAnidados = (ruta) => setConGraficosAbiertos(prev => {
+        const n = new Set(prev);
+        if (n.has(ruta)) n.delete(ruta); else n.add(ruta);
+        return n;
+    });
+    const estaAbierta = (f) => (f.isDirectory ? abiertas : conGraficosAbiertos).has(f.path.replace(/\\/g, '/'));
+    // 6.0 (M11): favoritos, por proyecto.
+    const claveFavoritos = `amoxsql-fe-favoritos:${projectPath}`;
+    const [favoritos, setFavoritos] = useState(() => {
+        try { return JSON.parse(localStorage.getItem(claveFavoritos) || '[]'); } catch { return []; }
+    });
+    useEffect(() => {
+        try { setFavoritos(JSON.parse(localStorage.getItem(claveFavoritos) || '[]')); } catch { setFavoritos([]); }
+    }, [claveFavoritos]);
+    const guardarFavoritos = (lista) => {
+        setFavoritos(lista);
+        try { localStorage.setItem(claveFavoritos, JSON.stringify(lista)); } catch { /* sólo esta sesión */ }
+    };
+    const rutaNorm = (p) => String(p || '').replace(/\\/g, '/');
+    const esFavorito = (f) => favoritos.some(x => x.path === rutaNorm(f.path));
+    const alternarFavorito = (f) => {
+        const ruta = rutaNorm(f.path);
+        guardarFavoritos(esFavorito(f)
+            ? favoritos.filter(x => x.path !== ruta)
+            : [...favoritos, { path: ruta, name: f.name, isDirectory: !!f.isDirectory }]);
+    };
     const visiblesRef = useRef([]);                        // las filas en pantalla, en orden (para Shift+clic)
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -389,6 +421,21 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
 
 
 
+    // Un favorito: el archivo se abre como desde su fila; una carpeta se muestra
+    // (en árbol, desplegada con las de encima; si no, se entra en ella).
+    const abrirFavorito = (f) => {
+        if (!f.isDirectory) { handleNavigate(f); return; }
+        if (!vistaArbol) { setCurrentPath(f.path); return; }
+        const partes = f.path.split('/').filter(Boolean);
+        const carpetas = partes.map((_, i) => partes.slice(0, i + 1).join('/'));
+        setAbiertas(prev => {
+            const faltan = carpetas.filter(c => !prev.has(c));
+            faltan.forEach(cargarCarpeta);
+            return new Set([...prev, ...faltan]);
+        });
+        setTimeout(() => listaRef.current?.querySelector(`[data-ruta="${CSS.escape(f.path)}"]`)?.scrollIntoView({ block: 'nearest' }), 200);
+    };
+
     const handleUp = () => {
         if (!currentPath) return;
         const parts = currentPath.split('/');
@@ -605,6 +652,13 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
             // ruta, y sin esto renombrar un `config.json` marcado como texto lo
             // devolvería a abrirse como tabla sin que nadie lo pidiera.
             moverPreferencia(projectPath, oldPath, newPath);
+            // Un favorito sigue al archivo (o a lo que había dentro de la carpeta).
+            const viejo = rutaNorm(oldPath);
+            if (favoritos.some(x => x.path === viejo || x.path.startsWith(viejo + '/'))) {
+                guardarFavoritos(favoritos.map(x => x.path === viejo
+                    ? { ...x, path: newPath, name: renameValue.trim() }
+                    : x.path.startsWith(viejo + '/') ? { ...x, path: newPath + x.path.slice(viejo.length) } : x));
+            }
 
             setRenamingFile(null);
             fetchFiles(currentPath, { silent: true });
@@ -1053,6 +1107,21 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                     })()}
                 </div>}
             </div>
+            <div className="fe-secciones">
+                <EditoresAbiertos
+                    pestanas={pestanas}
+                    icono={getIcon}
+                    onActivar={(pane, id) => onActivarPestana?.(pane, id)}
+                    onCerrar={(id) => onCerrarPestana?.(id)}
+                />
+                <Favoritos
+                    favoritos={favoritos}
+                    icono={getIcon}
+                    archivoActivo={activoNorm}
+                    onAbrir={abrirFavorito}
+                    onQuitar={alternarFavorito}
+                />
+            </div>
             <ul className="file-list" ref={listaRef}>
                 {loading && <div style={{ padding: '10px', color: 'var(--text-muted)' }}>Loading...</div>}
                 {error && <div style={{ color: 'red', padding: '10px' }}>{error}</div>}
@@ -1077,11 +1146,13 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                     </div>
                 )}
                 {!loading && !error && (() => {
-                    const renderFileItem = (file, nivel = 0) => (
+                    // Con flecha: en árbol, o si en esta carpeta hay algún .sql con gráficos (alinea los nombres).
+                    let conFlechas = vistaArbol;
+                    const renderFileItem = (file, nivel = 0, conHijos = false) => (
                         <li
                             key={file.path}
                             data-ruta={file.path.replace(/\\/g, '/')}
-                            style={vistaArbol ? { paddingLeft: 8 + nivel * 14 } : undefined}
+                            style={vistaArbol || nivel > 0 ? { paddingLeft: 8 + nivel * 14 } : undefined}
                             className={`file-item${activoNorm && file.path.replace(/\\/g, '/') === activoNorm ? ' file-item--activo' : ''}${selectedFiles.has(file.path) ? ' file-item--selected' : ''}${clipboardMode === 'cut' && clipboardFiles.some(c => c.path === file.path) ? ' file-item--cut' : ''}${dragOverFolder === file.path ? ' file-item--drop-target' : ''}`}
                             draggable
                             onDragStart={(e) => {
@@ -1096,9 +1167,13 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                             onContextMenu={(e) => handleContextMenu(e, file)}
                             title={file.name}
                         >
-                            {vistaArbol && (
-                                <span className={`fe-flecha${file.isDirectory ? '' : ' fe-flecha--hueco'}${abiertas.has(file.path.replace(/\\/g, '/')) ? ' fe-flecha--abierta' : ''}`}>
-                                    {file.isDirectory && <LuChevronRight size={12} />}
+                            {(conFlechas || conHijos || nivel > 0) && (
+                                <span
+                                    className={`fe-flecha${file.isDirectory || conHijos ? '' : ' fe-flecha--hueco'}${estaAbierta(file) ? ' fe-flecha--abierta' : ''}`}
+                                    onClick={conHijos ? (e) => { e.stopPropagation(); alternarAnidados(file.path.replace(/\\/g, '/')); } : undefined}
+                                    title={conHijos ? 'Charts saved from this query' : undefined}
+                                >
+                                    {(file.isDirectory || conHijos) && <LuChevronRight size={12} />}
                                 </span>
                             )}
                             <span className="icon">
@@ -1109,7 +1184,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                                     : getIcon(file)
                                 }
                             </span>
-                            {renamingFile && renamingFile.name === file.name ? (
+                            {renamingFile && renamingFile.path === file.path ? (
                                 <input
                                     autoFocus
                                     type="text"
@@ -1204,16 +1279,20 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                             return (hijos.get(ruta) || []).filter(esVisible).some(h => coincide(h, h.path.replace(/\\/g, '/')));
                         };
                         const nivel = (lista, profundidad) => {
-                            for (const f of ordenarLista(lista.filter(esVisible))) {
+                            const visibles = ordenarLista(lista.filter(esVisible));
+                            const { sueltos, anidados } = anidar && !q ? anidarRelacionados(visibles) : { sueltos: visibles, anidados: new Map() };
+                            for (const f of sueltos) {
                                 const ruta = f.path.replace(/\\/g, '/');
                                 if (!coincide(f, ruta)) continue;
-                                filas.push([f, profundidad]);
+                                const suyos = anidados.get(ruta);
+                                filas.push([f, profundidad, !!suyos]);
+                                if (suyos && conGraficosAbiertos.has(ruta)) suyos.forEach(h => filas.push([h, profundidad + 1, false]));
                                 if (f.isDirectory && abiertas.has(ruta) && hijos.has(ruta)) nivel(hijos.get(ruta), profundidad + 1);
                             }
                         };
                         nivel(files, 0);
                         visiblesRef.current = filas.map(([f]) => f);
-                        return filas.map(([f, prof]) => renderFileItem(f, prof));
+                        return filas.map(([f, prof, conHijos]) => renderFileItem(f, prof, conHijos));
                     }
                     if (groupedFiles) {
                         // Grouped view (type or extension)
@@ -1236,6 +1315,16 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                                 {groupItems.map(f => renderFileItem(f))}
                             </div>
                         ));
+                    }
+                    if (anidar && !deferredSearchQuery.trim()) {
+                        const { sueltos, anidados } = anidarRelacionados(sortedFiles);
+                        conFlechas = anidados.size > 0;
+                        return sueltos.flatMap(f => {
+                            const ruta = f.path.replace(/\\/g, '/');
+                            const suyos = anidados.get(ruta);
+                            if (!suyos) return [renderFileItem(f)];
+                            return [renderFileItem(f, 0, true), ...(conGraficosAbiertos.has(ruta) ? suyos.map(h => renderFileItem(h, 1)) : [])];
+                        });
                     }
                     return sortedFiles.map(f => renderFileItem(f));
                 })()}
@@ -1479,6 +1568,9 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = n
                     {/* ── Utility separator ── */}
                     <div style={{ height: '1px', backgroundColor: 'var(--border-default)', margin: '4px 8px' }} />
 
+                    <div onClick={() => { alternarFavorito(contextMenu.file); setContextMenu(null); }} className="context-menu-item">
+                        <LuStar size={14} /> {esFavorito(contextMenu.file) ? 'Remove from Favorites' : 'Add to Favorites'}
+                    </div>
                     <div onClick={() => revealInExplorer(contextMenu.file)} className="context-menu-item">
                         <LuExternalLink size={14} /> Reveal in Explorer
                     </div>
