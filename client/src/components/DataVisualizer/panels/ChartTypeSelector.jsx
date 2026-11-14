@@ -2,7 +2,8 @@
  * ChartTypeSelector — Visual grid for selecting chart types with icons.
  * Replaces the old <select> dropdown.
  */
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
+import { LuChevronDown } from 'react-icons/lu';
 import { CHART_TYPES, CHART_CATEGORIES } from '../constants';
 
 // ─── Mini SVG Icons for each chart type ──────────────────────
@@ -242,10 +243,16 @@ const ChartIcon = ({ type, size = 28 }) => {
 
 // ─── Component ───────────────────────────────────────────────
 const ChartTypeSelector = memo(({ currentType, onTypeChange }) => {
-    const [expandedCategory, setExpandedCategory] = useState(null);
-
     // Find current type's category
     const currentTypeInfo = CHART_TYPES.find(t => t.key === currentType);
+
+    // Una categoría está abierta si y sólo si es la elegida aquí (6.0): antes la
+    // del tipo activo se dibujaba siempre abierta y su cabecera no la plegaba.
+    // Empieza abierta la del tipo actual; si el tipo cambia desde fuera (una
+    // propuesta del Assistant, abrir otro gráfico), se abre la suya.
+    const categoriaActual = currentTypeInfo?.category ?? null;
+    const [expandedCategory, setExpandedCategory] = useState(categoriaActual);
+    useEffect(() => { if (categoriaActual) setExpandedCategory(categoriaActual); }, [categoriaActual]);
 
     return (
         <div style={{ marginBottom: '16px' }}>
@@ -281,15 +288,16 @@ const ChartTypeSelector = memo(({ currentType, onTypeChange }) => {
                             }}
                             className="dv-category-header"
                         >
-                            <span>{category.label}</span>
-                            <span style={{
-                                fontSize: '11px', transition: 'transform 0.2s',
-                                transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
-                            }}>▼</span>
+                            <span>
+                                {category.label}
+                                {/* Plegada, dice qué tipo está elegido en ella. */}
+                                {hasActiveType && !isExpanded && currentTypeInfo && <span className="dv-categoria-elegido"> · {currentTypeInfo.label}</span>}
+                            </span>
+                            <LuChevronDown size={12} className={`dv-categoria-flecha${isExpanded ? ' dv-categoria-flecha--abierta' : ''}`} />
                         </div>
 
-                        {/* Type grid — always show if category has active type, or if expanded */}
-                        {(isExpanded || hasActiveType) && (
+                        {/* Type grid — only when the category is open */}
+                        {isExpanded && (
                             <div style={{
                                 display: 'grid',
                                 gridTemplateColumns: `repeat(${Math.min(types.length, 3)}, 1fr)`,

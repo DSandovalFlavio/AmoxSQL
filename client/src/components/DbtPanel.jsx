@@ -574,7 +574,7 @@ const DbtPanel = ({ projectPath, onFileOpen, onOpenDbtLineage }) => {
 
             {/* Section Tabs */}
             <div className="seg-wrap">
-              <div className="seg">
+              <div className="seg seg--envuelve">
                 {sectionTabs.map(tab => (
                     <button
                         key={tab.id}

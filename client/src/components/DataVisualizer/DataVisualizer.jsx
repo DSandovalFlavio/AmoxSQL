@@ -92,7 +92,7 @@ function MandoAsistirGrafico({ etapa, onElegir }) {
         <div className="deck-asistir" ref={ref}>
             <button type="button" className="sf-cabecera-btn sf-asistir" onClick={() => setAbierto(v => !v)}
                 title="Ask Assist about this chart" aria-haspopup="menu" aria-expanded={abierto}>
-                <LuSparkles size={13} /> <span>Assist</span>
+                <LuSparkles size={13} /> <span className="sf-asistir-texto">Assist</span>
             </button>
             {abierto && (
                 <div className="deck-asistir-menu" role="menu">
@@ -1103,8 +1103,8 @@ const DataVisualizer = memo(({ data, tipos = null, isReportMode = false, lectura
                     display: 'flex', flexDirection: 'column',
                 }}>
                     {/* ── Header ── */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <h3 style={{
+                    <div className="sf-cabecera" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                        <h3 className="sf-titulo" style={{
                             margin: 0, fontSize: '12px', fontWeight: '600',
                             color: 'var(--text-active)', textTransform: 'uppercase', letterSpacing: '0.5px'
                         }}>Story Flow</h3>

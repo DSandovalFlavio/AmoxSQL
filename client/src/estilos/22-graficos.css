@@ -270,3 +270,15 @@
 .fallo-interfaz--compacto code { overflow-wrap: anywhere; font-family: var(--font-mono, monospace); }
 .fallo-interfaz--compacto button { background: transparent; color: var(--text-secondary, #a8a8ad); font-weight: 400; flex-shrink: 0; }
 
+
+/* El título de la barra de Story Flow, en una línea aunque el panel sea estrecho. */
+.sf-titulo { white-space: nowrap; flex-shrink: 0; }
+.sf-interruptor { flex-wrap: nowrap; flex-shrink: 0; }
+
+/* Story Flow › Chart type (6.0): la flecha de cada categoría y el tipo elegido en una plegada. */
+.dv-categoria-flecha { transition: transform 0.2s; flex-shrink: 0; }
+.dv-categoria-flecha--abierta { transform: rotate(180deg); }
+.dv-categoria-elegido { text-transform: none; letter-spacing: 0; font-weight: 500; }
+/* Con el panel estrecho, Assist se queda en su icono: con el texto se salía del panel. */
+.sf-cabecera { container-type: inline-size; gap: 8px; }
+@container (max-width: 340px) { .sf-asistir-texto, .sf-interruptor .seg-item svg { display: none; } }
