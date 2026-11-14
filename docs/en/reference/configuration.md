@@ -60,6 +60,9 @@ Workflow preferences.
 | Auto-save | Save files automatically as you edit |
 | Welcome screen | Show or hide the welcome screen on launch |
 | Default data-file action | What AmoxSQL does when you open a CSV/Parquet/Excel (e.g. preview, import) |
+| File Explorer › Nest Related Files | A `.sql`'s charts, under it in the explorer (on) |
+| File Explorer › Explorer View | **Folders** (one folder at a time, the default) or **Tree** (the whole project as a tree). See [File explorer](../data/file-explorer.md) |
+| File Explorer › Default Explorer Sort View | The order the explorer opens with (date modified too) |
 
 ## AI
 

@@ -27,6 +27,33 @@ Each open file is a tab in the pane. The active tab is highlighted; a **dot** ne
 
 <img src="../../images/editor/tab-bar.png" alt="tab bar with the + button and the new-file menu" width="100%" />
 
+### Tabs you can tell apart
+A new tab is named after what it is and numbered: **Query 1.sql**, **Query 2.sql**, **Notebook 1.sqlnb**… (the lowest free number). If two open tabs have the same name (`cierre.sql` from `reports/2023` and from `reports/2024`), each shows the folder that tells them apart.
+
+### See them all when they don't fit
+- The **mouse wheel** over the bar scrolls it sideways, and the active tab is always brought into view.
+- When some tabs are out of sight, a button at the end of the bar shows **how many are hidden**. It opens the list of every open tab, with a search box: type part of the name and press Enter.
+- In the file explorer, **Open Editors** also lists the open tabs of both panes (see [File explorer](../data/file-explorer.md)).
+
+### A tab's menu
+Right-click a tab; entries with a shortcut show it:
+
+| Entry | What it does |
+|---|---|
+| Rename… · Save · Save as… | Rename the file · save · save under another name |
+| Copy path · Reveal in the explorer | The file's path · show it in the file explorer |
+| Move to the other pane · Open a copy to the side | Take it to the other pane · open another one like it in the other pane |
+| Pin / Unpin | Pin it: Ctrl+W and the bulk closes leave it alone |
+| Close · Close others · Close to the right | This one · all but this one · those on its right |
+| **Close saved** | Those without changes: what you opened only to look |
+| Close all | Every tab in the pane |
+| Reopen closed tab | The last one you closed |
+
+Closing several at once never closes **pinned** tabs, and asks **only once** if any have unsaved changes.
+
+### Reopen what you closed
+**Ctrl+Shift+T** (or **Reopen closed tab**) brings back the last closed tab, and the one before if you repeat it. A tab **that was never saved** comes back too, with its text: when you close it, a notice says "… was not saved." with a **Reopen** button.
+
 ### Split into two panes
 Drag a tab toward the **right edge** (or left) of the window to open a second pane and drop it there. With the split view, each pane has its own tab bar and active tab. When the right pane runs **out of tabs**, the split **collapses by itself** and you're back to a single pane.
 
@@ -78,7 +105,11 @@ If you run a file with several `;`-separated statements, AmoxSQL offers to **con
 |---|---|
 | Ctrl+N · Ctrl+Shift+N | New SQL query · new Notebook |
 | Ctrl+W | Close the active tab |
-| Ctrl+Tab · Ctrl+Shift+Tab | Next tab · previous tab |
+| Ctrl+Shift+T | Reopen the last one you closed (an unsaved one too) |
+| Alt+P | Pin or unpin the tab |
+| Ctrl+Tab · Ctrl+Shift+Tab | The most recently used · the other way round |
+| Alt+← · Alt+→ | Back · forward through visited tabs |
+| Ctrl+\ · Ctrl+Shift+\ | Split the screen · duplicate the tab to the other pane |
 | Ctrl+S | Save the active tab |
 
 ## Related

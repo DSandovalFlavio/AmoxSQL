@@ -60,6 +60,9 @@ Preferencias de flujo de trabajo.
 | Autoguardado | Guarda los archivos automáticamente al editar |
 | Pantalla de bienvenida | Mostrar u ocultar la pantalla de bienvenida al iniciar |
 | Acción por defecto para archivos de datos | Qué hace AmoxSQL al abrir un CSV/Parquet/Excel (p. ej. previsualizar, importar) |
+| File Explorer › Nest Related Files | Los gráficos de un `.sql`, debajo de él en el explorador (activado) |
+| File Explorer › Explorer View | **Folders** (una carpeta cada vez, la de serie) o **Tree** (todo el proyecto como árbol). Ver [Explorador de archivos](../data/file-explorer.md) |
+| File Explorer › Default Explorer Sort View | El orden con el que se abre el explorador (también por fecha de modificación) |
 
 ## IA
 
