@@ -1142,3 +1142,27 @@
 .tab-bar-lista-item--activa { color: var(--accent-primary); }
 .tab-bar-lista-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tab-bar-lista-vacia { padding: 8px; color: var(--text-muted); font-size: var(--text-sm); }
+
+/* 6.0 (M11): la vista de árbol del explorador. */
+.fe-flecha {
+  width: 12px;
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  transition: transform var(--transition-fast);
+}
+.fe-flecha--abierta { transform: rotate(90deg); }
+.fe-flecha--hueco { visibility: hidden; }
+.file-item--activo {
+  color: var(--text-primary);
+  box-shadow: inset 2px 0 0 var(--accent-primary);
+}
+.fe-hueco-icono {
+  display: inline-block;
+  width: 13px;
+  flex-shrink: 0;
+}
+/* El nombre cortado por el medio: la cabeza cede, pero nunca desaparece. */
+.fe-nombre { flex: 1; display: flex; align-items: center; min-width: 0; }
+.fe-nombre-cabeza { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fe-nombre-cabeza--larga { min-width: 3.5em; }
+.fe-nombre-cola { flex-shrink: 0; }

@@ -86,6 +86,21 @@ export default function Comportamiento({
             <div>
                 <h3 className="stg-section-title">File Explorer</h3>
                 <div className="stg-group stg-group--mt14">
+                    {/* 6.0 (M11): la vista de árbol, opcional; carpeta a carpeta es la de serie. */}
+                    <div className="stg-row">
+                        <div>
+                            <span className="stg-row-label">Explorer View</span>
+                            <p className="stg-row-desc">One folder at a time with a path on top, or the whole project as a tree you unfold</p>
+                        </div>
+                        <select
+                            className="stg-select stg-select--w200"
+                            value={editorSettings.explorerVista || 'carpetas'}
+                            onChange={(e) => onEditorSettingsChange?.({ explorerVista: e.target.value })}
+                        >
+                            <option value="carpetas">Folders (default)</option>
+                            <option value="arbol">Tree</option>
+                        </select>
+                    </div>
                     <div className="stg-row">
                         <div>
                             <span className="stg-row-label">Show File Sizes in Explorer</span>
@@ -105,6 +120,7 @@ export default function Comportamiento({
                         >
                             <option value="default">Default</option>
                             <option value="name">By Name</option>
+                            <option value="modified">By Date Modified</option>
                             <option value="type">By Type Grouped</option>
                         </select>
                     </div>

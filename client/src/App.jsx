@@ -1425,6 +1425,7 @@ function Shell() {
                 <FileExplorer
                   editorSettings={editorSettings}
                   projectPath={projectPath}
+                  archivoActivo={activeTabInfo?.path || null}
                   onFileClick={handleFileClick}
                   onFileOpen={handleFileOpen}
                   onNewFile={handleNewFile}

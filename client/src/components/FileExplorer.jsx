@@ -8,7 +8,8 @@ import {
     LuLayoutList, LuLayers, LuCode, LuColumns3, LuLoader, LuBrain,
     LuFileCode2, LuPackage, LuBot,
     LuFolderInput, LuEyeOff, LuExternalLink, LuScissors, LuCheck, LuSquare, LuSquareCheck, LuFiles, LuSparkles,
-    LuPresentation, LuPlus, LuEllipsis, LuLink
+    LuPresentation, LuPlus, LuEllipsis, LuLink,
+    LuChevronsDownUp, LuChevronRight,
 } from "react-icons/lu";
 import DeleteConfirmModal from './DeleteConfirmModal';
 import AlertDialog from './AlertDialog';
@@ -53,10 +54,29 @@ function haceCuanto(ms) {
     return new Date(ms).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
-const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
+const FileExplorer = ({ editorSettings = {}, projectPath = '', archivoActivo = null, onFileClick, onFileOpen, onNewFile, onNewFolder, onImportFile, onQueryFile, onQuerySql, onPreviewFile, onEditChart, onEditChartWithSql, onCreateNotebookFromFiles, refreshTrigger }) => {
     const { confirmAsync } = useDialog();
     const [files, setFiles] = useState([]);
     const [currentPath, setCurrentPath] = useState('');
+
+    // ── 6.0 (M11): la vista de árbol (opción de Settings › Behavior), lo oculto
+    // y el archivo activo. La vista de serie sigue siendo carpeta a carpeta.
+    const vistaArbol = (editorSettings?.explorerVista || 'carpetas') === 'arbol';
+    const [mostrarOcultos, setMostrarOcultos] = useState(() => {
+        try { return localStorage.getItem('amoxsql-fe-ocultos') === '1'; } catch { return false; }
+    });
+    const alternarOcultos = () => setMostrarOcultos(v => {
+        try { localStorage.setItem('amoxsql-fe-ocultos', v ? '0' : '1'); } catch { /* sólo esta sesión */ }
+        return !v;
+    });
+    // Lo que empieza por punto (.git, .amoxsql, .claude, .tmp…) no es del usuario.
+    const esVisible = (f) => mostrarOcultos || !String(f.name).startsWith('.');
+    const claveAbiertas = `amoxsql-fe-abiertas:${projectPath}`;
+    const [abiertas, setAbiertas] = useState(() => {
+        try { return new Set(JSON.parse(localStorage.getItem(claveAbiertas) || '[]')); } catch { return new Set(); }
+    });
+    const [hijos, setHijos] = useState(() => new Map());   // carpeta → su contenido
+    const visiblesRef = useRef([]);                        // las filas en pantalla, en orden (para Shift+clic)
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -205,6 +225,74 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
         } catch { /* git unavailable or no repo — silent */ }
     };
 
+    // Lo que el explorador nunca enseña: las bases (van en Data) y lo que AmoxSQL
+    // escribe para sí junto a los archivos del usuario (6.0, M1 · F7).
+    const limpiarListado = (data) => data
+        .filter(f => !f.name.endsWith('.duckdb') && !f.name.endsWith('.db') && !f.name.endsWith('.ducklake') && !f.name.endsWith('.ducklake.sqlite'))
+        .filter(f => f.isDirectory || !/(\.sqlnb\.state\.json|\.wal|\.amoxtmp)$/i.test(f.name));
+
+    // ── El árbol (6.0, M11) ──
+    const vistaArbolRef = useRef(vistaArbol);
+    vistaArbolRef.current = vistaArbol;
+    const abiertasRef = useRef(abiertas);
+    abiertasRef.current = abiertas;
+    const cargarCarpeta = async (ruta) => {
+        try {
+            const r = await fetch(`${API_BASE}/api/files?path=${encodeURIComponent(ruta)}`);
+            if (!r.ok) throw new Error();
+            const data = limpiarListado(await r.json());
+            setHijos(prev => new Map(prev).set(ruta, data));
+        } catch {
+            // Ya no existe (la borraron o la movieron): se deja de tener abierta.
+            setAbiertas(prev => { if (!prev.has(ruta)) return prev; const n = new Set(prev); n.delete(ruta); return n; });
+        }
+    };
+    const recargarAbiertas = () => { for (const ruta of abiertasRef.current) cargarCarpeta(ruta); };
+    useEffect(() => {
+        try { localStorage.setItem(claveAbiertas, JSON.stringify([...abiertas])); } catch { /* sólo esta sesión */ }
+    }, [abiertas, claveAbiertas]);
+    const alternarCarpeta = (ruta) => {
+        setAbiertas(prev => {
+            const n = new Set(prev);
+            if (n.has(ruta)) n.delete(ruta);
+            else { n.add(ruta); if (!hijos.has(ruta)) cargarCarpeta(ruta); }
+            return n;
+        });
+    };
+    const plegarTodo = () => setAbiertas(new Set());
+    // Al pasar a árbol: desde la raíz, y con lo que estaba abierto ya leído.
+    useEffect(() => {
+        if (!vistaArbol) return;
+        if (currentPath) setCurrentPath('');
+        recargarAbiertas();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [vistaArbol]);
+    // Revelar el archivo activo: en árbol se abren sus carpetas; la fila se marca
+    // y se trae a la vista.
+    useEffect(() => {
+        if (!archivoActivo || !vistaArbol) return;
+        const partes = String(archivoActivo).replace(/\\/g, '/').split('/').filter(Boolean);
+        const carpetas = partes.slice(0, -1).map((_, i) => partes.slice(0, i + 1).join('/'));
+        if (!carpetas.length) return;
+        setAbiertas(prev => {
+            const faltan = carpetas.filter(c => !prev.has(c));
+            if (!faltan.length) return prev;
+            faltan.forEach(cargarCarpeta);
+            return new Set([...prev, ...faltan]);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [archivoActivo, vistaArbol]);
+    const activoNorm = archivoActivo ? String(archivoActivo).replace(/\\/g, '/') : null;
+    const listaRef = useRef(null);
+    useEffect(() => {
+        if (!activoNorm) return;
+        const t = setTimeout(() => {
+            const fila = listaRef.current?.querySelector(`[data-ruta="${CSS.escape(activoNorm)}"]`);
+            fila?.scrollIntoView({ block: 'nearest' });
+        }, 150);
+        return () => clearTimeout(t);
+    }, [activoNorm, hijos]);
+
     const fetchFiles = async (path, { silent = false } = {}) => {
         if (!silent) setLoading(true);
         setError(null);
@@ -213,11 +301,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
             if (!response.ok) throw new Error('Failed to fetch files');
             let data = await response.json();
 
-            // FILTER: Hide Database files
-            data = data.filter(f => !f.name.endsWith('.duckdb') && !f.name.endsWith('.db') && !f.name.endsWith('.ducklake') && !f.name.endsWith('.ducklake.sqlite'));
-            // 6.0 (M1, F7): lo que AmoxSQL escribe para sí junto a los archivos del usuario
-            // (el estado visual de un cuaderno, el diario de una base, una escritura a medias).
-            data = data.filter(f => f.isDirectory || !/(\.sqlnb\.state\.json|\.wal|\.amoxtmp)$/i.test(f.name));
+            data = limpiarListado(data);
 
             // Sort: directories first, then files
             data.sort((a, b) => {
@@ -225,6 +309,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                 return a.isDirectory ? -1 : 1;
             });
             setFiles(data);
+            if (vistaArbolRef.current) recargarAbiertas();
             fetchGitStatus(); // non-blocking — update badges independently
         } catch (err) {
             setError(err.message);
@@ -262,7 +347,8 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
     const handleNavigate = (file) => {
         if (renamingFile) return; // Don't navigate while renaming
         if (file.isDirectory) {
-            setCurrentPath(file.path.replace(/\\/g, '/'));
+            if (vistaArbol) alternarCarpeta(file.path.replace(/\\/g, '/'));
+            else setCurrentPath(file.path.replace(/\\/g, '/'));
         } else {
             const lowerName = file.name.toLowerCase();
             /**
@@ -380,10 +466,11 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
     };
 
     // --- Sort / Group helpers ---
-    const SORT_MODES = ['default', 'name', 'type', 'extension', 'size'];
+    const SORT_MODES = ['default', 'name', 'modified', 'type', 'extension', 'size'];
     const SORT_LABELS = {
         default: 'Default (dirs first)',
         name: 'By Name (A→Z)',
+        modified: 'By Date Modified (newest first)',
         type: 'By Category',
         extension: 'By Extension',
         size: 'By Size (largest first)'
@@ -413,8 +500,14 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
         return ext ? `1_.${ext}` : '2_No extension';
     };
 
-    const sortedFiles = (() => {
-        const filtered = files.filter(f => f.name.toLowerCase().includes(deferredSearchQuery.toLowerCase()));
+    // Ordena una lista (la carpeta actual, o un nivel del árbol).
+    const ordenarLista = (filtered) => {
+        if (sortMode === 'modified') {
+            return [...filtered].sort((a, b) => {
+                if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+                return (b.mtimeMs || 0) - (a.mtimeMs || 0) || a.name.localeCompare(b.name);
+            });
+        }
         if (sortMode === 'name') {
             return [...filtered].sort((a, b) => {
                 if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
@@ -442,12 +535,13 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
             });
         }
         // default: dirs first, then alpha
-        return filtered;
-    })();
+        return [...filtered].sort((a, b) => (a.isDirectory === b.isDirectory ? a.name.localeCompare(b.name) : (a.isDirectory ? -1 : 1)));
+    };
+    const sortedFiles = ordenarLista(files.filter(esVisible).filter(f => f.name.toLowerCase().includes(deferredSearchQuery.toLowerCase())));
 
     // Group files when in 'type' or 'extension' mode
     const groupedFiles = (() => {
-        if (sortMode !== 'type' && sortMode !== 'extension') return null;
+        if (vistaArbol || (sortMode !== 'type' && sortMode !== 'extension')) return null;
         const groupFn = sortMode === 'type' ? getFileTypeGroup : getExtGroup;
         const groups = {};
         sortedFiles.forEach(f => {
@@ -684,7 +778,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
             e.preventDefault();
             e.stopPropagation();
             setMultiSelectMode(true);
-            const allPaths = sortedFiles.map(f => f.path);
+            const allPaths = (vistaArbol ? visiblesRef.current : sortedFiles).map(f => f.path);
             const fromIdx = allPaths.indexOf(lastClickedRef.current);
             const toIdx = allPaths.indexOf(file.path);
             if (fromIdx >= 0 && toIdx >= 0) {
@@ -706,7 +800,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
         return false;
     };
 
-    const getSelectedFileObjects = () => sortedFiles.filter(f => selectedFiles.has(f.path));
+    const getSelectedFileObjects = () => (vistaArbol ? visiblesRef.current : sortedFiles).filter(f => selectedFiles.has(f.path));
 
     // Fase 4 — consolidar: turn a multi-selection of .sql / .amoxvis / .md
     // files into one notebook. Each becomes a cell in the SAME order they're
@@ -888,7 +982,17 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                     {sortMode === modo ? <LuCheck size={13} /> : <span style={{ width: 13 }} />} {SORT_LABELS[modo]}
                                 </button>
                             ))}
-                            {currentPath && (
+                            <div className="fe-header-menu-sep" />
+                            <button role="menuitemcheckbox" aria-checked={mostrarOcultos} className="fe-header-menu-item"
+                                onClick={() => { setMenuCabecera(null); alternarOcultos(); }}>
+                                {mostrarOcultos ? <LuCheck size={13} /> : <span className="fe-hueco-icono" />} Show hidden files
+                            </button>
+                            {vistaArbol && (
+                                <button role="menuitem" className="fe-header-menu-item" onClick={() => { setMenuCabecera(null); plegarTodo(); }}>
+                                    <LuChevronsDownUp size={13} /> Collapse all
+                                </button>
+                            )}
+                            {currentPath && !vistaArbol && (
                                 <>
                                     <div className="fe-header-menu-sep" />
                                     <button role="menuitem" className="fe-header-menu-item" onClick={() => { setMenuCabecera(null); handleUp(); }}>
@@ -916,7 +1020,7 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                 </div>
 
                 {/* Breadcrumbs / path — depth shown by a color gradient (dim root → bright current) */}
-                <div className="fe-breadcrumb">
+                {!vistaArbol && <div className="fe-breadcrumb">
                     {currentPath && (
                         <button onClick={handleUp} className="fe-breadcrumb-up" title="Go up">
                             <LuArrowUp size={12} />
@@ -947,9 +1051,9 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                             );
                         });
                     })()}
-                </div>
+                </div>}
             </div>
-            <ul className="file-list">
+            <ul className="file-list" ref={listaRef}>
                 {loading && <div style={{ padding: '10px', color: 'var(--text-muted)' }}>Loading...</div>}
                 {error && <div style={{ color: 'red', padding: '10px' }}>{error}</div>}
                 {!loading && !error && files.length === 0 && (
@@ -973,10 +1077,12 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                     </div>
                 )}
                 {!loading && !error && (() => {
-                    const renderFileItem = (file) => (
+                    const renderFileItem = (file, nivel = 0) => (
                         <li
                             key={file.path}
-                            className={`file-item${selectedFiles.has(file.path) ? ' file-item--selected' : ''}${clipboardMode === 'cut' && clipboardFiles.some(c => c.path === file.path) ? ' file-item--cut' : ''}${dragOverFolder === file.path ? ' file-item--drop-target' : ''}`}
+                            data-ruta={file.path.replace(/\\/g, '/')}
+                            style={vistaArbol ? { paddingLeft: 8 + nivel * 14 } : undefined}
+                            className={`file-item${activoNorm && file.path.replace(/\\/g, '/') === activoNorm ? ' file-item--activo' : ''}${selectedFiles.has(file.path) ? ' file-item--selected' : ''}${clipboardMode === 'cut' && clipboardFiles.some(c => c.path === file.path) ? ' file-item--cut' : ''}${dragOverFolder === file.path ? ' file-item--drop-target' : ''}`}
                             draggable
                             onDragStart={(e) => {
                                 e.dataTransfer.setData('text/plain', file.name);
@@ -990,6 +1096,11 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                             onContextMenu={(e) => handleContextMenu(e, file)}
                             title={file.name}
                         >
+                            {vistaArbol && (
+                                <span className={`fe-flecha${file.isDirectory ? '' : ' fe-flecha--hueco'}${abiertas.has(file.path.replace(/\\/g, '/')) ? ' fe-flecha--abierta' : ''}`}>
+                                    {file.isDirectory && <LuChevronRight size={12} />}
+                                </span>
+                            )}
                             <span className="icon">
                                 {multiSelectMode
                                     ? (selectedFiles.has(file.path)
@@ -1036,9 +1147,11 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                 const GIT_BADGE_COLORS = { M: 'var(--color-warning)', A: 'var(--color-success)', D: 'var(--color-error)', '?': undefined };
                                 return (
                                 <>
-                                    <span style={{ flex: 1, display: 'flex', alignItems: 'center', minWidth: 0 }}>
-                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{baseName}</span>
-                                        <span style={{ flexShrink: 0 }}>{extName}</span>
+                                    <span className="fe-nombre">
+                                        {/* Cortado por el medio (6.0, M11): el final del nombre
+                                            suele ser lo que lo distingue. */}
+                                        <span className={`fe-nombre-cabeza${baseName.length > 16 ? ' fe-nombre-cabeza--larga' : ''}`}>{baseName.length > 16 ? baseName.slice(0, -6) : baseName}</span>
+                                        <span className="fe-nombre-cola">{baseName.length > 16 ? baseName.slice(-6) : ''}{extName}</span>
                                     </span>
                                     {gitStatus && (
                                         <span
@@ -1082,6 +1195,26 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                         </li>
                     );
 
+                    if (vistaArbol) {
+                        const q = deferredSearchQuery.trim().toLowerCase();
+                        const filas = [];
+                        const coincide = (f, ruta) => {
+                            if (!q || f.name.toLowerCase().includes(q)) return true;
+                            if (!f.isDirectory) return false;
+                            return (hijos.get(ruta) || []).filter(esVisible).some(h => coincide(h, h.path.replace(/\\/g, '/')));
+                        };
+                        const nivel = (lista, profundidad) => {
+                            for (const f of ordenarLista(lista.filter(esVisible))) {
+                                const ruta = f.path.replace(/\\/g, '/');
+                                if (!coincide(f, ruta)) continue;
+                                filas.push([f, profundidad]);
+                                if (f.isDirectory && abiertas.has(ruta) && hijos.has(ruta)) nivel(hijos.get(ruta), profundidad + 1);
+                            }
+                        };
+                        nivel(files, 0);
+                        visiblesRef.current = filas.map(([f]) => f);
+                        return filas.map(([f, prof]) => renderFileItem(f, prof));
+                    }
                     if (groupedFiles) {
                         // Grouped view (type or extension)
                         return Object.entries(groupedFiles).map(([groupLabel, groupItems]) => (
@@ -1100,11 +1233,11 @@ const FileExplorer = ({ editorSettings = {}, projectPath = '', onFileClick, onFi
                                     <span>{groupLabel}</span>
                                     <span style={{ fontSize: '11px', opacity: 0.6, fontWeight: 500 }}>{groupItems.length}</span>
                                 </div>
-                                {groupItems.map(renderFileItem)}
+                                {groupItems.map(f => renderFileItem(f))}
                             </div>
                         ));
                     }
-                    return sortedFiles.map(renderFileItem);
+                    return sortedFiles.map(f => renderFileItem(f));
                 })()}
             </ul>
 
