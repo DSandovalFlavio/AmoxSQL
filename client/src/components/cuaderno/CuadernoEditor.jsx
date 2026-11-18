@@ -125,7 +125,7 @@ const CuadernoEditor = ({
         fetch(`${API_BASE}/api/dbt/modelo?archivo=${encodeURIComponent(filePath)}`).then(r => r.json()).then(d => setProyectoDbt(!!(d?.proyectoDbt || d?.esDbt))).catch(() => {});
     }, [filePath]);
     const [resultados, setResultados] = useState(() => recordado?.resultados ?? {});
-    const [estados, setEstados] = useState({});
+    const [estados, setEstados] = useState(() => recordado?.estados ?? {});
     const [corriendo, setCorriendo] = useState(null);
     const [seleccionada, setSeleccionada] = useState(null);
     /**
@@ -166,7 +166,7 @@ const CuadernoEditor = ({
      *
      * Es estado del que mira, así que va al archivo de estado y no al documento.
      */
-    const [lectura, setLectura] = useState(false);
+    const [lectura, setLectura] = useState(() => recordado?.lectura ?? false);
     /** Nombres que ya se aceptó tapar en este cuaderno; ver `ejecutar`. */
     const tapadosOk = useRef(new Set());
     const dialog = useDialog();
@@ -203,8 +203,8 @@ const CuadernoEditor = ({
     }, [content]);
     // Va DESPUÉS del efecto de arriba: `ultimoTexto` ya es el texto de este `doc`.
     useEffect(() => {
-        recordarCuaderno(tabId, { contenido: ultimoTexto.current, doc, resultados, ejecuciones });
-    }, [tabId, doc, resultados, ejecuciones]);
+        recordarCuaderno(tabId, { contenido: ultimoTexto.current, doc, resultados, ejecuciones, estados, lectura });
+    }, [tabId, doc, resultados, ejecuciones, estados, lectura]);
 
     // ── el estado visual, en su archivo aparte ──────────────────────────────
     const guardarEstado = useRef(null);
@@ -246,6 +246,9 @@ const CuadernoEditor = ({
                 if (!vivo || !s || typeof s !== 'object') return;
                 const { celdas, lectura: guardada, ...resto } = s;
                 ajeno.current = resto;
+                // Al volver a la pestaña manda la memoria: el archivo de estado se
+                // escribe 800 ms después y puede no tener aún el último cambio.
+                if (recordado) return;
                 if (celdas) setEstados(celdas);
                 if (typeof guardada === 'boolean') setLectura(guardada);
             })
