@@ -56,7 +56,7 @@ import { buildSlideRaw } from '../../utils/deckTemplates';
 import { serializeDeck } from '../../utils/deckParser';
 import './cuaderno.css';
 import { PromoverAModelo } from '../dbt/PuenteDbt';
-import { fijarProveedorDeFoco, fijarAplicador } from '../../utils/memoriaDePestana.js';
+import { fijarProveedorDeFoco, fijarAplicador, recordarCuaderno, cuadernoRecordado } from '../../utils/memoriaDePestana.js';
 import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
 import { estructuraDeCuaderno, ubicarCelda, aplicarACeldas, esDeCelda, describirCelda } from '../ai/archivos/cuaderno.js';
 import { RevisionDeCelda, CeldaFantasma } from './PropuestaEnCuaderno.jsx';
@@ -114,7 +114,9 @@ const CuadernoEditor = ({
     onOpenFile,
     tabId = null,     // E3: la pestaña, para que el Assistant sepa en qué celda está
 }) => {
-    const [doc, setDoc] = useState(() => leerCuaderno(content));
+    // 6.0.1: al volver a la pestaña, lo que tenía en memoria (ver `memoriaDePestana`).
+    const [recordado] = useState(() => cuadernoRecordado(tabId, content));
+    const [doc, setDoc] = useState(() => recordado?.doc ?? leerCuaderno(content));
     // 5.12 (I6): ¿el cuaderno está en un proyecto dbt? Entonces una celda se puede promover a modelo.
     const [proyectoDbt, setProyectoDbt] = useState(false);
     const [promoviendo, setPromoviendo] = useState(null);   // la celda
@@ -122,7 +124,7 @@ const CuadernoEditor = ({
         if (!filePath) return;
         fetch(`${API_BASE}/api/dbt/modelo?archivo=${encodeURIComponent(filePath)}`).then(r => r.json()).then(d => setProyectoDbt(!!(d?.proyectoDbt || d?.esDbt))).catch(() => {});
     }, [filePath]);
-    const [resultados, setResultados] = useState({});
+    const [resultados, setResultados] = useState(() => recordado?.resultados ?? {});
     const [estados, setEstados] = useState({});
     const [corriendo, setCorriendo] = useState(null);
     const [seleccionada, setSeleccionada] = useState(null);
@@ -142,7 +144,7 @@ const CuadernoEditor = ({
      * reabrir mañana las celdas se dieran por ejecutadas mientras la sesión está
      * vacía — la mentira exacta que la barra derecha existe para no contar.
      */
-    const [ejecuciones, setEjecuciones] = useState({});
+    const [ejecuciones, setEjecuciones] = useState(() => recordado?.ejecuciones ?? {});
     /** La celda que ocupa la pestaña entera, o `null`. */
     const [aPantalla, setAPantalla] = useState(null);
     /** `null`, `'word'` o `'tablero'` mientras se saca algo del cuaderno. */
@@ -199,6 +201,10 @@ const CuadernoEditor = ({
         ultimoTexto.current = content;
         setDoc(leerCuaderno(content));
     }, [content]);
+    // Va DESPUÉS del efecto de arriba: `ultimoTexto` ya es el texto de este `doc`.
+    useEffect(() => {
+        recordarCuaderno(tabId, { contenido: ultimoTexto.current, doc, resultados, ejecuciones });
+    }, [tabId, doc, resultados, ejecuciones]);
 
     // ── el estado visual, en su archivo aparte ──────────────────────────────
     const guardarEstado = useRef(null);
@@ -366,11 +372,22 @@ const CuadernoEditor = ({
 
     // ── análisis de cada celda: de aquí salen la descripción y el grafo. Se
     //    recalcula sólo cuando cambia el SQL. ─────────────────────────────────
+    //    6.0.1: y una celda cuyo SQL no cambió conserva SU objeto: si no, una
+    //    tecla en una celda le daba un análisis «nuevo» a las diez y las diez se
+    //    volvían a pintar.
+    const analisisPrevio = useRef({ textos: {}, mapa: {} });
     const analisis = useMemo(() => {
+        const antes = analisisPrevio.current;
         const mapa = {};
+        const textos = {};
         for (const c of doc.celdas) {
-            if (c.tipo === 'sql') mapa[c.id] = analizarCelda(c.contenido);
+            if (c.tipo !== 'sql') continue;
+            textos[c.id] = c.contenido;
+            mapa[c.id] = antes.textos[c.id] === c.contenido && antes.mapa[c.id]
+                ? antes.mapa[c.id]
+                : analizarCelda(c.contenido);
         }
+        analisisPrevio.current = { textos, mapa };
         return mapa;
     }, [doc.celdas]);
 
@@ -684,6 +701,20 @@ const CuadernoEditor = ({
     }, [doc.celdas, doc.meta, cambiarCelda, dialog, editorSettings, refrescarVistas, onEjecutada]);
 
     /**
+     * Lo que reciben las celdas, con identidad fija (6.0.1).
+     *
+     * `cambiarCelda` y `ejecutar` dependen del documento —cambian con cada
+     * tecla— y, por `onChange`, de cada pintado de la pestaña. Pasados tal cual,
+     * escribir una letra en una celda volvía a pintar las diez, con su editor
+     * dentro, y abrir el panel Data también. Estas dos llaman siempre a la
+     * versión al día, así que nunca cambian.
+     */
+    const alDiaCeldas = useRef(null);
+    alDiaCeldas.current = { cambiarCelda, ejecutar };
+    const cambiarCeldaFija = useCallback((id, campos) => alDiaCeldas.current.cambiarCelda(id, campos), []);
+    const ejecutarFija = useCallback((id) => alDiaCeldas.current.ejecutar(id), []);
+
+    /**
      * Ejecuta lo que no está al día, en orden de dependencia.
      *
      * ## Por qué esto sustituye a «ejecutar todo» y a «ejecutar hacia abajo»
@@ -908,9 +939,9 @@ const CuadernoEditor = ({
                     corriendo={corriendo === ampliada.id}
                     theme={theme}
                     editorSettings={editorSettings}
-                    onCambiar={cambiarCelda}
+                    onCambiar={cambiarCeldaFija}
                     onEstado={cambiarEstado}
-                    onEjecutar={ejecutar}
+                    onEjecutar={ejecutarFija}
                     onCerrar={volver}
                     onCreateNew={onCreateNew}
                 />
@@ -1084,8 +1115,8 @@ const CuadernoEditor = ({
                                 estado={estados[claves[c.id]]}
                                 corriendo={corriendo === c.id}
                                 onEstado={cambiarEstado}
-                                onEjecutar={ejecutar}
-                                onCambiar={cambiarCelda}
+                                onEjecutar={ejecutarFija}
+                                onCambiar={cambiarCeldaFija}
                                 onSubir={subir}
                                 onBajar={bajar}
                                 onBorrar={borrar}
@@ -1099,7 +1130,7 @@ const CuadernoEditor = ({
                                     estado={estados[claves[c.id]]}
                                     escribiendo={escribiendo === c.id}
                                     lectura={lectura}
-                                    onCambiar={cambiarCelda}
+                                    onCambiar={cambiarCeldaFija}
                                     onEscribir={setEscribiendo}
                                     onAsistir={tabId ? asistirCelda : undefined}
                                     resultadoArriba={i > 0 && doc.celdas[i - 1].tipo === 'sql' && !!resultados[doc.celdas[i - 1].id]?.data?.length}
@@ -1117,11 +1148,11 @@ const CuadernoEditor = ({
                                     estado={estados[claves[c.id]]}
                                     theme={theme}
                                     editorSettings={editorSettings}
-                                    onCambiar={cambiarCelda}
+                                    onCambiar={cambiarCeldaFija}
                                     onEstado={cambiarEstado}
-                                    onEjecutar={ejecutar}
+                                    onEjecutar={ejecutarFija}
                                     onCreateNew={onCreateNew}
-                                    onPromover={proyectoDbt && !lectura ? () => setPromoviendo(c) : null}
+                                    onPromover={proyectoDbt && !lectura ? setPromoviendo : null}
                                     onAsistir={tabId ? asistirCelda : null}
                                 />
                             )}

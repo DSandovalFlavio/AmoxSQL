@@ -399,6 +399,63 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         disposablesRef.current.forEach(d => d && d.dispose && d.dispose());
         disposablesRef.current = [];
 
+        /*
+         * El tamaño lo da el observador, no el editor (6.0.1).
+         *
+         * Con `automaticLayout` cada editor, al cambiar su caja, MIDE el DOM
+         * (`clientWidth`), y medir obliga al navegador a recalcular todo lo que
+         * esté pendiente en la página. Un cuaderno con diez celdas son diez
+         * editores midiendo uno tras otro, y entre medida y medida diez tablas de
+         * resultados que recalcular: 50–130 ms por fotograma al abrir o cerrar la
+         * barra lateral. Aquí el tamaño llega YA medido en la entrada del
+         * observador y se le pasa al editor, que así sólo escribe: todos los
+         * editores de la página se ajustan en una sola pasada de diseño.
+         */
+        const caja = editor.getContainerDomNode();
+        if (caja && typeof ResizeObserver !== 'undefined') {
+            /*
+             * Con `ajusteDiferido` (las celdas del cuaderno) además se espera:
+             * reajustar un editor es redibujarlo, y diez a la vez en cada
+             * fotograma de la animación de la barra son 200 ms por fotograma.
+             * Así que el que se ve se ajusta una vez, cuando el tamaño deja de
+             * cambiar; el que no se ve, cuando vuelva a verse. Mientras tanto
+             * conserva su ancho anterior, recortado por su caja.
+             */
+            const diferido = !!props.ajusteDiferido;
+            let ultimo = '';
+            let pendiente = null;
+            let visible = true;
+            let reloj = null;
+            const aplicar = () => {
+                reloj = null;
+                if (!pendiente) return;
+                const { width, height } = pendiente;
+                pendiente = null;
+                const clave = `${width}x${height}`;
+                if (clave === ultimo) return;
+                ultimo = clave;
+                editor.layout({ width, height });
+            };
+            const ro = new ResizeObserver(([e]) => {
+                pendiente = { width: Math.floor(e.contentRect.width), height: Math.floor(e.contentRect.height) };
+                // Sin esperar si aún no tuvo un tamaño de verdad (se creó en una
+                // celda apagada, a 5 px): se ajusta antes de pintarse por primera vez.
+                if (!diferido || !ultimo || parseInt(ultimo, 10) < 20) { aplicar(); return; }
+                if (reloj) clearTimeout(reloj);
+                if (visible) reloj = setTimeout(aplicar, 150);
+            });
+            ro.observe(caja);
+            disposablesRef.current.push({ dispose: () => { ro.disconnect(); if (reloj) clearTimeout(reloj); } });
+            if (diferido && typeof IntersectionObserver !== 'undefined') {
+                const io = new IntersectionObserver(([e]) => {
+                    visible = e.isIntersecting;
+                    if (visible && pendiente && !reloj) reloj = setTimeout(aplicar, 0);
+                }, { rootMargin: '100% 0px' });
+                io.observe(caja);
+                disposablesRef.current.push({ dispose: () => io.disconnect() });
+            }
+        }
+
         // El modelo de esta pestaña, si ya lo tenía: vuelve con su historia.
         const tabIdAlMontar = tabIdActualRef.current;
         if (tabIdAlMontar) activeTabIdRef.current = tabIdAlMontar;
@@ -1280,7 +1337,8 @@ const SqlEditor = ({ value, onChange, ...props }) => {
                 guides: { bracketPairs: es.bracketPairsGuides ?? true },
                 formatOnPaste: es.formatOnPaste ?? false,
                 lineHeight: es.lineHeight ?? 0,
-                automaticLayout: true,
+                // Lo ajusta el observador de `handleEditorDidMount`, sin medir el DOM.
+                automaticLayout: false,
                 padding: { top: 16 },
                 scrollBeyondLastLine: false,
                 glyphMargin: true,

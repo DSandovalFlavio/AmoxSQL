@@ -29,7 +29,7 @@ import { LuDatabase, LuLayers, LuTriangleAlert, LuHistory, LuArrowUpFromLine, Lu
 import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
 import { MODOS } from './modos.js';
-import { useCerca } from './useCerca.js';
+import { useCerca, useLejos } from './useCerca.js';
 import { CANVAS_SIZES } from '../DataVisualizer/constants';
 
 // Medido contra la tabla de resultados de verdad, no estimado: la fila de
@@ -87,7 +87,7 @@ const Celda = ({
     theme,
     editorSettings,
     onCambiar,        // (id, campos)
-    onPromover = null, // 5.12 (I6): () -> promover esta celda a modelo de dbt
+    onPromover = null, // 5.12 (I6): (celda) -> promover esta celda a modelo de dbt
     onEstado,         // (id, parcial)
     onEjecutar,       // (id)
     onCreateNew,
@@ -127,6 +127,7 @@ const Celda = ({
      * `useCerca.js`, y el turno que reparte el cuaderno, en `CuadernoEditor`.
      */
     const cerca = useCerca(raiz, precalentada);
+    useLejos(raiz);
 
     /**
      * El tirador mueve el reparto de ESTA celda, no el del documento.
@@ -156,6 +157,10 @@ const Celda = ({
         window.addEventListener('mousemove', mover);
         window.addEventListener('mouseup', soltar);
     }, [celda.id, onEstado]);
+
+    // Al editor, con identidad fija: `onCambiar` y `onEjecutar` ya lo son.
+    const alEscribir = useCallback((v) => onCambiar(celda.id, { contenido: v ?? '' }), [celda.id, onCambiar]);
+    const alEjecutar = useCallback(() => onEjecutar(celda.id), [celda.id, onEjecutar]);
 
     /**
      * Los callbacks que van a `ResultsTable` **no pueden nacer en el render**.
@@ -266,7 +271,7 @@ const Celda = ({
                 )}
                 <span className="cdn-sp" />
                 {onPromover && (
-                    <button type="button" className="cdn-promover" onClick={onPromover} title="Promote this cell to a dbt model">
+                    <button type="button" className="cdn-promover" onClick={() => onPromover(celda)} title="Promote this cell to a dbt model">
                         <LuArrowUpFromLine size={11} /> dbt
                     </button>
                 )}
@@ -341,10 +346,11 @@ const Celda = ({
                             tabId={celda.id}
                             value={celda.contenido}
                             language="sql"
-                            onChange={(v) => onCambiar(celda.id, { contenido: v ?? '' })}
-                            onRunQuery={() => onEjecutar(celda.id)}
+                            onChange={alEscribir}
+                            onRunQuery={alEjecutar}
                             theme={theme}
                             editorSettings={editorSettings}
+                            ajusteDiferido
                         />}
                     </div>
                 )}

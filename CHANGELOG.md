@@ -11,6 +11,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 - **Extensions ocupa el panel entero** al abrirla: antes compartía la mitad del panel Data con las tablas y se quedaba en un trozo. Se abre con la pieza de la cabecera de Data o con «Extensions» abajo, y «← Data» vuelve a las tablas.
 - **La galería de gráficos pasa a Help › Story Flow** (y sigue en Ctrl+K › Open Chart Gallery). Tras la reorganización de la barra lateral sólo se llegaba desde la paleta.
 
+### Arreglado
+- **Un cuaderno con varias celdas ejecutadas ya no traba la aplicación.** Con diez celdas de 30 filas, abrir o cerrar la barra lateral bloqueaba 130–280 ms por clic; ahora 0. Tres causas: cada editor medía la página por su cuenta (`automaticLayout`) y obligaba a recalcular todas las tablas; en el cuaderno los diez se redibujaban a la vez en cada fotograma de la animación (ahora el que se ve se ajusta una vez al terminar, y el que no, al volver a verse); y las celdas lejos de la vista se seguían maquetando (ahora llevan `content-visibility: hidden`, sin desmontarse). Además, escribir en una celda o abrir el panel Data ya no vuelve a pintar las demás.
+- **Cambiar de pestaña ya no borra los resultados del cuaderno**: al volver, cada celda conserva lo que había devuelto (`memoriaDePestana`), mientras el archivo no haya cambiado por fuera.
+
 ---
 
 ## [6.0.0] — 2026-11-14 — El motor nuevo (DuckDB 2.0)
