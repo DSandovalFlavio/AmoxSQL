@@ -5,6 +5,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [Unreleased] — 6.0.1
+
+### Cambiado
+- **Extensions ocupa el panel entero** al abrirla: antes compartía la mitad del panel Data con las tablas y se quedaba en un trozo. Se abre con la pieza de la cabecera de Data o con «Extensions» abajo, y «← Data» vuelve a las tablas.
+- **La galería de gráficos pasa a Help › Story Flow** (y sigue en Ctrl+K › Open Chart Gallery). Tras la reorganización de la barra lateral sólo se llegaba desde la paleta.
+
+---
+
 ## [6.0.0] — 2026-11-14 — El motor nuevo (DuckDB 2.0)
 
 AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS** (cliente `@duckdb/node-api` 2.0.0-r.1). Se publica con la 2.0.0 sin esperar a la 2.0.1. Plan en `docs/dev/plan_6_0_duckdb_2.md`. Reúne además la 5.16 a la 5.19, que no se publicaron por separado: la última versión publicada era la 5.15.1.

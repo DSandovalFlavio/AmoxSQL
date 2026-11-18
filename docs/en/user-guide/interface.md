@@ -22,13 +22,13 @@ Seven entries that swap the side panel's content (since 6.0; before, fifteen sep
 |---|---|
 | **Files** | The project [file explorer](../data/file-explorer.md). **+ New** creates any kind of file or a folder; **…** sorts the list |
 | **Search** | Search across the project |
-| **Data** | The [database explorer](../data/database-explorer.md): sources, destinations, schemas and tables. Folded at the bottom, the [DuckDB extensions](../data/duckdb-extensions.md) |
+| **Data** | The [database explorer](../data/database-explorer.md): sources, destinations, schemas and tables. The [DuckDB extensions](../data/duckdb-extensions.md) open with the puzzle piece in its header or with "Extensions" at the bottom, and take the whole panel; "← Data" goes back to the tables |
 | **Library** | Four tabs: **Snippets** ([SQL snippets](../editor/snippets.md) and project variables), **Functions** (function reference), **History** ([history](../editor/history-and-bookmarks.md)) and **Saved** ([saved analyses](../ai/analysis-vault.md)). It reopens on the last one you used |
 | **dbt** | [DBT Studio](../dbt/dbt-studio.md). Only shown when the folder has a `dbt_project.yml` |
 | **Git** | The project's Git status. Only shown when the folder is a repository |
 | **Deep Dive** | [Deep agentic analysis](../ai/deep-dive.md) |
 
-At the bottom: fold the side panel (**Ctrl+B**) and **Settings**. The **Chart Gallery** and **New Data Flow** left the bar: they are actions, and they are still in the tabs' "+", on a new file's screen and in the palette (**Ctrl+K**). The palette also opens each panel directly (for example "Show Query History", or "Show DBT Studio" even before the folder is a dbt project).
+At the bottom: fold the side panel (**Ctrl+B**) and **Settings**. **New Data Flow** left the bar: it is in the tabs' "+", on a new file's screen and in the palette (**Ctrl+K**). The **Chart Gallery** is in **Help › Story Flow** (**Ctrl+Shift+/**) and in the palette ("Open Chart Gallery"). The palette also opens each panel directly (for example "Show Query History", or "Show DBT Studio" even before the folder is a dbt project).
 
 To see each icon's name under it: **Settings → Appearance → Activity Bar → Show names under the icons**. Shortcuts did not change (**Ctrl+Shift+E** files, **Ctrl+Shift+F** search, **Ctrl+Shift+D** data).
 

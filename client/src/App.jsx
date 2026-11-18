@@ -37,7 +37,7 @@ const DataQualityModal    = lazy(() => import('./components/DataQualityModal'));
 const SchemaDiffModal     = lazy(() => import('./components/SchemaDiffModal'));
 const SettingsModal       = lazy(() => import('./components/SettingsModal'));
 const ChartGalleryModal   = lazy(() => import('./components/ChartGalleryModal'));
-import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink, LuSearch, LuPin, LuLibraryBig, LuChevronRight } from "react-icons/lu";
+import { LuBot, LuX, LuPlay, LuSave, LuActivity, LuSettings, LuFolder, LuDatabase, LuFilePlus, LuPuzzle, LuCode, LuHistory, LuPanelLeftClose, LuPanelLeftOpen, LuLink, LuContainer, LuFileText, LuSparkles, LuPackage, LuZap, LuLayoutGrid, LuGitBranch, LuSquareFunction, LuPencil, LuClipboardCopy, LuFolderOpen, LuArrowLeftRight, LuCopyPlus, LuUnlink, LuSearch, LuPin, LuLibraryBig, LuChevronRight, LuArrowLeft } from "react-icons/lu";
 const AnalysisVault = lazy(() => import('./components/ai/AnalysisVault'));
 // Paneles del lateral y diálogos que no hacen falta al arrancar: cada uno en su trozo (6.0, M8).
 const ExtensionExplorer = lazy(() => import('./components/ExtensionExplorer'));
@@ -64,7 +64,7 @@ import './index.css';
 import PopoutResultsPage from './components/PopoutResultsPage';
 import { escribirAmoxvis } from './components/DataVisualizer/vega/figura';
 import { focoDe } from './utils/memoriaDePestana';
-import { emitir } from './eventos.js';
+import { emitir, escuchar } from './eventos.js';
 
 /** Una entrada del menú de una pestaña: icono, texto y, si lo tiene, su atajo. */
 function EntradaMenuPestana({ icono: Icono, texto, atajo, onClick }) {
@@ -256,6 +256,8 @@ function Shell() {
 
   // Help (6.0, M8): los atajos y las guías, fuera de Settings. `detail` es la sección.
   const [ayuda, setAyuda] = useState(null);
+  // 6.0.1: la galería salió de la vista diaria; Help › Story Flow la abre.
+  useEffect(() => escuchar('amox_abrir_galeria', () => { setAyuda(null); setIsGalleryOpen(true); }), []);
   useEffect(() => {
     const abrir = (e) => setAyuda(e.detail || 'shortcuts');
     window.addEventListener('amox_abrir_ayuda', abrir);
@@ -1456,7 +1458,9 @@ function Shell() {
                 Extensions folded at the bottom — they belong to the engine and are seldom looked at. */}
             {(visitedSidebarTabs.has('schema') || visitedSidebarTabs.has('extensions')) && (
               <div className={grupoActivo === 'data' ? 'sidebar-keepalive--show' : undefined} style={{ flex: 1, display: grupoActivo === 'data' ? 'flex' : 'none', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                {/* 6.0.1: abrir Extensions es para usarlas, así que toman el panel entero
+                    (el explorador sigue montado, oculto) y «Data» vuelve. */}
+                <div className={extensionesAbiertas ? 'sidebar-oculto' : 'sidebar-relleno'}>
                   <DatabaseExplorer
                     currentDb={currentDb}
                     onRefresh={refreshDbTrigger}
@@ -1464,6 +1468,7 @@ function Shell() {
                     onSelectQuery={handleCreateSqlTab}
                     onQualityCheck={handleOpenQualityCheck}
                     onOpenErDiagram={handleOpenErDiagram}
+                    onAbrirExtensiones={() => setExtensionesAbiertas(true)}
                   />
                 </div>
                 <div className={`sidebar-seccion-plegable ${extensionesAbiertas ? 'sidebar-seccion-plegable--abierta' : ''}`}>
@@ -1471,10 +1476,11 @@ function Shell() {
                     className="sidebar-seccion-plegable__cabecera"
                     onClick={() => setExtensionesAbiertas(v => !v)}
                     aria-expanded={extensionesAbiertas}
+                    title={extensionesAbiertas ? 'Back to the tables' : 'DuckDB extensions: install and load'}
                   >
-                    <LuChevronRight size={12} className="sidebar-seccion-plegable__flecha" />
-                    <LuPuzzle size={13} />
-                    Extensions
+                    {extensionesAbiertas
+                      ? <><LuArrowLeft size={13} /> Data</>
+                      : <><LuChevronRight size={12} className="sidebar-seccion-plegable__flecha" /><LuPuzzle size={13} /> Extensions</>}
                   </button>
                   {extensionesAbiertas && (
                     <div className="sidebar-seccion-plegable__cuerpo">
