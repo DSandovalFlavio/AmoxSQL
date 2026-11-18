@@ -1,5 +1,6 @@
 /**
- * Una celda de código: editor a la izquierda, resultado a la derecha.
+ * Una celda de código: el editor arriba y el resultado debajo (6.0.1); lado a
+ * lado, si se pide desde el menú de la celda.
  *
  * ## La cabecera sólo IDENTIFICA
  *
@@ -18,14 +19,17 @@
  * un fallo, porque no lo es: hay celdas que están para cargar o para escribir. Y
  * si escribe en el disco lo avisa aparte, porque eso no se deshace al cerrar.
  *
- * ## La altura no es negociable
+ * ## La altura se sabe sin montar nada
  *
- * 520 px, fijos. Si la consulta tiene cuarenta líneas, se desplaza por dentro:
- * la vía de escape es la pantalla completa, no que la celda crezca. Con celdas
- * que crecen, un cuaderno de veinte deja de poder recorrerse.
+ * Lado a lado mide 520 px fijos. Apilada (6.0.1, lo normal) mide lo que pide su
+ * contenido —las líneas del SQL y las filas del resultado— con topes, y esa
+ * cuenta sale de datos que ya están en memoria: el hueco de una celda mide lo
+ * mismo esté montada o no, así que el desplazamiento no salta. Si la consulta
+ * pasa del tope, se desplaza por dentro; la vía de escape es la pantalla
+ * completa o el tirador.
  */
-import { memo, useCallback, useRef, useState } from 'react';
-import { LuDatabase, LuLayers, LuTriangleAlert, LuHistory, LuArrowUpFromLine, LuPencilLine, LuWrench } from 'react-icons/lu';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { LuDatabase, LuLayers, LuTriangleAlert, LuHistory, LuArrowUpFromLine, LuPencilLine, LuWrench, LuPlay, LuCircleAlert } from 'react-icons/lu';
 import SqlEditor from '../SqlEditor';
 import ResultsTable from '../ResultsTable';
 import { MODOS } from './modos.js';
@@ -48,6 +52,86 @@ const ALTO_PIE = 21;            // el pie de páginas, sólo con más de una
  * una tabla que cabía entera. No son simétricos.
  */
 const HOLGURA_TABLA = 10;
+
+/*
+ * Apilada (6.0.1): las medidas del editor y del resultado. El editor de SQL usa
+ * 14 px de letra (19 de línea) y 16 de aire arriba; 14 más abajo dejan sitio a la
+ * barra de desplazamiento horizontal.
+ */
+const ALTO_LINEA = 19;
+const AIRE_EDITOR = 16 + 14;
+const LINEAS_MIN = 3;
+const LINEAS_MAX = 16;
+const ALTO_TIRADOR = 7;
+// La barra de herramientas de la tabla, al editar: dos filas en una celda de
+// menos de ~700 px (medido: 73). En una más ancha cabe en una y sobra un dedo.
+const ALTO_BARRA_RES = 73;
+const FILAS_MAX = 10;           // las que se ven sin desplazarse dentro
+const ALTO_SIN_RES = 44;        // «Not run yet»
+const ALTO_ERROR = 132;
+const ALTO_GRAFICO = 520;
+
+/** El alto del editor apilado: sus líneas, entre 3 y 16. */
+function altoDeEditor(sql) {
+    const lineas = String(sql || '').split('\n').length;
+    return Math.min(LINEAS_MAX, Math.max(LINEAS_MIN, lineas)) * ALTO_LINEA + AIRE_EDITOR;
+}
+
+/** El alto del resultado apilado, sin montarlo. */
+function altoDeResultado(resultado, vista) {
+    if (!resultado) return ALTO_SIN_RES;
+    if (resultado.faltan?.length) return 96 + 34 * Math.min(resultado.faltan.length, 4);
+    if (resultado.error) return ALTO_ERROR;
+    if (!resultado.data) return ALTO_SIN_RES;
+    if (vista === 'chart') return ALTO_GRAFICO;
+    const filas = resultado.data.length;
+    const enPantalla = Math.max(1, Math.min(filas, FILAS_MAX));
+    const pie = filas > 50 ? ALTO_PIE : 0;
+    return ALTO_BARRA_RES + ALTO_CABEZA_TABLA + enPantalla * ALTO_FILA + pie + HOLGURA_TABLA;
+}
+
+/**
+ * Un parámetro sin valor (6.0.1, U17): se dice cuál y se le da ahí mismo. La
+ * celda no llegó al motor, así que no hay un error que leer.
+ */
+function SinValor({ faltan, onDar }) {
+    const [valores, setValores] = useState({});
+    const listo = faltan.every((n) => String(valores[n] ?? '').trim());
+    const dar = (e) => {
+        e.preventDefault();
+        if (!listo || !onDar) return;
+        onDar(Object.fromEntries(faltan.map((n) => [n, String(valores[n]).trim()])));
+    };
+    return (
+        <form className="cdn-sinvalor" onSubmit={dar}>
+            <div className="cdn-sinvalor-titulo">
+                <LuCircleAlert size={13} />
+                {faltan.length === 1
+                    ? <span><code>{`{{${faltan[0]}}}`}</code> has no value yet</span>
+                    : <span>{faltan.length} parameters have no value yet</span>}
+            </div>
+            {faltan.slice(0, 4).map((n) => (
+                <label key={n} className="cdn-sinvalor-fila">
+                    <code>{n}</code>
+                    <input
+                        className="input-field"
+                        value={valores[n] ?? ''}
+                        placeholder="value"
+                        onChange={(e) => setValores((v) => ({ ...v, [n]: e.target.value }))}
+                        autoFocus={n === faltan[0]}
+                    />
+                </label>
+            ))}
+            {onDar && (
+                <div>
+                    <button type="submit" className="btn-primario btn--peq" disabled={!listo}>
+                        <LuPlay size={11} /> Set and run
+                    </button>
+                </div>
+            )}
+        </form>
+    );
+}
 
 /**
  * El alto que pide una figura de Story Flow, **sin montarla**.
@@ -92,6 +176,11 @@ const Celda = ({
     onEjecutar,       // (id)
     onCreateNew,
     onAsistir = null, // E3: (id, accion) -> la pregunta al Assistant sobre esta celda
+    onSeguir = null,   // 6.0.1: (id) Shift+Enter, ejecutar y pasar a la siguiente
+    onInsertar = null, // 6.0.1: (id) Alt+Enter, ejecutar e insertar una debajo
+    onTodo = null,     // 6.0.1: Ctrl+Shift+Enter, ejecutar todo
+    onParametro = null, // 6.0.1: (valores, idCelda) dar valor a los parámetros y volver a ejecutar
+    focoPedido = 0,    // 6.0.1: cambia cuando el cuaderno quiere el foco en esta celda
 }) => {
     /**
      * En lectura manda el cuaderno, no la celda.
@@ -111,6 +200,8 @@ const Celda = ({
      * cortas. El tirador sigue estando: esto es sólo de dónde se parte.
      */
     const reparto = estado.reparto ?? 0.4;
+    /** 6.0.1 (U5): apilada salvo que se pida lado a lado desde el menú de la celda. */
+    const apilada = !estado.lado;
     const raiz = useRef(null);
     const [arrastrando, setArrastrando] = useState(false);
     /**
@@ -143,10 +234,13 @@ const Celda = ({
         setArrastrando(true);
         const mover = (ev) => {
             const caja = cuerpo.getBoundingClientRect();
-            const apilado = window.innerWidth <= 1080;
-            const frac = apilado
-                ? (ev.clientY - caja.top) / caja.height
-                : (ev.clientX - caja.left) / caja.width;
+            // Apilada, el tirador fija el alto del editor en píxeles: la celda
+            // crece o mengua con él, no se reparte un alto fijo.
+            if (apilada) {
+                onEstado(celda.id, { altoEditor: Math.round(Math.min(640, Math.max(60, ev.clientY - caja.top))) });
+                return;
+            }
+            const frac = (ev.clientX - caja.left) / caja.width;
             onEstado(celda.id, { reparto: Math.min(0.85, Math.max(0.15, frac)) });
         };
         const soltar = () => {
@@ -156,11 +250,19 @@ const Celda = ({
         };
         window.addEventListener('mousemove', mover);
         window.addEventListener('mouseup', soltar);
-    }, [celda.id, onEstado]);
+    }, [celda.id, onEstado, apilada]);
 
     // Al editor, con identidad fija: `onCambiar` y `onEjecutar` ya lo son.
     const alEscribir = useCallback((v) => onCambiar(celda.id, { contenido: v ?? '' }), [celda.id, onCambiar]);
     const alEjecutar = useCallback(() => onEjecutar(celda.id), [celda.id, onEjecutar]);
+    const alSeguir = useCallback(() => onSeguir?.(celda.id), [celda.id, onSeguir]);
+    const alInsertar = useCallback(() => onInsertar?.(celda.id), [celda.id, onInsertar]);
+    const alTodo = useCallback(() => onTodo?.(), [onTodo]);
+
+    /** La línea del error, marcada en el editor (6.0.1, U12). */
+    const marcaDeError = useMemo(() => (
+        resultado?.lineaError ? { line: resultado.lineaError, column: 1, message: resultado.error } : null
+    ), [resultado?.lineaError, resultado?.error]);
 
     /**
      * Los callbacks que van a `ResultsTable` **no pueden nacer en el render**.
@@ -209,8 +311,9 @@ const Celda = ({
      * ahí el espacio no sobra, se usa.
      */
     const altoDeLectura = () => {
-        if (!lectura) return undefined;
-        if (!resultado?.data?.length) return undefined;
+        if (!lectura) return altoAlEditar();
+        // Sin filas (no corrió, falló o salió vacía): una línea que lo dice.
+        if (!resultado?.data?.length) return `${ALTO_CAB + ALTO_SIN_RES}px`;
 
         // Una figura pide lo que pide. Si no se le da, la tarjeta no cabe en la
         // celda y aparece una barra de desplazamiento DENTRO del gráfico, que en
@@ -233,6 +336,19 @@ const Celda = ({
 
     /** En lectura, una figura y una tabla no se presentan igual. */
     const esFigura = estado.vista === 'chart';
+
+    /**
+     * Al editar y apilada: cabecera + editor + tirador + resultado, sin montar
+     * nada. Lado a lado se queda con su alto fijo (`--cdn-alto`).
+     */
+    const altoEditor = estado.altoEditor || altoDeEditor(celda.contenido);
+    function altoAlEditar() {
+        if (!apilada) return undefined;
+        const res = altoDeResultado(resultado, estado.vista);
+        if (modo === MODOS.CODIGO) return `${ALTO_CAB + altoEditor}px`;
+        if (modo === MODOS.RESULTADO) return `${ALTO_CAB + res}px`;
+        return `${ALTO_CAB + altoEditor + ALTO_TIRADOR + res}px`;
+    }
 
     const soloUno = modo !== MODOS.AMBOS;
     /** En lectura la cabecera es un pie de figura: nombre y descripción, nada más. */
@@ -337,8 +453,10 @@ const Celda = ({
             </div>
 
             <div
-                className={`cdn-cuerpo${soloUno ? ' cdn-cuerpo--solo' : ''}`}
-                style={soloUno ? undefined : { '--cdn-izq': `${reparto}fr`, '--cdn-der': `${1 - reparto}fr` }}
+                className={`cdn-cuerpo${soloUno ? ' cdn-cuerpo--solo' : ''}${apilada ? ' cdn-cuerpo--apilado' : ''}`}
+                style={soloUno ? undefined : apilada
+                    ? { '--cdn-alto-editor': `${altoEditor}px` }
+                    : { '--cdn-izq': `${reparto}fr`, '--cdn-der': `${1 - reparto}fr` }}
             >
                 {modo !== MODOS.RESULTADO && (
                     <div className="cdn-editor">
@@ -348,6 +466,11 @@ const Celda = ({
                             language="sql"
                             onChange={alEscribir}
                             onRunQuery={alEjecutar}
+                            onRunAndNext={onSeguir ? alSeguir : undefined}
+                            onRunAndInsert={onInsertar ? alInsertar : undefined}
+                            onRunAll={onTodo ? alTodo : undefined}
+                            errorMarker={marcaDeError}
+                            focoPedido={focoPedido}
                             theme={theme}
                             editorSettings={editorSettings}
                             ajusteDiferido
@@ -365,7 +488,12 @@ const Celda = ({
 
                 {modo !== MODOS.CODIGO && (
                     <div className="cdn-res">
-                        {!cerca ? null : resultado?.error ? (
+                        {!cerca ? null : lectura && (resultado?.error || resultado?.faltan) ? (
+                            /* 6.0.1 (U16): leyendo no se enseña el error del motor. */
+                            <div className="cdn-vacio">This step failed. Switch to Edit to see why.</div>
+                        ) : resultado?.faltan?.length ? (
+                            <SinValor faltan={resultado.faltan} onDar={onParametro ? (valores) => onParametro(valores, celda.id) : null} />
+                        ) : resultado?.error ? (
                             <div className="cdn-error">
                                 {resultado.error}
                                 {/* E3: el error es una puerta al Assistant, que ya lo conoce. */}

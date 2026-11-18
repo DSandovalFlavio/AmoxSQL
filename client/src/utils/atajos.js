@@ -41,6 +41,8 @@ export const ATAJOS = [
     A('historial', 'Ctrl+Shift+H', 'Queries', 'Query history', 'Historial de consultas'),
     A('ambos', 'Ctrl+Shift+R', 'Queries', 'Run both split panes', 'Ejecutar los dos paneles'),
     A('todas', 'Ctrl+Shift+Enter', 'Queries', 'Run all cells', 'Ejecutar todas las celdas', { donde: 'cuaderno' }),
+    A('celdaSiguiente', 'Shift+Enter', 'Queries', 'Notebook: run the cell and go to the next one', 'Cuaderno: ejecutar la celda y pasar a la siguiente', { donde: 'cuaderno' }),
+    A('celdaDebajo', 'Alt+Enter', 'Queries', 'Notebook: run the cell and insert one below', 'Cuaderno: ejecutar la celda e insertar una debajo', { donde: 'cuaderno' }),
 
     A('cerrar', 'Ctrl+W', 'Tabs', 'Close the tab', 'Cerrar la pestaña'),
     A('reabrir', 'Ctrl+Shift+T', 'Tabs', 'Reopen the last one you closed', 'Reabrir la última que cerraste'),

@@ -31,7 +31,7 @@ salidas ([Word y tablero](reports.md)).
 
 ### La celda
 
-Editor a la izquierda, resultado a la derecha, y **520 px de alto, siempre los mismos** —unas veinticuatro líneas de SQL y diecinueve filas de resultado—. La altura fija no es un descuido: con celdas que crecen, un cuaderno de veinte deja de poder recorrerse. Para trabajar de cerca está la pantalla completa.
+**El código arriba y el resultado debajo** (desde la 6.0.1). La celda mide lo que lleva dentro: las líneas del SQL (de 3 a 16; una consulta más larga se desplaza por dentro) y hasta diez filas de resultado; un gráfico ocupa 520 px. El alto se sabe antes de pintar nada, así que recorrer un cuaderno largo no da saltos. El tirador entre el código y el resultado fija el alto del editor. **Result next to the code** (en el menú **…**) los pone lado a lado, a 520 px fijos, celda por celda. Para trabajar de cerca está la pantalla completa.
 
 La cabecera de la celda sólo **identifica**: el nombre, la descripción y qué deja detrás.
 Los mandos viven en el **canalón de la izquierda** y aparecen al pasar el ratón o al
@@ -46,9 +46,13 @@ seleccionar la celda; en reposo el canalón sólo lleva el punto de estado.
 | En el canalón | Qué hace |
 |---|---|
 | **Punto de estado** | Lo único visible en reposo. Cuatro estados; ver más abajo |
-| **Ejecutar** | `Ctrl+Enter` |
-| **Vista** | Un botón que pasa por código y resultado · sólo el código · sólo el resultado (su ayuda dice qué muestra el siguiente clic). Se recuerda, y con él si estaba en tabla o en gráfico. El reparto parte de 40 % para el código y 60 % para el resultado, y el tirador del medio lo cambia |
-| **…** | Todo lo demás, con nombre: Assist sobre la celda, **Take the whole tab** (`Esc` vuelve, y vuelve por donde estabas), **Materialize** (guarda el resultado en vez de recalcularlo cada vez que se lea), **Mark as draft**, **Move up · Move down · Delete** |
+| **Ejecutar** | `Ctrl+Enter` · `Shift+Enter` ejecuta y pasa a la siguiente (y crea una al final) · `Alt+Enter` ejecuta e inserta una debajo · `Ctrl+Shift+Enter` ejecuta todo lo que no está al día |
+| **Vista** | Un botón que pasa por código y resultado · sólo el código · sólo el resultado (su ayuda dice qué muestra el siguiente clic). Se recuerda, y con él si estaba en tabla o en gráfico |
+| **…** | Todo lo demás, con nombre: Assist sobre la celda, **Take the whole tab** (`Esc` vuelve, y vuelve por donde estabas), **Materialize** (guarda el resultado en vez de recalcularlo cada vez que se lea), **Mark as draft**, **Result next to the code / below the code**, **Duplicate**, **Turn into text / into SQL**, **Clear the result**, **Move up · Move down · Delete** |
+
+Una celda nueva —con **+ SQL / + Text**, `Shift+Enter` o `Alt+Enter`— se desplaza al centro de la pantalla con el cursor ya dentro. En una celda de texto, `Esc` o `Ctrl+Enter` terminan de escribir.
+
+**Cuando una celda falla**, el `LINE n` del error es la línea de la celda (el motor cuenta la vista en la que se envuelve; AmoxSQL la resta) y esa línea queda subrayada en el editor. Un `{{parámetro}}` sin valor no se manda al motor: la celda dice cuál falta y deja darle valor ahí mismo (**Set and run**). En **Lectura**, una celda que falló enseña una línea breve en vez del error del motor.
 
 Desde la 6.0 el canalón tiene estos tres mandos en vez de diez. El **?** al final de la barra del cuaderno repite su recorrido.
 
@@ -152,7 +156,7 @@ Cambiar el valor de un parámetro también la pone en ámbar, aunque no hayas to
 
 ## Atajos y formatos
 
-- **Ctrl+Enter** ejecuta la celda activa · **Ctrl+S** guarda · **Esc** sale de la pantalla completa.
+- **Ctrl+Enter** ejecuta la celda activa · **Shift+Enter** la ejecuta y pasa a la siguiente · **Alt+Enter** la ejecuta e inserta una debajo · **Ctrl+Shift+Enter** ejecuta todo · **Ctrl+S** guarda · **Esc** sale de la pantalla completa.
 - Formatos: `.sqlnb` (markdown con cabecera) y su archivo de estado `.sqlnb.state.json`. Ver [Formatos de archivo](../reference/file-formats.md).
 
 ## Relacionado

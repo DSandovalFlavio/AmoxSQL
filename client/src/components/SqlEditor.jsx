@@ -146,6 +146,25 @@ function clearDescribeCache() {
 
 const globalViewStateCache = new Map();
 
+/**
+ * Dar el foco a un editor que quizá aún no puede tomarlo (6.0.1): una celda del
+ * cuaderno que se acaba de crear lejos está oculta (`content-visibility`) hasta
+ * que el desplazamiento llega a ella, y mientras tanto `focus()` no hace nada. Se
+ * reintenta unos fotogramas hasta que lo toma. Devuelve cómo cancelarlo.
+ */
+function darFocoCuandoSePueda(editor, intentos = 40) {
+    let vivo = true;
+    let n = 0;
+    const probar = () => {
+        if (!vivo) return;
+        editor.focus();
+        if (editor.hasTextFocus() || ++n >= intentos) return;
+        setTimeout(probar, 50);
+    };
+    requestAnimationFrame(probar);
+    return () => { vivo = false; };
+}
+
 const SqlEditor = ({ value, onChange, ...props }) => {
     const disposablesRef = useRef([]);
     const editorRef = useRef(null);
@@ -364,6 +383,7 @@ const SqlEditor = ({ value, onChange, ...props }) => {
     };
 
     // Use a ref to ensure the event listener always has access to the latest prop
+    const focoDadoRef = React.useRef(0);
     const onDebugCteRef = React.useRef(props.onDebugCte);
     // 5.12 (I2): Ctrl+clic en ref('x') o source('a', 'b') abre su archivo.
     const onIrADbtRef = React.useRef(props.onIrADbt);
@@ -456,6 +476,13 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             }
         }
 
+        // 6.0.1: el foco pedido antes de que el editor existiera (una celda nueva
+        // que aún estaba lejos) se da al montarse.
+        if (props.focoPedido && props.focoPedido !== focoDadoRef.current) {
+            focoDadoRef.current = props.focoPedido;
+            darFocoCuandoSePueda(editor);
+        }
+
         // El modelo de esta pestaña, si ya lo tenía: vuelve con su historia.
         const tabIdAlMontar = tabIdActualRef.current;
         if (tabIdAlMontar) activeTabIdRef.current = tabIdAlMontar;
@@ -504,9 +531,26 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
         // --- KEYBOARD SHORTCUTS ---
 
+        // 6.0.1 (U6): ejecutar cierra la lista de autocompletado; si no, se queda
+        // abierta encima del resultado que se acaba de pedir.
+        const cerrarSugerencias = () => editor.trigger('amox', 'hideSuggestWidget', null);
+
+        /*
+         * Cada editor, sus atajos (6.0.1). `addCommand` sin contexto registra la
+         * tecla para TODOS los editores de la página, y Monaco ejecuta la del
+         * último que se creó: en un cuaderno, Ctrl+Enter o Alt+Enter en una
+         * celda de en medio actuaba sobre la última celda, y en dos paneles, un
+         * panel podía ejecutar o guardar lo del otro. Con una clave de contexto
+         * propia, la tecla sólo responde con el foco en este editor.
+         */
+        const propio = `amoxEditor_${String(editor.getId()).replace(/\W/g, '_')}`;
+        editor.createContextKey(propio, true);
+        const comando = (teclas, fn) => editor.addCommand(teclas, fn, propio);
+
         // 1. Run Query (Ctrl+Enter)
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
+        comando(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => {
             if (props.language === 'markdown') return;
+            cerrarSugerencias();
             // If debugging CTE, we might want to run that? No, standard run.
             if (props.onRunQuery) {
                 // Check for selection
@@ -522,12 +566,27 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             }
         });
 
+        // 1a. Los atajos de cuaderno (6.0.1, U7/U8), sólo donde los hay: Shift+Enter
+        // ejecuta y pasa a la celda siguiente, Alt+Enter ejecuta e inserta una
+        // debajo, Ctrl+Shift+Enter ejecuta todo. Fuera de una celda, Shift+Enter
+        // sigue siendo un salto de línea.
+        if (props.onRunAndNext) {
+            comando(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => { cerrarSugerencias(); props.onRunAndNext(); });
+        }
+        if (props.onRunAndInsert) {
+            comando(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => { cerrarSugerencias(); props.onRunAndInsert(); });
+        }
+        if (props.onRunAll) {
+            comando(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => { cerrarSugerencias(); props.onRunAll(); });
+        }
+
         // 1b. Run ONLY the statement under the cursor (Ctrl+Alt+Enter)
         // Lets you run a single query from a multi-statement script without
         // selecting it — the cursor's line picks the statement.
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => {
+        comando(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => {
             if (props.language === 'markdown') return;
             if (!props.onRunQuery) return;
+            cerrarSugerencias();
             const model = editor.getModel();
             const selection = editor.getSelection();
             // An explicit selection still wins — run exactly what's selected.
@@ -548,14 +607,14 @@ const SqlEditor = ({ value, onChange, ...props }) => {
         });
 
         // 2. Save (Ctrl+S)
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+        comando(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
             if (props.onSave) {
                 props.onSave();
             }
         });
 
         // 3. Analyze / Explain (Ctrl+E)
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE, () => {
+        comando(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyE, () => {
             if (props.onAnalyze) {
                 props.onAnalyze();
             }
@@ -608,18 +667,18 @@ const SqlEditor = ({ value, onChange, ...props }) => {
 
         // Format Code (Shift+Alt+F). Ctrl+K y Ctrl+Shift+F eran también formatear:
         // con el foco en el editor la paleta que anuncia la barra te reescribía el SQL.
-        editor.addCommand(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, formatSql);
+        comando(monaco.KeyMod.Shift | monaco.KeyMod.Alt | monaco.KeyCode.KeyF, formatSql);
 
         // Ctrl+K, Ctrl+L y Ctrl+Shift+F hacen lo mismo que en el resto de la app.
         atajosGlobalesEnMonaco(editor, monaco);
 
         // Query History (Ctrl+Shift+H)
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => {
+        comando(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyH, () => {
             if (props.onShowHistory) props.onShowHistory();
         });
 
         // 5. Find & Replace (Ctrl+H) — expose Monaco's built-in panel
-        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => {
+        comando(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => {
             editor.getAction('editor.action.startFindReplaceAction').run();
         });
 
@@ -1284,6 +1343,13 @@ const SqlEditor = ({ value, onChange, ...props }) => {
             if (workerBridgeRef.current) workerBridgeRef.current.removeDocument(docIdRef.current);
         };
     }, []);
+
+    // 6.0.1: foco a pedido (`focoPedido` es un número que cambia en cada petición).
+    useEffect(() => {
+        if (!props.focoPedido || props.focoPedido === focoDadoRef.current || !editorRef.current) return;
+        focoDadoRef.current = props.focoPedido;
+        return darFocoCuandoSePueda(editorRef.current);
+    }, [props.focoPedido]);
 
     // React to errorMarker prop changes — set/clear Monaco markers
     useEffect(() => {

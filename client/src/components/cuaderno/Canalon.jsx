@@ -25,6 +25,7 @@ import {
     LuPlay, LuLoaderCircle, LuColumns2, LuCode, LuTable, LuEye, LuDatabase,
     LuMaximize2, LuChevronUp, LuChevronDown, LuTrash2, LuPencilLine,
     LuSparkles, LuMessageCircleQuestion, LuWrench, LuChartColumn, LuWandSparkles, LuPenLine, LuEllipsis,
+    LuCopy, LuEraser, LuRows2, LuFileText,
 } from 'react-icons/lu';
 import { MODOS } from './modos.js';
 
@@ -53,6 +54,9 @@ const Canalon = ({
     onAmpliar,
     onAsistir,          // E3: (id, accion) → la pregunta al Assistant sobre esta celda
     resultadoArriba,    // E3: una celda de texto con un resultado justo encima
+    onDuplicar,         // 6.0.1 (U19): (id)
+    onLimpiar,          // 6.0.1 (U19): (id) quitar el resultado
+    onConvertir,        // 6.0.1 (U19): (id) SQL <-> texto
 }) => {
     const esSql = celda.tipo === 'sql';
     // El menú «…» de la celda (Assist incluido). Se cierra al pulsar fuera.
@@ -113,7 +117,7 @@ const Canalon = ({
                     says what you see and what the next click shows. */}
                 {esSql ? (() => {
                     const VISTAS = [
-                        [MODOS.AMBOS, LuColumns2, 'Code and result'],
+                        [MODOS.AMBOS, estado.lado ? LuColumns2 : LuRows2, 'Code and result'],
                         [MODOS.CODIGO, LuCode, 'Code only'],
                         [MODOS.RESULTADO, LuTable, 'Result only'],
                     ];
@@ -133,7 +137,7 @@ const Canalon = ({
 
                 {/* Everything else, named, in one menu. */}
                 <div ref={zona} style={{ position: 'relative' }}>
-                    {mando(LuEllipsis, 'More: Assist, materialize, draft, move, delete', () => setMenu(v => !v), ` cdn-mando--sep${menu ? ' cdn-mando--on' : ''}`)}
+                    {mando(LuEllipsis, 'More: Assist, layout, duplicate, convert, move, delete', () => setMenu(v => !v), ` cdn-mando--sep${menu ? ' cdn-mando--on' : ''}`)}
                     {menu && (
                         <div className="cdn-asistir-menu" role="menu">
                             {/* E3: preguntar al Assistant por ESTA celda (N2). */}
@@ -164,6 +168,24 @@ const Canalon = ({
                                 onClick={() => hacer(() => onCambiar(celda.id, { borrador: !celda.borrador }))}>
                                 <LuPencilLine size={13} /> {celda.borrador ? 'Draft (click to include it again)' : 'Mark as draft'}
                             </button>
+                            {/* 6.0.1 (U5): apilada es lo normal; lado a lado, a mano y por celda. */}
+                            {esSql && (
+                                <button type="button" aria-pressed={!!estado.lado}
+                                    title={estado.lado ? 'Put the result below the code' : 'Put the result next to the code'}
+                                    onClick={() => hacer(() => onEstado(celda.id, { lado: !estado.lado, modo: MODOS.AMBOS }))}>
+                                    {estado.lado ? <LuRows2 size={13} /> : <LuColumns2 size={13} />} {estado.lado ? 'Result below the code' : 'Result next to the code'}
+                                </button>
+                            )}
+                            <div className="cdn-menu-sep" />
+                            {onDuplicar && <button type="button" onClick={() => hacer(() => onDuplicar(celda.id))}><LuCopy size={13} /> Duplicate</button>}
+                            {onConvertir && (
+                                <button type="button" onClick={() => hacer(() => onConvertir(celda.id))}>
+                                    {esSql ? <LuFileText size={13} /> : <LuCode size={13} />} {esSql ? 'Turn into text' : 'Turn into SQL'}
+                                </button>
+                            )}
+                            {esSql && onLimpiar && resultado && (
+                                <button type="button" onClick={() => hacer(() => onLimpiar(celda.id))}><LuEraser size={13} /> Clear the result</button>
+                            )}
                             <div className="cdn-menu-sep" />
                             <button type="button" onClick={() => hacer(() => onSubir(celda.id))}><LuChevronUp size={13} /> Move up</button>
                             <button type="button" onClick={() => hacer(() => onBajar(celda.id))}><LuChevronDown size={13} /> Move down</button>

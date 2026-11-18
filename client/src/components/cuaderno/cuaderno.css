@@ -898,3 +898,52 @@ button.cdn-vista:hover { background: var(--hover-bg); }
 /* 6.0.1: una celda lejos de la vista no se maqueta ni se pinta, pero conserva
    lo que tiene dentro (`useLejos` en useCerca.js). */
 .cdn-celda[data-lejos] { content-visibility: hidden; }
+
+/* ── 6.0.1: la celda apilada ────────────────────────────────────────────── */
+/* El editor arriba con su alto (líneas del SQL, o el que dejó el tirador) y el
+   resultado debajo con el resto. El alto de la celda lo pone `Celda.jsx`. Dos
+   clases para ganar a la regla de ventana estrecha de arriba. */
+.cdn-cuerpo.cdn-cuerpo--apilado {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--cdn-alto-editor, 120px) 7px minmax(0, 1fr);
+}
+.cdn-cuerpo.cdn-cuerpo--apilado.cdn-cuerpo--solo { grid-template-rows: minmax(0, 1fr); }
+.cdn-cuerpo--apilado > .cdn-tirador {
+    cursor: row-resize;
+    border: none;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+}
+.cdn-cuerpo--apilado > .cdn-tirador::after { width: 22px; height: 2px; }
+.cdn-cuerpo--apilado .cdn-vacio { min-height: 0; }
+
+/* Un parámetro sin valor: lo que falta y dónde dárselo. */
+.cdn-sinvalor { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; overflow: auto; }
+.cdn-sinvalor-titulo { display: flex; align-items: center; gap: 6px; font-size: var(--text-sm, 12px); color: var(--text-primary); }
+.cdn-sinvalor-titulo svg { color: var(--feedback-warning, var(--accent-primary)); flex: none; }
+.cdn-sinvalor-fila { display: flex; align-items: center; gap: 8px; font-size: var(--text-sm, 12px); }
+.cdn-sinvalor-fila code { min-width: 90px; color: var(--text-secondary); }
+.cdn-sinvalor-fila input { max-width: 220px; }
+
+/* «Also in the session», plegable. */
+.cdn-seccion--plegable { width: 100%; border: none; background: transparent; font-family: inherit; text-align: left; cursor: pointer; }
+.cdn-seccion--plegable:hover { color: var(--text-secondary); }
+.cdn-seccion-flecha { transition: transform var(--transition-fast); flex: none; }
+.cdn-seccion--abierta .cdn-seccion-flecha { transform: rotate(90deg); }
+
+/* 6.0.1 (U2): la pista del cuaderno sin ejecutar. */
+.cdn-pista {
+    margin: 0 0 6px;
+    padding: 0 var(--cdn-margen) 0 calc(var(--cdn-margen) + var(--cdn-canalon) + 10px);
+    font-size: var(--text-sm, 12px);
+    color: var(--text-tertiary);
+    line-height: 1.6;
+}
+.cdn-pista code, .cdn-pista kbd {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    padding: 0 4px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-sunken, var(--hover-bg));
+    color: var(--text-secondary);
+}

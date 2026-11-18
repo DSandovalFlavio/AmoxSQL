@@ -31,7 +31,7 @@ out ([Word and deck](reports.md)).
 
 ### The cell
 
-Editor on the left, result on the right, and **520 px tall, always the same** — about twenty-four lines of SQL and nineteen result rows. The fixed height is not an oversight: with cells that grow, a twenty-cell notebook stops being something you can scan. For close work there is full screen.
+**The code on top and the result below** (since 6.0.1). The cell is as tall as what it holds: the lines of SQL (3 to 16; longer queries scroll inside) and up to ten result rows; a chart takes 520 px. The height is known before anything is drawn, so scrolling a long notebook does not jump. The handle between code and result sets the editor's height. **Result next to the code** (in the **…** menu) puts them side by side at a fixed 520 px, cell by cell. For close work there is full screen.
 
 The cell's header only **identifies** it: name, description, and what it leaves behind. The
 controls live in the **left gutter** and appear on hover or selection; at rest the gutter
@@ -46,9 +46,13 @@ carries only the status dot.
 | In the gutter | What it does |
 |---|---|
 | **Status dot** | The only thing visible at rest. Four states; see below |
-| **Run** | `Ctrl+Enter` |
-| **View** | One button that steps through code and result · code only · result only (its tooltip says what the next click shows). Remembered, and with it whether it was a table or a chart. The split starts at 40 % code / 60 % result, and the handle in the middle changes it |
-| **…** | Everything else, named: Assist on this cell, **Take the whole tab** (`Esc` goes back, and back to where you were), **Materialize** (stores the result instead of recomputing it on every read), **Mark as draft**, **Move up · Move down · Delete** |
+| **Run** | `Ctrl+Enter` · `Shift+Enter` runs and moves to the next cell (creating one at the end) · `Alt+Enter` runs and inserts a cell below · `Ctrl+Shift+Enter` runs everything that is not up to date |
+| **View** | One button that steps through code and result · code only · result only (its tooltip says what the next click shows). Remembered, and with it whether it was a table or a chart |
+| **…** | Everything else, named: Assist on this cell, **Take the whole tab** (`Esc` goes back, and back to where you were), **Materialize** (stores the result instead of recomputing it on every read), **Mark as draft**, **Result next to the code / below the code**, **Duplicate**, **Turn into text / into SQL**, **Clear the result**, **Move up · Move down · Delete** |
+
+A new cell —from the **+ SQL / + Text** buttons, `Shift+Enter` or `Alt+Enter`— scrolls to the middle of the screen with the cursor already in it. In a text cell, `Esc` or `Ctrl+Enter` finishes writing.
+
+**When a cell fails**, the error's `LINE n` is the line of the cell (the engine counts the view the cell is wrapped in; AmoxSQL subtracts it) and that line is underlined in the editor. A `{{parameter}}` with no value is not sent to the engine: the cell says which one is missing and lets you give it a value right there (**Set and run**). In **Reading**, a cell that failed shows a short line instead of the engine's error.
 
 Since 6.0 the gutter has these three controls instead of ten. The **?** at the end of the notebook's bar replays its tour.
 
@@ -153,7 +157,7 @@ Changing a parameter's value also turns it amber, even though you did not touch 
 
 ## Shortcuts and formats
 
-- **Ctrl+Enter** runs the active cell · **Ctrl+S** saves · **Esc** leaves full screen.
+- **Ctrl+Enter** runs the active cell · **Shift+Enter** runs it and moves to the next · **Alt+Enter** runs it and inserts one below · **Ctrl+Shift+Enter** runs all · **Ctrl+S** saves · **Esc** leaves full screen.
 - Formats: `.sqlnb` (markdown with front matter) and its state file `.sqlnb.state.json`. See [File formats](../reference/file-formats.md).
 
 ## Related

@@ -60,7 +60,9 @@ import { fijarProveedorDeFoco, fijarAplicador, recordarCuaderno, cuadernoRecorda
 import { suscribirPropuestas } from '../ai/propuestasEnEditor.js';
 import { estructuraDeCuaderno, ubicarCelda, aplicarACeldas, esDeCelda, describirCelda } from '../ai/archivos/cuaderno.js';
 import { RevisionDeCelda, CeldaFantasma } from './PropuestaEnCuaderno.jsx';
-import { emitir } from '../../eventos.js';
+import { desfaseDeEnvoltorio, lineaDelError, parametrosSinValor } from './errores.js';
+// Con otro nombre: dentro del componente, `emitir` es la que escribe el documento.
+import { emitir as emitirEvento } from '../../eventos.js';
 
 const idNuevo = () => `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 
@@ -167,6 +169,9 @@ const CuadernoEditor = ({
      * Es estado del que mira, así que va al archivo de estado y no al documento.
      */
     const [lectura, setLectura] = useState(() => recordado?.lectura ?? false);
+    /** 6.0.1 (U1): un cuaderno recién creado pone el foco en su título. */
+    const [recienCreado] = useState(() => !recordado && !doc.meta?.titulo
+        && doc.celdas.length <= 1 && !String(doc.celdas[0]?.contenido || '').trim());
     /** Nombres que ya se aceptó tapar en este cuaderno; ver `ejecutar`. */
     const tapadosOk = useRef(new Set());
     const dialog = useDialog();
@@ -272,8 +277,13 @@ const CuadernoEditor = ({
      * pasan los cuatro— en lugar de un parche por operacion. El porque de las
      * claves esta en `claves.js`.
      */
+    // 6.0.1: el documento más reciente, también entre `emitir` y el pintado
+    // siguiente (Shift+Enter bautiza una celda y añade otra en el mismo turno).
+    const docVivo = useRef(doc);
+    docVivo.current = doc;
     const emitir = useCallback((siguiente) => {
-        const antes = doc.celdas;
+        const antes = docVivo.current.celdas;
+        docVivo.current = siguiente;
         setDoc(siguiente);
         const texto = escribirCuaderno(siguiente);
         ultimoTexto.current = texto;
@@ -449,7 +459,7 @@ const CuadernoEditor = ({
     const asistirCelda = useCallback((id, accion) => {
         alDia.current = { ...alDia.current, seleccionada: id };
         setSeleccionada(id);
-        emitir('amox_asistir', { accion, tabId });
+        emitirEvento('amox_asistir', { accion, tabId });
     }, [tabId]);
 
     /**
@@ -550,6 +560,24 @@ const CuadernoEditor = ({
     }, [doc, emitir]);
 
     // ── operaciones sobre las celdas ────────────────────────────────────────
+    /**
+     * Llevar la vista a una celda y darle el foco (6.0.1).
+     *
+     * Una celda nueva o la siguiente tras Shift+Enter se CENTRA: lo que se acaba
+     * de pedir tiene que verse sin buscarlo. El foco del editor se pide con un
+     * número que cambia —`focoPedido`— porque la celda puede estar lejos y aún
+     * sin editor: lo toma al montarse.
+     */
+    const [foco, setFoco] = useState({ id: null, n: 0 });
+    const enfocar = useCallback((id, editor = true) => {
+        setSeleccionada(id);
+        if (editor) setFoco((f) => ({ id, n: f.n + 1 }));
+        // Tras el pintado: hasta entonces la celda nueva no está en el DOM.
+        requestAnimationFrame(() => {
+            document.getElementById(`cdn-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    }, []);
+
     const cambiarCelda = useCallback((id, campos) => {
         emitir({ ...doc, celdas: doc.celdas.map((c) => (c.id === id ? { ...c, ...campos } : c)) });
     }, [doc, emitir]);
@@ -562,19 +590,48 @@ const CuadernoEditor = ({
      * celda entre la tercera y la cuarta obligaba a bajar hasta abajo, crearla y
      * subirla a mano.
      */
-    const anadir = useCallback((tipo, donde) => {
-        const nueva = tipo === 'texto'
+    const anadir = useCallback((tipo, donde, base = null) => {
+        const nueva = base ? { ...base, id: idNuevo() } : tipo === 'texto'
             ? { id: idNuevo(), tipo: 'texto', contenido: '' }
             : { id: idNuevo(), tipo: 'sql', nombre: '', materializada: false, contenido: '' };
-        const celdas = [...doc.celdas];
+        const d = docVivo.current;
+        const celdas = [...d.celdas];
         const i = Number.isInteger(donde) ? donde : celdas.length;
         celdas.splice(Math.min(Math.max(i, 0), celdas.length), 0, nueva);
-        emitir({ ...doc, celdas });
-        setSeleccionada(nueva.id);
+        emitir({ ...d, celdas });
         // Una celda de texto recién creada entra escribiendo: nadie la crea para
         // mirarla vacía, y sin caja no hay nada que pulsar para empezar.
-        if (tipo === 'texto') setEscribiendo(nueva.id);
+        if (nueva.tipo === 'texto') setEscribiendo(nueva.id);
+        enfocar(nueva.id, nueva.tipo === 'sql');
+        return nueva.id;
+    }, [doc, emitir, enfocar]);
+
+    /** 6.0.1 (U19): una copia justo debajo, sin nombre (el suyo ya es de la otra). */
+    const duplicar = useCallback((id) => {
+        const i = doc.celdas.findIndex((c) => c.id === id);
+        if (i < 0) return;
+        const c = doc.celdas[i];
+        anadir(c.tipo, i + 1, c.tipo === 'sql' ? { ...c, nombre: '' } : { ...c });
+    }, [doc.celdas, anadir]);
+
+    /** 6.0.1 (U19): SQL a texto y al revés; el contenido se queda. */
+    const convertir = useCallback((id) => {
+        emitir({
+            ...doc,
+            celdas: doc.celdas.map((c) => {
+                if (c.id !== id) return c;
+                return c.tipo === 'sql'
+                    ? { id: c.id, tipo: 'texto', contenido: c.contenido || '' }
+                    : { id: c.id, tipo: 'sql', nombre: '', materializada: false, contenido: c.contenido || '' };
+            }),
+        });
+        setResultados((prev) => { if (!prev[id]) return prev; const n = { ...prev }; delete n[id]; return n; });
     }, [doc, emitir]);
+
+    /** 6.0.1 (U19): quitar lo que enseña. La vista sigue en la sesión. */
+    const limpiar = useCallback((id) => {
+        setResultados((prev) => { if (!prev[id]) return prev; const n = { ...prev }; delete n[id]; return n; });
+    }, []);
 
     // Se puede borrar la última: el hueco del final siempre está visible, así que
     // de un cuaderno vacío se sale añadiendo. Antes había que dejar una celda
@@ -609,6 +666,14 @@ const CuadernoEditor = ({
     const ejecutar = useCallback(async (id) => {
         const celda = doc.celdas.find((c) => c.id === id);
         if (!celda || celda.tipo !== 'sql' || !celda.contenido.trim()) return;
+
+        // 6.0.1 (U17): un `{{x}}` sin valor no se manda al motor, que sólo sabría
+        // decir «syntax error at or near "{"». La celda dice qué falta.
+        const faltan = parametrosSinValor(celda.contenido, doc.meta?.parametros);
+        if (faltan.length) {
+            setResultados((prev) => ({ ...prev, [id]: { faltan, consulta: celda.contenido } }));
+            return false;
+        }
 
         // Los parámetros entran ANTES de analizar y de componer: lo que se
         // guarda en la vista es la consulta ya resuelta. Cambiar un parámetro
@@ -683,9 +748,11 @@ const CuadernoEditor = ({
                 r = await pedir(true);
             }
 
+            // 6.0.1 (U12): la línea del error es la de la celda, no la del envoltorio.
+            const fallo = r?.error ? lineaDelError(r.error, desfaseDeEnvoltorio(deja)) : null;
             setResultados((prev) => ({
                 ...prev,
-                [id]: { ...(r || {}), consulta: texto, deja, vista },
+                [id]: { ...(r || {}), ...(fallo ? { error: fallo.mensaje, lineaError: fallo.linea } : {}), consulta: texto, deja, vista },
             }));
             // Se anota lo ejecutado SÓLO si salió bien. Una celda que falló no
             // dejó su vista puesta, así que darla por ejecutada haría que las de
@@ -696,7 +763,8 @@ const CuadernoEditor = ({
             if (preparacion) refrescarVistas();
             return !r?.error;
         } catch (e) {
-            setResultados((prev) => ({ ...prev, [id]: { error: e?.message || String(e), consulta: texto, deja } }));
+            const fallo = lineaDelError(e?.message || String(e), desfaseDeEnvoltorio(deja));
+            setResultados((prev) => ({ ...prev, [id]: { error: fallo.mensaje, lineaError: fallo.linea, consulta: texto, deja } }));
             return false;
         } finally {
             setCorriendo(null);
@@ -713,9 +781,49 @@ const CuadernoEditor = ({
      * versión al día, así que nunca cambian.
      */
     const alDiaCeldas = useRef(null);
-    alDiaCeldas.current = { cambiarCelda, ejecutar };
+    alDiaCeldas.current = { cambiarCelda, ejecutar, anadir, duplicar, convertir };
     const cambiarCeldaFija = useCallback((id, campos) => alDiaCeldas.current.cambiarCelda(id, campos), []);
     const ejecutarFija = useCallback((id) => alDiaCeldas.current.ejecutar(id), []);
+    const duplicarFija = useCallback((id) => alDiaCeldas.current.duplicar(id), []);
+    const convertirFija = useCallback((id) => alDiaCeldas.current.convertir(id), []);
+
+    /**
+     * Shift+Enter (6.0.1, U7): ejecutar y pasar a la siguiente, como en todo
+     * cuaderno. En la última, se crea una debajo. No se espera al resultado: se
+     * sigue escribiendo mientras corre.
+     */
+    const seguir = useCallback((id) => {
+        const { doc: d } = alDia.current;
+        // `ejecutar` bautiza la celda (cambia el documento) antes de esperar al
+        // motor; la celda nueva se añade tras ese pintado, sobre el documento
+        // ya bautizado. Añadirla antes lo pisaba con el de antes, sin nombre.
+        alDiaCeldas.current.ejecutar(id);
+        const i = d.celdas.findIndex((c) => c.id === id);
+        const sig = d.celdas[i + 1];
+        if (!sig) { setTimeout(() => alDiaCeldas.current.anadir('sql', i + 1), 0); return; }
+        if (sig.tipo === 'texto') { enfocar(sig.id, false); return; }
+        enfocar(sig.id);
+    }, [enfocar]);
+
+    /** Alt+Enter (6.0.1): ejecutar e insertar una celda debajo. */
+    const insertarDebajo = useCallback((id) => {
+        const { doc: d } = alDia.current;
+        alDiaCeldas.current.ejecutar(id);   // ver `seguir`: añadir tras el bautizo
+        const i = d.celdas.findIndex((c) => c.id === id);
+        setTimeout(() => alDiaCeldas.current.anadir('sql', i + 1), 0);
+    }, []);
+
+    /**
+     * Dar valor a los parámetros que faltaban y volver a ejecutar la celda
+     * (6.0.1, U17). Todo en una sola escritura de la cabecera; la ejecución
+     * espera al pintado, que es cuando `ejecutar` ya ve los valores nuevos.
+     */
+    const darParametros = useCallback((valores, idCelda) => {
+        const d = alDia.current.doc;
+        const previos = { ...(d.meta?.parametros || {}), ...valores };
+        emitirRef.current({ ...d, meta: { ...(d.meta || {}), parametros: previos } });
+        if (idCelda) setTimeout(() => alDiaCeldas.current.ejecutar(idCelda), 0);
+    }, []);
 
     /**
      * Ejecuta lo que no está al día, en orden de dependencia.
@@ -783,6 +891,9 @@ const CuadernoEditor = ({
             return;
         }
     }, [pendientes, doc.celdas, dialog, ejecutar, toast]);
+    const actualizarAlDia = useRef(actualizar);
+    actualizarAlDia.current = actualizar;
+    const actualizarFijo = useCallback(() => actualizarAlDia.current(), []);
 
     /**
      * Abrir y cerrar la pantalla completa, **volviendo por donde se estaba**.
@@ -928,6 +1039,19 @@ const CuadernoEditor = ({
 
     const ampliada = aPantalla ? doc.celdas.find((c) => c.id === aPantalla) : null;
 
+    /**
+     * Ctrl+Shift+Enter ejecuta todo (6.0.1, U8) desde cualquier sitio del
+     * cuaderno. Dentro de un editor lo atiende el propio editor y el evento ya
+     * llega con `defaultPrevented`.
+     */
+    const teclaDelCuaderno = (e) => {
+        if (e.defaultPrevented || lectura) return;
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
+            e.preventDefault();
+            actualizar();
+        }
+    };
+
     if (ampliada) {
         // La barra derecha se queda: el índice y las vistas vivas siguen siendo
         // útiles mientras se trabaja una celda de cerca, y quitarla convertiría
@@ -977,7 +1101,7 @@ const CuadernoEditor = ({
     );
 
     return (
-        <div className="cdn">
+        <div className="cdn" onKeyDown={teclaDelCuaderno}>
             <div className={`cdn-lista${lectura ? ' cdn-lista--lectura' : ''}`}>
 
                 {/* ── la cabecera del documento ──────────────────────────────
@@ -995,6 +1119,7 @@ const CuadernoEditor = ({
                             value={doc.meta?.titulo || ''}
                             readOnly={lectura}
                             placeholder={lectura ? '' : 'Untitled'}
+                            autoFocus={recienCreado}
                             onChange={(e) => cambiarMeta('titulo', e.target.value.replace(/\s*[\r\n]+\s*/g, ' '))}
                             onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
                             ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px`; } }}
@@ -1091,7 +1216,16 @@ const CuadernoEditor = ({
                     </div>
                 </div>
 
-                {doc.celdas.map((c, i) => (
+                {/* 6.0.1 (U2, U10): lo que hace distinto a un cuaderno, dicho una vez,
+                    mientras no se haya ejecutado nada. */}
+                {!lectura && !Object.keys(ejecuciones).length && (
+                    <p className="cdn-pista">
+                        Each SQL cell leaves a view with its name, so the next cell can read <code>FROM paso_1</code>.
+                        {' '}<kbd>Ctrl+Enter</kbd> runs a cell, <kbd>Shift+Enter</kbd> runs it and moves to the next.
+                    </p>
+                )}
+
+                {doc.celdas.map((c, i) => (lectura && c.tipo === 'sql' && !String(c.contenido || '').trim()) ? null : (
                     <Fragment key={c.id}>
                         {i > 0 && !lectura && hueco(i)}
                         {/* E3: una celda nueva que propone el Assistant, en su sitio. */}
@@ -1124,6 +1258,9 @@ const CuadernoEditor = ({
                                 onBajar={bajar}
                                 onBorrar={borrar}
                                 onAmpliar={ampliar}
+                                onDuplicar={duplicarFija}
+                                onConvertir={convertirFija}
+                                onLimpiar={limpiar}
                                 onAsistir={tabId ? asistirCelda : undefined}
                                 resultadoArriba={c.tipo === 'texto' && i > 0 && doc.celdas[i - 1].tipo === 'sql' && !!resultados[doc.celdas[i - 1].id]?.data?.length}
                             />}
@@ -1157,6 +1294,11 @@ const CuadernoEditor = ({
                                     onCreateNew={onCreateNew}
                                     onPromover={proyectoDbt && !lectura ? setPromoviendo : null}
                                     onAsistir={tabId ? asistirCelda : null}
+                                    onSeguir={seguir}
+                                    onInsertar={insertarDebajo}
+                                    onTodo={actualizarFijo}
+                                    onParametro={darParametros}
+                                    focoPedido={foco.id === c.id ? foco.n : 0}
                                 />
                             )}
                             {/* E3: el cambio que propone el Assistant para ESTA celda, debajo de ella. */}

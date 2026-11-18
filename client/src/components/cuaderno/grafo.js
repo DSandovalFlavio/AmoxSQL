@@ -263,6 +263,9 @@ export function queActualizar(celdas, grafo, estado, { vivas, analisis, conResul
     const orden = [];
     for (const id of ordenTopologico(celdas, grafo)) {
         if (!hayQue.has(id)) continue;
+        // Una celda vacía no tiene nada que ejecutar (6.0.1: Shift+Enter deja una
+        // al final, y «Refresh» la contaba y se paraba en ella como si fallara).
+        if (analisis?.[id]?.vacia) continue;
         if (analisis?.[id]?.escribe === 'disco') {
             apartadas.push({ id, motivo: 'escribe' });
             continue;

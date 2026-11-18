@@ -73,11 +73,20 @@ const CeldaTexto = ({
                     className="cdn-texto-fuente"
                     value={celda.contenido || ''}
                     spellCheck
-                    placeholder="Write here. Headings (#, ##, ###) build the outline on the right."
+                    placeholder="Write here. Headings (#, ##, ###) build the outline on the right. Esc to finish."
                     onChange={(e) => { onCambiar(celda.id, { contenido: e.target.value }); ajustar(); }}
                     // Salir compone el texto, salvo que el mando del canalón la
                     // tenga fijada en la fuente a propósito.
                     onBlur={() => { if (!fijadaEnFuente) onEscribir?.(null); }}
+                    // 6.0.1 (U13): Escape o Ctrl+Enter terminan de escribir, como
+                    // en cualquier cuaderno. Antes sólo pulsar fuera lo componía.
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.shiftKey)) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.currentTarget.blur();
+                        }
+                    }}
                 />
             </div>
         );

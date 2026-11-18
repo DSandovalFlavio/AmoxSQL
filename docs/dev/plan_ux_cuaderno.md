@@ -116,31 +116,31 @@ Ordenado por lo que más le cuesta a quien empieza. Cada fase se entrega sola.
 
 ### F0 — Fallos que se ven en el primer minuto (pequeña)
 
-- [ ] **Ctrl+Shift+Enter ejecuta todo** también con el foco en el editor (U8): la acción de
+- [x] **Ctrl+Shift+Enter ejecuta todo** también con el foco en el editor (U8): la acción de
       Monaco en `SqlEditor` cuando hay `onRunAll`, o `atajosEnMonaco.js`. Prueba en
       `probarInteraccion.mjs`.
-- [ ] **Cerrar el autocompletado al ejecutar** (U6): `editor.trigger('', 'hideSuggestWidget')`
+- [x] **Cerrar el autocompletado al ejecutar** (U6): `editor.trigger('', 'hideSuggestWidget')`
       en la acción de ejecutar.
-- [ ] **Escape termina la celda de texto** (U13), y Ctrl+Enter también: `CeldaTexto.jsx`.
-- [ ] **La línea del error es la de la celda** (U12): restar las líneas del envoltorio de
+- [x] **Escape termina la celda de texto** (U13), y Ctrl+Enter también: `CeldaTexto.jsx`.
+- [x] **La línea del error es la de la celda** (U12): restar las líneas del envoltorio de
       `vistaDeCelda.js` al `LINE n` del mensaje, y marcar esa línea en Monaco
       (`setModelMarkers`).
-- [ ] **Parámetro sin valor, antes de ejecutar** (U17): si la celda usa `{{x}}` y `x` no está
+- [x] **Parámetro sin valor, antes de ejecutar** (U17): si la celda usa `{{x}}` y `x` no está
       declarado, no se manda al motor; la celda dice «`anio` has no value» con un campo para
       darle uno ahí mismo.
-- [ ] **Plantilla del cuaderno nuevo** (U1): sin la celda «# New Notebook», con el foco en el
+- [x] **Plantilla del cuaderno nuevo** (U1): sin la celda «# New Notebook», con el foco en el
       título y en el formato actual (hoy se escribe con los marcadores antiguos `-- !CELL:`,
       `LayoutManager.jsx:1452`).
-- [ ] **Lectura sin errores crudos** (U16): una celda que falló se ve como «This step failed
+- [x] **Lectura sin errores crudos** (U16): una celda que falló se ve como «This step failed
       — Edit to see why», o no se ve.
 
 ### F1 — La celda que se lee (mediana)
 
-- [ ] **Código arriba, resultado abajo por defecto** (U5) cuando la celda mide menos de
+- [x] **Código arriba, resultado abajo por defecto** (U5) cuando la celda mide menos de
       ~1000 px, medido en la celda (no en la ventana). El lado a lado sigue a mano con el
       control de modo y se recuerda por celda. **Decisión del autor**: ¿apilado siempre por
       defecto, o sólo bajo ese ancho?
-- [ ] **Alto por contenido** (U11): líneas del SQL + filas del resultado (cabecera 44, fila
+- [x] **Alto por contenido** (U11): líneas del SQL + filas del resultado (cabecera 44, fila
       28, pie 21, ya medidas), con tope de 520 y mínimo de ~160. Se sigue sabiendo sin
       montar, así que el desplazamiento no salta.
 - [ ] **Gráfico al ancho de la celda** (U14, R5) sin el constructor; «Edit chart» abre la
@@ -153,12 +153,12 @@ Ordenado por lo que más le cuesta a quien empieza. Cada fase se entrega sola.
 
 ### F2 — Ejecutar como en un cuaderno (mediana)
 
-- [ ] **Shift+Enter**: ejecuta y pasa a la celda siguiente (crea una al final). **Alt+Enter**:
+- [x] **Shift+Enter**: ejecuta y pasa a la celda siguiente (crea una al final). **Alt+Enter**:
       ejecuta e inserta una debajo (U7). En `atajos.js` y en la ayuda.
 - [ ] **«Refresh» pasa a «Run all»** con el número de pendientes (U4); el tooltip sigue
       explicando el orden por dependencias. Si se prefiere conservar «Refresh», al menos
       «Run what changed (2)».
-- [ ] **Menú de la celda completo** (U19): duplicar, convertir SQL ↔ texto, insertar arriba /
+- [x] **Menú de la celda completo** (U19): duplicar, convertir SQL ↔ texto, insertar arriba /
       abajo, limpiar el resultado, plegar el resultado.
 - [ ] **«Run with what it needs»**: ejecutar una celda junto con las de arriba de las que
       depende y que no están al día (el grafo ya lo sabe: `queActualizar` limitado a sus
@@ -182,7 +182,7 @@ Ordenado por lo que más le cuesta a quien empieza. Cada fase se entrega sola.
       (`ventas` + `GROUP BY categoria` → `ventas_por_categoria`) en vez de `paso_N`. En
       lectura, el pie de figura usa el comentario de la celda y, si sólo hay un nombre
       automático, no lo enseña.
-- [ ] **«Also in the session» plegado por defecto** (U3), con el número; sus vistas son de
+- [x] **«Also in the session» plegado por defecto** (U3), con el número; sus vistas son de
       otros cuadernos.
 
 ### F5 — Rendimiento, segunda vuelta (mediana)
@@ -200,6 +200,17 @@ Ordenado por lo que más le cuesta a quien empieza. Cada fase se entrega sola.
       selección; Enter entra a editar; A/B insertan arriba/abajo; D D borra (con deshacer).
 
 ---
+
+## Hecho en la 6.0.1 (2026-11-18)
+
+F0 entera; de F1, el apilado (siempre por defecto: lo decidió el autor; lado a lado queda en el
+menú de cada celda) y el alto por contenido; de F2, Shift/Alt+Enter y el menú (duplicar,
+convertir, limpiar, lado a lado; faltan insertar arriba/abajo y plegar); de F4, la pista del
+cuaderno sin ejecutar (en una línea fija, no en el tour) y «Also in the session» plegado.
+Además, la celda nueva se centra con el cursor dentro, y tres fallos que salieron al probar:
+los atajos de `SqlEditor` (`addCommand` sin contexto) respondían en el último editor creado,
+«Fix with Assist» del cuaderno llamaba al `emitir` del documento en vez del de eventos, y
+«Refresh» contaba celdas vacías. Suite: `scripts/probarErroresCelda.mjs`.
 
 ## Decisiones que son del autor
 

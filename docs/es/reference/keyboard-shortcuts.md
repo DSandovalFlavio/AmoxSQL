@@ -41,6 +41,8 @@ AmoxSQL está pensado para operarse con el teclado. Esta página lista todos los
 | Ctrl + Shift + H | Historial de consultas |
 | Ctrl + Shift + R | Ejecutar los dos paneles |
 | Ctrl + Shift + Enter | Ejecutar todas las celdas |
+| Shift + Enter | Cuaderno: ejecutar la celda y pasar a la siguiente |
+| Alt + Enter | Cuaderno: ejecutar la celda e insertar una debajo |
 
 ## Pestañas
 
