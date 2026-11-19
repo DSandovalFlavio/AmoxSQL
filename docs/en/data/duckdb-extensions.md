@@ -37,6 +37,14 @@ The status bar shows the total, how many are installed, and how many loaded.
 ### Load and reload
 An installed but not loaded extension shows **Load**. Right-click any extension for **Copy name**, **Load/Reload**, **Open docs**, and **Copy SQL commands** (`INSTALL` + `LOAD` ready to paste).
 
+### Your own extensions
+At the foot of the panel, **Your own extensions** is for an extension you built yourself or received as a file, which carries no signature from the official or community repositories.
+
+1. Tick **Allow unsigned extensions** (since 6.0.1). An unsigned extension runs code nobody has verified, with your permissions, so the panel asks first. The engine only accepts this setting when it starts, so confirming restarts it: your database stays open, and temporary views (notebook cells) are cleared.
+2. **Install from file…** picks the `.duckdb_extension`, installs it and loads it. Its name is the file name up to the first dot (`my_ext.duckdb_extension` is `my_ext`). From then on it loads on startup like any other.
+
+The setting is kept in `~/.amoxsql/config.json` (`extensionesSinFirma`) and applies to every engine AmoxSQL opens: Data Flow runs, scheduled runs and the command line too. Without it, installing an unsigned file says so instead of failing with the engine's message. From the SQL editor, `INSTALL '/path/my_ext.duckdb_extension'; LOAD my_ext;` does the same once the setting is on.
+
 ## Reference
 
 ### Filters

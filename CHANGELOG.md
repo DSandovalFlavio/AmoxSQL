@@ -7,6 +7,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased] — 6.0.1
 
+### Nuevo
+- **Extensiones propias (sin firma).** Al pie del panel Extensions, **Allow unsigned extensions** deja cargar una extensión que compilaste tú o que no viene de los repositorios oficial ni community (lo que en la consola del motor es `-unsigned`). Apagado por defecto; al encenderlo se explica el riesgo y el motor se reinicia con la base abierta, porque sólo acepta el ajuste al nacer. Vale para todos los motores de AmoxSQL (Data Flow, ejecuciones programadas, línea de comandos). **Install from file…** instala y carga un `.duckdb_extension`, que desde entonces se carga al abrir. Sin el ajuste, un archivo sin firma lo dice así en vez de con el error del motor.
+
 ### Cambiado
 - **Extensions ocupa el panel entero** al abrirla: antes compartía la mitad del panel Data con las tablas y se quedaba en un trozo. Se abre con la pieza de la cabecera de Data o con «Extensions» abajo, y «← Data» vuelve a las tablas.
 - **La galería de gráficos pasa a Help › Story Flow** (y sigue en Ctrl+K › Open Chart Gallery). Tras la reorganización de la barra lateral sólo se llegaba desde la paleta.

@@ -37,6 +37,14 @@ La barra de estado muestra el total, cuántas están instaladas y cuántas carga
 ### Cargar y recargar
 Una extensión instalada pero no cargada muestra **Load**. Con clic derecho sobre cualquier extensión tienes **Copiar nombre**, **Cargar/Recargar**, **Abrir documentación** y **Copiar comandos SQL** (`INSTALL` + `LOAD` listos para pegar).
 
+### Tus propias extensiones
+Al pie del panel, **Your own extensions** sirve para una extensión que compilaste tú o que recibiste como archivo, sin la firma de los repositorios oficial o community.
+
+1. Marca **Allow unsigned extensions** (desde la 6.0.1). Una extensión sin firma ejecuta código que nadie ha verificado, con tus permisos, así que el panel pregunta antes. El motor sólo acepta este ajuste al arrancar, por eso confirmar lo reinicia: tu base sigue abierta y las vistas temporales (las celdas de los cuadernos) se borran.
+2. **Install from file…** elige el `.duckdb_extension`, lo instala y lo carga. Su nombre es el del archivo hasta el primer punto (`mi_ext.duckdb_extension` es `mi_ext`). Desde entonces se carga al abrir AmoxSQL, como cualquier otra.
+
+El ajuste se guarda en `~/.amoxsql/config.json` (`extensionesSinFirma`) y vale para todos los motores que abre AmoxSQL: también las ejecuciones de Data Flow, las programadas y la línea de comandos. Sin él, instalar un archivo sin firma lo dice así en vez de fallar con el mensaje del motor. Desde el editor SQL, `INSTALL '/ruta/mi_ext.duckdb_extension'; LOAD mi_ext;` hace lo mismo una vez encendido el ajuste.
+
 ## Referencia de opciones
 
 ### Filtros

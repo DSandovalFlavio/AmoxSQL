@@ -24,6 +24,7 @@ import {
 import { useToast } from './ToastProvider';
 import FEATURED_EXTENSIONS from '../data/featuredExtensions';
 import { openTour, hasSeenTour, ofrecerTour } from './onboarding/tourRegistry';
+import ExtensionesPropias from './extensiones/ExtensionesPropias.jsx';
 
 // Core extensions known to ship with DuckDB — never need FROM community
 const KNOWN_CORE = new Set([
@@ -437,6 +438,9 @@ const ExtensionExplorer = () => {
                     </>
                 )}
             </div>
+
+            {/* 6.0.1: extensiones sin firma y desde archivo */}
+            <ExtensionesPropias onCambio={fetchExtensions} />
 
             {/* Context menu */}
             {contextMenu && (

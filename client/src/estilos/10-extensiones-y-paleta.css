@@ -537,3 +537,56 @@
   animation: modal-panel-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+
+/* ── 6.0.1: extensiones propias (sin firma, desde archivo), al pie del panel ── */
+.ext-propias {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-subtle);
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.ext-propias-titulo {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-disabled);
+}
+
+.ext-propias-ajuste {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--text-primary);
+}
+
+.ext-propias-aviso {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--feedback-warning-border, var(--border-subtle));
+  background: var(--feedback-warning-bg, transparent);
+  color: var(--feedback-warning-text, var(--text-primary));
+  line-height: 1.45;
+}
+
+.ext-propias-aviso > svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ext-propias-nota {
+  line-height: 1.45;
+}
+
+.ext-propias-boton {
+  align-self: flex-start;
+}
