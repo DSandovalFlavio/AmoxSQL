@@ -5,6 +5,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [6.0.1] — 2026-11-18 — El cuaderno se escribe de corrido
+
+### Nuevo
+- **Extensiones propias (sin firma).** Al pie del panel Extensions, **Allow unsigned extensions** deja cargar una extensión que compilaste tú o que no viene de los repositorios oficial ni community (lo que en la consola del motor es `-unsigned`). Apagado por defecto; al encenderlo se explica el riesgo y el motor se reinicia con la base abierta, porque sólo acepta el ajuste al nacer. Vale para todos los motores de AmoxSQL (Data Flow, ejecuciones programadas, línea de comandos). **Install from file…** instala y carga un `.duckdb_extension`, que desde entonces se carga al abrir. Sin el ajuste, un archivo sin firma lo dice así en vez de con el error del motor.
+
+### Cambiado
+- **Extensions ocupa el panel entero** al abrirla: antes compartía la mitad del panel Data con las tablas y se quedaba en un trozo. Se abre con la pieza de la cabecera de Data o con «Extensions» abajo, y «← Data» vuelve a las tablas.
+- **La galería de gráficos pasa a Help › Story Flow** (y sigue en Ctrl+K › Open Chart Gallery). Tras la reorganización de la barra lateral sólo se llegaba desde la paleta.
+
+- **La celda del cuaderno pone el código arriba y el resultado debajo**, y mide lo que lleva dentro (las líneas del SQL y hasta diez filas) en vez de 520 px fijos. Lado a lado sigue en el menú «…» de cada celda (**Result next to the code**). Antes, con la barra lateral abierta, el editor se quedaba en 240 px y una línea normal no cabía.
+- **Ejecutar como en un cuaderno:** **Shift+Enter** ejecuta y pasa a la celda siguiente (crea una al final), **Alt+Enter** ejecuta e inserta una debajo. Una celda nueva se centra en pantalla con el cursor dentro, también la de **+ SQL / + Text**.
+- **Menú «…» de la celda:** Duplicate, Turn into text / into SQL, Clear the result y lado a lado / debajo.
+- **Cuaderno nuevo:** se crea en el formato actual, con una celda de SQL vacía y el foco en el título (antes traía una celda «# New Notebook» que competía con él) y una línea que explica que cada celda deja una vista con su nombre; se va al ejecutar la primera.
+- **Un parámetro sin valor** (`{{anio}}` sin declarar) ya no llega al motor como «syntax error at or near "{"»: la celda dice cuál falta y deja darle valor ahí mismo (**Set and run**).
+- **En una celda de texto, Esc o Ctrl+Enter terminan de escribir.**
+- **«Also in the session»** (las vistas de otros cuadernos, en la barra derecha) va plegado.
+- **Lectura** ya no enseña el error crudo de una celda que falló ni las celdas vacías.
+
+### Arreglado
+- **Ctrl+Shift+Enter («Run all cells») no hacía nada dentro de una celda**: metía un salto de línea. Ahora ejecuta todo lo que no está al día, como dice la ayuda.
+- **En un cuaderno, Ctrl+Enter en una celda podía ejecutar otra.** Los atajos de cada editor se registraban para todos los editores de la página y respondía el último creado. Ahora cada editor atiende sólo los suyos (también en los dos paneles divididos).
+- **El error de una celda decía «LINE 2» aunque la celda tuviera una sola línea** (contaba la vista que la envuelve). Ahora dice la línea de la celda y la subraya en el editor.
+- **Ejecutar ya cierra la lista de autocompletado**, que se quedaba abierta encima del resultado.
+- **«Fix with Assist» y las preguntas del menú «…» de una celda** no llegaban al Assistant: llamaban por error a la función que reescribe el cuaderno.
+- **«Refresh» contaba una celda vacía** y se paraba en ella como si hubiera fallado.
+- **Un cuaderno con varias celdas ejecutadas ya no traba la aplicación.** Con diez celdas de 30 filas, abrir o cerrar la barra lateral bloqueaba 130–280 ms por clic; ahora 0. Tres causas: cada editor medía la página por su cuenta (`automaticLayout`) y obligaba a recalcular todas las tablas; en el cuaderno los diez se redibujaban a la vez en cada fotograma de la animación (ahora el que se ve se ajusta una vez al terminar, y el que no, al volver a verse); y las celdas lejos de la vista se seguían maquetando (ahora llevan `content-visibility: hidden`, sin desmontarse). Además, escribir en una celda o abrir el panel Data ya no vuelve a pintar las demás.
+- **Cambiar de pestaña ya no borra los resultados del cuaderno**: al volver, cada celda conserva lo que había devuelto (`memoriaDePestana`), mientras el archivo no haya cambiado por fuera.
+
+---
+
 ## [6.0.0] — 2026-11-14 — El motor nuevo (DuckDB 2.0)
 
 AmoxSQL pasa de DuckDB 1.5.6 a **DuckDB 2.0 LTS** (cliente `@duckdb/node-api` 2.0.0-r.1). Se publica con la 2.0.0 sin esperar a la 2.0.1. Plan en `docs/dev/plan_6_0_duckdb_2.md`. Reúne además la 5.16 a la 5.19, que no se publicaron por separado: la última versión publicada era la 5.15.1.

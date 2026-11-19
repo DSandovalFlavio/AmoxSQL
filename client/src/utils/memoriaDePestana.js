@@ -115,6 +115,21 @@ export function leerDatosDeGrafico(tabId, consulta) {
     return d && d.consulta === consulta ? d.filas : null;
 }
 
+/**
+ * Lo que un cuaderno tiene en memoria y no en el archivo (6.0.1): sus celdas con
+ * sus ids, los resultados y qué se ejecutó. El cuaderno sólo está montado
+ * mientras su pestaña es la activa; sin esto, cambiar de pestaña y volver
+ * dejaba todas las celdas en «Not run yet» aunque sus vistas siguieran vivas.
+ * Sólo se devuelve si el texto es el mismo: si el archivo cambió mientras
+ * tanto, los ids ya no corresponden a nada.
+ */
+const cuadernos = new Map();
+export const recordarCuaderno = (tabId, estado) => { if (tabId) cuadernos.set(tabId, estado); };
+export function cuadernoRecordado(tabId, contenido) {
+    const c = tabId ? cuadernos.get(tabId) : null;
+    return c && c.contenido === contenido ? c : null;
+}
+
 /** Suelta lo de las pestañas que ya no existen. */
 export function olvidarPestanas(vivas) {
     for (const [id, m] of modelos) {
@@ -125,6 +140,9 @@ export function olvidarPestanas(vivas) {
     }
     for (const id of datosDeGrafico.keys()) {
         if (!vivas.has(id)) datosDeGrafico.delete(id);
+    }
+    for (const id of cuadernos.keys()) {
+        if (!vivas.has(id)) cuadernos.delete(id);
     }
     for (const id of focos.keys()) {
         if (!vivas.has(id)) focos.delete(id);

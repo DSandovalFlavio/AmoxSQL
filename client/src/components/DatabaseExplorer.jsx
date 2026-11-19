@@ -19,7 +19,7 @@ import FuentesExplorador from './fuentes/FuentesExplorador';
 import OtrosProyectos from './OtrosProyectos';
 import DestinosDeEntrega from './fuentes/DestinosDeEntrega';
 import { VersionesDelLago, NuevoLago, ComoEstaba, esLago } from './lago/Lago';
-import { LuWaves, LuHistory as LuVersiones } from 'react-icons/lu';
+import { LuWaves, LuPuzzle, LuHistory as LuVersiones } from 'react-icons/lu';
 
 /**
  * Builds a schema-qualified name: "schema"."table" for non-main schemas, just "table" for main.
@@ -44,7 +44,7 @@ const displayName = (schema, tableName) => {
     return `${schema}.${tableName}`;
 };
 
-const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery, onQualityCheck, onOpenErDiagram }) => {
+const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery, onQualityCheck, onOpenErDiagram, onAbrirExtensiones }) => {
     const [schemas, setSchemas] = useState([]); // Array of { schema, tables: [...] }
     const [loading, setLoading] = useState(false);
     const [previewTable, setPreviewTable] = useState(null); // Simple preview
@@ -445,6 +445,11 @@ const DatabaseExplorer = ({ currentDb, onRefresh, onTablesLoaded, onSelectQuery,
                     <button className="db-header-btn" onClick={() => setNuevoLago(true)} title="New lake… (DuckLake: every change is a version)">
                         <LuWaves size={14} />
                     </button>
+                    {onAbrirExtensiones && (
+                        <button className="db-header-btn" onClick={onAbrirExtensiones} title="Extensions: install and load DuckDB extensions">
+                            <LuPuzzle size={14} />
+                        </button>
+                    )}
                     <button className="db-header-btn" onClick={fetchSchemas} title="Refresh">
                         <LuRefreshCw size={14} />
                     </button>

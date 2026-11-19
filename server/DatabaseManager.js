@@ -370,6 +370,21 @@ class DatabaseManager {
         }
     }
 
+    /**
+     * Montar una instancia nueva y volver a abrir la misma base (6.0.1): lo que
+     * sólo se puede decidir al crear la instancia —permitir extensiones sin
+     * firma— necesita un motor nuevo. Se pierde lo temporal de la sesión (vistas
+     * de los cuadernos, macros TEMP vuelven por `ponerSesion`); la base, el modo
+     * de lectura y las extensiones recordadas vuelven.
+     */
+    async reiniciarConLaMismaBase() {
+        const ruta = this.attachedPath;
+        const readOnly = !!this._readOnly;
+        await this.reinitializeSystem();
+        if (ruta) await this.connect(ruta, '', { readOnly });
+        await this.warmExtensions();
+    }
+
     async connect(dbPath, rootDir, options = {}) {
         registrador.info(`[DB Manager] Request to attach: ${dbPath}`);
         // Una sesion nueva olvida lo que estuviera prestado (dbt): no se recupera.

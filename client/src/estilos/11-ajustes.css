@@ -1499,3 +1499,7 @@
 }
 .stg-theme-card--marca .stg-theme-preview { height: 72px; }
 .stg-theme-card--marca .stg-theme-card-label { font-size: var(--text-sm); }
+
+/* Help › Story Flow: la galería (6.0.1) */
+.stg-section-mt { margin-top: 24px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.stg-nota-ayuda { font-size: var(--text-xs); margin: 0; }

@@ -22,13 +22,13 @@ Siete entradas que cambian el contenido del panel lateral (desde la 6.0; antes e
 |---|---|
 | **Files** | El [explorador de archivos](../data/file-explorer.md) del proyecto. **+ New** crea cualquier tipo de archivo o una carpeta; **…** ordena la lista |
 | **Search** | Buscar en todo el proyecto |
-| **Data** | El [explorador de base de datos](../data/database-explorer.md): fuentes, destinos, esquemas y tablas. Abajo, plegadas, las [extensiones de DuckDB](../data/duckdb-extensions.md) |
+| **Data** | El [explorador de base de datos](../data/database-explorer.md): fuentes, destinos, esquemas y tablas. Las [extensiones de DuckDB](../data/duckdb-extensions.md) se abren con la pieza de su cabecera o con «Extensions» abajo, y ocupan el panel entero; «← Data» vuelve a las tablas |
 | **Library** | Cuatro pestañas: **Snippets** ([fragmentos SQL](../editor/snippets.md) y variables del proyecto), **Functions** (referencia de funciones), **History** ([historial](../editor/history-and-bookmarks.md)) y **Saved** ([análisis guardados](../ai/analysis-vault.md)). Se abre en la última que usaste |
 | **dbt** | [DBT Studio](../dbt/dbt-studio.md). Sólo aparece si la carpeta tiene `dbt_project.yml` |
 | **Git** | Estado de Git del proyecto. Sólo aparece si la carpeta es un repositorio |
 | **Deep Dive** | [Análisis agéntico profundo](../ai/deep-dive.md) |
 
-Abajo: plegar el panel lateral (**Ctrl+B**) y **Ajustes**. La **galería de gráficos** y **New Data Flow** ya no están en la barra: son acciones, y siguen en el «+» de las pestañas, en la pantalla de un archivo nuevo y en la paleta (**Ctrl+K**). Desde la paleta también se llega directo a cada panel (por ejemplo «Show Query History», o «Show DBT Studio» aunque la carpeta todavía no sea de dbt).
+Abajo: plegar el panel lateral (**Ctrl+B**) y **Ajustes**. **New Data Flow** ya no está en la barra: está en el «+» de las pestañas, en la pantalla de un archivo nuevo y en la paleta (**Ctrl+K**). La **galería de gráficos** está en **Help › Story Flow** (**Ctrl+Shift+/**) y en la paleta («Open Chart Gallery»). Desde la paleta también se llega directo a cada panel (por ejemplo «Show Query History», o «Show DBT Studio» aunque la carpeta todavía no sea de dbt).
 
 Si prefieres ver el nombre bajo cada icono: **Ajustes → Appearance → Activity Bar → Show names under the icons**. Los atajos no cambiaron (**Ctrl+Shift+E** archivos, **Ctrl+Shift+F** buscar, **Ctrl+Shift+D** datos).
 

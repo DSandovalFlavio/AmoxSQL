@@ -21,9 +21,9 @@
  * Los **parámetros** viven en la cabecera del archivo. Se ven los que el
  * cuaderno usa de verdad y los que declara, que no siempre son los mismos.
  */
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import {
-    LuLayers, LuDatabase, LuRotateCw, LuCircleAlert, LuPlus, LuTrash2, LuHistory,
+    LuLayers, LuDatabase, LuRotateCw, LuCircleAlert, LuPlus, LuTrash2, LuHistory, LuChevronRight,
 } from 'react-icons/lu';
 
 const Barra = ({
@@ -44,6 +44,9 @@ const Barra = ({
         (v) => v.viva && ['cambiada', 'arriba'].includes(frescuras?.get(v.celda)),
     ).length;
     const sinDeclarar = usados.filter((u) => !nombresDeclarados.includes(u));
+    // 6.0.1 (U3): lo de otros cuadernos, plegado. Abierto, quien empieza leía
+    // vistas que no hizo como si fueran suyas.
+    const [ajenasAbiertas, setAjenasAbiertas] = useState(false);
 
     return (
         <div className="cdn-lado">
@@ -144,11 +147,18 @@ const Barra = ({
                 cuaderno se puede consultar desde aquí igual de bien. */}
             {vistas.ajenas.length > 0 && (
                 <>
-                    <div className="cdn-seccion cdn-seccion--sub">
+                    <button
+                        type="button"
+                        className={`cdn-seccion cdn-seccion--sub cdn-seccion--plegable${ajenasAbiertas ? ' cdn-seccion--abierta' : ''}`}
+                        onClick={() => setAjenasAbiertas((v) => !v)}
+                        aria-expanded={ajenasAbiertas}
+                        title="Views and tables created outside this notebook (a .sql file, another notebook)"
+                    >
+                        <LuChevronRight size={11} className="cdn-seccion-flecha" />
                         Also in the session <span className="cdn-sp" />
                         <span className="cdn-n">{vistas.ajenas.length}</span>
-                    </div>
-                    <div className="cdn-indice">
+                    </button>
+                    {ajenasAbiertas && <div className="cdn-indice">
                         {vistas.ajenas.map((v) => (
                             <span
                                 key={v.nombre}
@@ -159,7 +169,7 @@ const Barra = ({
                                 <span className="cdn-vista-n">{v.nombre}</span>
                             </span>
                         ))}
-                    </div>
+                    </div>}
                 </>
             )}
 

@@ -221,8 +221,20 @@
   min-height: 0;
 }
 .sidebar-seccion-plegable--abierta {
-  flex: 0 1 45%;
+  flex: 1 1 auto;
+  border-top: none;
 }
+/* Abierta, la cabecera es la vuelta a Data: se lee como un enlace, no como una etiqueta. */
+.sidebar-seccion-plegable--abierta .sidebar-seccion-plegable__cabecera {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium, 500);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.sidebar-relleno { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.sidebar-oculto { display: none; }
 .sidebar-seccion-plegable__cabecera {
   display: flex;
   align-items: center;

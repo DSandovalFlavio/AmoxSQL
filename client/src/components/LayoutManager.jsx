@@ -14,6 +14,7 @@ import { DECK_STARTER_TEMPLATE } from '../utils/deckParser';
 import { conMarcaDeck, conMarcaGrafico } from './workspaces/marca';
 import { DIAGRAMA_INICIAL } from './diagram/diagramFile';
 import { escribirLienzo } from '../utils/lienzoFile';
+import { escribirCuaderno, CUADERNO_INICIAL } from '../utils/cuadernoFile';
 import { fusionar, envoltorio, MOTIVOS } from './diagram/diagramMerge';
 import { bloquesCercados } from './markdown/fencedBlocks';
 import { invalidateSchema } from '../state/sidebarCache';
@@ -29,7 +30,7 @@ import { crearCola, marcaAlTerminar } from '../utils/colaDeEjecucion';
 import { olvidarPestanas, editorDe, focoDe, aplicadorDe } from '../utils/memoriaDePestana';
 import { aplicarRango, describirRango } from './ai/archivos/rango.js';
 import { cargarVariables, guardarVariables, aBarra, deBarra } from '../utils/variablesProyecto';
-import { emitir } from '../eventos.js';
+import { emitir } from '../eventos.js';
 import { nombreNuevo, tieneNombreNumerado } from '../utils/nombresDePestana';
 
 /**
@@ -1449,7 +1450,9 @@ const LayoutManager = forwardRef(({ projectPath, theme, editorLayout, editorSett
                 : nombreNuevo('sql', nombresAbiertos()),
             type: normalizedType,
             content: initialContent || (normalizedType === 'sqlnb'
-                ? '-- !CELL:MARKDOWN!\n-- # New Notebook\n\n-- !CELL:CODE!\nSELECT 1;'
+                // 6.0.1 (U1): en el formato de hoy y con una sola celda de SQL vacía; el
+                // título es el del documento, no una celda «# New Notebook» que competía con él.
+                ? escribirCuaderno(CUADERNO_INICIAL)
                 : normalizedType === 'sqlchain'
                 ? JSON.stringify({ version: '1.0', name: 'New Chain', description: '', nodes: [], edges: [], variables: {} }, null, 2)
                 : normalizedType === 'md' ? '# New Markdown File\n\nWrite your notes here...'

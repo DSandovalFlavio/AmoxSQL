@@ -41,6 +41,8 @@ AmoxSQL is built to be driven from the keyboard. This page lists every available
 | Ctrl + Shift + H | Query history |
 | Ctrl + Shift + R | Run both split panes |
 | Ctrl + Shift + Enter | Run all cells |
+| Shift + Enter | Notebook: run the cell and go to the next one |
+| Alt + Enter | Notebook: run the cell and insert one below |
 
 ## Tabs
 

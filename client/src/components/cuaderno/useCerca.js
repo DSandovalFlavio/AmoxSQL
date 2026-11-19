@@ -77,3 +77,41 @@ export function useCerca(ref, siempre = false) {
     // observador desconectado, que es lo unico que podia encenderla.
     return cerca || siempre;
 }
+
+/**
+ * Apaga el dibujo de lo que queda lejos (6.0.1).
+ *
+ * Una celda montada sigue costando aunque no se vea: cada vez que cambia el
+ * ancho del cuaderno —abrir o cerrar la barra lateral, mover un divisor— el
+ * navegador vuelve a maquetar sus tablas, y diez celdas son ~55 ms por
+ * fotograma. Lejos de la vista se le pone `data-lejos` y el CSS le da
+ * `content-visibility: hidden`: el navegador se salta su maquetación y su
+ * pintado, y **conserva todo lo que tiene dentro** —editor, tabla, gráfico—,
+ * así que al volver no se reconstruye nada. Tampoco es virtualizar: la celda
+ * sigue montada y su hueco mide lo mismo (el alto se fija con lo último
+ * medido, que llega gratis en la entrada del observador).
+ *
+ * Sólo lejos y no `auto`: `content-visibility: auto` contiene también la
+ * celda que se ve, y eso recortaría los menús flotantes de la tabla y el
+ * autocompletado del editor.
+ *
+ * Se toca el DOM y no el estado: así ninguna celda se vuelve a pintar en
+ * React por entrar o salir de la vista.
+ */
+export function useLejos(ref) {
+    useEffect(() => {
+        const el = ref.current;
+        if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+        const obs = new IntersectionObserver(([e]) => {
+            if (e.isIntersecting) {
+                delete el.dataset.lejos;
+            } else {
+                const alto = Math.round(e.boundingClientRect.height);
+                if (alto > 0) el.style.containIntrinsicSize = `auto ${alto}px`;
+                el.dataset.lejos = '';
+            }
+        }, { rootMargin: '100% 0px' });
+        obs.observe(el);
+        return () => { obs.disconnect(); delete el.dataset.lejos; };
+    }, [ref]);
+}

@@ -17,12 +17,37 @@
  * que vuelve en un instante sigue saliendo bien. La espera larga, para una caída
  * de minutos, es la de AmoxSQL (`ejecucion/reintentos.js`, Dec-43).
  */
+const fs = require('fs');
+const path = require('path');
 const { DuckDBInstance } = require('@duckdb/node-api');
+const { homeAmox } = require('./rutas');
 
 const OPCIONES = { enable_external_file_cache: 'false', http_retry_backoff: '1.5' };
 
-function crearInstancia(ruta = ':memory:') {
-    return DuckDBInstance.create(ruta, OPCIONES);
+/**
+ * Extensiones sin firma (6.0.1): una extensión propia (compilada por el usuario,
+ * o de un repositorio que no es el oficial ni el community) sólo se puede cargar
+ * si la instancia NACE con `allow_unsigned_extensions`; el motor no deja cambiarlo
+ * después. Apagado por defecto; se enciende en el panel Extensions y vive en
+ * `config.json → extensionesSinFirma`. Se lee aquí, del archivo, en cada
+ * instancia: así lo heredan también los contextos de Data Flow, las ejecuciones
+ * programadas y la línea de comandos, que no pasan por el mismo proceso.
+ */
+function permiteSinFirma() {
+    try {
+        const cfg = JSON.parse(fs.readFileSync(path.join(homeAmox(), 'config.json'), 'utf8'));
+        return cfg?.extensionesSinFirma === true;
+    } catch {
+        return false;
+    }
 }
 
-module.exports = { crearInstancia, OPCIONES };
+function opciones() {
+    return permiteSinFirma() ? { ...OPCIONES, allow_unsigned_extensions: 'true' } : OPCIONES;
+}
+
+function crearInstancia(ruta = ':memory:') {
+    return DuckDBInstance.create(ruta, opciones());
+}
+
+module.exports = { crearInstancia, OPCIONES, opciones, permiteSinFirma };
