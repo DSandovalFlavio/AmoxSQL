@@ -18,11 +18,11 @@
 const fs = require('fs');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
-const { carpetaDelEntornoPropio, versionDelMotor } = require('./correr');
+const { carpetaDelEntornoPropio, carpetaDelEntornoEnUso, versionDelMotor } = require('./correr');
 
 const WIN = process.platform === 'win32';
 
-/** Las versiones con las que se crea (comprobadas juntas en la fase 0 de la 6.0, con duckdb 2.0.0). */
+/** Las versiones con las que se crea (comprobadas juntas en la fase 0 de la 6.0, con duckdb 2.0.0; desde la 6.0.2 el motor es 2.0.1). */
 function versionesFijas() {
     return { 'dbt-core': '1.12.6', 'dbt-duckdb': '1.11.0', duckdb: versionDelMotor() };
 }
@@ -70,7 +70,8 @@ const dbtDe = (carpeta) => (WIN ? path.join(carpeta, 'Scripts', 'dbt.exe') : pat
 
 /** ¿Está creado el de AmoxSQL para el motor de hoy? */
 function estado() {
-    const carpeta = carpetaDelEntornoPropio();
+    // El que se usa: puede ser uno de la misma serie montado con un motor anterior (6.0.2).
+    const carpeta = carpetaDelEntornoEnUso();
     const nota = (() => { try { return JSON.parse(fs.readFileSync(path.join(carpeta, 'amoxsql.json'), 'utf8')); } catch { return null; } })();
     const existe = fs.existsSync(dbtDe(carpeta)) && !!nota?.listo;
     return { existe, carpeta, versiones: nota?.versiones || versionesFijas(), creado: nota?.creado || null, python: nota?.python || null };

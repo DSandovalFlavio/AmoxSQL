@@ -5,6 +5,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [6.0.2] — 2026-11-25 — DuckDB 2.0.1
+
+### Cambiado
+- **El motor pasa a DuckDB 2.0.1**, la versión de mantenimiento de la 2.0: arreglos del motor, sin cambios de formato. Las bases de la 6.0 se abren igual y no hay nada que convertir. El entorno de dbt que crea **Set up dbt…** instala `duckdb` 2.0.1 para seguir siendo la misma versión que el motor de AmoxSQL (uno ya creado con la 2.0.0 sigue usándose mientras no se cree el de la 2.0.1: una versión de mantenimiento no cambia el formato de los archivos, y antes subir el motor dejaba a dbt sin entorno hasta volver a pulsar **Set up dbt…**).
+
+### Arreglado
+- **El Assistant podía quedarse sin conversaciones toda la sesión** («Table with name conversations does not exist») si se abría una base justo al arrancar con la máquina ocupada: la preparación de sus tablas al arrancar y la de la base que se abría se pisaban sobre la misma conexión. Ahora van en fila.
+- **Leyendo un Markdown, la ventana caía con «The window ran into a problem»** (React #31) al pasar el ratón por un enlace a un `.sql` que no se encontraba: la vista previa guardaba el error como objeto y lo pintaba como texto. Ahora dice «x.sql was not found in the project».
+- **Los enlaces de un documento se buscan primero desde su carpeta**, como en cualquier visor de Markdown (`vecino.sql`, `../queries/x.sql`); después desde la raíz del proyecto, así que los documentos escritos así siguen funcionando. Uno que empieza por `/` es de la raíz. Antes sólo se buscaban desde la raíz, y en un documento dentro de una subcarpeta casi ningún enlace relativo se encontraba (ni en la vista previa ni al hacer clic).
+
 ## [6.0.1] — 2026-11-18 — El cuaderno se escribe de corrido
 
 ### Nuevo

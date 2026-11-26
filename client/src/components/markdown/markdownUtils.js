@@ -112,3 +112,31 @@ export function isExternalHref(href) {
 export function cleanRelPath(href) {
     return (href || '').replace(/^(\.\/|\/)/, '').split('#')[0];
 }
+
+/**
+ * Dónde puede estar el archivo de un enlace de un documento (6.0.2), en orden.
+ *
+ * Un enlace relativo (`consultas/x.sql`, `../x.sql`) es relativo a la carpeta
+ * del documento, como en cualquier visor de Markdown: primero se busca ahí.
+ * Hasta la 6.0.1 sólo se buscaba desde la raíz del proyecto, y los documentos
+ * escritos así siguen funcionando porque la raíz va después. Uno que empieza
+ * por `/` es de la raíz y sólo de la raíz. Rutas del proyecto, con `/`, sin
+ * `..` que salgan de él.
+ */
+export function rutasDeEnlace(href, baseDir = '') {
+    const limpio = (href || '').split('#')[0];
+    if (!limpio) return [];
+    const normalizar = (ruta) => {
+        const partes = [];
+        for (const seg of ruta.replace(/\\/g, '/').split('/')) {
+            if (seg === '' || seg === '.') continue;
+            if (seg === '..') { if (!partes.length) return null; partes.pop(); continue; }
+            partes.push(seg);
+        }
+        return partes.join('/') || null;
+    };
+    if (limpio.startsWith('/')) return [normalizar(limpio)].filter(Boolean);
+    const base = (baseDir || '').replace(/\\/g, '/');
+    const candidatas = [base ? normalizar(`${base}/${limpio}`) : null, normalizar(limpio)];
+    return [...new Set(candidatas.filter(Boolean))];
+}

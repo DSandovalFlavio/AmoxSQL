@@ -106,6 +106,29 @@ function carpetaDelEntornoPropio(version = versionDelMotor()) {
     return path.join(homeAmox(), 'entornos', `dbt-${version || 'motor'}`);
 }
 
+/**
+ * La carpeta del entorno de AmoxSQL que se USA (6.0.2). La del motor de hoy si
+ * ya está montada; si no, la más nueva de la misma serie (2.0.x para un motor
+ * 2.0.y): una versión de mantenimiento no cambia el formato de los archivos, y
+ * subir el motor de 2.0.0 a 2.0.1 no debe dejar sin dbt a quien ya lo montó.
+ * «Set up dbt…» sigue creando la de la versión exacta (`carpetaDelEntornoPropio`).
+ */
+function carpetaDelEntornoEnUso(version = versionDelMotor()) {
+    const exacta = carpetaDelEntornoPropio(version);
+    if (fs.existsSync(ejecutableEn(exacta, 'dbt'))) return exacta;
+    const serie = /^(\d+)\.(\d+)\.(\d+)$/.exec(version || '');
+    if (!serie) return exacta;
+    const raiz = path.join(homeAmox(), 'entornos');
+    let nombres = [];
+    try { nombres = fs.readdirSync(raiz); } catch { return exacta; }
+    const mejor = nombres
+        .map((n) => ({ n, m: /^dbt-(\d+)\.(\d+)\.(\d+)$/.exec(n) }))
+        .filter(({ m }) => m && m[1] === serie[1] && m[2] === serie[2])
+        .filter(({ n }) => fs.existsSync(ejecutableEn(path.join(raiz, n), 'dbt')))
+        .sort((a, b) => Number(b.m[3]) - Number(a.m[3]))[0];
+    return mejor ? path.join(raiz, mejor.n) : exacta;
+}
+
 const ejecutableEn = (carpeta, nombre) => (WIN ? path.join(carpeta, 'Scripts', `${nombre}.exe`) : path.join(carpeta, 'bin', nombre));
 const pythonEn = (carpeta) => (WIN ? (fs.existsSync(path.join(carpeta, 'python.exe')) ? path.join(carpeta, 'python.exe') : path.join(carpeta, 'Scripts', 'python.exe')) : path.join(carpeta, 'bin', 'python'));
 
@@ -140,7 +163,7 @@ function comandoDeEntorno(entorno) {
     const e = entorno || { tipo: 'sistema' };
     if (e.tipo === 'directo') return { exe: e.exe, pre: e.pre || [], env: {}, python: e.python || null, descripcion: 'test' };
     if (e.tipo === 'amoxsql' || e.tipo === 'python') {
-        const carpeta = e.tipo === 'amoxsql' ? carpetaDelEntornoPropio(e.version) : e.ruta;
+        const carpeta = e.tipo === 'amoxsql' ? (e.version ? carpetaDelEntornoPropio(e.version) : carpetaDelEntornoEnUso()) : e.ruta;
         if (!carpeta) throw new ErrorDeDbt('The project points to a Python environment without a folder. Choose the dbt environment again in DBT Studio.');
         const exe = ejecutableEn(carpeta, 'dbt');
         if (!fs.existsSync(exe)) {
@@ -281,5 +304,5 @@ async function comprobarEntorno(entorno, { espera = 30000 } = {}) {
 
 module.exports = {
     ErrorDeDbt, ACCIONES, analizarComando, partir, textoDe, escribe,
-    versionDelMotor, carpetaDelEntornoPropio, entornoDelProyecto, comandoDeEntorno, correr, comprobarEntorno,
+    versionDelMotor, carpetaDelEntornoPropio, carpetaDelEntornoEnUso, entornoDelProyecto, comandoDeEntorno, correr, comprobarEntorno,
 };
