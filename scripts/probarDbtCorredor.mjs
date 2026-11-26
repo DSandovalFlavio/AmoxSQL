@@ -151,6 +151,23 @@ try {
     r = await corredor.correr({ raiz: PR, args: ['run'], alLinea: (l) => lineas.push(l) });
     comprobar('sin entorno en la llamada, el del proyecto', r.codigo === 0 && lineas.some(l => l.texto.startsWith('ARGS ')));
     comprobar('el de AmoxSQL vive en <home>/entornos/dbt-<motor>', corredor.carpetaDelEntornoPropio('1.5.6') === path.join(HOME, 'entornos', 'dbt-1.5.6'));
+    {
+        // 6.0.2: con el motor 2.0.1, el entorno montado con la 2.0.0 sigue valiendo.
+        const montar = (ver) => {
+            const d = path.join(HOME, 'entornos', `dbt-${ver}`, process.platform === 'win32' ? 'Scripts' : 'bin');
+            fs.mkdirSync(d, { recursive: true });
+            fs.writeFileSync(path.join(d, process.platform === 'win32' ? 'dbt.exe' : 'dbt'), '');
+        };
+        const en = (ver) => path.join(HOME, 'entornos', `dbt-${ver}`);
+        comprobar('sin ninguno montado, la carpeta exacta (y el error de siempre)', corredor.carpetaDelEntornoEnUso('7.1.3') === en('7.1.3'));
+        montar('7.1.0'); montar('7.1.2'); montar('7.0.9'); montar('8.1.5');
+        comprobar('si falta la exacta, la más nueva de la misma serie', corredor.carpetaDelEntornoEnUso('7.1.3') === en('7.1.2'));
+        montar('7.1.3');
+        comprobar('la exacta, si está', corredor.carpetaDelEntornoEnUso('7.1.3') === en('7.1.3'));
+        comprobar('otra serie no vale', corredor.carpetaDelEntornoEnUso('7.2.0') === en('7.2.0'));
+        comprobar('crear sigue apuntando a la exacta', corredor.carpetaDelEntornoPropio('7.1.4') === en('7.1.4'));
+        fs.rmSync(path.join(HOME, 'entornos'), { recursive: true, force: true });
+    }
     const v = entorno.versionesFijas();
     comprobar('con el MISMO motor que AmoxSQL', v.duckdb === require(path.join(RAIZ, 'node_modules/@duckdb/node-api/package.json')).version.replace(/-.*$/, '') && !!v['dbt-core'] && !!v['dbt-duckdb'], JSON.stringify(v));
     comprobar('Python 3.11–3.13 sí (duckdb 2 pide 3.11); 3.10, 3.14 y 3.9 no', entorno.admitida([3, 13]) && entorno.admitida([3, 11]) && !entorno.admitida([3, 10]) && !entorno.admitida([3, 14]) && !entorno.admitida([3, 9]));

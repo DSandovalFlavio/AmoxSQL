@@ -61,7 +61,19 @@ class AiPersistence {
      *
      * @param {object} dbManager - DatabaseManager instance
      */
-    async initSchema(dbManager) {
+    initSchema(dbManager) {
+        // 6.0.2: EN FILA. La del arranque va sin esperar (index.js) y la de abrir
+        // una base llega enseguida; las dos sobre la misma conexión se pisaban: una
+        // dejaba la transacción abortada y las tablas no se creaban en la base
+        // abierta (el Assistant fallaba con «Table with name conversations does
+        // not exist» toda la sesión). Se vio con la máquina cargada (pnpm test).
+        const previa = this._initEnCurso || Promise.resolve();
+        const esta = previa.catch(() => {}).then(() => this._initSchema(dbManager));
+        this._initEnCurso = esta;
+        return esta;
+    }
+
+    async _initSchema(dbManager) {
         try {
             await aiLane(dbManager).systemQuery(`CREATE SCHEMA IF NOT EXISTS amoxsql_ai`);
 

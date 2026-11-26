@@ -1,7 +1,7 @@
 {
   "name": "amoxsql",
   "license": "SEE LICENSE IN LICENSE",
-  "version": "6.0.1",
+  "version": "6.0.2",
   "description": "The Modern Codex for Local Data Analysis",
   "author": {
     "name": "Flavio Sandoval",
@@ -24,7 +24,7 @@
     "@ai-sdk/google": "^3.0.53",
     "@ai-sdk/google-vertex": "^3.0.137",
     "@ai-sdk/openai": "^3.0.58",
-    "@duckdb/node-api": "2.0.0-r.1",
+    "@duckdb/node-api": "2.0.1-r.1",
     "@google/generative-ai": "^0.24.1",
     "ai": "^6.0.137",
     "ai-sdk-ollama": "^3.8.2",
