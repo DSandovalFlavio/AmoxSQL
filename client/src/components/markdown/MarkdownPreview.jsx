@@ -20,7 +20,7 @@ import {
     LuMaximize2, LuX, LuCopy, LuCheck, LuInfo, LuTriangleAlert, LuLightbulb,
     LuOctagonAlert, LuCircleAlert, LuZoomIn, LuZoomOut, LuRotateCcw, LuFileCode2, LuEye, LuShare2,
 } from 'react-icons/lu';
-import { nodeToText, remarkAlerts, isExternalHref, cleanRelPath, INTERNAL_LINK_RE } from './markdownUtils';
+import { nodeToText, remarkAlerts, isExternalHref, cleanRelPath, rutasDeEnlace, INTERNAL_LINK_RE } from './markdownUtils';
 import { isLightTheme } from '../../theme.js';
 
 // ── Fullscreen zoom/pan viewer (portal) ─────────────────────────────────────
@@ -226,7 +226,23 @@ const ALERT_META = {
 };
 
 // ── File link with hover preview + open-in-app ──────────────────────────────
-function FileLink({ href, children, onOpenFile }) {
+/**
+ * El primer sitio donde el archivo de un enlace existe (6.0.2), con su
+ * contenido; null si en ninguno. Ver `rutasDeEnlace`.
+ */
+async function leerEnlace(href, baseDir) {
+    for (const ruta of rutasDeEnlace(href, baseDir)) {
+        try {
+            const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(ruta)}`);
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data && !data.error && typeof data.content === 'string') return { ruta, content: data.content };
+        } catch { /* la siguiente */ }
+    }
+    return null;
+}
+
+function FileLink({ href, children, onOpenFile, baseDir }) {
     const [showPopover, setShowPopover] = useState(false);
     const [previewContent, setPreviewContent] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -240,9 +256,8 @@ function FileLink({ href, children, onOpenFile }) {
         if (previewContent || loading) return;
         setLoading(true);
         try {
-            const res = await fetch(`${API_BASE}/api/file?path=${encodeURIComponent(cleanRelPath(href))}`);
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
+            const data = await leerEnlace(href, baseDir);
+            if (!data) throw new Error('not found');
             if (isSql) {
                 const lines = data.content.split('\n');
                 setPreviewContent(lines.slice(0, 20).join('\n') + (lines.length > 20 ? '\n...' : ''));
@@ -250,16 +265,21 @@ function FileLink({ href, children, onOpenFile }) {
                 setPreviewContent(JSON.parse(data.content));
             }
         } catch {
-            setPreviewContent({ error: 'Failed to load preview' });
+            // 6.0.2: lo que se guarda aquí se pinta como texto; un objeto tiraba
+            // la ventana entera (React #31) al pasar por un enlace roto.
+            setPreviewContent({ error: `${href.split('#')[0]} was not found in the project.` });
         } finally {
             setLoading(false);
         }
     };
 
-    const handleClick = (e) => {
+    const handleClick = async (e) => {
         if (isInternal && onOpenFile) {
             e.preventDefault();
-            onOpenFile(cleanRelPath(href));
+            // El que existe; si ninguno, el de la carpeta del documento (el
+            // editor dirá que no está).
+            const hallado = await leerEnlace(href, baseDir);
+            onOpenFile(hallado?.ruta || rutasDeEnlace(href, baseDir)[0] || cleanRelPath(href));
         } else if (isExternalHref(href)) {
             e.preventDefault();
             if (window.electronAPI?.openExternal) window.electronAPI.openExternal(href);
@@ -280,7 +300,7 @@ function FileLink({ href, children, onOpenFile }) {
                     <span style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-active)', display: 'flex', alignItems: 'center', gap: 6 }}>
                         {isSql ? <LuFileCode2 size={14} /> : <LuEye size={14} />} Preview: {href.split('/').pop()}
                     </span>
-                    {loading ? <span style={{ opacity: 0.7, display: 'block' }}>Loading preview...</span> : isSql ? (
+                    {loading ? <span style={{ opacity: 0.7, display: 'block' }}>Loading preview...</span> : isSql && typeof previewContent === 'string' ? (
                         <span style={{ margin: 0, padding: 8, background: 'var(--surface-base)', borderRadius: 4, fontSize: 11, fontFamily: 'var(--font-mono)', border: '1px solid var(--border-default)', display: 'block', whiteSpace: 'pre-wrap' }}>
                             {previewContent}
                         </span>
@@ -421,7 +441,7 @@ const MarkdownPreview = ({ content, theme, onOpenFile, widthMode = 'compact', bo
     }, [filePath]);
 
     const components = useMemo(() => ({
-        a: (p) => <FileLink {...p} onOpenFile={onOpenFile} />,
+        a: (p) => <FileLink {...p} onOpenFile={onOpenFile} baseDir={baseDir} />,
         img: (p) => <ZoomableImage {...p} baseDir={baseDir} />,
         li: (p) => <TaskItem {...p} onToggleTask={onToggleTask} />,
         h1: makeHeading(1, taskProgress), h2: makeHeading(2, taskProgress), h3: makeHeading(3, taskProgress),

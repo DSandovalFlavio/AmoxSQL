@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 
 ---
 
+## [Unreleased] — 6.0.2
+
+### Arreglado
+- **Leyendo un Markdown, la ventana caía con «The window ran into a problem»** (React #31) al pasar el ratón por un enlace a un `.sql` que no se encontraba: la vista previa guardaba el error como objeto y lo pintaba como texto. Ahora dice «x.sql was not found in the project».
+- **Los enlaces de un documento se buscan primero desde su carpeta**, como en cualquier visor de Markdown (`vecino.sql`, `../queries/x.sql`); después desde la raíz del proyecto, así que los documentos escritos así siguen funcionando. Uno que empieza por `/` es de la raíz. Antes sólo se buscaban desde la raíz, y en un documento dentro de una subcarpeta casi ningún enlace relativo se encontraba (ni en la vista previa ni al hacer clic).
+
 ## [6.0.1] — 2026-11-18 — El cuaderno se escribe de corrido
 
 ### Nuevo
